@@ -40,6 +40,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+import filecmp
 from easybuild.tools import LooseVersion
 from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
@@ -280,6 +281,82 @@ class ToyBuildTest(EnhancedTestCase):
 
         # cleanup
         shutil.rmtree(tmpdir)
+
+    def test_toy_broken_copy_log_build_dir(self):
+        """
+        Test whether log files and the build directory are copied to a permanent location
+        after a failed installation.
+        """
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec_txt = re.sub(
+            r'toy-0\.0_fix-silly-typo-in-printf-statement\.patch',
+            r'toy-0.0_add-bug.patch',
+            toy_ec_txt
+        )
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-buggy.eb')
+        write_file(test_ec, test_ec_txt)
+
+        # set up subdirectories where stuff should go
+        tmpdir = os.path.join(self.test_prefix, 'tmp')
+        tmp_log_dir = os.path.join(self.test_prefix, 'tmp-logs')
+        failed_install_build_dirs_path = os.path.join(self.test_prefix, 'failed-install-build-dirs')
+        failed_install_logs_path = os.path.join(self.test_prefix, 'failed-install-logs')
+
+        extra_args = [
+            f'--failed-install-build-dirs-path={failed_install_build_dirs_path}',
+            f'--failed-install-logs-path={failed_install_logs_path}',
+            f'--tmp-logdir={tmp_log_dir}',
+        ]
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=test_ec, extra_args=extra_args, tmpdir=tmpdir,
+                                          verify=False, fails=True, verbose=False)
+
+        # find path to temporary log file
+        log_files = glob.glob(os.path.join(tmp_log_dir, '*.log'))
+        self.assertTrue(len(log_files) == 1, f"Expected exactly one log file, found {len(log_files)}: {log_files}")
+        log_file = log_files[0]
+
+        # check that log files were copied
+        saved_log_files = glob.glob(os.path.join(failed_install_logs_path, log_file))
+        self.assertTrue(len(saved_log_files) == 1, f"Unique copy of log file '{log_file}' made")
+        saved_log_file = saved_log_files[0]
+        self.assertTrue(filecmp.cmp(log_file, saved_log_file, shallow=False),
+                        f"Log file '{log_file}' copied successfully")
+
+        # check that build directories were copied
+        build_dir = self.test_buildpath
+        topdir = failed_install_build_dirs_path
+
+        app_build_dir = os.path.join(build_dir, 'toy', '0.0', 'system-system')
+        # pattern: <datestamp>-<timestamp>-<salt>
+        subdir_pattern = '????????-??????-?????'
+
+        # find path to toy.c
+        toy_c_files = glob.glob(os.path.join(app_build_dir, '**', 'toy.c'))
+        self.assertTrue(len(toy_c_files) == 1, f"Exactly one toy.c file found: {toy_c_files}")
+        toy_c_file = toy_c_files[0]
+
+        path = os.path.join(topdir, 'toy-0.0', subdir_pattern, 'toy-0.0', os.path.basename(toy_c_file))
+        res = glob.glob(path)
+        self.assertTrue(len(res) == 1, f"Exactly one hit found for {path}: {res}")
+        copied_toy_c_file = res[0]
+        self.assertTrue(filecmp.cmp(toy_c_file, copied_toy_c_file, shallow=False),
+                        f"Copy of {toy_c_file} should be found under {topdir}")
+
+        # check whether compiler error messages are present in build log
+
+        # compiler error because of missing semicolon at end of line, could be:
+        # "error: expected ; before ..."
+        # "error: expected ';' after expression"
+        output_regexs = [r"^\s*toy\.c:5:44: error: expected (;|.;.)"]
+
+        log_txt = read_file(log_file)
+        for regex_pattern in output_regexs:
+            regex = re.compile(regex_pattern, re.M)
+            self.assertRegex(outtxt, regex)
+            self.assertRegex(log_txt, regex)
 
     def test_toy_tweaked(self):
         """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""

@@ -1657,6 +1657,52 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regex = re.compile(r" \* \[%s\] \S+%s \(module: %s\)" % (mark, ec, mod), re.M)
         self.assertTrue(regex.search(logtxt), "Found match for pattern %s in '%s'" % (regex.pattern, logtxt))
 
+    def test_persistence_copying_restrictions(self):
+        """
+        Test that EasyBuild fails when instructed to move logs or artifacts inside the build directory
+
+        Moving log files or artifacts inside the build directory modifies the build artifacts, and in the case of
+        build artifacts it is also copying directories into themselves.
+        """
+        base_args = [
+            'gzip-1.4-GCC-4.6.3.eb',
+            '--dry-run',
+            '--robot',
+        ]
+
+        def test_eb_with(option_flag, is_valid):
+            with tempfile.TemporaryDirectory() as root_dir:
+                build_dir = os.path.join(root_dir, 'build_dir')
+                if is_valid:
+                    persist_path = os.path.join(root_dir, 'persist_dir')
+                else:
+                    persist_path = os.path.join(root_dir, 'build_dir', 'persist_dir')
+
+                extra_args = [
+                    f"--buildpath={build_dir}",
+                    f"{option_flag}={persist_path}",
+                ]
+
+                pattern = rf"The {option_flag} \(.*\) cannot reside in a subdirectory of the --buildpath \(.*\)"
+
+                args = base_args
+                args.extend(extra_args)
+
+                if is_valid:
+                    try:
+                        self.eb_main(args, raise_error=True)
+                    except EasyBuildError:
+                        self.fail(
+                            "Should not fail with --buildpath='{build_dir}' and {option_flag}='{persist_path}'."
+                        )
+                else:
+                    self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, raise_error=True)
+
+        test_eb_with(option_flag='--failed-install-logs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-install-logs-path', is_valid=False)
+        test_eb_with(option_flag='--failed-install-build-dirs-path', is_valid=True)
+        test_eb_with(option_flag='--failed-install-build-dirs-path', is_valid=False)
+
     def test_missing(self):
         """Test use of --missing/-M."""
 
@@ -5440,7 +5486,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regex = re.compile(r"(?P<cfg_opt>\S*).*%s.*" % self.test_prefix, re.M)
 
-        expected = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'prefix', 'repositorypath']
+        expected = [
+            'buildpath',
+            'containerpath',
+            'installpath',
+            'packagepath',
+            'prefix',
+            'repositorypath',
+        ]
         self.assertEqual(sorted(regex.findall(txt)), expected)
 
     def test_dump_env_script(self):

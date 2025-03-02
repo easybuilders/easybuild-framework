@@ -603,6 +603,19 @@ def normalize_path(path):
     return start_slashes + os.path.sep.join(filtered_comps)
 
 
+def is_parent_path(path1, path2):
+    """
+    Return True if path1 is a prefix of path2
+
+    :param path1: absolute or relative path
+    :param path2: absolute or relative path
+    """
+    path1 = os.path.realpath(path1)
+    path2 = os.path.realpath(path2)
+    common_path = os.path.commonprefix([path1, path2])
+    return common_path == path1
+
+
 def is_alt_pypi_url(url):
     """Determine whether specified URL is already an alternative PyPI URL, i.e. whether it contains a hash."""
     # example: .../packages/5b/03/e135b19fadeb9b1ccb45eac9f60ca2dc3afe72d099f6bd84e03cb131f9bf/easybuild-2.7.0.tar.gz
@@ -3096,3 +3109,69 @@ def create_unused_dir(parent_folder, name):
     set_gid_sticky_bits(path, recursive=True)
 
     return path
+
+
+def get_first_non_existing_parent_path(path):
+    """
+    Get first directory that does not exist, starting at path and going up.
+    """
+    path = os.path.abspath(path)
+
+    non_existing_parent = None
+    while not os.path.exists(path):
+        non_existing_parent = path
+        path = os.path.dirname(path)
+
+    return non_existing_parent
+
+
+def create_non_existing_paths(paths, max_tries=10000):
+    """
+    Create directories with given paths (including the parent directories).
+    When a directory in the same location for any of the specified paths already exists,
+    then the suffix '_<i>' is appended , with i iteratively picked between 0 and (max_tries-1),
+    until an index is found so that all required paths are non-existing.
+    All created directories have the same suffix.
+
+    :param paths: list of directory paths to be created
+    :param max_tries: maximum number of tries before failing
+    """
+    paths = [os.path.abspath(p) for p in paths]
+    for idx_path, path in enumerate(paths):
+        for idx_parent, parent in enumerate(paths):
+            if idx_parent != idx_path and is_parent_path(parent, path):
+                raise EasyBuildError(f"Path '{parent}' is a parent path of '{path}'.")
+
+    first_non_existing_parent_paths = [get_first_non_existing_parent_path(p) for p in paths]
+
+    non_existing_paths = paths
+    all_paths_created = False
+    suffix = -1
+    while suffix < max_tries and not all_paths_created:
+        tried_paths = []
+        if suffix >= 0:
+            non_existing_paths = [f'{p}_{suffix}' for p in paths]
+        try:
+            for path in non_existing_paths:
+                tried_paths.append(path)
+                # os.makedirs will raise OSError if directory already exists
+                os.makedirs(path)
+            all_paths_created = True
+        except OSError as err:
+            # Distinguish between error due to existing folder and anything else
+            if not os.path.exists(tried_paths[-1]):
+                raise EasyBuildError("Failed to create directory %s: %s", tried_paths[-1], err)
+            remove(tried_paths[:-1])
+        except BaseException as err:
+            remove(tried_paths)
+            raise err
+        suffix += 1
+
+    if not all_paths_created:
+        raise EasyBuildError(f"Exceeded maximum number of attempts ({max_tries}) to generate non-existing paths")
+
+    # set group ID and sticky bits, if desired
+    for path in first_non_existing_parent_paths:
+        set_gid_sticky_bits(path, recursive=True)
+
+    return non_existing_paths

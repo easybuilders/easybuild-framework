@@ -48,6 +48,7 @@ import glob
 import inspect
 import json
 import os
+import random
 import re
 import stat
 import sys
@@ -57,6 +58,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
+from string import ascii_letters
 from textwrap import indent
 
 import easybuild.tools.environment as env
@@ -79,17 +81,19 @@ from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
-from easybuild.tools.config import build_option, build_path, get_log_filename, get_repository, get_repositorypath
+from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
+from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
-from easybuild.tools.filetools import compute_checksum, convert_name, copy_file, create_lock, create_patch_info
-from easybuild.tools.filetools import derive_alt_pypi_url, diff_files, dir_contains_files, download_file
-from easybuild.tools.filetools import encode_class_name, extract_file, find_backup_name_candidate
-from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_binary, is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, remove_lock, verify_checksum, weld_paths, write_file, symlink
+from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
+from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
+from easybuild.tools.filetools import dir_contains_files, download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
+from easybuild.tools.filetools import weld_paths, write_file
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
     MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
@@ -4438,6 +4442,54 @@ def print_dry_run_note(loc, silent=True):
     dry_run_msg(msg, silent=silent)
 
 
+def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig):
+    """
+    Copy build directories and log files for failed installation (if desired)
+    """
+    logs_path = get_failed_install_logs_path(easyconfig)
+    build_dirs_path = get_failed_install_build_dirs_path(easyconfig)
+
+    # there may be multiple log files, or the file name may be different due to zipping
+    logs = glob.glob(f"{application_log}*")
+
+    timestamp = time.strftime('%Y%m%d-%H%M%S')
+    salt = ''.join(random.choices(ascii_letters, k=5))
+    unique_subdir = f'{timestamp}-{salt}'
+
+    operation_args = []
+
+    if logs_path and logs:
+        logs_path = os.path.join(logs_path, unique_subdir)
+
+        if is_parent_path(app.builddir, logs_path):
+            msg = "Path to copy log files of failed installs to is subdirectory of build directory; not copying"
+            print_warning(msg, log=_log, silent=silent)
+        else:
+            msg = f"Log file(s) of failed installation copied to {logs_path}"
+            operation_args.append((copy_file, logs, logs_path, msg))
+
+    if build_dirs_path and os.path.isdir(app.builddir):
+        build_dirs_path = os.path.join(build_dirs_path, unique_subdir)
+
+        if is_parent_path(app.builddir, build_dirs_path):
+            msg = "Path to copy build dirs of failed installs to is subdirectory of build directory; not copying"
+            print_warning(msg, log=_log, silent=silent)
+        else:
+            msg = f"Build directory of failed installation copied to {build_dirs_path}"
+
+            def operation(src, dest):
+                copy_dir(src, dest, dirs_exist_ok=True)
+
+            operation_args.append((operation, [app.builddir], build_dirs_path, msg))
+
+    persistence_paths = create_non_existing_paths(target_path for (_, _, target_path, _) in operation_args)
+
+    for idx, (operation, paths, _, msg) in enumerate(operation_args):
+        for path in paths:
+            operation(path, persistence_paths[idx])
+        print_msg(msg, log=_log, silent=silent)
+
+
 def build_and_install_one(ecdict, init_env):
     """
     Build the software
@@ -4695,6 +4747,9 @@ def build_and_install_one(ecdict, init_env):
         # there may be multiple log files, or the file name may be different due to zipping
         logs = glob.glob('%s*' % application_log)
         print_msg("Results of the build can be found in the log file(s) %s" % ', '.join(logs), log=_log, silent=silent)
+
+    if not success:
+        copy_build_dirs_logs_failed_install(application_log, silent, app, ecdict['ec'])
 
     del app
 
