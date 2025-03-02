@@ -4430,6 +4430,9 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
     """
     Copy build directories and log files for failed installation (if desired)
     """
+    logs_path = get_failed_install_logs_path(easyconfig)
+    build_dirs_path = get_failed_install_build_dirs_path(easyconfig)
+
     # there may be multiple log files, or the file name may be different due to zipping
     logs = glob.glob(f"{application_log}*")
 
@@ -4439,48 +4442,28 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
 
     operation_args = []
 
-    logs_path = get_failed_install_logs_path(easyconfig)
-    if logs and logs_path:
+    if logs_path and logs:
         logs_path = os.path.join(logs_path, unique_subdir)
 
         if is_parent_path(app.builddir, logs_path):
-            print_warning(
-                "Path to copy log files of failed installs to is subdirectory of build directory; not copying",
-                log=_log,
-                silent=silent
-            )
+            msg = "Path to copy log files of failed installs to is subdirectory of build directory; not copying"
+            print_warning(msg, log=_log, silent=silent)
         else:
-            operation_args.append(
-                (
-                    copy_file,
-                    logs,
-                    logs_path,
-                    f"Log file(s) of failed installation copied to {logs_path}"
-                )
-            )
+            msg = f"Log file(s) of failed installation copied to {logs_path}"
+            operation_args.append((copy_file, logs, logs_path, msg))
 
-    build_dirs_path = get_failed_install_build_dirs_path(easyconfig)
     if build_dirs_path and os.path.isdir(app.builddir):
         build_dirs_path = os.path.join(build_dirs_path, unique_subdir)
 
         if is_parent_path(app.builddir, build_dirs_path):
-            print_warning(
-                "Path to copy build dirs of failed installs to is subdirectory of build directory; not copying",
-                log=_log,
-                silent=silent
-            )
+            msg = "Path to copy build dirs of failed installs to is subdirectory of build directory; not copying"
+            print_warning(msg, log=_log, silent=silent)
         else:
-            operation_args.append(
-                (
-                    lambda src, dest: copy_dir(src, dest, dirs_exist_ok=True),
-                    [app.builddir],
-                    build_dirs_path,
-                    f"Build directory of failed installation copied to {build_dirs_path}"
-                )
-            )
+            operation = lambda src, dest: copy_dir(src, dest, dirs_exist_ok=True)
+            msg = f"Build directory of failed installation copied to {build_dirs_path}"
+            operation_args.append((operation, [app.builddir], build_dirs_path, msg))
 
-    persistence_paths = [target_path for (_, _, target_path, _) in operation_args]
-    persistence_paths = create_non_existing_paths(persistence_paths)
+    persistence_paths = create_non_existing_paths(target_path for (_, _, target_path, _) in operation_args)
 
     for idx, (operation, paths, _, msg) in enumerate(operation_args):
         for path in paths:
