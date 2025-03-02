@@ -1659,44 +1659,31 @@ class EasyBlock(object):
         mod_lines = ['\n']
 
         if self.dry_run:
-            # Don't expand globs or do any filtering for dry run
             self.dry_run_msg("List of paths that would be searched and added to module file:\n")
             note = "note: glob patterns are not expanded and existence checks "
             note += "for paths are skipped for the statements below due to dry run"
             mod_lines.append(self.module_generator.comment(note))
 
-            for env_var, search_paths in env_var_requirements.items():
-                self.dry_run_msg(f" ${env_var}:{', '.join(search_paths)}")
-                mod_lines.append(
-                    self.module_generator.update_paths(
-                        env_var,
-                        search_paths,
-                        allow_abs=True,
-                        prepend=search_paths.mod_prepend,
-                        delim=search_paths.delimiter,
-                    )
-                )
-
-            self.dry_run_msg('')
-            return "".join(mod_lines)
-
         for env_var, search_paths in env_var_requirements.items():
-            mod_req_paths = [
-                expanded_path for unexpanded_path in search_paths
-                for expanded_path in self.expand_module_search_path(unexpanded_path, path_type=search_paths.type)
-            ]
+            if self.dry_run:
+                # Don't expand globs or do any filtering for dry run
+                mod_req_paths = search_paths
+                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+            else:
+                mod_req_paths = [
+                    expanded_path for unexpanded_path in search_paths
+                    for expanded_path in self.expand_module_search_path(unexpanded_path, path_type=search_paths.type)
+                ]
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
-                mod_lines.append(
-                    self.module_generator.update_paths(
-                        env_var,
-                        mod_req_paths,
-                        allow_abs=True,
-                        prepend=search_paths.mod_prepend,
-                        delim=search_paths.delimiter,
-                    )
-                )
+                extra_mod_lines = self.module_generator.update_paths(env_var, mod_req_paths, allow_abs=True,
+                                                                     prepend=search_paths.mod_prepend,
+                                                                     delim=search_paths.delimiter)
+                mod_lines.append(extra_mod_lines)
+
+        if self.dry_run:
+            self.dry_run_msg('')
 
         return ''.join(mod_lines)
 
