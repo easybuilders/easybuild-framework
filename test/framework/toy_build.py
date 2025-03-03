@@ -3031,7 +3031,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
-        rpath_regex = re.compile(r"RPATH.*" + libtoy_libdir, re.M)
+        rpath_regex = re.compile(r"\(RPATH\).*" + libtoy_libdir, re.M)
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"readelf -d {toyapp_bin}")
         self.assertTrue(rpath_regex.search(res.output),
