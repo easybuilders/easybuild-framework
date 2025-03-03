@@ -250,11 +250,7 @@ class ExtOption(CompleterOption):
                 'orig_default': copy.deepcopy(self.default),
             }
             self.action = 'callback'  # act as callback
-
-            if self.store_or in self.EXTOPTION_STORE_OR:
-                self.default = None
-            else:
-                self.log.raiseException("_set_attrs: unknown store_or %s" % self.store_or, exception=ValueError)
+            self.default = None
 
     def process(self, opt, value, values, parser):
         """Handle option-as-value issues before actually processing option."""
