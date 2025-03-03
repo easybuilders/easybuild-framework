@@ -1776,7 +1776,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertTrue('__REMOVABLE_VAR' in mod_load_env.vars)
         delattr(mod_load_env, '__REMOVABLE_VAR')
         self.assertFalse('__REMOVABLE_VAR' in mod_load_env.vars)
-        self.assertRaises(KeyError, delattr, mod_load_env, 'NONEXISTENT')
+        self.assertRaises(EasyBuildError, delattr, mod_load_env, 'NONEXISTENT')
 
         # test replacing of env vars
         env_vars = sorted(mod_load_env.as_dict.keys())

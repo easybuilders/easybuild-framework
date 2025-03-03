@@ -335,11 +335,22 @@ class ModuleLoadEnvironment:
         """
         Delete private attributes or public ModuleEnvironmentVariables
         """
+
         if self.regex['private_attr'].match(name):
             del self.__dict__[name]
+            return True
 
         name = self._unmangle_env_var_name(name)
-        del self.__dict__['_env_vars'][name]
+        try:
+            self.__dict__['_env_vars'][name].log.warning(
+                "Please use ModuleLoadEnvironment.remove() instead of 'delattr' to remove environment variables"
+            )
+            del self.__dict__['_env_vars'][name]
+        except KeyError as err:
+            raise EasyBuildError(
+                f"Cannot delete environment variable from ModuleEnvironmentVariable: {name} not found."
+            ) from err
+        return True
 
     def _unmangle_env_var_name(self, name):
         """
