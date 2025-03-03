@@ -3349,7 +3349,7 @@ class EasyBlock(object):
 
         not_found_regex = re.compile(r'(\S+)\s*\=\>\s*not found')
         lib_path_regex = re.compile(r'\S+\s*\=\>\s*(\S+)')
-        readelf_rpath_regex = re.compile('(RPATH)', re.M)
+        readelf_rpath_regex = re.compile(r'\(RPATH\)', re.M)
 
         # List of libraries that should be exempt from the RPATH sanity check;
         # For example, libcuda.so.1 should never be RPATH-ed by design,
@@ -3413,7 +3413,7 @@ class EasyBlock(object):
                             if res.exit_code != EasyBuildExit.SUCCESS:
                                 fail_msg = f"Failed to run 'readelf -d {path}': {res.output}"
                             elif not readelf_rpath_regex.search(res.output):
-                                fail_msg = f"No '(RPATH)' found in 'readelf -d' output for {path}: {out}"
+                                fail_msg = f"No '(RPATH)' found in 'readelf -d' output for {path}"
 
                             if fail_msg:
                                 self.log.warning(fail_msg)
