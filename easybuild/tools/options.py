@@ -293,7 +293,7 @@ class EasyBuildOptions(GeneralOption):
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
+                      'pathlist', 'store_or_False', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -1327,7 +1327,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
-        if self.options.robot is not None:
+        if self.options.robot is False:
+            self.options.robot = None  # Set to None as-if not specified
+        elif self.options.robot is not None:
             # if a single path is specified to --robot/-r, it must be an existing directory;
             # this is required since an argument to --robot is optional,
             # which makes it susceptible to 'eating' the following argument/option;
