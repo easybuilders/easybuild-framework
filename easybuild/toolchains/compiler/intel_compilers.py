@@ -124,5 +124,13 @@ class IntelCompilers(IntelIccIfort):
                 (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
             }
 
+            # use -march=native for sufficient recent versions of Intel oneAPI compilers
+            if LooseVersion(comp_ver) >= LooseVersion('2025.0'):
+                self.options.options_map['optarch'] = ['-march=native']
+                self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+                    (systemtools.X86_64, systemtools.AMD): '-march=native',
+                    (systemtools.X86_64, systemtools.INTEL): '-march=native',
+                }
+
         # skip IntelIccIfort.set_variables (no longer relevant for recent versions)
         Compiler.set_variables(self)
