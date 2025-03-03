@@ -270,6 +270,8 @@ class ModuleLoadEnvironment:
         self.regex['private_attr'] = re.compile('^_[a-z][a-z_]+$')      # private attributes: _var_name
         self.regex['env_var_name'] = re.compile('^[A-Z_]+[A-Z0-9_]+$')  # environment variables: {__}VAR_NAME_00_SUFFIX
 
+        self._log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
         self._aliases = {}
         if aliases is not None:
             try:
@@ -342,7 +344,7 @@ class ModuleLoadEnvironment:
 
         name = self._unmangle_env_var_name(name)
         try:
-            self.__dict__['_env_vars'][name].log.warning(
+            self._log.warning(
                 f"Please use ModuleLoadEnvironment.remove() instead of 'delattr' to remove environment variable: {name}"
             )
             del self.__dict__['_env_vars'][name]
