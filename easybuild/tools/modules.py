@@ -343,7 +343,7 @@ class ModuleLoadEnvironment:
         name = self._unmangle_env_var_name(name)
         try:
             self.__dict__['_env_vars'][name].log.warning(
-                "Please use ModuleLoadEnvironment.remove() instead of 'delattr' to remove environment variables"
+                f"Please use ModuleLoadEnvironment.remove() instead of 'delattr' to remove environment variable: {name}"
             )
             del self.__dict__['_env_vars'][name]
         except KeyError as err:
