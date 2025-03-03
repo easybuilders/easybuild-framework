@@ -1755,16 +1755,35 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_STR.contents, ['some/path'])
 
         # test removal of envars
-        mod_load_env.remove('TEST_VARTYPE')
-        self.assertFalse('TEST_VARTYPE' in mod_load_env.vars)
+        mod_load_env.REMOVABLE_VAR = test_contents
+        self.assertTrue('REMOVABLE_VAR' in mod_load_env.vars)
+        mod_load_env.remove('REMOVABLE_VAR')
+        self.assertFalse('REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertFalse('NONEXISTENT' in mod_load_env.vars)
         mod_load_env.remove('NONEXISTENT')
+        self.assertFalse('NONEXISTENT' in mod_load_env.vars)
+
+        # test removal with delattr
+        mod_load_env.REMOVABLE_VAR = test_contents
+        self.assertTrue('REMOVABLE_VAR' in mod_load_env.vars)
+        delattr(mod_load_env, 'REMOVABLE_VAR')
+        self.assertFalse('REMOVABLE_VAR' in mod_load_env.vars)
+        mod_load_env._REMOVABLE_VAR = test_contents
+        self.assertTrue('_REMOVABLE_VAR' in mod_load_env.vars)
+        delattr(mod_load_env, '_REMOVABLE_VAR')
+        self.assertFalse('_REMOVABLE_VAR' in mod_load_env.vars)
+        mod_load_env.__REMOVABLE_VAR = test_contents
+        self.assertTrue('__REMOVABLE_VAR' in mod_load_env.vars)
+        delattr(mod_load_env, '__REMOVABLE_VAR')
+        self.assertFalse('__REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertRaises(KeyError, delattr, mod_load_env, 'NONEXISTENT')
 
         # test replacing of env vars
         env_vars = sorted(mod_load_env.as_dict.keys())
         expected = ['ACLOCAL_PATH', 'CLASSPATH', 'CMAKE_LIBRARY_PATH', 'CMAKE_PREFIX_PATH', 'GI_TYPELIB_PATH',
                     'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'TEST_NEW_VAR',
-                    'TEST_STR', 'TEST_VAR', 'XDG_DATA_DIRS', '_UNDERSCORE_VAR', '__DOUBLE_UNDERSCORE_VAR',
-                    '___TRIPLE__UNDERSCORE_VAR']
+                    'TEST_STR', 'TEST_VAR', 'TEST_VARTYPE', 'XDG_DATA_DIRS', '_UNDERSCORE_VAR',
+                    '__DOUBLE_UNDERSCORE_VAR', '___TRIPLE__UNDERSCORE_VAR']
         self.assertEqual(env_vars, expected)
 
         mod_load_env.replace({'FOO': 'foo', 'BAR': 'bar'})
