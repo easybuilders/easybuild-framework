@@ -451,6 +451,12 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(is_value_of_type(1, str))
         self.assertFalse(is_value_of_type("foo", int))
 
+        # checking for None
+        self.assertFalse(is_value_of_type(1, type(None)))
+        self.assertFalse(is_value_of_type('a', type(None)))
+        self.assertTrue(is_value_of_type(None, type(None)))
+        self.assertFalse(is_value_of_type(('a', 'b'), type(None)))
+
         # list of strings check
         self.assertTrue(is_value_of_type([], LIST_OF_STRINGS))
         self.assertTrue(is_value_of_type(['foo', 'bar'], LIST_OF_STRINGS))
