@@ -290,11 +290,11 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type(('foo', 'bar'), LIST_OF_STRINGS), ['foo', 'bar'])
         self.assertEqual(convert_value_type((), LIST_OF_STRINGS), [])
 
-        # idempotency
-        self.assertEqual(convert_value_type('foo', str), 'foo')
+        # idempotency, although convert_value_type shouldn't be used if the type is already correct
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)
+        self.assertIs(convert_value_type(True, bool), True)
         self.assertEqual(convert_value_type(['foo', 'bar'], LIST_OF_STRINGS), ['foo', 'bar'])
         self.assertEqual(convert_value_type([], LIST_OF_STRINGS), [])
 

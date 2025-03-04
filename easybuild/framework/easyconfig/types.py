@@ -143,7 +143,7 @@ def is_value_of_type(value, expected_type):
     """
     type_ok = False
 
-    if expected_type in EASY_TYPES:
+    if isinstance(expected_type, type):
         # easy types can be checked using isinstance
         type_ok = isinstance(value, expected_type)
 
@@ -230,30 +230,25 @@ def convert_value_type(val, typ):
     :param val: value to convert type of
     :param typ: target type
     """
-    res = None
+    # Shouldn't be called if the type is already correct
+    if is_value_of_type(val, typ):
+        _log.warning("Value %s is already of specified target type %s, no conversion needed", val, typ)
+        return val
 
-    if typ in EASY_TYPES and isinstance(val, typ):
-        _log.debug("Value %s is already of specified target type %s, no conversion needed", val, typ)
-        res = val
-
-    elif typ in CHECKABLE_TYPES and is_value_of_type(val, typ):
-        _log.debug("Value %s is already of specified non-trivial target type %s, no conversion needed", val, typ)
-        res = val
-
-    elif typ in TYPE_CONVERSION_FUNCTIONS:
+    try:
         func = TYPE_CONVERSION_FUNCTIONS[typ]
-        _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
-        try:
-            res = func(val)
-            _log.debug("Type conversion seems to have worked, new type: %s", type(res))
-        except Exception as err:
-            raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
-
-        if not isinstance(res, typ):
-            raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s", val, typ, type(res))
-
-    else:
+    except KeyError:
         raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
+
+    _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
+    try:
+        res = func(val)
+        _log.debug("Type conversion seems to have worked, new type: %s", type(res))
+    except Exception as err:
+        raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
+
+    if not is_value_of_type(res, typ):
+        raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s", val, typ, type(res))
 
     return res
 
@@ -662,9 +657,6 @@ CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE,
                    SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
                    STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
-# easy types, that can be verified with isinstance
-EASY_TYPES = [str, bool, dict, int, list, str, tuple, type(None)]
-
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
     'checksums': CHECKSUMS,
@@ -681,7 +673,6 @@ for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
-    str: str,
     float: float,
     int: int,
     str: str,
