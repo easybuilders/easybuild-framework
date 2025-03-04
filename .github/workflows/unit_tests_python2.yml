@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   test_python2:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container:
       # CentOS 7.9 container that already includes Lmod & co,
       # see https://github.com/easybuilders/easybuild-containers
