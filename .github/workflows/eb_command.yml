@@ -11,16 +11,16 @@ concurrency:
 
 jobs:
   test-eb:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python: [3.7, 3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
       fail-fast: false
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+    - uses: actions/checkout@v4
 
     - name: set up Python
-      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      uses: actions/setup-python@v5
       with:
         python-version: ${{matrix.python}}
         architecture: x64
