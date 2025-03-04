@@ -101,6 +101,9 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'name': 'foo', 'version': '1.2.3', 'versionsuffix': '', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
             [{'name': 'foo', 'version': '1.2.3', 'toolchain': {'name': 'GCC', 'version': '4.7'}}],
             [{'name': 'foo', 'version': '1.2.3'}, {'name': 'bar', 'version': '3.4.5'}],
+            [('foo', '1.2.3')],
+            [('foo', '1.2.3'), ('bar', '2')],
+            [[('foo', '1.2.3')], [('foo', '3.2.1')]],  # Iterated dependencies
         ]
         for inp in inputs:
             self.assertEqual(check_type_of_param_value('dependencies', inp), (True, inp))
@@ -110,8 +113,8 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'name': 'foo'}],
             ['foo,1.2.3'],
             [{'foo': '1.2.3'}],
-            [('foo', '1.2.3')],
-            [{'name': 'foo', 'version': '1.2.3'}, ('bar', '3.4.5')],
+            [['foo', '1.2.3']],
+            [{'name': 'foo', 'version': '1.2.3'}, ['bar', '3.4.5']],
             [{'name': 'foo', 'version': '1.2.3', 'somekey': 'wrong'}],
         ]
         for inp in inputs:
