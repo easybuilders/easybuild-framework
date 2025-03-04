@@ -588,7 +588,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                 raise EasyBuildError(error_msg)
             try:
                 t = timeout - (time.time() - start) if timeout else None
-                stdout += read_pipe(proc.stdout, timeout=t) or b''
+                stdout += read_pipe(proc.stdout, timeout=t)
             except TimeoutError:
                 pass
 
@@ -596,7 +596,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             if split_stderr:
                 try:
                     t = timeout - (time.time() - start) if timeout else None
-                    stderr += read_pipe(proc.stderr, timeout=t) or b''
+                    stderr += read_pipe(proc.stderr, timeout=t)
                 except TimeoutError:
                     pass
 
