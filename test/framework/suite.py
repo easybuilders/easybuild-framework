@@ -118,7 +118,7 @@ tests = [gen, d, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, 
 
 class EasyBuildFrameworkTestSuite(unittest.TestSuite):
     def __init__(self, loader):
-        super(EasyBuildFrameworkTestSuite, self).__init__([x.suite(loader) for x in tests])
+        super().__init__([x.suite(loader) for x in tests])
 
     def run(self, *args, **kwargs):
         # initialize logger for all the unit tests
@@ -126,7 +126,7 @@ class EasyBuildFrameworkTestSuite(unittest.TestSuite):
         os.close(fd)
         os.remove(log_fn)
         fancylogger.logToFile(log_fn)
-        res = super(EasyBuildFrameworkTestSuite, self).run(*args, **kwargs)
+        res = super().run(*args, **kwargs)
         fancylogger.logToFile(log_fn, enable=False)
         if not res.wasSuccessful():
             sys.stderr.write("ERROR: Not all tests were successful.\n")
@@ -142,4 +142,7 @@ def load_tests(loader, tests, pattern):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
+        unittest.main()
+    else:
+        unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
