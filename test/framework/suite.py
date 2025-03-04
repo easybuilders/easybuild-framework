@@ -142,4 +142,7 @@ def load_tests(loader, tests, pattern):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
+        unittest.main()
+    else:
+        unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
