@@ -68,6 +68,7 @@ COMP_NAME_VERSION_TEMPLATES = {
     # required for CUDA installed with iccifort toolchain
     # need to use 'intel' here because 'iccifort' toolchain maps to 'intel' (see above)
     'CUDA,intel': ('intel-CUDA', '%(intel)s-%(CUDA)s'),
+    'CUDA,PGI': ('PGI-CUDA', '%(PGI)s-%(CUDA)s'),
     # required for use of xlcxlf toolchain
     'xlc,xlf': ('xlcxlf', '%(xlc)s'),
 }
@@ -198,7 +199,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             # obtain list of compilers based on that extend $MODULEPATH in some way other than <name>/<version>
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
-            excluded_comps = ['GCC']
+            excluded_comps = ['GCC', 'PGI']
             for comps in COMP_NAME_VERSION_TEMPLATES.keys():
                 extend_comps.extend([comp for comp in comps.split(',') if comp not in excluded_comps])
 
