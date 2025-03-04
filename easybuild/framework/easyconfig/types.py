@@ -223,6 +223,18 @@ def check_type_of_param_value(key, val, auto_convert=False):
     return type_ok, newval
 
 
+def type_spec_to_string(type_spec):
+    """
+    Convert the given type to the name of a constant defined in this file if any.
+    If no (unique) constant is found the string representation of the type is returned.
+    """
+    candidates = [name for name, value in globals().items() if name.isupper() and type_spec is value]
+    if len(candidates) == 1:
+        return f"<type '{candidates[0]}'>"
+    else:
+        return str(type_spec)
+
+
 def convert_value_type(val, typ):
     """
     Try to convert type of provided value to specific type.
@@ -232,23 +244,26 @@ def convert_value_type(val, typ):
     """
     # Shouldn't be called if the type is already correct
     if is_value_of_type(val, typ):
-        _log.warning("Value %s is already of specified target type %s, no conversion needed", val, typ)
+        _log.warning("Value %s is already of specified target type %s, no conversion needed",
+                     val, type_spec_to_string(typ))
         return val
 
     try:
         func = TYPE_CONVERSION_FUNCTIONS[typ]
     except KeyError:
-        raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
+        raise EasyBuildError("No conversion function available (yet) for target type %s", type_spec_to_string(typ))
 
     _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
     try:
         res = func(val)
         _log.debug("Type conversion seems to have worked, new type: %s", type(res))
     except Exception as err:
-        raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
+        raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s",
+                             val, type(val), type_spec_to_string(typ), func, err)
 
     if not is_value_of_type(res, typ):
-        raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s", val, typ, type(res))
+        raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s of type %s",
+                             val, type_spec_to_string(typ), res, type(res))
 
     return res
 
@@ -536,7 +551,7 @@ def _to_checksum(checksum, list_level=0, allow_dict=True):
                 # When we already are in a tuple no further recursion is allowed -> set list_level very high
                 return tuple(_to_checksum(x, list_level=99, allow_dict=allow_dict) for x in checksum)
             else:
-                return list(_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum)
+                return [_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum]
     elif isinstance(checksum, dict) and allow_dict:
         return {key: _to_checksum(value, allow_dict=False) for key, value in checksum.items()}
 
