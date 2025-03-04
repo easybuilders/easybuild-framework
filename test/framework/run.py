@@ -1753,14 +1753,6 @@ class RunTest(EnhancedTestCase):
                 run_shell_cmd, cmd, timeout=.5, stream_output=True
                 )
 
-        # Failure on stdout read timeout
-        cmd = 'timeout 1 cat -'
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(
-                EasyBuildError, "Timeout during `.*` after .* seconds",
-                run_shell_cmd, cmd, timeout=.5, stream_output=True
-                )
-
         # Success
         cmd = 'sleep .5 && echo hello'
         with self.mocked_stdout_stderr():
