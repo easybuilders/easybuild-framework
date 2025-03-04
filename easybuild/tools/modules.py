@@ -336,6 +336,7 @@ class ModuleLoadEnvironment:
     def __delattr__(self, name):
         """
         Delete private attributes or public ModuleEnvironmentVariables
+        Fails on missing attributes
         """
 
         if self.regex['private_attr'].match(name):
