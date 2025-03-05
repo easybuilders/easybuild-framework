@@ -22,10 +22,11 @@ jobs:
       - run: "true"
   build:
     needs: setup
-    runs-on: ubuntu-24.04
+    runs-on: ${{matrix.os || 'ubuntu-24.04'}}
     strategy:
       matrix:
-        python: [3.6]
+        python: [3.7]
+        os: [ubuntu-22.04]
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
@@ -37,8 +38,6 @@ jobs:
         lc_all: [""]
         include:
           # Test different Python 3 versions with Lmod 8.x
-          - python: 3.7
-            modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.8
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: 3.9
@@ -47,11 +46,6 @@ jobs:
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
-          # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
-          - python: 3.6
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-            lc_all: C
       fail-fast: false
     steps:
     - uses: actions/checkout@v4
@@ -101,9 +95,9 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
-        # only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9, to avoid hitting GitHub rate limit
+        # only install GitHub token when testing with Lmod 8.x + Python 3.7 or 3.9, to avoid hitting GitHub rate limit
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.[69] ]]; then
+        if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.[79] ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
             SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())"
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
