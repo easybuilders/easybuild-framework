@@ -3377,7 +3377,7 @@ class EasyBlock(object):
                                 is_failure = True
                             # We still log the result, but don't fail:
                             if path in ignore_file_list:
-                                fail_msg += f"This failure will be ignored as {path} is listed in "
+                                fail_msg += f"This failure will be ignored as '{path}' is listed in "
                                 fail_msg += "'ignore_cuda_sanity_failures'."
                                 is_failure = False
 
@@ -3387,7 +3387,7 @@ class EasyBlock(object):
                             else:
                                 self.log.warning(fail_msg)
                         else:
-                            msg = (f"Output of 'cuobjdump' checked for {path}; device code architectures match "
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
                                    "those in cuda_compute_capabilities")
                             self.log.debug(msg)
 
@@ -3398,7 +3398,7 @@ class EasyBlock(object):
                         if missing_ptx_ccs:
                             fail_msg = "Configured highest compute capability was '%s', "
                             fail_msg += "but no PTX code for this compute capability was found in '%s' "
-                            fail_msg += "PTX architectures supported in that file: %s"
+                            fail_msg += "(PTX architectures supported in that file: %s)"
                             self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                         else:
                             msg = (f"Output of 'cuobjdump' checked for {path}; ptx code was present for (at least) the"
