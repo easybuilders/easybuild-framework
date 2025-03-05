@@ -223,6 +223,7 @@ with the following fields:
 - ptx_archs: a list of CUDA (virtual) device compute capabilities for which ptx code was found
 """
 
+
 class SystemToolsException(Exception):
     """raised when systemtools fails"""
 
