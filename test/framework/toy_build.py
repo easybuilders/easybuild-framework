@@ -3088,18 +3088,18 @@ class ToyBuildTest(EnhancedTestCase):
         device_surplus_90_code_regex = re.compile(device_surplus_90_code_regex_pattern, re.M)
 
         ptx_code_regex_success_pattern = r"DEBUG Output of 'cuobjdump' checked for '.*/bin/toy'; ptx code was "
-        ptx_code_regex_success_pattern += "present for \(at least\) the highest CUDA compute capability in "
+        ptx_code_regex_success_pattern += r"present for \(at least\) the highest CUDA compute capability in "
         ptx_code_regex_success_pattern += "cuda_compute_capabilities"
         ptx_code_regex_success = re.compile(ptx_code_regex_success_pattern, re.M)
 
         ptx_code_missing_80_regex_pattern = r"Configured highest compute capability was '8.0', but no PTX code "
         ptx_code_missing_80_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
-        ptx_code_missing_80_regex_pattern += "\(PTX architectures supported in that file: \[\]\)"
+        ptx_code_missing_80_regex_pattern += r"\(PTX architectures supported in that file: \[\]\)"
         ptx_code_missing_80_regex = re.compile(ptx_code_missing_80_regex_pattern, re.M)
 
         ptx_code_missing_90_regex_pattern = r"Configured highest compute capability was '9.0', but no PTX code "
         ptx_code_missing_90_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
-        ptx_code_missing_90_regex_pattern += "\(PTX architectures supported in that file: \[\]\)"
+        ptx_code_missing_90_regex_pattern += r"\(PTX architectures supported in that file: \[\]\)"
         ptx_code_missing_90_regex = re.compile(ptx_code_missing_90_regex_pattern, re.M)
 
         # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
@@ -3147,7 +3147,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_code_regex_success.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
         self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
-       
 
         # Test case 3: --cuda-compute-capabilities=8.0 and mocking a binary that contains only 9.0 ELF code
         # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
@@ -3169,7 +3168,6 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
         self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
 
-
         # Test case 4: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that contains both 8.0 and 9.0 ELF code
         # This means the build should succeed, so we can run with raise_error=True and check the output
         # for the expected debugging output.
@@ -3186,7 +3184,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_code_regex_success.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_90_regex.pattern, outtxt)
         self.assertTrue(ptx_code_missing_90_regex.search(outtxt), msg)
-
 
         # Test case 5: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that only contains 8.0 ELF code
         # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
@@ -3207,7 +3204,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_missing_90_code_regex.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_90_regex.pattern, outtxt)
         self.assertTrue(ptx_code_missing_90_regex.search(outtxt), msg)
-        
 
         # Test case 6: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that contains 8.0 and 9.0 ELF code
         # as well as 9.0 PTX code
@@ -3228,7 +3224,7 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
         self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
 
-        # Test case 7: --cude-compute-capabilities=8.0 --strict-cuda-sanity-check and mocking a binary that contains 
+        # Test case 7: --cude-compute-capabilities=8.0 --strict-cuda-sanity-check and mocking a binary that contains
         # 8.0 and 9.0 ELF code
         # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
         # Subsequently, we rerun with raise_error=False so we can check the debugging output
@@ -3249,7 +3245,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_surplus_90_code_regex.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
         self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
-
 
         # Test case 8: --cuda-compute-capabilities=8.0 and mocking a binary that contains 9.0 ELF code
         # but passing that binary on the ignore_cuda_sanity_failures list

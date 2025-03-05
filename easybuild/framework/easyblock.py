@@ -110,7 +110,6 @@ from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_cuda_device_code_architectures
 from easybuild.tools.systemtools import get_linked_libs_raw, get_shared_lib_ext, pick_system_specific_value, use_group
-from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITY_CUDA
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -3340,7 +3339,7 @@ class EasyBlock(object):
             self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
                           cuda_dirs)
         else:
-            self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
+            self.log.info("Using configured subdirectories for binaries/libraries to verify CUDA device code: %s",
                           cuda_dirs)
 
         for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
@@ -3401,8 +3400,8 @@ class EasyBlock(object):
                             fail_msg += "(PTX architectures supported in that file: %s)"
                             self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                         else:
-                            msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at least) the"
-                                   " highest CUDA compute capability in cuda_compute_capabilities")
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at least)"
+                                   " the highest CUDA compute capability in cuda_compute_capabilities")
                             self.log.debug(msg)
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
