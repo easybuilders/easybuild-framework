@@ -3401,7 +3401,7 @@ class EasyBlock(object):
                             fail_msg += "(PTX architectures supported in that file: %s)"
                             self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                         else:
-                            msg = (f"Output of 'cuobjdump' checked for {path}; ptx code was present for (at least) the"
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at least) the"
                                    " highest CUDA compute capability in cuda_compute_capabilities")
                             self.log.debug(msg)
             else:
