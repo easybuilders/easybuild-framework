@@ -3069,10 +3069,38 @@ class ToyBuildTest(EnhancedTestCase):
         ])
 
         # Created regex for success and failures
-        device_code_regex_pattern = r"DEBUG Output of 'cuobjdump' checked for .*/bin/toy; device code "
-        device_code_regex_pattern += "architectures match those in cuda_compute_capabilities"
-        device_code_regex = re.compile(device_code_regex_pattern, re.M)
-        # TODO: create regex for failures
+        device_code_regex_success_pattern = r"DEBUG Output of 'cuobjdump' checked for '.*/bin/toy'; device code "
+        device_code_regex_success_pattern += "architectures match those in cuda_compute_capabilities"
+        device_code_regex_success = re.compile(device_code_regex_success_pattern, re.M)
+
+        device_missing_80_code_regex_pattern = r"Missing compute capabilities: 8.0."
+        device_missing_80_code_regex = re.compile(device_missing_80_code_regex_pattern, re.M)
+
+        device_missing_80_code_ignored_regex_pattern = r"Missing compute capabilities: 8.0. This failure will be "
+        device_missing_80_code_ignored_regex_pattern += "ignored as '.*/bin/toy' is listed in "
+        device_missing_80_code_ignored_regex_pattern += "'ignore_cuda_sanity_failures'."
+        device_missing_80_code_ignored_regex = re.compile(device_missing_80_code_ignored_regex_pattern, re.M)
+
+        device_missing_90_code_regex_pattern = r"Missing compute capabilities: 9.0."
+        device_missing_90_code_regex = re.compile(device_missing_90_code_regex_pattern, re.M)
+
+        device_surplus_90_code_regex_pattern = r"Surplus compute capabilities: 9.0."
+        device_surplus_90_code_regex = re.compile(device_surplus_90_code_regex_pattern, re.M)
+
+        ptx_code_regex_success_pattern = r"DEBUG Output of 'cuobjdump' checked for '.*/bin/toy'; ptx code was "
+        ptx_code_regex_success_pattern += "present for \(at least\) the highest CUDA compute capability in "
+        ptx_code_regex_success_pattern += "cuda_compute_capabilities"
+        ptx_code_regex_success = re.compile(ptx_code_regex_success_pattern, re.M)
+
+        ptx_code_missing_80_regex_pattern = r"Configured highest compute capability was '8.0', but no PTX code "
+        ptx_code_missing_80_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
+        ptx_code_missing_80_regex_pattern += "\(PTX architectures supported in that file: \[\]\)"
+        ptx_code_missing_80_regex = re.compile(ptx_code_missing_80_regex_pattern, re.M)
+
+        ptx_code_missing_90_regex_pattern = r"Configured highest compute capability was '9.0', but no PTX code "
+        ptx_code_missing_90_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
+        ptx_code_missing_90_regex_pattern += "\(PTX architectures supported in that file: \[\]\)"
+        ptx_code_missing_90_regex = re.compile(ptx_code_missing_90_regex_pattern, re.M)
 
         # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
         cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
@@ -3087,28 +3115,160 @@ class ToyBuildTest(EnhancedTestCase):
         # Filepath to cuobjdump
         cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
 
-        # Test case 1: --cuda-compute-capabilities=8.0 and mocking a binary that contains 8.0 EFL code
+        # Test case 1: --cuda-compute-capabilities=8.0 and mocking a binary that contains 8.0 ELF code
+        # This means the build should succeed, so we can run with raise_error=True and check the output
+        # for the expected debugging output
+        # We also check here for the warning that no PTX code for the highest compute capability (8.0) was found
         write_file(cuobjdump_file, cuobjdump_txt_shebang),
         write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
         adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
         args = ['--cuda-compute-capabilities=8.0']
-        test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
-            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=False)
-        msg = "Patter %s found in full build log:\n%s" % (device_code_regex.pattern, outtxt)
-        self.assertTrue(device_code_regex.search(outtxt), msg)
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
 
-            
+        # Test case 2: --cuda-compute-capabilities=8.0 and mocking a binary that contains 8.0 ELF code and 8.0 PTX code
+        # This means the build should succeed, so we can run with raise_error=True and check the output
+        # for the expected debugging output
+        # It also means we expect output confirming that PTX code was found for the highest compute capability
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm80_ptx, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
+        self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
+       
 
+        # Test case 3: --cuda-compute-capabilities=8.0 and mocking a binary that contains only 9.0 ELF code
+        # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
+        # Subsequently, we rerun with raise_error=False so we can check the debugging output
+        # There, we expect EB to tell us that 8.0 code was expected, but only 9.0 code was found
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to fail
+        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += ".*/bin/toy. Surplus compute capabilities: 9.0. Missing compute capabilities: 8.0."
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=False, verify=False)
+        msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
+
+
+        # Test case 4: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that contains both 8.0 and 9.0 ELF code
+        # This means the build should succeed, so we can run with raise_error=True and check the output
+        # for the expected debugging output.
+        # We also check here for the warning that no PTX code for the highest compute capability (9.0) was found
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0,9.0']
+        # We expect this to succeed
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_90_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_90_regex.search(outtxt), msg)
+
+
+        # Test case 5: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that only contains 8.0 ELF code
+        # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
+        # Subsequently, we rerun with raise_error=False so we can check the debugging output for the debugging
+        # output which tells us it expected 8.0 and 9.0, but only found 9.0 ELF code
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0,9.0']
+        # We expect this to fail
+        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += ".*/bin/toy. Missing compute capabilities: 9.0."
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=False, verify=False)
+        msg = "Pattern %s not found in full build log: %s" % (device_missing_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_90_code_regex.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_90_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_90_regex.search(outtxt), msg)
         
 
+        # Test case 6: --cuda-compute-capabilities=8.0,9.0 and mocking a binary that contains 8.0 and 9.0 ELF code
+        # as well as 9.0 PTX code
+        # This means the build should succeed, so we can run with raise_error=True and check the output
+        # for the expected debugging output
+        # It also means we expect output confirming that PTX code was found for the highest compute capability
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90_ptx, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0,9.0']
+        # We expect this to succeed
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
+        self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
 
-        # Test single CUDA compute capability with --cuda-compute-capabilities=8.0
+        # Test case 7: --cude-compute-capabilities=8.0 --strict-cuda-sanity-check and mocking a binary that contains 
+        # 8.0 and 9.0 ELF code
+        # This means we expect the build to fail, so we'll do an assertErrorRegex to check that
+        # Subsequently, we rerun with raise_error=False so we can check the debugging output
+        # There, we expect EB to tell us that only 8.0 code was expected, but both 8.0 and 9.0 code was found
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0', '--strict-cuda-sanity-check']
+        # We expect this to fail
+        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += ".*/bin/toy. Surplus compute capabilities: 9.0."
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=False, verify=False)
+        msg = "Pattern %s not found in full build log: %s" % (device_surplus_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_surplus_90_code_regex.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
 
-        # Test multiple CUDA compute capabilities with --cuda-compute-capabilities=8.0,9.0
 
-        # Test stric CUDA check with --cuda-compute-capabilities=8.0 and a binary that also contains also 9.0 code
+        # Test case 8: --cuda-compute-capabilities=8.0 and mocking a binary that contains 9.0 ELF code
+        # but passing that binary on the ignore_cuda_sanity_failures list
+        # This means we expect the build to succeed and we'll check the output for the expected debugging output
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "\ncuda_sanity_ignore_files = ['bin/toy']"
+        write_file(test_ec, test_ec_txt)
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to succeed
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=test_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_ignored_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_ignored_regex.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (ptx_code_missing_80_regex.pattern, outtxt)
+        self.assertTrue(ptx_code_missing_80_regex.search(outtxt), msg)
 
         # Restore original environment
         modify_env(os.environ, start_env, verbose=False)
