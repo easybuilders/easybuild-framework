@@ -2700,11 +2700,13 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # prepare target directory and clone repository
     mkdir(target_dir, parents=True)
 
+    # compose base git command
+    git_cmd = 'git'
+    if extra_config_params is not None:
+        git_cmd_params = [f"-c {param}" for param in extra_config_params]
+        git_cmd += f" {' '.join(git_cmd_params)}"
+
     # compose 'git clone' command, and run it
-    if extra_config_params:
-        git_cmd = 'git ' + ' '.join(['-c %s' % param for param in extra_config_params])
-    else:
-        git_cmd = 'git'
     clone_cmd = [git_cmd, 'clone']
 
     if not keep_git_dir and not commit:
