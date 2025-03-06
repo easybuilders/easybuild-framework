@@ -607,7 +607,7 @@ STRING_OR_TUPLE_DICT = (dict, as_hashable(
         'key_types': [str, TUPLE_OF_STRINGS],
     }
 ))
-STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_DICT]}))
+STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
 
 TOOLCHAIN_DICT = (dict, as_hashable({
     'elem_types': {
@@ -643,8 +643,8 @@ SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
         SANITY_CHECK_PATHS_FILES: [SANITY_CHECK_PATHS_ENTRY],
         SANITY_CHECK_PATHS_DIRS: [SANITY_CHECK_PATHS_ENTRY],
     },
-    'opt_keys': [],
-    'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
+    'opt_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
+    'req_keys': [],
 }))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
