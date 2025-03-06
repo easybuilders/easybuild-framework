@@ -2708,21 +2708,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     # compose 'git clone' command, and run it
     clone_cmd = [git_cmd, 'clone']
-
-    if not keep_git_dir and not commit:
-        # Speed up cloning by only fetching the most recent commit, not the whole history
-        # When we don't want to keep the .git folder there won't be a difference in the result
-        clone_cmd.extend(['--depth', '1'])
-
-    if tag:
-        clone_cmd.extend(['--branch', tag])
-        if recursive:
-            clone_cmd.append('--recursive')
-        if recurse_submodules:
-            clone_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
-    else:
-        # checkout is done separately below for specific commits
-        clone_cmd.append('--no-checkout')
+    # checkout is done separately below for specific commits
+    clone_cmd.append('--no-checkout')
 
     clone_cmd.append(f'{url}/{repo_name}.git')
 
@@ -2737,56 +2724,31 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     if clone_into:
         repo_name = clone_into
 
+    repo_dir = os.path.join(tmpdir, repo_name)
+
+    # compose checkout command
+    checkout_cmd = [git_cmd, 'checkout']
     # if a specific commit is asked for, check it out
     if commit:
-        checkout_cmd = [git_cmd, 'checkout', commit]
+        checkout_cmd.append(f"{commit}")
+    elif tag:
+        checkout_cmd.append(f"refs/tags/{tag}")
 
-        if recursive or recurse_submodules:
-            checkout_cmd.extend(['&&', git_cmd, 'submodule', 'update', '--init'])
-            if recursive:
-                checkout_cmd.append('--recursive')
-            if recurse_submodules:
-                checkout_cmd.extend(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
+    run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
-        work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        run_shell_cmd(' '.join(checkout_cmd), work_dir=work_dir, hidden=True, verbose_dry_run=True)
+    if recursive or recurse_submodules:
+        submodule_cmd = [git_cmd, 'submodule', 'update', '--init']
+        if recursive:
+            submodule_cmd.append('--recursive')
+        if recurse_submodules:
+            submodule_pathspec = [f"':{submod_path}'" for submod_path in recurse_submodules]
+            submodule_cmd.extend(['--'] + submodule_pathspec)
 
-    elif not build_option('extended_dry_run'):
-        # If we wanted to get a tag make sure we actually got a tag and not a branch with the same name
-        # This doesn't make sense in dry-run mode as we don't have anything to check
-        cmd = f"{git_cmd} describe --exact-match --tags HEAD"
-        work_dir = os.path.join(tmpdir, repo_name) if repo_name else tmpdir
-        res = run_shell_cmd(cmd, fail_on_error=False, work_dir=work_dir, hidden=True, verbose_dry_run=True)
-
-        if res.exit_code != EasyBuildExit.SUCCESS or tag not in res.output.splitlines():
-            msg = f"Tag {tag} was not downloaded in the first try due to {url}/{repo_name} containing a branch"
-            msg += f" with the same name. You might want to alert the maintainers of {repo_name} about that issue."
-            print_warning(msg)
-
-            cmds = []
-
-            if not keep_git_dir:
-                # make the repo unshallow first;
-                # this is equivalent with 'git fetch -unshallow' in Git 1.8.3+
-                # (first fetch seems to do nothing, unclear why)
-                cmds.append(f"{git_cmd} fetch --depth=2147483647 && git fetch --depth=2147483647")
-
-            cmds.append(f"{git_cmd} checkout refs/tags/{tag}")
-            # Clean all untracked files, e.g. from left-over submodules
-            cmds.append(f"{git_cmd} clean --force -d -x")
-            if recursive:
-                cmds.append(f"{git_cmd} submodule update --init --recursive")
-            elif recurse_submodules:
-                cmds.append(f"{git_cmd} submodule update --init ")
-                cmds[-1] += ' '.join(["--recurse-submodules='%s'" % pat for pat in recurse_submodules])
-
-            for cmd in cmds:
-                run_shell_cmd(cmd, work_dir=work_dir, hidden=True, verbose_dry_run=True)
+        run_shell_cmd(' '.join(submodule_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
     # Create archive
-    repo_path = os.path.join(tmpdir, repo_name)
     reproducible = not keep_git_dir  # presence of .git directory renders repo unreproducible
-    archive_path = make_archive(repo_path, archive_file=filename, archive_dir=target_dir, reproducible=reproducible)
+    archive_path = make_archive(repo_dir, archive_file=filename, archive_dir=target_dir, reproducible=reproducible)
 
     # cleanup (repo_name dir does not exist in dry run mode)
     remove(tmpdir)
