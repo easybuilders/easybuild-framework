@@ -31,7 +31,6 @@ jobs:
           - ${{needs.setup.outputs.lmod8}}
           - ${{needs.setup.outputs.modules4}}
           - ${{needs.setup.outputs.modules5}}
-        lc_all: [""]
         include:
           # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
           - python: '3.7'
@@ -137,7 +136,7 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        LC_ALL: ${{matrix.lc_all}}
+        LC_ALL: "" 
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
