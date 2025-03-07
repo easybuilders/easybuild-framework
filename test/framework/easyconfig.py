@@ -540,6 +540,46 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
+    def test_extensions_default_class(self):
+        """Test that exts_defaultclass doesn't need to be specified if explicit one is present."""
+
+        init_config(build_options={'silent': True})
+
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+               ("toy", "0.0"),  # Custom block by name
+               ("bar", "0.0", { # Explicit
+                    'easyblock': 'EB_toy',
+                    'sources': ['toy-%(version)s.tar.gz'],
+                }),
+            ]
+        """)
+        self.prep()
+        # Ensure source is found
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, self.test_prefix)
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config(build_options={'silent': True})
+
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            eb.extensions_step()
+
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'PI', '3.14')
+
+        # check whether files expected to be installed for both extensions are in place
+        self.assertExists(os.path.join(pi_installdir, 'bin', 'toy'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libtoy.a'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libbar.a'))
+
     def test_extensions_templates(self):
         """Test whether templates used in exts_list are resolved properly."""
 
@@ -562,7 +602,6 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'dependencies = [("Python", "3.6.6")]',
-            'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
