@@ -1716,7 +1716,11 @@ class EasyBlock(object):
             }
 
             try:
-                env_var_opts.update(extra_opts)
+                # make sure paths is added for empty string
+                if extra_opts == '':
+                    env_var_opts['paths'] = extra_opts
+                else:
+                    env_var_opts.update(extra_opts)
             except ValueError:
                 # no options provided, so must be only a list of string values specifying paths
                 env_var_opts['paths'] = extra_opts
