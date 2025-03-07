@@ -84,10 +84,10 @@ from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa # pylint:disable=unused-import
 except ImportError:
     try:
-        import pep8  # noqa
+        import pep8  # noqa # pylint:disable=unused-import
     except ImportError:
         pass
 
@@ -379,7 +379,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only non-POWER arch, dependency is retained
         for arch in (AARCH64, X86_64):
-            st.get_cpu_architecture = lambda: arch
+            st.get_cpu_architecture = lambda: arch  # pylint: disable=cell-var-from-loop
             eb = EasyConfig(self.eb_file)
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
@@ -2225,8 +2225,8 @@ class EasyConfigTest(EnhancedTestCase):
             'pyshortver': '3.6',
             'pyver': '3.6.5',
         }
-        for key in expected_template_values:
-            self.assertEqual(ec.template_values[key], expected_template_values[key])
+        for key, expected_value in expected_template_values.items():
+            self.assertEqual(ec.template_values[key], expected_value)
 
         self.assertEqual(ec['versionsuffix'], '-Python-3.6.5-Perl-5.30')
 
@@ -2302,8 +2302,8 @@ class EasyConfigTest(EnhancedTestCase):
             'foo\\bar': '"foo\\bar"',
         }
 
-        for t in teststrings:
-            self.assertEqual(quote_str(t), teststrings[t])
+        for t, expected in teststrings.items():
+            self.assertEqual(quote_str(t), expected)
 
         # test escape_newline
         self.assertEqual(quote_str("foo\nbar", escape_newline=False), '"foo\nbar"')
@@ -2574,13 +2574,14 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
         try:
-            import autopep8  # noqa
-            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
-            init_config()
-            self.test_dump()
-            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+            import autopep8 # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dump_autopep8, since autopep8 is not available")
+            return
+        os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+        init_config()
+        self.test_dump()
+        del os.environ['EASYBUILD_DUMP_AUTOPEP8']
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
@@ -3072,46 +3073,46 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dep_graph(self):
         """Test for dep_graph."""
         try:
-            import pygraph  # noqa
-
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
-
-            ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
-            ec_files = [(ec_file, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
-
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
-
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
-
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
-
-            # compare sorted output, since order of lines can change
-            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
-            ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
-            self.assertEqual(ordered_dottxt, ordered_expected)
-
+            import pygraph  # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
+            return
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
+
+        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_files = [(ec_file, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
+
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
+
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
+
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+        # compare sorted output, since order of lines can change
+        ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
+        ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
+        self.assertEqual(ordered_dottxt, ordered_expected)
 
     def test_dep_graph_multi_deps(self):
         """
         Test for dep_graph using easyconfig that uses multi_deps.
         """
         try:
-            import pygraph  # noqa
+            import pygraph  # noqa # pylint:disable=unused-import
 
             test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
             build_options = {
@@ -3774,7 +3775,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
         subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-        optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+        optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}
         # missing gompic and double golfc should both give exceptions
@@ -4989,8 +4990,8 @@ class EasyConfigTest(EnhancedTestCase):
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)
 
-        for key in cuda_template_values:
-            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+        for key, expected in cuda_template_values.items():
+            self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
         update_build_option('cuda_compute_capabilities', None)
         ec = EasyConfig(self.eb_file)
@@ -5002,8 +5003,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.prep()
         ec = EasyConfig(self.eb_file)
 
-        for key in cuda_template_values:
-            self.assertEqual(ec.get_cuda_cc_template_value(key), cuda_template_values[key])
+        for key, expected in cuda_template_values.items():
+            self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""

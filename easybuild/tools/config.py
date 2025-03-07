@@ -52,7 +52,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
 
 try:
-    import rich  # noqa
+    import rich  # noqa # pylint:disable=unused-import
     HAVE_RICH = True
 except ImportError:
     HAVE_RICH = False
@@ -603,12 +603,12 @@ def init_build_options(build_options=None, cmdline_options=None):
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
-        for default in build_options_by_default:
+        for default, default_opts in build_options_by_default.items():
             if default == EMPTY_LIST:
-                for opt in build_options_by_default[default]:
+                for opt in default_opts:
                     bo[opt] = []
             else:
-                bo.update({opt: default for opt in build_options_by_default[default]})
+                bo.update({opt: default for opt in default_opts})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
