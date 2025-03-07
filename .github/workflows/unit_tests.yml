@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   setup:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
         lmod8: Lmod-8.7.58
         modules4: modules-4.5.3
@@ -20,7 +20,7 @@ jobs:
       - run: "true"
   build:
     needs: setup
-    runs-on: ubuntu-20.04
+    runs-on: ${{matrix.os || 'ubuntu-24.04'}}
     strategy:
       matrix:
         # Python 3.10 is default in Ubuntu 22.04
@@ -31,11 +31,11 @@ jobs:
           - ${{needs.setup.outputs.lmod8}}
           - ${{needs.setup.outputs.modules4}}
           - ${{needs.setup.outputs.modules5}}
-        lc_all: [""]
         include:
           # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
           - python: '3.7'
             modules_tool: ${{needs.setup.outputs.lmod8}}
+            os: ubuntu-22.04
           - python: '3.8'
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.9'
@@ -136,7 +136,7 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        LC_ALL: ${{matrix.lc_all}}
+        LC_ALL: "" 
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
