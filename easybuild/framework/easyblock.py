@@ -2792,8 +2792,10 @@ class EasyBlock(object):
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
+        elif exts_defaultclass is None:
+            default_class = default_class_modpath = None
         else:
-            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            error_msg = "Improper default extension class specification, should be string or None: %s (%s)"
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
         exts_cnt = len(self.exts)
@@ -2846,8 +2848,11 @@ class EasyBlock(object):
                                          "for extension %s: %s",
                                          class_name, mod_path, ext_name, err)
 
-            # fallback attempt: use default class
+            # fallback attempt: use default class if any
             if inst is None:
+                if not default_class:
+                    raise EasyBuildError("ERROR: No default extension class set for %s and no explicit or custom "
+                                         "easyblock found for extension %s", self.name, ext_name)
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
@@ -2906,21 +2911,17 @@ class EasyBlock(object):
         if install:
             self.log.info("Installing extensions")
 
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
+        try:
+            self.init_ext_instances()
 
-        self.init_ext_instances()
+            if self.skip:
+                self.skip_extensions()
 
-        if self.skip:
-            self.skip_extensions()
-
-        self.install_extensions(install=install)
-
-        # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
+            self.install_extensions(install=install)
+        finally:
+            # cleanup (unload fake module, remove fake module dir)
+            if fake_mod_data:
+                self.clean_up_fake_module(fake_mod_data)
 
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
