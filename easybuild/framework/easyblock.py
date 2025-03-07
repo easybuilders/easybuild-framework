@@ -1736,8 +1736,8 @@ class EasyBlock(object):
                 # update existing alias to variables
                 existing_env_vars = self.module_load_environment.alias_vars(env_var_name)
 
-            for env_var_name in existing_env_vars:
-                env_var = getattr(self.module_load_environment, env_var_name)
+            for existing_env_var in existing_env_vars:
+                env_var = getattr(self.module_load_environment, existing_env_var)
                 env_var.extend(env_var_opts['paths'])
                 env_var.delimiter = env_var_opts['delimiter']
                 env_var.prepend = env_var_opts['prepend']
