@@ -1715,15 +1715,14 @@ class EasyBlock(object):
                 'prepend': True,
             }
 
-            try:
-                env_var_opts.update(extra_opts)
-            except ValueError:
-                # no options provided, so must be only a list of string values specifying paths
-                env_var_opts['paths'] = extra_opts
-            else:
-                if 'paths' not in env_var_opts:
-                    error_msg = f"'paths' key not set for ${env_var_name} in '{ec_param}' easyconfig parameter"
-                    raise EasyBuildError(error_msg)
+            if not isinstance(extra_opts, dict):
+                extra_opts = {'paths': extra_opts}
+
+            env_var_opts.update(extra_opts)
+
+            if 'paths' not in env_var_opts:
+                error_msg = f"'paths' key not set for ${env_var_name} in '{ec_param}' easyconfig parameter"
+                raise EasyBuildError(error_msg)
 
             # make sure that we have a list of paths, even if there's only one
             if isinstance(env_var_opts['paths'], str):
