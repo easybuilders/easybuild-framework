@@ -493,13 +493,13 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if cmd:
         # complete command template with filename
         cmd = cmd % fn
-        _log.debug("Using specified command to unpack {fn}: {cmd}")
+        _log.debug(f"Using specified command to unpack {fn}: {cmd}")
     else:
         cmd = extract_cmd(fn, overwrite=overwrite)
-        _log.debug("Using command derived from file extension to unpack {fn}: {cmd}")
+        _log.debug(f"Using command derived from file extension to unpack {fn}: {cmd}")
 
     if not cmd:
-        raise EasyBuildError("Can't extract file {fn} with unknown filetype")
+        raise EasyBuildError(f"Can't extract file {fn} with unknown filetype")
 
     if extra_options:
         cmd = f"{cmd} {extra_options}"
