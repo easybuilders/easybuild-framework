@@ -1578,7 +1578,7 @@ class FileToolsTest(EnhancedTestCase):
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
         with self.log_to_testlogfile():
-            ft.apply_regex_substitutions(testfile, regex_subs_part_match, on_missing_match=run.WARN, match_all=True)
+            ft.apply_regex_substitutions(testfile, regex_subs_part_match, on_missing_match=WARN, match_all=True)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
 
