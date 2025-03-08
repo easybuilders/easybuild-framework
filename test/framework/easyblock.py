@@ -679,11 +679,12 @@ class EasyBlockTest(EnhancedTestCase):
             err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
             self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
 
-        # Test modextrapaths: with absolute paths, appending and custom delimiters
+        # Test modextrapaths: with absolute + empty paths, appending and custom delimiters
         remove_dir(eb.installdir)
         self.contents += '\n'.join([
             "",
             "modextrapaths = {",
+            "    'PATH': [''],",
             "    'TEST_VAR': ['foo', 'baz', '/bin'],",
             "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
             "    'LD_LIBRARY_PATH': 'foo',",
@@ -717,6 +718,13 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*/bin",
         ]
+        if get_module_syntax() == 'Tcl':
+            expected_patterns.append(r"^prepend-path\s+PATH\s+\$root$")
+        elif get_module_syntax() == 'Lua':
+            expected_patterns.append(r'^prepend_path\("PATH", root\)$')
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
         for pattern in expected_patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
@@ -1499,7 +1507,7 @@ class EasyBlockTest(EnhancedTestCase):
             modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
 
         modextrapaths = {
-            'PATH': ('xbin', 'pibin'),
+            'PATH': ('', 'xbin', 'pibin'),
             'CPATH': 'pi/include',
             'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
             'APPEND_PATH': {'paths': 'pi', 'prepend': False},
@@ -1597,9 +1605,17 @@ class EasyBlockTest(EnhancedTestCase):
 
             for val in paths:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+\$root/{val}$', re.M)
+                    if val == '':
+                        full_val = r'\$root'
+                    else:
+                        full_val = fr'\$root/{val}'
+                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+{full_val}$', re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(fr'^{placement}_path\("{key}", pathJoin\(root, "{val}"\){delim_lua}\)$', re.M)
+                    if val == '':
+                        full_val = 'root'
+                    else:
+                        full_val = fr'pathJoin\(root, "{val}"\)'
+                    regex = re.compile(fr'^{placement}_path\("{key}", {full_val}{delim_lua}\)$', re.M)
                 else:
                     self.fail(f"Unknown module syntax: {get_module_syntax()}")
                 self.assertTrue(regex.search(txt), f"Pattern {regex.pattern} found in {txt}")
