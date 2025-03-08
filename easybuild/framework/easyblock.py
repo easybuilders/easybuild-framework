@@ -1742,7 +1742,7 @@ class EasyBlock(object):
                 env_var.delimiter = env_var_opts['delimiter']
                 env_var.prepend = env_var_opts['prepend']
                 env_var.type = env_var_opts['var_type']
-                msg = f"Variable ${env_var_name} from '{ec_param}' extended in module load environment with "
+                msg = f"Variable ${existing_env_var} from '{ec_param}' extended in module load environment with "
                 msg += f"delimiter='{env_var.delimiter}', prepend='{env_var.prepend}', type='{env_var.type}' "
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
