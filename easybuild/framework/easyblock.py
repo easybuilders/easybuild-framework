@@ -399,16 +399,24 @@ class EasyBlock(object):
             self.log.debug("Cannot get checksum without a file name")
             return None
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+        if chksum_input_git is not None:
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # tarballs made for git repos are not reproducible when created with Python < 3.9
-            if chksum_input_git is not None:
+            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
                 self.log.deprecated(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
                     f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
                     '6.0'
                 )
                 return None
+            # not all archives formats of git repos are reproducible
+            # warn users that checksum might fail for non-reproducible archives
+            _, file_ext = os.path.splitext(chksum_input)
+            if file_ext not in ['', '.tar', '.txz', '.xz']:
+                print_warning(
+                    f"Checksum verification may fail! Archive file '{chksum_input}' contains sources of a git repo "
+                    "in a non-reproducible format. Please re-create that archive with XZ compression instead."
+                )
 
         checksum = None
         # if checksums are provided as a dict, lookup by source filename as key
@@ -1707,15 +1715,14 @@ class EasyBlock(object):
                 'prepend': True,
             }
 
-            try:
-                env_var_opts.update(extra_opts)
-            except ValueError:
-                # no options provided, so must be only a list of string values specifying paths
-                env_var_opts['paths'] = extra_opts
-            else:
-                if 'paths' not in env_var_opts:
-                    error_msg = f"'paths' key not set for ${env_var_name} in '{ec_param}' easyconfig parameter"
-                    raise EasyBuildError(error_msg)
+            if not isinstance(extra_opts, dict):
+                extra_opts = {'paths': extra_opts}
+
+            env_var_opts.update(extra_opts)
+
+            if 'paths' not in env_var_opts:
+                error_msg = f"'paths' key not set for ${env_var_name} in '{ec_param}' easyconfig parameter"
+                raise EasyBuildError(error_msg)
 
             # make sure that we have a list of paths, even if there's only one
             if isinstance(env_var_opts['paths'], str):
@@ -1729,8 +1736,8 @@ class EasyBlock(object):
                 # update existing alias to variables
                 existing_env_vars = self.module_load_environment.alias_vars(env_var_name)
 
-            for env_var_name in existing_env_vars:
-                env_var = getattr(self.module_load_environment, env_var_name)
+            for existing_env_var in existing_env_vars:
+                env_var = getattr(self.module_load_environment, existing_env_var)
                 env_var.extend(env_var_opts['paths'])
                 env_var.delimiter = env_var_opts['delimiter']
                 env_var.prepend = env_var_opts['prepend']
