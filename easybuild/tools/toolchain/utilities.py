@@ -36,6 +36,7 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import copy
+import os
 import re
 import sys
 
