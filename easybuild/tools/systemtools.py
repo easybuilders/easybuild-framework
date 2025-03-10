@@ -659,7 +659,8 @@ def get_gpu_info():
                     amd_card_gfx = row['target_graphics_version']
                     amd_card_driver = row['version']
 
-                    amd_gpu = "%s (device id: %s, gfx: %s, driver: %s)" % (amd_card_series, amd_card_device_id, amd_card_gfx, amd_card_driver)
+                    amd_gpu = ("%s (device id: %s, gfx: %s, driver: %s)" %
+                               (amd_card_series, amd_card_device_id, amd_card_gfx, amd_card_driver))
                     amd_gpu_info = gpu_info.setdefault('AMD', {})
                     amd_gpu_info.setdefault(amd_gpu, 0)
                     amd_gpu_info[amd_gpu] += 1
