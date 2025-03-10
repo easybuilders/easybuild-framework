@@ -975,7 +975,8 @@ class Toolchain(object):
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, wrappers_dir=None,
+                               add_to_path=True, disable_wrapper_log=False):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -998,7 +999,11 @@ class Toolchain(object):
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
-        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        if wrappers_dir is None:
+            wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        else:
+            if not os.path.exists(wrappers_dir):
+                os.mkdir(wrappers_dir)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -1045,7 +1050,7 @@ class Toolchain(object):
                     raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 # enable debug mode in wrapper script by specifying location for log file
-                if build_option('debug'):
+                if build_option('debug') and not disable_wrapper_log:
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
                     rpath_wrapper_log = '/dev/null'
@@ -1061,10 +1066,11 @@ class Toolchain(object):
                     'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
-                adjust_permissions(cmd_wrapper, stat.S_IXUSR)
+                adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
                 # prepend location to this wrapper to $PATH
-                setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+                if add_to_path:
+                    setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
 
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:
