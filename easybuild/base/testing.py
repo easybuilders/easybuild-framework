@@ -55,15 +55,12 @@ def nicediff(txta, txtb, offset=5):
     """
     diff = list(difflib.ndiff(txta.splitlines(1), txtb.splitlines(1)))
     different_idx = [idx for idx, line in enumerate(diff) if not line.startswith(' ')]
-    res_idx = []
+    res_idx = set()
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
-            if idx not in res_idx:
-                res_idx.append(idx)
-    res_idx.sort()
+        res_idx.update(range(max(didx - offset, 0), min(didx + offset, len(diff))))
     # insert linenumbers too? what are the linenumbers in ndiff?
-    newdiff = [diff[idx] for idx in res_idx]
+    newdiff = [diff[idx] for idx in sorted(res_idx)]
 
     return newdiff
 
