@@ -83,7 +83,7 @@ class TestCase(OrigTestCase):
             if msg is None:
                 msg = str(e)
             else:
-                msg = "%s: %s" % (msg, e)
+                msg = "%s: %s" % (msg, str(e))
 
             if isinstance(a, str):
                 txta = a
