@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # #
-# Copyright 2021-2024 Ghent University
+# Copyright 2021-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,10 +32,10 @@ Authors:
 * Jørgen Nordmoen (University of Oslo)
 """
 import functools
+from collections import OrderedDict
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
-from easybuild.tools.py2vs3 import OrderedDict
 
 try:
     from rich.console import Console, Group

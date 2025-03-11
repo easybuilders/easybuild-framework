@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,11 +90,8 @@ TEMPLATE_SOFTWARE_VERSIONS = [
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = [
     ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
-    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
-     "as specify by the --sysroot configuration option"),
-    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
     ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
-     "--cuda-compute-capabilities configuration option or via cuda_cc easyconfig parameter"),
+     "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
     ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
     ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
     ('cuda_cc_space_sep_no_period',
@@ -102,6 +99,12 @@ TEMPLATE_NAMES_DYNAMIC = [
     ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
     ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
     ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
+    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
+    # can't be a boolean (True/False), must be a string value since it's a string template
+    ('rpath_enabled', "String value indicating whether or not RPATH linking is used ('true' or 'false')"),
+    ('software_commit', "Git commit id to use for the software as specified by --software-commit command line option"),
+    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+     "as specified by the --sysroot configuration option"),
 ]
 
 # constant templates that can be used in easyconfigs
@@ -130,7 +133,9 @@ TEMPLATE_CONSTANTS = [
     ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
      'download.savannah.gnu.org source url'),
     ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
-     'gnu.org source url'),
+     'gnu.org source url (ftp mirror)'),
+    ('GNU_FTP_SOURCE', 'https://ftp.gnu.org/gnu/%(namelower)s',
+     'gnu.org source url (main ftp)'),
     ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
      'googlecode.com source url'),
     ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
@@ -205,8 +210,14 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
     # set 'arch' for system architecture based on 'machine' (4th) element of platform.uname() return value
     template_values['arch'] = platform.uname()[4]
 
+    # set 'rpath' template based on 'rpath' configuration option, using empty string as fallback
+    template_values['rpath_enabled'] = 'true' if build_option('rpath') else 'false'
+
     # set 'sysroot' template based on 'sysroot' configuration option, using empty string as fallback
     template_values['sysroot'] = build_option('sysroot') or ''
+
+    # set 'software_commit' template based on 'software_commit' configuration option, default to None
+    template_values['software_commit'] = build_option('software_commit') or ''
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:

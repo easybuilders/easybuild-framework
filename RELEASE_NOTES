@@ -4,6 +4,55 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://easybuild.readthedocs.io/en/latest/Release_notes.html.
 
 
+v4.9.4 (22 September 2024)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - set $LMOD_TERSE_DECORATIONS to 'no' to avoid additional info in output produced by 'ml --terse avail' (#4648)
+- various bug fixes, including:
+  - implement workaround for permission error when copying read-only files that have extended attributes set and using Python 3.6 (#4642)
+  - take into account alternate sysroot for /bin/bash used by run_cmd (#4646)
+
+
+v4.9.3 (14 September 2024)
+--------------------------
+
+update/bugfix release
+
+- various enhancements, including:
+  - add support for `--extra-source-urls` to fetch sources from additional URLs (#4079)
+  - add definition for gmpflf toolchain (#4566, #4571)
+  - reuse pre-computed checksums (#4569)
+  - add `cuda_cc_space_sep` variant that does not have periods (#4583)
+  - add `--skip-sanity-check` option (#4590)
+  - add `GNU_FTP_SOURCE` template constant (#4597)
+  - improve error messages for empty easyconfigs (#4603)
+  - improve help string for `--dep-graph` (#4610)
+  - only call `_sanity_check_step_extensions` if `--skip-extensions` is not set (#4620)
+  - add support for `--software-commit` and an associated template `%(software_commit)s` (#4628)
+- various bug fixes, including:
+  - correctly evaluate result for `--dep-graph` (#4554)
+  - fix fetch progress bar showing to many files (#4568)
+  - resolve internal for imkl>=2021 version subdir via "latest" symlink (#4570)
+  - fix typo in message about including an easyblock from a commit (#4575)
+  - don't use special flags for `strict`, `precise`, `loose`, `veryloose` toolchain options on RISC-V (#4576)
+  - fix help text for `cuda_compute_capabilities` template (#4589)
+  - fix help message for `--http-headers-fields-urlpat` configuration option (#4594)
+  - fix `test_compiler_cache` in case `gcc` is available multiple times (#4599)
+  - handle post-install patches in check_checksums_for (#4605)
+  - fix `copy_file` with a folder as the target (#4609)
+  - allow for case where `homepage = None` when generating the docs (#4626)
+  - fix test_github_det_commit_status by using more recent commits (#4636)
+- other changes:
+  - clean up code that was only there to support Python 2.6 + avoid syntax warnings when parsing py2vs3/py.p2 with Python 3.x (#3788)
+  - use Intel's oneAPI Fortran compiler by default for version 2024.0.0 and newer (`oneapi_fortran` toolchain option set to `True`) (#4567)
+  - allow using Node 16 actions in CI (#4574)
+  - remove a superflous check in `EasyBlock.run_all_steps` (#4623)
+  - remove trailing dots from backup message produced by --inject-checksums (#4632)
+
+
 v4.9.2 (12 June 2024)
 ---------------------
 

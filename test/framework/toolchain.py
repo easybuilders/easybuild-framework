@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -2237,7 +2237,8 @@ class ToolchainTest(EnhancedTestCase):
                 "#!/bin/bash",
                 "echo 'This is a %s wrapper'" % cache_tool,
                 "NAME=${0##*/}",
-                "comm=$(which -a $NAME | sed 1d)",
+                "comms=($(which -a $NAME))",
+                "comm=${comms[1]}",  # First entry is this wrapper, take 2nd
                 "$comm $@",
                 "exit 0"
             ]

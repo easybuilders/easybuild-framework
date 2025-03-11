@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,6 +32,7 @@ Unit tests for filetools.py
 @author: Maxime Boissonneault (Compute Canada, Universite Laval)
 """
 import datetime
+import filecmp
 import glob
 import logging
 import os
@@ -51,6 +52,8 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
 from easybuild.tools.py2vs3 import StringIO, std_urllib
+from easybuild.tools.run import run_cmd
+from easybuild.tools.systemtools import LINUX, get_os_type
 
 
 class FileToolsTest(EnhancedTestCase):
@@ -1440,14 +1443,25 @@ class FileToolsTest(EnhancedTestCase):
         # Check handling of on_missing_match
         ft.write_file(testfile, testtxt)
         regex_subs_no_match = [('Not there', 'Not used')]
-        error_pat = 'Nothing found to replace in %s' % testfile
+        error_pat = "Nothing found to replace 'Not there' in %s" % testfile
         # Error
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
                               on_missing_match=run.ERROR)
+        # First matches, but 2nd not
+        regex_subs_part_match = [regex_subs[0], ('Not there', 'Not used')]
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_part_match,
+                              on_missing_match=run.ERROR, match_all=True)
+        # First matched so OK with match_all
+        ft.apply_regex_substitutions(testfile, regex_subs_part_match,
+                                     on_missing_match=run.ERROR, match_all=False)
 
         # Warn
         with self.log_to_testlogfile():
             ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        logtxt = ft.read_file(self.logfile)
+        self.assertIn('WARNING ' + error_pat, logtxt)
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_part_match, on_missing_match=run.WARN, match_all=True)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
 
@@ -1461,6 +1475,24 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+        # Replace multi-line strings
+        testtxt = "This si wrong\nBut mkae right\nLeave this!"
+        expected_testtxt = 'This is wrong.\nBut make right\nLeave this!'
+        ft.write_file(testfile, testtxt)
+        repl = ('This si( .*)\n(.*)mkae right$', 'This is wrong.\nBut make right')
+        ft.apply_regex_substitutions(testfile, [repl], backup=False, on_missing_match=ERROR, single_line=False)
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
+        # Supports capture groups
+        ft.write_file(testfile, testtxt)
+        repls = [
+            ('This si( .*)\n(.*)mkae right$', r'This is\1.\n\2make right'),
+            ('Lea(ve)', r'Do \g<0>\1'),  # Reference to full match
+        ]
+        ft.apply_regex_substitutions(testfile, repls, backup=False, on_missing_match=ERROR, single_line=False)
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt.replace('Leave', 'Do Leaveve'))
 
         # make sure apply_regex_substitutions can patch files that include UTF-8 characters
         testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
@@ -1482,34 +1514,32 @@ class FileToolsTest(EnhancedTestCase):
 
         # also test apply_regex_substitutions with a *list* of paths
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3493
+        # and a compiled regex
         test_dir = os.path.join(self.test_prefix, 'test_dir')
         test_file1 = os.path.join(test_dir, 'one.txt')
         test_file2 = os.path.join(test_dir, 'two.txt')
         ft.write_file(test_file1, "Donald is an elephant")
         ft.write_file(test_file2, "2 + 2 = 5")
         regexs = [
-            ('Donald', 'Dumbo'),
+            (re.compile('donald', re.I), 'Dumbo'),  # Only matches if this is used as-is
             ('= 5', '= 4'),
         ]
         ft.apply_regex_substitutions([test_file1, test_file2], regexs)
 
         # also check dry run mode
         init_config(build_options={'extended_dry_run': True})
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertFalse(stderr)
-        regex = re.compile('\n'.join([
+        regex = '\n'.join([
             r"applying regex substitutions to file\(s\): .*/test_dir/one.txt, .*/test_dir/two.txt",
-            r"  \* regex pattern 'Donald', replacement string 'Dumbo'",
+            r"  \* regex pattern 'donald', replacement string 'Dumbo'",
             r"  \* regex pattern '= 5', replacement string '= 4'",
             '',
-        ]))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        ])
+        self.assertTrue(re.search(regex, stdout), "Pattern '%s' should be found in: %s" % (regex, stdout))
 
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
@@ -1856,6 +1886,19 @@ class FileToolsTest(EnhancedTestCase):
             # printing this message will make test suite fail in Travis/GitHub CI,
             # since we check for unexpected output produced by the tests
             print("Skipping overwrite-file-owned-by-other-user copy_file test (%s is missing)" % test_file_to_overwrite)
+        # Copy a file to a directory owned by some other user, e.g. /tmp (owned by root)
+        # This might be a common choice for e.g. --copy-ec
+        target_file_path = tempfile.mktemp("easybuild", dir="/tmp")
+        test_file_to_copy = os.path.join(self.test_prefix, os.path.basename(target_file_path))
+        ft.write_file(test_file_to_copy, test_file_contents)
+        try:
+            ft.copy_file(test_file_to_copy, '/tmp')
+            self.assertEqual(ft.read_file(target_file_path), test_file_contents)
+        finally:
+            try:
+                os.remove(target_file_path)
+            except FileNotFoundError:
+                pass
 
         # also test behaviour of copy_file under --dry-run
         build_options = {
@@ -1898,6 +1941,47 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
         # However, if we add 'force_in_dry_run=True' it should throw an exception
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
+
+    def test_copy_file_xattr(self):
+        """Test copying a file with extended attributes using copy_file."""
+        # test copying a read-only files with extended attributes set
+        # first, create a special file with extended attributes
+        special_file = os.path.join(self.test_prefix, 'special.txt')
+        ft.write_file(special_file, 'special')
+        # make read-only, and set extended attributes
+        attr = ft.which('attr')
+        xattr = ft.which('xattr')
+        # try to attr (Linux) or xattr (macOS) to set extended attributes foo=bar
+        cmd = None
+        if attr:
+            cmd = "attr -s foo -V bar %s" % special_file
+        elif xattr:
+            cmd = "xattr -w foo bar %s" % special_file
+
+        if cmd:
+            (_, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+
+            # need to make file read-only after setting extended attribute
+            ft.adjust_permissions(special_file, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH, add=False)
+
+            # only proceed if setting extended attribute worked
+            if ec == 0:
+                target = os.path.join(self.test_prefix, 'copy.txt')
+                ft.copy_file(special_file, target)
+                self.assertTrue(os.path.exists(target))
+                self.assertTrue(filecmp.cmp(special_file, target, shallow=False))
+
+                # only verify wheter extended attributes were also copied on Linux,
+                # since shutil.copy2 doesn't copy them on macOS;
+                # see warning at https://docs.python.org/3/library/shutil.html
+                if get_os_type() == LINUX:
+                    if attr:
+                        cmd = "attr -g foo %s" % target
+                    else:
+                        cmd = "xattr -l %s" % target
+                    (out, ec) = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+                    self.assertEqual(ec, 0)
+                    self.assertTrue(out.endswith('\nbar\n'))
 
     def test_copy_files(self):
         """Test copy_files function."""
@@ -2417,7 +2501,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 92)
+            self.assertEqual(len(index), 94)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),

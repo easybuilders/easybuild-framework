@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,6 +46,7 @@ import difflib
 import functools
 import os
 import re
+from collections import OrderedDict
 from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
@@ -74,7 +75,7 @@ from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool, NoModulesTool
-from easybuild.tools.py2vs3 import OrderedDict, create_base_metaclass, string_type
+from easybuild.tools.py2vs3 import create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -455,6 +456,8 @@ class EasyConfig(object):
             self.path = path
             self.rawtxt = read_file(path)
             self.log.debug("Raw contents from supplied easyconfig file %s: %s", path, self.rawtxt)
+            if not self.rawtxt.strip():
+                raise EasyBuildError('Easyconfig file is empty')
         else:
             self.rawtxt = rawtxt
             self.log.debug("Supplied raw easyconfig contents: %s" % self.rawtxt)
@@ -1752,6 +1755,12 @@ class EasyConfig(object):
             if self.template_values[key] is None:
                 del self.template_values[key]
 
+    def resolve_template(self, value):
+        """Resolve all templates in the given value using this easyconfig"""
+        if not self.template_values:
+            self.generate_template_values()
+        return resolve_template(value, self.template_values)
+
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
         """Check whether easyconfig parameter is defined"""
@@ -1767,9 +1776,7 @@ class EasyConfig(object):
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
         if self.enable_templating:
-            if self.template_values is None or len(self.template_values) == 0:
-                self.generate_template_values()
-            value = resolve_template(value, self.template_values)
+            value = self.resolve_template(value)
 
         return value
 
@@ -1845,9 +1852,7 @@ class EasyConfig(object):
         for key, tup in self._config.items():
             value = tup[0]
             if self.enable_templating:
-                if not self.template_values:
-                    self.generate_template_values()
-                value = resolve_template(value, self.template_values)
+                value = self.resolve_template(value)
             res[key] = value
         return res
 
@@ -1909,7 +1914,9 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
-                name = "UNKNOWN"
+                if error_on_missing_easyblock:
+                    raise EasyBuildError("No easyblock found as neither name nor easyblock were specified")
+                return None
             # The following is a generic way to calculate unique class names for any funny software title
             class_name = encode_class_name(name)
             # modulepath will be the namespace + encoded modulename (from the classname)

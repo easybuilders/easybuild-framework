@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -85,7 +85,7 @@ class Gcc(Compiler):
         COMPILER_UNIQUE_OPTION_MAP['strict'] = []
         COMPILER_UNIQUE_OPTION_MAP['precise'] = []
         COMPILER_UNIQUE_OPTION_MAP['loose'] = ['fno-math-errno']
-        COMPILER_UNIQUE_OPTION_MAP['verloose'] = ['fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['veryloose'] = ['fno-math-errno']
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {

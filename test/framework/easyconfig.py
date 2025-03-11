@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -38,6 +38,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+from collections import OrderedDict
 from easybuild.tools import LooseVersion
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -72,7 +73,7 @@ from easybuild.tools.filetools import remove_dir, remove_file, symlink, write_fi
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.options import parse_external_modules_metadata
-from easybuild.tools.py2vs3 import OrderedDict, reload
+from easybuild.tools.py2vs3 import reload
 from easybuild.tools.robot import det_robot_path, resolve_dependencies
 from easybuild.tools.systemtools import AARCH64, KNOWN_ARCH_CONSTANTS, POWER, X86_64
 from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext, get_os_name, get_os_version
@@ -138,10 +139,13 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_empty(self):
         """ empty files should not parse! """
+        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
         self.contents = "# empty string"
         self.prep()
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
+        self.contents = ""
+        self.prep()
+        self.assertErrorRegex(EasyBuildError, "is empty", EasyConfig, self.eb_file)
 
     def test_mandatory(self):
         """ make sure all checking of mandatory parameters works """
@@ -1256,6 +1260,29 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpiexec -np 1 -- toy'])
 
+    def test_ec_method_resolve_template(self):
+        """Test the `resolve_template` method of easyconfig instances."""
+        # don't use any escaping insanity here, since it is templated itself
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig %(name)s version %(version_major)s"
+            toolchain = SYSTEM
+        """)
+        self.prep()
+        ec = EasyConfig(self.eb_file, validate=False)
+
+        # We can resolve anything with values from the EC
+        self.assertEqual(ec.resolve_template('%(namelower)s %(version_major)s begins with %(nameletterlower)s'),
+                         'pi 3 begins with p')
+
+        # `resolve_template` does basically the same resolving any value on acccess
+        description = ec.get('description', resolve=False)
+        self.assertIn('%', description, 'Description needs a template for the next test')
+        self.assertEqual(ec.resolve_template(description), ec['description'])
+
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
 
@@ -1419,6 +1446,30 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
 
+    def test_rpath_template(self):
+        """Test the %(rpath)s template"""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
+        write_file(test_ec, test_ec_txt)
+
+        ec = EasyConfig(test_ec)
+        expected = '--with-rpath=true' if get_os_name() == 'Linux' else '--with-rpath=false'
+        self.assertEqual(ec['configopts'], expected)
+
+        # force True
+        update_build_option('rpath', True)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=true")
+
+        # force False
+        update_build_option('rpath', False)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--with-rpath=false")
+
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
 
@@ -1446,6 +1497,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['configopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['buildopts'], "--some-opt=%s/" % self.test_prefix)
         self.assertEqual(ec['installopts'], "--some-opt=%s/" % self.test_prefix)
+
+    def test_software_commit_template(self):
+        """Test the %(software_commit)s template"""
+
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nconfigopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\nbuildopts = "--some-opt=%(software_commit)s"'
+        test_ec_txt += '\ninstallopts = "--some-opt=%(software_commit)s"'
+        write_file(test_ec, test_ec_txt)
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=")
+        self.assertEqual(ec['buildopts'], "--some-opt=")
+        self.assertEqual(ec['installopts'], "--some-opt=")
+
+        # Validate the value of the sysroot template if sysroot is unset (i.e. the build option is None)
+        # As a test, we'll set the sysroot to self.test_prefix, as it has to be a directory that is guaranteed to exist
+        software_commit = '1234bc'
+        update_build_option('software_commit', software_commit)
+
+        ec = EasyConfig(test_ec)
+        self.assertEqual(ec['configopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['buildopts'], "--some-opt=%s" % software_commit)
+        self.assertEqual(ec['installopts'], "--some-opt=%s" % software_commit)
 
     def test_constant_doc(self):
         """test constant documentation"""
@@ -1633,6 +1713,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
         self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
+
+        # Test passing neither easyblock nor name
+        self.assertErrorRegex(EasyBuildError, "neither name nor easyblock were specified", get_easyblock_class, None)
+        self.assertEqual(get_easyblock_class(None, error_on_missing_easyblock=False), None)
 
         # also test deprecated default_fallback named argument
         self.assertErrorRegex(EasyBuildError, "DEPRECATED", get_easyblock_class, None, name='gzip',
@@ -3328,6 +3412,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
+        rpath = 'true' if get_os_name() == 'Linux' else 'false'
+
         expected = {
             'bitbucket_account': 'gzip',
             'github_account': 'gzip',
@@ -3337,6 +3423,8 @@ class EasyConfigTest(EnhancedTestCase):
             'nameletter': 'g',
             'nameletterlower': 'g',
             'parallel': None,
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'toolchain_name': 'foss',
             'toolchain_version': '2018a',
@@ -3419,6 +3507,8 @@ class EasyConfigTest(EnhancedTestCase):
             'pyminver': '7',
             'pyshortver': '3.7',
             'pyver': '3.7.2',
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'version': '0.01',
             'version_major': '0',
@@ -3484,6 +3574,8 @@ class EasyConfigTest(EnhancedTestCase):
             'namelower': 'foo',
             'nameletter': 'f',
             'nameletterlower': 'f',
+            'rpath_enabled': rpath,
+            'software_commit': '',
             'sysroot': '',
             'version': '1.2.3',
             'version_major': '1',
