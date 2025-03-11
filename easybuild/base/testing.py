@@ -85,12 +85,12 @@ class TestCase(OrigTestCase):
     def assertEqual(self, a, b, msg=None):
         """Make assertEqual always print useful messages"""
 
-        if not self._is_diffable(a) or not self._is_diffable(b):
-            super(TestCase, self).assertEqual(a, b, msg)
-            return
         try:
             super(TestCase, self).assertEqual(a, b)
         except AssertionError as e:
+            if not self._is_diffable(a) or not self._is_diffable(b):
+                raise
+
             if msg is None:
                 msg = str(e)
             else:
