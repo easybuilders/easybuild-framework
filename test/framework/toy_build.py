@@ -3009,14 +3009,15 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
-        # test use of rpath toolchain option
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a.eb'))
-        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"  # overwrites existing toolchainopts
-        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
-        write_file(toy_ec, toy_ec_txt)
-        with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
+        # test use of rpath toolchain option with SYSTEM and gompi 2018b toolchains
+        for toolchain in ['', '-gompi-2018a']:
+            test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+            toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', f'toy-0.0{toolchain}.eb'))
+            toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"  # overwrites existing toolchainopts
+            toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+            write_file(toy_ec, toy_ec_txt)
+            with self.mocked_stdout_stderr():
+                self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
     def test_toy_filter_rpath_sanity_libs(self):
         """Test use of --filter-rpath-sanity-libs."""
