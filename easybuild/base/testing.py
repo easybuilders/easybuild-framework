@@ -73,10 +73,21 @@ class TestCase(OrigTestCase):
     ASSERT_MAX_DIFF = 100
     DIFF_OFFSET = 5  # lines of text around changes
 
-    # pylint: disable=arguments-differ
+    def _is_diffable(self, x):
+        """Test if it makes sense to show a diff for x"""
+        if isinstance(x, (int, float, bool, type(None))):
+            return False
+        if isinstance(x, str) and '\n' not in x:
+            return False
+        return True
+
+    # pylint: disable=arguments-differ,arguments-renamed
     def assertEqual(self, a, b, msg=None):
         """Make assertEqual always print useful messages"""
 
+        if not self._is_diffable(a) or not self._is_diffable(b):
+            super(TestCase, self).assertEqual(a, b, msg)
+            return
         try:
             super(TestCase, self).assertEqual(a, b)
         except AssertionError as e:
