@@ -3015,7 +3015,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
         self.assertEqual(ec_json['ec']['checksums'], [])
-        for ext in ec_json['ec']['exts_list']:
+        for ext in ec_json['ec'].get_ref('exts_list'):
             if isinstance(ext, str):
                 continue
             elif isinstance(ext, tuple):
