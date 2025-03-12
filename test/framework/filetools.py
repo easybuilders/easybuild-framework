@@ -1443,14 +1443,25 @@ class FileToolsTest(EnhancedTestCase):
         # Check handling of on_missing_match
         ft.write_file(testfile, testtxt)
         regex_subs_no_match = [('Not there', 'Not used')]
-        error_pat = 'Nothing found to replace in %s' % testfile
+        error_pat = "Nothing found to replace 'Not there' in %s" % testfile
         # Error
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_no_match,
                               on_missing_match=run.ERROR)
+        # First matches, but 2nd not
+        regex_subs_part_match = [regex_subs[0], ('Not there', 'Not used')]
+        self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, testfile, regex_subs_part_match,
+                              on_missing_match=run.ERROR, match_all=True)
+        # First matched so OK with match_all
+        ft.apply_regex_substitutions(testfile, regex_subs_part_match,
+                                     on_missing_match=run.ERROR, match_all=False)
 
         # Warn
         with self.log_to_testlogfile():
             ft.apply_regex_substitutions(testfile, regex_subs_no_match, on_missing_match=run.WARN)
+        logtxt = ft.read_file(self.logfile)
+        self.assertIn('WARNING ' + error_pat, logtxt)
+        with self.log_to_testlogfile():
+            ft.apply_regex_substitutions(testfile, regex_subs_part_match, on_missing_match=run.WARN, match_all=True)
         logtxt = ft.read_file(self.logfile)
         self.assertIn('WARNING ' + error_pat, logtxt)
 
@@ -1464,6 +1475,24 @@ class FileToolsTest(EnhancedTestCase):
         error_pat = "Failed to patch .*/nosuchfile.txt: .*No such file or directory"
         path = os.path.join(self.test_prefix, 'nosuchfile.txt')
         self.assertErrorRegex(EasyBuildError, error_pat, ft.apply_regex_substitutions, path, regex_subs)
+
+        # Replace multi-line strings
+        testtxt = "This si wrong\nBut mkae right\nLeave this!"
+        expected_testtxt = 'This is wrong.\nBut make right\nLeave this!'
+        ft.write_file(testfile, testtxt)
+        repl = ('This si( .*)\n(.*)mkae right$', 'This is wrong.\nBut make right')
+        ft.apply_regex_substitutions(testfile, [repl], backup=False, on_missing_match=ERROR, single_line=False)
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt)
+        # Supports capture groups
+        ft.write_file(testfile, testtxt)
+        repls = [
+            ('This si( .*)\n(.*)mkae right$', r'This is\1.\n\2make right'),
+            ('Lea(ve)', r'Do \g<0>\1'),  # Reference to full match
+        ]
+        ft.apply_regex_substitutions(testfile, repls, backup=False, on_missing_match=ERROR, single_line=False)
+        new_testtxt = ft.read_file(testfile)
+        self.assertEqual(new_testtxt, expected_testtxt.replace('Leave', 'Do Leaveve'))
 
         # make sure apply_regex_substitutions can patch files that include UTF-8 characters
         testtxt = b"foo \xe2\x80\x93 bar"  # This is an UTF-8 "-"
@@ -1485,34 +1514,32 @@ class FileToolsTest(EnhancedTestCase):
 
         # also test apply_regex_substitutions with a *list* of paths
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3493
+        # and a compiled regex
         test_dir = os.path.join(self.test_prefix, 'test_dir')
         test_file1 = os.path.join(test_dir, 'one.txt')
         test_file2 = os.path.join(test_dir, 'two.txt')
         ft.write_file(test_file1, "Donald is an elephant")
         ft.write_file(test_file2, "2 + 2 = 5")
         regexs = [
-            ('Donald', 'Dumbo'),
+            (re.compile('donald', re.I), 'Dumbo'),  # Only matches if this is used as-is
             ('= 5', '= 4'),
         ]
         ft.apply_regex_substitutions([test_file1, test_file2], regexs)
 
         # also check dry run mode
         init_config(build_options={'extended_dry_run': True})
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.apply_regex_substitutions([test_file1, test_file2], regexs)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.apply_regex_substitutions([test_file1, test_file2], regexs)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertFalse(stderr)
-        regex = re.compile('\n'.join([
+        regex = '\n'.join([
             r"applying regex substitutions to file\(s\): .*/test_dir/one.txt, .*/test_dir/two.txt",
-            r"  \* regex pattern 'Donald', replacement string 'Dumbo'",
+            r"  \* regex pattern 'donald', replacement string 'Dumbo'",
             r"  \* regex pattern '= 5', replacement string '= 4'",
             '',
-        ]))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        ])
+        self.assertTrue(re.search(regex, stdout), "Pattern '%s' should be found in: %s" % (regex, stdout))
 
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""

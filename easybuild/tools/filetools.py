@@ -1643,39 +1643,52 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git_am=Fa
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_match=None):
+def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
+                              on_missing_match=None, match_all=False, single_line=True):
     """
     Apply specified list of regex substitutions.
 
     :param paths: list of paths to files to patch (or just a single filepath)
-    :param regex_subs: list of substitutions to apply, specified as (<regexp pattern>, <replacement string>)
+    :param regex_subs: list of substitutions to apply,
+                       specified as (<regexp pattern or regex instance>, <replacement string>)
     :param backup: create backup of original file with specified suffix (no backup if value evaluates to False)
     :param on_missing_match: Define what to do when no match was found in the file.
                              Can be 'error' to raise an error, 'warn' to print a warning or 'ignore' to do nothing
                              Defaults to the value of --strict
+    :param match_all: Expect to match all patterns in all files
+                      instead of at least one per file for error/warning reporting
+    :param single_line: Replace first match of each pattern for each line in the order of the patterns.
+                        If False the patterns are applied in order to the full text and may match line breaks.
     """
     if on_missing_match is None:
         on_missing_match = build_option('strict')
     allowed_values = (ERROR, IGNORE, WARN)
     if on_missing_match not in allowed_values:
-        raise EasyBuildError('Invalid value passed to on_missing_match: %s (allowed: %s)',
-                             on_missing_match, ', '.join(allowed_values))
+        raise ValueError('Invalid value passed to on_missing_match: %s (allowed: %s)',
+                         on_missing_match, ', '.join(allowed_values))
 
     if isinstance(paths, string_type):
         paths = [paths]
+    if (not isinstance(regex_subs, (list, tuple)) or
+            not all(isinstance(sub, (list, tuple)) and len(sub) == 2 for sub in regex_subs)):
+        raise ValueError('Parameter regex_subs must be a list of 2-element tuples. Got:', regex_subs)
+
+    flags = 0 if single_line else re.M
+    compiled_regex_subs = [(re.compile(regex, flags) if isinstance(regex, str) else regex, subtxt)
+                           for (regex, subtxt) in regex_subs]
 
     # only report when in 'dry run' mode
     if build_option('extended_dry_run'):
         paths_str = ', '.join(paths)
         dry_run_msg("applying regex substitutions to file(s): %s" % paths_str, silent=build_option('silent'))
-        for regex, subtxt in regex_subs:
-            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex, subtxt))
+        for regex, subtxt in compiled_regex_subs:
+            dry_run_msg("  * regex pattern '%s', replacement string '%s'" % (regex.pattern, subtxt))
 
     else:
-        _log.info("Applying following regex substitutions to %s: %s", paths, regex_subs)
+        _log.info("Applying following regex substitutions to %s: %s",
+                  paths, [(regex.pattern, subtxt) for regex, subtxt in compiled_regex_subs])
 
-        compiled_regex_subs = [(re.compile(regex), subtxt) for (regex, subtxt) in regex_subs]
-
+        replacement_failed_msgs = []
         for path in paths:
             try:
                 # make sure that file can be opened in text mode;
@@ -1695,32 +1708,49 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb', on_missing_m
                 if backup:
                     copy_file(path, path + backup)
                 replacement_msgs = []
+                replaced = [False] * len(compiled_regex_subs)
                 with open_file(path, 'w') as out_file:
-                    lines = txt_utf8.split('\n')
-                    del txt_utf8
-                    for line_id, line in enumerate(lines):
-                        for regex, subtxt in compiled_regex_subs:
-                            match = regex.search(line)
-                            if match:
+                    if single_line:
+                        lines = txt_utf8.split('\n')
+                        del txt_utf8
+                        for line_id, line in enumerate(lines):
+                            for i, (regex, subtxt) in enumerate(compiled_regex_subs):
+                                match = regex.search(line)
+                                if match:
+                                    origtxt = match.group(0)
+                                    replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
+                                                            (line_id + 1, origtxt, subtxt))
+                                    replaced[i] = True
+                                    line = regex.sub(subtxt, line)
+                                    lines[line_id] = line
+                        out_file.write('\n'.join(lines))
+                    else:
+                        for i, (regex, subtxt) in enumerate(compiled_regex_subs):
+                            def do_replace(match):
                                 origtxt = match.group(0)
-                                replacement_msgs.append("Replaced in line %d: '%s' -> '%s'" %
-                                                        (line_id + 1, origtxt, subtxt))
-                                line = regex.sub(subtxt, line)
-                                lines[line_id] = line
-                    out_file.write('\n'.join(lines))
+                                # pylint: disable=cell-var-from-loop
+                                cur_subtxt = match.expand(subtxt)
+                                # pylint: disable=cell-var-from-loop
+                                replacement_msgs.append("Replaced: '%s' -> '%s'" % (origtxt, cur_subtxt))
+                                return cur_subtxt
+                            txt_utf8, replaced[i] = regex.subn(do_replace, txt_utf8)
+                        out_file.write(txt_utf8)
                 if replacement_msgs:
                     _log.info('Applied the following substitutions to %s:\n%s', path, '\n'.join(replacement_msgs))
-                else:
-                    msg = 'Nothing found to replace in %s' % path
-                    if on_missing_match == ERROR:
-                        raise EasyBuildError(msg)
-                    elif on_missing_match == WARN:
-                        _log.warning(msg)
-                    else:
-                        _log.info(msg)
-
+                if (match_all and not all(replaced)) or (not match_all and not any(replaced)):
+                    errors = ["Nothing found to replace '%s'" % regex.pattern
+                              for cur_replaced, (regex, _) in zip(replaced, compiled_regex_subs) if not cur_replaced]
+                    replacement_failed_msgs.append(', '.join(errors) + ' in ' + path)
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
+            if replacement_failed_msgs:
+                msg = '\n'.join(replacement_failed_msgs)
+                if on_missing_match == ERROR:
+                    raise EasyBuildError(msg)
+                elif on_missing_match == WARN:
+                    _log.warning(msg)
+                else:
+                    _log.info(msg)
 
 
 def modify_env(old, new):

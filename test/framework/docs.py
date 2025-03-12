@@ -25,7 +25,6 @@
 """
 Unit tests for docs.py.
 """
-import inspect
 import os
 import re
 import sys
@@ -38,7 +37,7 @@ from easybuild.tools.docs import get_easyblock_classes, gen_easyblocks_overview_
 from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
 from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
-from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table
+from easybuild.tools.utilities import mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 
 
@@ -520,7 +519,7 @@ class DocsTest(EnhancedTestCase):
     def test_gen_easyblocks_overview(self):
         """ Test gen_easyblocks_overview_* functions """
         gen_easyblocks_pkg = 'easybuild.easyblocks.generic'
-        modules = import_available_modules(gen_easyblocks_pkg)
+        names = [eb_class.__name__ for eb_class in get_easyblock_classes(gen_easyblocks_pkg)]
         common_params = {
             'ConfigureMake': ['configopts', 'buildopts', 'installopts'],
         }
@@ -564,15 +563,9 @@ class DocsTest(EnhancedTestCase):
         ])
 
         self.assertIn(check_configuremake, ebdoc)
-        names = []
 
-        for mod in modules:
-            for name, _ in inspect.getmembers(mod, inspect.isclass):
-                eb_class = getattr(mod, name)
-                # skip imported classes that are not easyblocks
-                if eb_class.__module__.startswith(gen_easyblocks_pkg):
-                    self.assertIn(name, ebdoc)
-                    names.append(name)
+        for name in names:
+            self.assertIn(name, ebdoc)
 
         toc = [":ref:`" + n + "`" for n in sorted(set(names))]
         pattern = " - ".join(toc)
@@ -610,17 +603,11 @@ class DocsTest(EnhancedTestCase):
         ])
 
         self.assertIn(check_configuremake, ebdoc)
-        names = []
 
-        for mod in modules:
-            for name, _ in inspect.getmembers(mod, inspect.isclass):
-                eb_class = getattr(mod, name)
-                # skip imported classes that are not easyblocks
-                if eb_class.__module__.startswith(gen_easyblocks_pkg):
-                    self.assertIn(name, ebdoc)
-                    names.append(name)
+        for name in names:
+            self.assertIn(name, ebdoc)
 
-        toc = ["\\[" + n + "\\]\\(#" + n.lower() + "\\)" for n in sorted(set(names))]
+        toc = ["\\[" + n + "\\]\\(#" + n.lower() + "\\)" for n in sorted(names)]
         pattern = " - ".join(toc)
         regex = re.compile(pattern)
         self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))

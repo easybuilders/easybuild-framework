@@ -36,7 +36,7 @@ import os
 import sys
 from optparse import OptionParser
 
-from easybuild.tools.filetools import encode_class_name
+from easybuild.tools.filetools import encode_class_name, EASYBLOCK_CLASS_PREFIX
 
 # parse options
 parser = OptionParser()
@@ -83,8 +83,9 @@ if os.path.exists(easyblock_path):
 # determine parent easyblock class
 parent_import = "from easybuild.framework.easyblock import EasyBlock"
 if not options.parent == "EasyBlock":
-    if options.parent.startswith('EB_'):
-        ebmod = options.parent[3:].lower()  # FIXME: here we should actually decode the encoded class name
+    if options.parent.startswith(EASYBLOCK_CLASS_PREFIX):
+        # FIXME: here we should actually decode the encoded class name
+        ebmod = options.parent[len(EASYBLOCK_CLASS_PREFIX):].lower()
     else:
         ebmod = "generic.%s" % options.parent.lower()
     parent_import = "from easybuild.easyblocks.%s import %s" % (ebmod, options.parent)

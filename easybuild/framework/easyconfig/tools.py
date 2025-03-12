@@ -58,7 +58,7 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, find_easyconfigs, is_patch_file, locate_files
 from easybuild.tools.filetools import read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
@@ -758,7 +758,7 @@ def avail_easyblocks():
     """Return a list of all available easyblocks."""
 
     module_regexp = re.compile(r"^([^_].*)\.py$")
-    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+    class_regex = re.compile(r"^class ([^(:]*)\(", re.M)
 
     # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
     search_toolchain('')
@@ -768,33 +768,43 @@ def avail_easyblocks():
         __import__(pkg)
 
         # determine paths for this package
-        paths = sys.modules[pkg].__path__
+        paths = [path for path in sys.modules[pkg].__path__ if os.path.exists(path)]
 
         # import all modules in these paths
         for path in paths:
-            if os.path.exists(path):
-                for fn in os.listdir(path):
-                    res = module_regexp.match(fn)
-                    if res:
-                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+            for fn in os.listdir(path):
+                res = module_regexp.match(fn)
+                if not res:
+                    continue
+                easyblock_mod_name = res.group(1)
+                easyblock_full_mod_name = '%s.%s' % (pkg, easyblock_mod_name)
 
-                        if easyblock_mod_name not in easyblocks:
-                            __import__(easyblock_mod_name)
-                            easyblock_loc = os.path.join(path, fn)
+                if easyblock_full_mod_name in easyblocks:
+                    _log.debug("%s already imported from %s, ignoring %s",
+                               easyblock_full_mod_name, easyblocks[easyblock_full_mod_name]['loc'], path)
+                else:
+                    __import__(easyblock_full_mod_name)
+                    easyblock_loc = os.path.join(path, fn)
 
-                            class_names = class_regex.findall(read_file(easyblock_loc))
-                            if len(class_names) == 1:
-                                easyblock_class = class_names[0]
-                            elif class_names:
-                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
-                                                     easyblock_loc, class_names)
-                            else:
-                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
-
-                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
+                    class_names = class_regex.findall(read_file(easyblock_loc))
+                    if len(class_names) > 1:
+                        if pkg.endswith('.generic'):
+                            # In generic easyblocks we have e.g. ConfigureMake in configuremake.py
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.lower() == easyblock_mod_name.lower()]
                         else:
-                            _log.debug("%s already imported from %s, ignoring %s",
-                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+                            # If there is exactly one software specific easyblock we use that
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.startswith(EASYBLOCK_CLASS_PREFIX)]
+                        if len(sw_specific_class_names) == 1:
+                            class_names = sw_specific_class_names
+                    if len(class_names) == 1:
+                        easyblocks[easyblock_full_mod_name] = {'class': class_names[0], 'loc': easyblock_loc}
+                    elif class_names:
+                        raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                             easyblock_loc, class_names)
+                    else:
+                        raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
 
     return easyblocks
 
