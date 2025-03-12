@@ -1220,6 +1220,13 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
 
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-gompi-2018a-test')
+        toy_libs_path = os.path.join(toy_installdir, 'toy_libs_path.txt')
+        self.assertTrue(os.path.exists(toy_libs_path))
+        txt = read_file(toy_libs_path)
+        regex = re.compile('^TOY_EXAMPLES=.*/examples$')
+        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' should match in: {txt}")
+
     def test_toy_advanced_filter_deps(self):
         """Test toy build with extensions, and filtered build dependency."""
         # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
