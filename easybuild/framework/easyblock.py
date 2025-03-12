@@ -2759,7 +2759,7 @@ class EasyBlock(object):
         checksum_issues.extend(self.check_checksums_for(self.cfg))
 
         # also check checksums for extensions
-        for ext in self.cfg['exts_list']:
+        for ext in self.cfg.get_ref('exts_list'):
             # just skip extensions for which only a name is specified
             # those are just there to check for things that are in the "standard library"
             if not isinstance(ext, str):
