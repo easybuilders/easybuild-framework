@@ -5113,7 +5113,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_exts_ec = EasyConfig(toy_exts)
         self.assertEqual(len(toy_exts_ec['sources']), 1)
         self.assertEqual(len(toy_exts_ec['patches']), 1)
-        self.assertEqual(len(toy_exts_ec['exts_list']), 4)
+        self.assertEqual(len(toy_exts_ec.get_ref('exts_list')), 4)
         self.assertEqual(toy_exts_ec.count_files(), 7)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
