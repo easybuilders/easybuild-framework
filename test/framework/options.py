@@ -6375,8 +6375,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
                                            {'toy-0.0_fix-silly-typo-in-printf-statement.patch': toy_patch_sha256}])
         self.assertEqual(ec['exts_default_options'], {'source_urls': ['http://example.com/%(name)s']})
         self.assertEqual(ec['exts_list'][0], 'ulimit')
+        expected_buildopts = " && gcc bar.c -o anotherbar && "
+        expected_buildopts += 'echo "TOY_EXAMPLES=$TOY_EXAMPLES" > %(installdir)s/toy_libs_path.txt'
         self.assertEqual(ec['exts_list'][1], ('bar', '0.0', {
-            'buildopts': " && gcc bar.c -o anotherbar",
+            'buildopts': expected_buildopts,
             'checksums': [
                 {'bar-0.0.tar.gz': bar_tar_gz_sha256},
                 {'bar-0.0_fix-silly-typo-in-printf-statement.patch': bar_patch_sha256},
