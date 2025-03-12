@@ -1680,7 +1680,8 @@ class EasyBlock(object):
             if self.dry_run or fake:
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
-                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+                if self.dry_run:
+                    self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
                 mod_req_paths = [
                     expanded_path for unexpanded_path in search_paths
