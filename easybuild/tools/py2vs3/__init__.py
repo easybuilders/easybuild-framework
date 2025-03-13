@@ -42,5 +42,5 @@ def python2_is_deprecated():
     We preserve the function name here in here EB5, to maintain the API, even though it now exits.
     """
     if sys.version_info[0] == 2:
-        sys.stderr.write('\n\nRunning EasyBuild v5.0 with Python v2 does not work. Use Python >= 3.6.\n\n\n')
+        sys.stderr.write('\n\nEasyBuild v5.0+ is not compatible with Python v2. Use Python >= 3.6.\n\n\n')
         sys.exit(1)
