@@ -356,7 +356,7 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
+        all_deprecations = ('easyconfig', 'toolchain')
 
         opts = OrderedDict({
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
