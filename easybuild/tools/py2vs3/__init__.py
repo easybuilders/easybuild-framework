@@ -22,8 +22,6 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
-import sys
-
 from easybuild.base import fancylogger
 
 from easybuild.base.wrapper import create_base_metaclass  # noqa
