@@ -461,6 +461,7 @@ LIST_SOFTWARE_SIMPLE_JSON = """[
 
 LIST_SOFTWARE_DETAILED_JSON = """[
 {
+    "authors": [],
     "description": "%(gcc_descr)s",
     "homepage": "http://gcc.gnu.org/",
     "name": "GCC",
@@ -469,6 +470,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "versionsuffix": ""
 },
 {
+    "authors": [],
     "description": "%(gzip_descr)s",
     "homepage": "http://www.gzip.org/",
     "name": "gzip",
@@ -477,6 +479,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "versionsuffix": ""
 },
 {
+    "authors": [],
     "description": "%(gzip_descr)s",
     "homepage": "http://www.gzip.org/",
     "name": "gzip",
@@ -485,6 +488,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "versionsuffix": ""
 },
 {
+    "authors": [],
     "description": "%(gzip_descr)s",
     "homepage": "http://www.gzip.org/",
     "name": "gzip",
@@ -493,6 +497,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "versionsuffix": ""
 },
 {
+    "authors": [],
     "description": "%(gzip_descr)s",
     "homepage": "http://www.gzip.org/",
     "name": "gzip",
