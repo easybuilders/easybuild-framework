@@ -22,6 +22,8 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 #
+import sys
+
 from easybuild.base import fancylogger
 
 from easybuild.base.wrapper import create_base_metaclass  # noqa
@@ -32,3 +34,13 @@ from easybuild.tools.py2vs3.py3 import *  # noqa
 
 _log = fancylogger.getLogger('py2vs3', fname=False)
 _log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.", '6.0')
+
+
+def python2_is_deprecated():
+    """
+    Exit with an error when using Python 2, since EasyBuild does not support it.
+    We preserve the function name here in here EB5, to maintain the API, even though it now exits.
+    """
+    if sys.version_info[0] == 2:
+        sys.stderr.write('\n\nRunning EasyBuild v5.0 with Python v2 does not work. Use Python >= 3.6.\n\n\n')
+        sys.exit(1)
