@@ -1002,8 +1002,7 @@ class Toolchain(object):
         if wrappers_dir is None:
             wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
         else:
-            if not os.path.exists(wrappers_dir):
-                os.mkdir(wrappers_dir)
+            wrappers_dir = os.path.join(wrappers_dir, RPATH_WRAPPERS_SUBDIR)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -1066,7 +1065,7 @@ class Toolchain(object):
                     'wrapper_dir': wrapper_dir,
                 }
                 write_file(cmd_wrapper, cmd_wrapper_txt)
-                adjust_permissions(cmd_wrapper, stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+                adjust_permissions(cmd_wrapper, stat.S_IXUSR)
 
                 # prepend location to this wrapper to $PATH
                 if add_to_path:
