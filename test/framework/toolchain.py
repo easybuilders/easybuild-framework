@@ -55,7 +55,7 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
 from easybuild.tools.toolchain.toolchain import env_vars_external_module, RPATH_WRAPPERS_SUBDIR
-from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain, export_rpath_wrappers
+from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.toolchains.compiler.clang import Clang
 
 easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
