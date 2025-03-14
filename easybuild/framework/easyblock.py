@@ -238,6 +238,9 @@ class EasyBlock(object):
         # list of locations to include in RPATH used by toolchain
         self.rpath_include_dirs = []
 
+        # directory to export RPATH wrappers to
+        self.rpath_wrappers_dir = None
+
         # logging
         self.log = None
         self.logfile = logfile

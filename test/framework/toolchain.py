@@ -3138,7 +3138,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
     def test_toolchain_prepare_rpath_external(self):
-        """Test toolchain.prepare under --rpath with --rpath-wrappers-dir"""
+        """Test toolchain.prepare under --rpath with rpath_wrappers_dir argument"""
 
         # put fake 'g++' command in place that just echos its arguments
         fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
@@ -3147,13 +3147,13 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
         # export the wrappers to a target location
-        target_wrapper_dir = os.path.join(self.test_prefix, 'target')
+        target_wrapper_dir = os.path.abspath(os.path.join(self.test_prefix, 'target'))
         # enable --rpath for a toolchain so we test against it
-        init_config(build_options={'rpath': True, 'silent': True, 'rpath_wrappers_dir': target_wrapper_dir})
+        init_config(build_options={'rpath': True, 'silent': True})
         tc = self.get_toolchain('gompi', version='2018a')
         tc.set_options({'rpath': True})
         # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
-        tc.prepare()
+        tc.prepare(rpath_wrappers_dir=target_wrapper_dir)
 
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
