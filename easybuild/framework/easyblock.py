@@ -399,25 +399,6 @@ class EasyBlock(object):
             self.log.debug("Cannot get checksum without a file name")
             return None
 
-        if chksum_input_git is not None:
-            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
-            # tarballs made for git repos are not reproducible when created with Python < 3.9
-            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
-                self.log.deprecated(
-                    "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
-                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
-                    '6.0'
-                )
-                return None
-            # not all archives formats of git repos are reproducible
-            # warn users that checksum might fail for non-reproducible archives
-            _, file_ext = os.path.splitext(chksum_input)
-            if file_ext not in ['', '.tar', '.txz', '.xz']:
-                print_warning(
-                    f"Checksum verification may fail! Archive file '{chksum_input}' contains sources of a git repo "
-                    "in a non-reproducible format. Please re-create that archive with XZ compression instead."
-                )
-
         checksum = None
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, dict):
@@ -436,7 +417,26 @@ class EasyBlock(object):
 
         if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
             json_checksums = self.get_checksums_from_json()
-            return json_checksums.get(chksum_input, None)
+            checksum = json_checksums.get(chksum_input, None)
+
+        if checksum and chksum_input_git is not None:
+            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
+            # tarballs made for git repos are not reproducible when created with Python < 3.9
+            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+                self.log.deprecated(
+                    "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
+                    '6.0'
+                )
+                return None
+            # not all archives formats of git repos are reproducible
+            # warn users that checksum might fail for non-reproducible archives
+            _, file_ext = os.path.splitext(chksum_input)
+            if file_ext not in ['', '.tar', '.txz', '.xz']:
+                print_warning(
+                    f"Checksum verification may fail! Archive file '{chksum_input}' contains sources of a git repo "
+                    "in a non-reproducible format. Please re-create that archive with XZ compression instead."
+                )
 
         return checksum
 
