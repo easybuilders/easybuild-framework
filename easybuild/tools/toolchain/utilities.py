@@ -36,15 +36,13 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import copy
-import os
 import re
 import sys
 
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import setvar
-from easybuild.tools.toolchain.toolchain import Toolchain, RPATH_WRAPPERS_SUBDIR
+from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.utilities import get_subclasses, import_available_modules, nub
 
 
@@ -153,25 +151,3 @@ def get_toolchain(tc, tcopts, mns=None, tcdeps=None, modtool=None):
     tc_inst.set_options(tcopts)
 
     return tc_inst
-
-
-def export_rpath_wrappers(targetdir, toolchain_name, toolchain_version, rpath_filter_dirs=None,
-                          rpath_include_dirs=None):
-    tc = get_toolchain({'name': toolchain_name, 'version': toolchain_version}, {})
-
-    # Temporarily filter any existing RPATH wrappers from the PATH
-    orig_paths = os.getenv('PATH')
-    filtered_paths = [path for path in orig_paths.split(':') if RPATH_WRAPPERS_SUBDIR not in path]
-    setvar('PATH', ':'.join(filtered_paths))
-
-    tc.prepare_rpath_wrappers(
-        rpath_filter_dirs=rpath_filter_dirs,
-        rpath_include_dirs=rpath_include_dirs,
-        wrappers_dir=targetdir,
-        add_to_path=False,
-        disable_wrapper_log=True,
-        )
-    _log.debug("Installed RPATH wrappers in command specific subdirectories of %s" % (str(targetdir)))
-
-    # Restore the PATH
-    setvar('PATH', orig_paths)

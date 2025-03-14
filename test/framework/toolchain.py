@@ -3137,8 +3137,8 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
-    def test_export_rpath(self):
-        """Test tools.toolchain.export_rpath_wrappers()"""
+    def test_toolchain_prepare_rpath_external(self):
+        """Test toolchain.prepare under --rpath with --rpath-wrappers-dir"""
 
         # put fake 'g++' command in place that just echos its arguments
         fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
@@ -3146,17 +3146,14 @@ class ToolchainTest(EnhancedTestCase):
         adjust_permissions(fake_gxx, stat.S_IXUSR)
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
 
+        # export the wrappers to a target location
+        target_wrapper_dir = os.path.join(self.test_prefix, 'target')
         # enable --rpath for a toolchain so we test against it
-        init_config(build_options={'rpath': True, 'silent': True})
+        init_config(build_options={'rpath': True, 'silent': True, 'rpath_wrappers_dir': target_wrapper_dir})
         tc = self.get_toolchain('gompi', version='2018a')
         tc.set_options({'rpath': True})
         # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
         tc.prepare()
-
-        # export the wrappers to a target location
-        target_wrapper_dir = os.path.join(self.test_prefix, 'target')
-        export_rpath_wrappers(targetdir=target_wrapper_dir, toolchain_name='gompi', toolchain_version='2018a',
-                              rpath_filter_dirs=['/filter_path'], rpath_include_dirs=['/include_path'])
 
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
@@ -3165,33 +3162,6 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(b'rpath_args.py $CMD' in read_file(target_wrapper, mode='rb'))
         # Make sure it wraps our fake 'g++'
         self.assertTrue(fake_gxx.encode(encoding="utf-8") in read_file(target_wrapper, mode='rb'))
-        # Make sure the wrapper is not in PATH (we export only)
-        self.assertFalse(any(os.path.samefile(x, target_wrapper) for x in which('g++', retain_all=True)))
-
-        # check whether fake g++ was wrapped and that arguments are what they should be
-        # no -rpath for /path because of rpath filter
-        mkdir(os.path.join(self.test_prefix, 'foo'), parents=True)
-        cmd = ' '.join([
-            target_wrapper,
-            '${USER}.c',
-            '-L%s/foo' % self.test_prefix,
-            '-L/filter_path',
-            "'$FOO'",
-            '-DX="\\"\\""',
-        ])
-        res = run_shell_cmd(cmd, hidden=True)
-        self.assertEqual(res.exit_code, 0)
-        expected = ' '.join([
-            '-Wl,-rpath=/include_path',
-            '-Wl,--disable-new-dtags',
-            '-Wl,-rpath=%s/foo' % self.test_prefix,
-            '%(user)s.c',
-            '-L%s/foo' % self.test_prefix,
-            '-L/filter_path',
-            '$FOO',
-            '-DX=""',
-        ])
-        self.assertEqual(res.output.strip(), expected % {'user': os.getenv('USER')})
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
