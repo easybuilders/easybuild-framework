@@ -39,6 +39,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
@@ -848,11 +849,13 @@ class SystemToolsTest(EnhancedTestCase):
         # mock number of available cores to 8
         st.get_avail_core_count = lambda: 8
         self.assertTrue(det_parallelism(), 8)
+
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
+        del det_parallelism._default_parallelism
         st.run_shell_cmd = mocked_run_shell_cmd
-        self.assertTrue(det_parallelism(), 4)
-        self.assertTrue(det_parallelism(par=6), 4)
-        self.assertTrue(det_parallelism(maxpar=2), 2)
+        self.assertEqual(det_parallelism(), 4)
+        self.assertEqual(det_parallelism(par=6), 6)
+        self.assertEqual(det_parallelism(maxpar=2), 2)
 
         st.get_avail_core_count = orig_get_avail_core_count
 
