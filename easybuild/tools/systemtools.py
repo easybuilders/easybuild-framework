@@ -1240,13 +1240,16 @@ def det_parallelism(par=None, maxpar=None):
             det_parallelism._default_parallelism = par
         return par
 
-    if par is None:
-        par = get_default_parallelism()
-    else:
-        try:
-            par = int(par)
-        except ValueError as err:
-            raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
+    try:
+        par = int(par)
+    except ValueError as err:
+        raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
+
+    defaultpar = get_default_parallelism()
+
+    if defaultpar < par
+        _log.info("Reducing parallelism from %s to %s", par, defaultpar)
+        par = defaultpar
 
     if maxpar is not None and maxpar < par:
         if maxpar is False:
