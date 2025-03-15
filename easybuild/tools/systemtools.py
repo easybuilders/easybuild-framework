@@ -1247,7 +1247,7 @@ def det_parallelism(par=None, maxpar=None):
 
     defaultpar = get_default_parallelism()
 
-    if defaultpar < par
+    if defaultpar < par:
         _log.info("Reducing parallelism from %s to %s", par, defaultpar)
         par = defaultpar
 
