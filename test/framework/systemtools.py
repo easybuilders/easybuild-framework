@@ -39,7 +39,6 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64

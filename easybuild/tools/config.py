@@ -100,6 +100,7 @@ DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MAX_PARALLEL = 16
 DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
@@ -394,6 +395,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
+    ],
+    DEFAULT_MAX_PARALLEL: [
+        'max_parallel',
     ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
