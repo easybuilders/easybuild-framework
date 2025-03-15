@@ -2436,31 +2436,31 @@ class EasyBlock(object):
         # set level of parallelism for build
         par = build_option('parallel')
         if par is not None:
-            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+            self.log.debug(f"Desired parallelism specified via 'parallel' build option: {par}")
 
         # Transitional only in case some easyblocks still set/change cfg['parallel']
         # Use _parallelLegacy to avoid deprecation warnings
-        cfg_par = self.cfg['_parallelLegacy']
-        if cfg_par is not None:
+        par_ec = self.cfg['_parallelLegacy']
+        if par_ec is not None:
             if par is None:
-                par = cfg_par
+                par = par_ec
             else:
-                par = min(int(par), int(cfg_par))
+                par = min(int(par), int(par_ec))
 
         # --max-parallel specifies global maximum for parallelism
-        max_par_cfg = int(build_option('max_parallel'))
+        max_par_global = int(build_option('max_parallel'))
         # note: 'max_parallel' and 'maxparallel; are the same easyconfig parameter,
         # since 'max_parallel' is an alternative name for 'maxparallel'
-        max_par = self.cfg['max_parallel']
+        max_par_ec = self.cfg['max_parallel']
         # take into account that False is a valid value for max_parallel
-        if max_par is False:
-            max_par = 1
+        if max_par_ec is False:
+            max_par_ec = 1
         # if max_parallel is not specified in easyconfig, we take the global value
-        if max_par is None:
-            max_par = max_par_cfg
+        if max_par_ec is None:
+            max_par = max_par_global
         # take minimum value if both are specified
         else:
-            max_par = min(int(max_par), max_par_cfg)
+            max_par = min(int(max_par_ec), max_par_global)
 
         par = det_parallelism(par=par, maxpar=max_par)
         self.log.info(f"Setting parallelism: {par}")
