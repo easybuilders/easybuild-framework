@@ -1176,10 +1176,13 @@ class EasyBlockTest(EnhancedTestCase):
             modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
 
         modextrapaths = {
-            'PATH': ('xbin', 'pibin'),
+            'PATH': (':', 'xbin', 'pibin'),
             'CPATH': 'pi/include',
         }
-        modextrapaths_append = {'APPEND_PATH': 'append_path'}
+        modextrapaths_append = {
+            'PATH2': (':', 'xbin', 'pibin'),
+            'APPEND_PATH': 'append_path',
+        }
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1253,7 +1256,12 @@ class EasyBlockTest(EnhancedTestCase):
             if isinstance(vals, string_type):
                 vals = [vals]
             for val in vals:
-                if get_module_syntax() == 'Tcl':
+                if val == ':':
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(r'^prepend-path\s+%s\s+%s$' % (key, val), re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(r'^prepend_path\("%s", "%s"\)$' % (key, val), re.M)
+                elif get_module_syntax() == 'Tcl':
                     regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
                     regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
@@ -1268,7 +1276,12 @@ class EasyBlockTest(EnhancedTestCase):
             if isinstance(vals, string_type):
                 vals = [vals]
             for val in vals:
-                if get_module_syntax() == 'Tcl':
+                if val == ':':
+                    if get_module_syntax() == 'Tcl':
+                        regex = re.compile(r'^append-path\s+%s\s+%s$' % (key, val), re.M)
+                    elif get_module_syntax() == 'Lua':
+                        regex = re.compile(r'^append_path\("%s", "%s"\)$' % (key, val), re.M)
+                elif get_module_syntax() == 'Tcl':
                     regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
                 elif get_module_syntax() == 'Lua':
                     regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
