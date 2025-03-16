@@ -430,7 +430,8 @@ class TestLoaderFiltered(unittest.TestLoader):
         retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                if any(filt in test_case_name for filt in filters):
+                full_test_case_name = '%s.%s' % (test_case_class.__name__, test_case_name)
+                if any(filt in full_test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
             retained_tests = ', '.join(retained_test_names)
