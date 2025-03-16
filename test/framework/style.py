@@ -77,6 +77,12 @@ class StyleTest(EnhancedTestCase):
             '''description = """start of long description, ''',  # trailing whitespace, but allowed in description
             ''' continuation of long description ''',  # trailing whitespace, but allowed in continued description
             ''' end of long description"""''',
+            '''citing = """start of long citing text, ''',  # trailing whitespace, but allowed in citing
+            ''' continuation of long citing text ''',  # trailing whitespace, but allowed in continued citing
+            ''' end of long citing text"""''',
+            '''examples = """start of long examples, ''',  # trailing whitespace, but allowed in examples
+            ''' continuation of long examples ''',  # trailing whitespace, but allowed in continued examples
+            ''' end of long examples"""''',
             "moduleclass = 'tools'   ",  # trailing whitespace
             '',
         ]
@@ -86,6 +92,12 @@ class StyleTest(EnhancedTestCase):
             None,
             (17, "W299 trailing whitespace"),
             (0, "W293 blank line contains whitespace"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             None,

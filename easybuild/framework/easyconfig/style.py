@@ -100,7 +100,7 @@ def _eb_check_trailing_whitespace(physical_line, lines, line_number, checker_sta
 
     # if the warning is about the multiline string of description
     # we will not issue a warning
-    if checker_state.get('eb_last_key') == 'description':
+    if checker_state.get('eb_last_key') in ['description', 'examples', 'citing']:
         result = None
 
     return result
