@@ -3127,12 +3127,21 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
 
         fails = []
+
+        # Configure RPATH checking by readelf using easyconfig variable 'check_readelf_rpath' (default True)
+        if check_readelf_rpath is None:
+            check_readelf_rpath = self.cfg["check_readelf_rpath"]
+            (
+                self.log.info("RPATH checking by readelf is enabled")
+                if check_readelf_rpath
+                else self.log.info("RPATH checking by readelf is disabled")
+            )
 
         # hard reset $LD_LIBRARY_PATH before running RPATH sanity check
         orig_env = env.unset_env_vars(['LD_LIBRARY_PATH'])
