@@ -606,30 +606,20 @@ class EasyConfig(object):
         """
         Return a copy of this EasyConfig instance.
         """
-        return self._copy(validate=validate)
-
-    def _copy(self, validate=None, memo=None):
-        """Implement the deep copy"""
         if validate is None:
             validate = self.validation
 
         # create a new EasyConfig instance
         ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
-        ec._config = copy.deepcopy(self._config, memo)
+        ec._config = copy.deepcopy(self._config)
         # since rawtxt is defined, self.path may not get inherited, make sure it does
         if self.path:
             ec.path = self.path
 
         # also copy template values, since re-generating them may not give the same set of template values straight away
-        ec.template_values = copy.deepcopy(self.template_values, memo)
+        ec.template_values = copy.deepcopy(self.template_values)
 
-        return ec
-
-    def __deepcopy__(self, memo):
-        """Implement a deep copy"""
-        ec = self._copy(validate=False, memo=memo)
-        ec.validation = self.validation
         return ec
 
     def update(self, key, value, allow_duplicate=True):
