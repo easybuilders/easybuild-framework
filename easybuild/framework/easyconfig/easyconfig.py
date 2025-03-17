@@ -2082,7 +2082,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
-            return [e.copy() for e in _easyconfigs_cache[cache_key]]
+            return copy.deepcopy(_easyconfigs_cache[cache_key])
 
     easyconfigs = []
     for spec in blocks:
@@ -2133,7 +2133,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(tc)
 
     if cache_key is not None:
-        _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
+        _easyconfigs_cache[cache_key] = copy.deepcopy(easyconfigs)
 
     return easyconfigs
 
