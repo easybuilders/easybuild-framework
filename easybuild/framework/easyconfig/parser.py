@@ -68,7 +68,6 @@ ALTERNATIVE_EASYCONFIG_PARAMETERS = {
     'env_mod_aliases': 'modaliases',
     'env_mod_alt_soft_name': 'modaltsoftname',
     'modulepath_prepend_paths': 'moddependpaths',
-    'env_mod_extra_paths_append': 'modextrapaths_append',
     'env_mod_extra_paths': 'modextrapaths',
     'env_mod_extra_vars': 'modextravars',
     'env_mod_load_msg': 'modloadmsg',
@@ -103,6 +102,9 @@ ALTERNATIVE_EASYCONFIG_PARAMETERS = {
 # deprecated easyconfig parameters, and their replacements
 DEPRECATED_EASYCONFIG_PARAMETERS = {
     # <old_param>: (<new_param>, <deprecation_version>),
+    'allow_append_abs_path': ('modextrapaths', '6.0'),
+    'allow_prepend_abs_path': ('modextrapaths', '6.0'),
+    'modextrapaths_append': ('modextrapaths', '6.0'),
 }
 
 # replaced easyconfig parameters, and their replacements

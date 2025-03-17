@@ -100,6 +100,7 @@ DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MAX_PARALLEL = 16
 DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
@@ -395,6 +396,9 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
     ],
+    DEFAULT_MAX_PARALLEL: [
+        'max_parallel',
+    ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
     ],
@@ -505,6 +509,8 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'buildpath',
         'config',
         'containerpath',
+        'failed_install_build_dirs_path',
+        'failed_install_logs_path',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -875,6 +881,42 @@ def log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
+
+
+def get_failed_install_build_dirs_path(ec):
+    """
+    Return the location where the build directory is copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_build_dirs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
+
+
+def get_failed_install_logs_path(ec):
+    """
+    Return the location where log files are copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_logs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
 
 
 def get_build_log_path():

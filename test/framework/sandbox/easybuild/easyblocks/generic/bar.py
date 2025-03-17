@@ -32,6 +32,18 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
 
 
+class dummy1:
+    """Only to verify that unrelated classes in software specific easyblocks are ignored"""
+
+
+class dummy2(dummy1):
+    """Same but with inheritance"""
+
+
+class dummy3:
+    """Class without inheritance before the real easyblock to verify the regex not being too greedy"""
+
+
 class bar(EasyBlock):
     """Generic support for building/installing bar."""
 

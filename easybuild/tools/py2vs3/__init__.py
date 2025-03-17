@@ -38,22 +38,9 @@ _log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on P
 
 def python2_is_deprecated():
     """
-    Print warning when using Python 2, since the support for running EasyBuild with it is deprecated.
+    Exit with an error when using Python 2, since EasyBuild does not support it.
+    We preserve the function name here in here EB5, to maintain the API, even though it now exits.
     """
     if sys.version_info[0] == 2:
-        full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
-        warning_lines = [
-            "Running EasyBuild with Python v2.x is deprecated, found Python v%s." % full_py_ver,
-            "Support for running EasyBuild with Python v2.x will be removed in EasyBuild v5.0.",
-            '',
-            "It is strongly recommended to start using Python v3.x for running EasyBuild,",
-            "see https://docs.easybuild.io/en/latest/Python-2-3-compatibility.html for more information.",
-        ]
-        max_len = max(len(x) for x in warning_lines)
-        for i in range(len(warning_lines)):
-            line_len = len(warning_lines[i])
-            warning_lines[i] = '!!! ' + warning_lines[i] + ' ' * (max_len - line_len) + ' !!!'
-        max_len = max(len(x) for x in warning_lines)
-        warning_lines.insert(0, '!' * max_len)
-        warning_lines.append('!' * max_len)
-        sys.stderr.write('\n\n' + '\n'.join(warning_lines) + '\n\n\n')
+        sys.stderr.write('\n\nEasyBuild v5.0+ is not compatible with Python v2. Use Python >= 3.6.\n\n\n')
+        sys.exit(1)

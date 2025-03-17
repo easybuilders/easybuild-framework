@@ -676,7 +676,7 @@ class EasyConfigTest(EnhancedTestCase):
             'toolchain = {"name": "GCC", "version": "4.6.3"}',
             'patches = %s',
             'maxparallel = 1',
-            'keepsymlinks = True',
+            'keepsymlinks = False',
         ]) % str(patches)
         self.prep()
 
@@ -694,7 +694,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': versuff,
             'toolchain_version': tcver,
             'patches': new_patches,
-            'keepsymlinks': 'True',  # Don't change this
+            'keepsymlinks': 'False',  # Don't change this
             # It should be possible to overwrite values with True/False/None as they often have special meaning
             'runtest': 'False',
             'hidden': 'True',
@@ -751,6 +751,32 @@ class EasyConfigTest(EnhancedTestCase):
 
         # cleanup
         os.remove(tweaked_fn)
+
+    def test_parse_easyconfig(self):
+        """Test parse_easyconfig function"""
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+        """)
+        self.prep()
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
+        self.assertIsInstance(ecs[0]['ec'], EasyConfig)
+        self.assertFalse(gen_ecs)
+        # Passing the same EC multiple times is ignored
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        # Similar for symlinks
+        linked_ec = os.path.join(self.test_prefix, 'linked.eb')
+        os.symlink(self.eb_file, linked_ec)
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (linked_ec, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
 
     def test_alt_easyconfig_paths(self):
         """Test alt_easyconfig_paths function that collects list of additional paths for easyconfig files."""
@@ -1206,7 +1232,6 @@ class EasyConfigTest(EnhancedTestCase):
                 'R: %%(rver)s, %%(rmajver)s, %%(rminver)s, %%(rshortver)s',
             ]),
             'modextrapaths = {"PI_MOD_NAME": "%%(module_name)s"}',
-            'modextrapaths_append = {"PATH_APPEND": "appended_path"}',
             'license_file = HOME + "/licenses/PI/license.txt"',
             "github_account = 'easybuilders'",
         ]) % inp
@@ -1249,7 +1274,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['modloadmsg'], expected)
         self.assertEqual(ec['modunloadmsg'], expected)
         self.assertEqual(ec['modextrapaths'], {'PI_MOD_NAME': 'PI/3.04-Python-2.7.10'})
-        self.assertEqual(ec['modextrapaths_append'], {'PATH_APPEND': 'appended_path'})
         self.assertEqual(ec['license_file'], os.path.join(os.environ['HOME'], 'licenses', 'PI', 'license.txt'))
 
         # test the escaping insanity here (ie all the crap we allow in easyconfigs)
@@ -5117,7 +5141,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_exts_ec = EasyConfig(toy_exts)
         self.assertEqual(len(toy_exts_ec['sources']), 1)
         self.assertEqual(len(toy_exts_ec['patches']), 1)
-        self.assertEqual(len(toy_exts_ec['exts_list']), 4)
+        self.assertEqual(len(toy_exts_ec.get_ref('exts_list')), 4)
         self.assertEqual(toy_exts_ec.count_files(), 7)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
