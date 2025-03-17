@@ -3018,7 +3018,7 @@ class ToyBuildTest(EnhancedTestCase):
                print('start hook triggered')
 
             def parse_hook(ec):
-               print('%s %s' % (ec.name, ec.version))
+               print('Parse Hook %s %s' % (ec.name, ec.version))
             # print sources value to check that raw untemplated strings are exposed in parse_hook
                print(ec['sources'])
             # try appending to postinstallcmd to see whether the modification is actually picked up
@@ -3096,7 +3096,10 @@ class ToyBuildTest(EnhancedTestCase):
         # - for devel module file
         expected_output = textwrap.dedent("""
             start hook triggered
-            toy 0.0
+            Parse Hook toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
             pre-configure: toy.source: True
@@ -3106,10 +3109,10 @@ class ToyBuildTest(EnhancedTestCase):
             in post-install hook for toy v0.0
             bin, lib
             in module-write hook hook for {mod_name}
-            toy 0.0
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
-            toy 0.0
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
             installing of extension bar is done!

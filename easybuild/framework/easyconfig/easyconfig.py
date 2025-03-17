@@ -2063,6 +2063,22 @@ def resolve_template(value, tmpl_dict):
     return value
 
 
+def _copy_ec_dict(easyconfig):
+    """Copy an easyconfig dict as (initially) parsed"""
+    ec = easyconfig.pop('ec')  # Don't copy this via deepcopy
+    try:
+        new_easyconfig = copy.deepcopy(easyconfig)  # Copy the rest of the dict
+    finally:
+        easyconfig['ec'] = ec  # Put back
+    new_easyconfig['ec'] = ec.copy()
+    return new_easyconfig
+
+
+def _copy_ec_dicts(easyconfigs):
+    """Copy list of easyconfig dicts as (initially) parsed"""
+    return [_copy_ec_dict(ec) for ec in easyconfigs]
+
+
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
@@ -2082,7 +2098,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
-            return copy.deepcopy(_easyconfigs_cache[cache_key])
+            return _copy_ec_dicts(_easyconfigs_cache[cache_key])
 
     easyconfigs = []
     for spec in blocks:
@@ -2133,7 +2149,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 easyconfig['dependencies'].append(tc)
 
     if cache_key is not None:
-        _easyconfigs_cache[cache_key] = copy.deepcopy(easyconfigs)
+        _easyconfigs_cache[cache_key] = _copy_ec_dicts(easyconfigs)
 
     return easyconfigs
 
