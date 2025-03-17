@@ -4824,62 +4824,51 @@ class EasyConfigTest(EnhancedTestCase):
             return
 
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22365
-        from_pr = 22365
-        environ_ec_fn = 'Environ-3.1-foss-2024a.eb'
-        qe1_ec_fn = 'QuantumESPRESSO-7.4-foss-2024a-Environ-3.1.eb'
-        qe2_ec_fn = 'QuantumESPRESSO-7.4-foss-2024a.eb'
-        qe_patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22345
+        from_pr = 22345
+        ec_fn = 'QuantumESPRESSO-7.4-foss-2024a.eb'
+        patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
         pr_files = [
-            environ_ec_fn,
-            qe1_ec_fn,
-            qe2_ec_fn,
-            qe_patch_fn,
+            ec_fn,
+            patch_fn,
         ]
 
         # if no paths are specified, default is to copy all files touched by PR to current working directory
         paths, target_path = det_copy_ec_specs([], from_pr)
-        self.assertEqual(len(paths), 4)
+        self.assertEqual(len(paths), 2)
         filenames = sorted([os.path.basename(x) for x in paths])
         self.assertEqual(filenames, sorted(pr_files))
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # last argument is used as target directory,
         # unless it corresponds to a file touched by PR
-        args = [qe2_ec_fn, 'target_dir']
+        args = [ec_fn, 'target_dir']
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertEqual(target_path, 'target_dir')
 
-        args = [qe2_ec_fn]
+        args = [ec_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
-        args = [environ_ec_fn, qe1_ec_fn]
+        args = [ec_fn, patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), environ_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), qe1_ec_fn)
-        self.assertTrue(os.path.samefile(target_path, cwd))
-
-        args = [qe2_ec_fn, qe_patch_fn]
-        paths, target_path = det_copy_ec_specs(args, from_pr)
-        self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), qe2_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), qe_patch_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # also test with combination of local files and files from PR
-        args = [environ_ec_fn, 'test.eb', 'test.patch', qe_patch_fn]
+        args = [ec_fn, 'test.eb', 'test.patch', patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 4)
-        self.assertEqual(os.path.basename(paths[0]), environ_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertEqual(paths[1], 'test.eb')
         self.assertEqual(paths[2], 'test.patch')
-        self.assertEqual(os.path.basename(paths[3]), qe_patch_fn)
+        self.assertEqual(os.path.basename(paths[3]), patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
     def test_recursive_module_unload(self):
