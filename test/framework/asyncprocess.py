@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
-from easybuild.tools.py2vs3 import subprocess_terminate
+from easybuild.tools.run import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):
