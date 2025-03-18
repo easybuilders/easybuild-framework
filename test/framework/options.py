@@ -4063,8 +4063,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of easyblocks
         del sys.modules['easybuild.easyblocks.gromacs']
         del sys.modules['easybuild.easyblocks.generic.configuremake']
-        # os.remove(os.path.join(self.test_prefix, 'gromacs.py'))
-        # os.remove(os.path.join(self.test_prefix, 'configuremake.py'))
         sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
