@@ -4061,7 +4061,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.xcrysden']
+        del sys.modules['easybuild.easyblocks.gromacs']
+        del sys.modules['easybuild.easyblocks.generic.configuremake']
+        sys.path[:] = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""
