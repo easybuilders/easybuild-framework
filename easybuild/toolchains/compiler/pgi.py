@@ -56,17 +56,17 @@ class Pgi(Compiler):
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfprelaxed
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfpapprox
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'i8',
-        'r8': 'r8',
+        'i8': '-i8',
+        'r8': '-r8',
         'optarch': '',  # PGI by default generates code for the arch it is running on!
-        'openmp': 'mp',
-        'ieee': 'Kieee',
-        'strict': ['Mnoflushz', 'Kieee'],
-        'precise': ['Mnoflushz'],
-        'defaultprec': ['Mflushz'],
-        'loose': ['Mfprelaxed'],
-        'veryloose': ['Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
-        'vectorize': {False: 'Mnovect', True: 'Mvect'},
+        'openmp': '-mp',
+        'ieee': '-Kieee',
+        'strict': ['-Mnoflushz', '-Kieee'],
+        'precise': ['-Mnoflushz'],
+        'defaultprec': ['-Mflushz'],
+        'loose': ['-Mfprelaxed'],
+        'veryloose': ['-Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', '-Mfpapprox'],
+        'vectorize': {False: '-Mnovect', True: '-Mvect'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
@@ -76,8 +76,8 @@ class Pgi(Compiler):
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'tp=x64',
-        (systemtools.X86_64, systemtools.INTEL): 'tp=x64',
+        (systemtools.X86_64, systemtools.AMD): '-tp=x64',
+        (systemtools.X86_64, systemtools.INTEL): '-tp=x64',
     }
 
     COMPILER_CC = 'pgcc'

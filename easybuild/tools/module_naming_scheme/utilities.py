@@ -40,7 +40,6 @@ import string
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
@@ -64,12 +63,12 @@ def det_full_ec_version(ec):
 
     # prepend/append version prefix/suffix
     versionprefix = ec.get('versionprefix', '')
-    if versionprefix and not isinstance(versionprefix, string_type):
+    if versionprefix and not isinstance(versionprefix, str):
         raise EasyBuildError("versionprefix value should be a string, found '%s': %s (full spec: %s)",
                              type(versionprefix).__name__, versionprefix, ec)
 
     versionsuffix = ec.get('versionsuffix', '')
-    if versionsuffix and not isinstance(versionsuffix, string_type):
+    if versionsuffix and not isinstance(versionsuffix, str):
         raise EasyBuildError("versionsuffix value should be a string, found '%s': %s (full spec: %s)",
                              type(versionsuffix).__name__, versionsuffix, ec)
 
@@ -94,7 +93,7 @@ def avail_module_naming_schemes():
 def is_valid_module_name(mod_name):
     """Check whether the specified value is a valid module name."""
     # module name must be a string
-    if not isinstance(mod_name, string_type):
+    if not isinstance(mod_name, str):
         _log.warning("Wrong type for module name %s (%s), should be a string" % (mod_name, type(mod_name)))
         return False
     # module name must be relative path

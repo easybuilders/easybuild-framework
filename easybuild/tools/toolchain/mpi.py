@@ -193,10 +193,6 @@ class Mpi(Toolchain):
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
-        is32bit = self.options.get('32bit', None)
-        if is32bit:
-            self.log.debug("_set_mpi_compiler_variables: 32bit set: changing compiler definitions")
-
         for var_tuple in COMPILER_VARIABLES:
             c_var = var_tuple[0]  # [1] is the description
             var = MPI_COMPILER_TEMPLATE % {'c_var': c_var}
@@ -213,9 +209,6 @@ class Mpi(Toolchain):
             }
 
             self.variables.nappend_el(var, self.options.option('_opt_%s' % var, templatedict=templatedict))
-
-            if is32bit:
-                self.variables.nappend_el(var, self.options.option('32bit'))
 
             if self.options.get('usempi', None):
                 var_seq = SEQ_COMPILER_TEMPLATE % {'c_var': c_var}
@@ -238,9 +231,7 @@ class Mpi(Toolchain):
 
         lib_dir = ['lib']
         incl_dir = ['include']
-        suffix = None
-        if not self.options.get('32bit', None):
-            suffix = '64'
+        suffix = '64'
 
         # take into account that MPI_MODULE_NAME could be None (see Cray toolchains)
         for root in self.get_software_root(self.MPI_MODULE_NAME or []):

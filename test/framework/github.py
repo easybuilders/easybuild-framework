@@ -36,9 +36,11 @@ import re
 import sys
 import textwrap
 import unittest
+from string import ascii_letters
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
+from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
@@ -53,7 +55,6 @@ from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -222,7 +223,8 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            with self.mocked_stdout_stderr():
+                fp = self.ghfs.read("a_directory/a_file.txt", api=False)
             self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
@@ -250,25 +252,21 @@ class GithubTest(EnhancedTestCase):
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
         init_config(build_options=build_options)
 
-        # PR #11262 includes easyconfigs that use 'dummy' toolchain,
-        # so we need to allow triggering deprecated behaviour
-        self.allow_deprecated_behaviour()
-
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(11262)
+        gh.add_pr_labels(22380)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(8006)  # closed, unmerged, unlabeled PR
+        gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("PR #8006 should be labelled 'update'", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22088", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -408,19 +406,21 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
+        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
-        all_ebs_pr1964 = ['lammps.py']
+        # all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr1967 = ['siesta.py']
+        all_ebs_pr3631 = ['root.py']
 
         # PR with more than one easyblock
-        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
+        all_ebs_pr3596 = ['wps.py', 'wrf.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
+        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
@@ -435,43 +435,30 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of arrow to Arrow,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
-        all_ecs_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        # PR for XCrySDen,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227/files
+        all_ecs_pr22227 = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        # PR where also files are patched in test/
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
-        all_ecs_pr6587 = [
-            'WIEN2k-18.1-foss-2018a.eb',
-            'WIEN2k-18.1-gimkl-2017a.eb',
-            'WIEN2k-18.1-intel-2018a.eb',
-            'libxc-4.2.3-foss-2018a.eb',
-            'libxc-4.2.3-gimkl-2017a.eb',
-            'libxc-4.2.3-intel-2018a.eb',
+        # PR where only files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22061/files
+        all_ecs_pr22061 = [
         ]
-        # PR where files are renamed
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
-        all_ecs_pr7159 = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        # PR where files are unarchived
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19834/files
+        all_ecs_pr19834 = [
+            'Gblocks-0.91b.eb',
         ]
 
-        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        for pr, all_ecs in [(22227, all_ecs_pr22227), (22061, all_ecs_pr22061), (19834, all_ecs_pr19834)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
@@ -490,35 +477,30 @@ class GithubTest(EnhancedTestCase):
         gh.fetch_files_from_pr.clear_cache()
         self.assertFalse(gh.fetch_files_from_pr._cache)
 
-        pr7159_filenames = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        pr22227_filenames = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
+        with self.mocked_stdout_stderr():
+            pr22227_files = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr22227_filenames), sorted(os.path.basename(f) for f in pr22227_files))
 
-        # check that cache has been populated for PR 7159
+        # check that cache has been populated for PR 22227
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
         # github_account value is None (results in using default 'easybuilders')
-        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        cache_key = (22227, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
-        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr22227_filenames))
 
         # same query should return result from cache entry
-        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, pr7159_files)
+        res = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr22227_files)
 
         # inject entry in cache and check result of matching query
         pr_id = 12345
@@ -615,6 +597,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         cwd = os.getcwd()
+        self.mock_stdout(True)
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
@@ -649,6 +632,7 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
+        self.mock_stdout(False)
 
     def test_github_download_repo_commit(self):
         """Test downloading repo at specific commit (which does not require any GitHub token)"""
@@ -745,7 +729,8 @@ class GithubTest(EnhancedTestCase):
         if self.skip_github_tests:
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
-        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -773,15 +758,17 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.mock_stdout(True)
         self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+        self.mock_stdout(False)
 
-        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
-        if sys.version_info[0] >= 3:
-            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
-            with open(non_utf8_patch, 'wb') as fp:
-                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+        non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+        with open(non_utf8_patch, 'wb') as fp:
+            fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
 
-            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(True)
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(False)
 
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""

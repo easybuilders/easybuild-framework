@@ -15,13 +15,13 @@ jobs:
     strategy:
       matrix:
         python: [3.7]
-        apptainer: [1.0.0, 1.1.7]
+        apptainer: [1.0.0, 1.1.7, 1.3.6]
       fail-fast: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
     - name: set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -31,7 +31,7 @@ jobs:
         # for building CentOS 7 container images
         APT_PKGS="rpm dnf"
         # for modules tool
-        APT_PKGS+=" lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+        APT_PKGS+=" lua5.3 liblua5.3-dev lua-filesystem lua-posix tcl tcl-dev"
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
@@ -39,12 +39,6 @@ jobs:
           # Try to update cache, then try again to resolve 404s of old packages
           sudo apt-get update -yqq || true
           sudo apt-get install $APT_PKGS
-        fi
-
-        # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
-        # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
-        if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
-            sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
         fi
 
     - name: install Lmod
@@ -74,7 +68,7 @@ jobs:
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
-          pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/develop.tar.gz
+          pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/5.0.x.tar.gz
 
     - name: run test
       run: |
@@ -95,7 +89,7 @@ jobs:
           echo '%_dbpath %{_var}/lib/rpm' >> $HOME/.rpmmacros
           # build CentOS 7 container image for bzip2 1.0.8 using EasyBuild;
           # see https://docs.easybuild.io/en/latest/Containers.html
-          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
+          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/5.0.x/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
           export EASYBUILD_CONTAINERPATH=$PWD
           export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/centos-7.9-python3-amd64'
           export EASYBUILD_CONTAINER_TYPE='apptainer'

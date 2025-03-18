@@ -47,7 +47,7 @@ from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.framework.easyconfig.tools import skip_available
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import find_easyconfigs, mkdir, read_file, write_file
+from easybuild.tools.filetools import find_easyconfigs, get_cwd, mkdir, read_file, write_file
 from easybuild.tools.github import GITHUB_EASYBLOCKS_REPO, GITHUB_EASYCONFIGS_REPO, create_gist, post_comment_in_issue
 from easybuild.tools.jenkins import aggregate_xml_in_dirs
 from easybuild.tools.parallelbuild import build_easyconfigs_in_parallel
@@ -67,7 +67,7 @@ def regtest(easyconfig_paths, modtool, build_specs=None):
     :param build_specs: dictionary specifying build specifications (e.g. version, toolchain, ...)
     """
 
-    cur_dir = os.getcwd()
+    cur_dir = get_cwd()
 
     aggregate_regtest = build_option('aggregate_regtest')
     if aggregate_regtest is not None:
@@ -321,8 +321,8 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
     gpu_info = get_gpu_info()
     gpu_str = ""
     if gpu_info:
-        for vendor in gpu_info:
-            for gpu, num in gpu_info[vendor].items():
+        for vendor, vendor_gpu in gpu_info.items():
+            for gpu, num in vendor_gpu.items():
                 gpu_str += ", %s x %s %s" % (num, vendor, gpu)
 
     os_info = '%(hostname)s - %(os_type)s %(os_name)s %(os_version)s' % system_info
