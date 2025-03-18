@@ -3906,9 +3906,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.generic.generictest']
 
-    # must be run after test for --list-easyblocks, hence the '_xxx_'
+    # must be run after test for --list-easyblocks, and test_http_header_fields_urlpat hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
-    def test_github_xxx_include_easyblocks_from_pr(self):
+    def test_xxx_github_include_easyblocks_from_pr(self):
         """Test --include-easyblocks-from-pr."""
         if self.github_token is None:
             print("Skipping test_preview_pr, no GitHub token available?")
