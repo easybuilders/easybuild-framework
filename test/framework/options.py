@@ -1443,60 +1443,59 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Make sure the test target directory doesn't exist
         remove_dir(test_target_dir)
 
-        all_files_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        all_files_pr22345 = [
+            'QuantumESPRESSO-7.4-foss-2024a.eb',
+            'QuantumESPRESSO-7.4-parallel-symmetrization.patch',
         ]
 
         # test use of --copy-ec with --from-pr to the current working directory
         cwd = change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007']
+        args = ['--copy-ec', '--from-pr', '22345']
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
+        regex = re.compile(r"2 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         # check that the files exist
-        for pr_file in all_files_pr8007:
+        for pr_file in all_files_pr22345:
             self.assertExists(os.path.join(test_working_dir, pr_file))
             remove_file(os.path.join(test_working_dir, pr_file))
 
         # copying all files touched by PR to a non-existing target directory (which is created automatically)
         self.assertNotExists(test_target_dir)
-        args = ['--copy-ec', '--from-pr', '8007', test_target_dir]
+        args = ['--copy-ec', '--from-pr', '22345', test_target_dir]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"3 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
+        regex = re.compile(r"2 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        for pr_file in all_files_pr8007:
+        for pr_file in all_files_pr22345:
             self.assertExists(os.path.join(test_target_dir, pr_file))
         remove_dir(test_target_dir)
 
         # test where we select a single easyconfig file from a PR
         mkdir(test_target_dir)
-        ec_filename = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
-        args = ['--copy-ec', '--from-pr', '8007', ec_filename, test_target_dir]
+        ec_filename = 'QuantumESPRESSO-7.4-foss-2024a.eb'
+        args = ['--copy-ec', '--from-pr', '22345', ec_filename, test_target_dir]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(os.listdir(test_target_dir), [ec_filename])
-        self.assertIn("name = 'bat'", read_file(os.path.join(test_target_dir, ec_filename)))
+        self.assertIn("name = 'QuantumESPRESSO'", read_file(os.path.join(test_target_dir, ec_filename)))
         remove_dir(test_target_dir)
 
         # test copying of a single easyconfig file from a PR to a non-existing path
-        bat_ec = os.path.join(self.test_prefix, 'bat.eb')
-        args[-1] = bat_ec
+        environ_ec = os.path.join(self.test_prefix, 'QuantumESPRESSO.eb')
+        args[-1] = environ_ec
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/bat.eb" % ec_filename)
+        regex = re.compile(r"%s copied to .*/QuantumESPRESSO.eb" % ec_filename)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        self.assertExists(bat_ec)
-        self.assertIn("name = 'bat'", read_file(bat_ec))
+        self.assertExists(environ_ec)
+        self.assertIn("name = 'QuantumESPRESSO'", read_file(environ_ec))
 
         change_dir(cwd)
         remove_dir(test_working_dir)
@@ -1504,8 +1503,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         change_dir(test_working_dir)
 
         # test copying of a patch file from a PR via --copy-ec to current directory
-        patch_fn = 'bat-0.3.3-fix-pyspark.patch'
-        args = ['--copy-ec', '--from-pr', '8007', patch_fn, '.']
+        patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
+        args = ['--copy-ec', '--from-pr', '22345', patch_fn, '.']
         stdout = self.mocked_main(args)
 
         self.assertEqual(os.listdir(test_working_dir), [patch_fn])
@@ -1516,18 +1515,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test the same thing but where we don't provide a target location
         change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007', ec_filename]
+        args = ['--copy-ec', '--from-pr', '22345', ec_filename]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
         self.assertEqual(os.listdir(test_working_dir), [ec_filename])
-        self.assertIn("name = 'bat'", read_file(os.path.join(test_working_dir, ec_filename)))
+        self.assertIn("name = 'QuantumESPRESSO'", read_file(os.path.join(test_working_dir, ec_filename)))
 
         # also test copying of patch file to current directory (without specifying target location)
         change_dir(test_working_dir)
-        args = ['--copy-ec', '--from-pr', '8007', patch_fn]
+        args = ['--copy-ec', '--from-pr', '22345', patch_fn]
         stdout = self.mocked_main(args)
 
         regex = re.compile(r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
@@ -1541,13 +1540,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test with only one ec in the PR (final argument is taken as a filename)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        args = ['--copy-ec', '--from-pr', '11521', test_ec]
-        ec_pr11521 = "ExifTool-12.00-GCCcore-9.3.0.eb"
+        args = ['--copy-ec', '--from-pr', '22380', test_ec]
+        ec_pr22380 = "PySide2-5.14.2.3-GCCcore-10.2.0.eb"
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/%s copied to %s' % (ec_pr11521, test_ec))
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr22380, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertExists(test_ec)
-        self.assertIn("name = 'ExifTool'", read_file(test_ec))
+        self.assertIn("name = 'PySide2'", read_file(test_ec))
         remove_file(test_ec)
 
     def test_copy_ec_from_commit(self):
@@ -2084,8 +2083,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -2097,15 +2096,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (tmpdir, 'FFTW/3.3.8-gompi-2018b'),
-                (tmpdir, 'foss/2018b'),
-                ('.*', 'GCC/7.3.0-2.30'),  # not included in PR
-                (tmpdir, 'gompi/2018b'),
-                (tmpdir, 'HPL/2.2-foss-2018b'),
-                ('.*', 'hwloc/1.11.8-GCC-7.3.0-2.30'),
-                ('.*', 'OpenBLAS/0.3.1-GCC-7.3.0-2.30'),
-                ('.*', 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
-                (tmpdir, 'ScaLAPACK/2.0.2-gompi-2018b-OpenBLAS-0.3.1'),
+                (tmpdir, 'XCrySDen/1.6.2-foss-2024a'),
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -2113,11 +2104,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-            # make sure that *only* these modules are listed, no others
-            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
-
-            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr6424')
+            pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
             regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
             self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
         except URLError as err:
@@ -2127,8 +2114,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # test with multiple prs
         tmpdir = tempfile.mkdtemp()
         args = [
-            # PRs for ReFrame 3.4.1 and 3.5.0
-            '--from-pr=12150,12366',
+            # PRs for various easyconfigs
+            '--from-pr=22227,19834',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % os.path.join(os.path.dirname(__file__), 'easyconfigs'),
@@ -2140,8 +2127,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (tmpdir, 'ReFrame/3.4.1'),
-                (tmpdir, 'ReFrame/3.5.0'),
+                (tmpdir, 'quarto/1.5.57-x64'),
+                (tmpdir, 'Gblocks/0.91b'),
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -2149,11 +2136,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
-            # make sure that *only* these modules are listed, no others
-            regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
-
-            for pr in ('12150', '12366'):
+            for pr in ('22227', '19834'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
                 regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
                 self.assertTrue(regex.search(outtxt), "Found pattern '%s' in: %s" % (regex.pattern, outtxt))
@@ -2172,8 +2155,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
             '--dry-run',
             '--debug',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
@@ -2216,10 +2199,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp()
         args = [
             'toy-0.0.eb',
-            'gompi-2018b.eb',  # also pulls in GCC, OpenMPI (which pulls in hwloc)
+            'XCrySDen-1.6.2-foss-2024a.eb',
             'GCC-4.6.3.eb',
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--robot=%s' % test_ecs_path,
@@ -2232,10 +2215,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
                 (test_ecs_path, 'toy/0.0'),  # not included in PR
-                (test_ecs_path, 'GCC/7.3.0-2.30'),  # not included in PR, available locally
-                (test_ecs_path, 'hwloc/1.11.8-GCC-7.3.0-2.30'),
-                (test_ecs_path, 'OpenMPI/3.1.1-GCC-7.3.0-2.30'),
-                ('.*%s' % os.path.dirname(tmpdir), 'gompi/2018b'),
+                ('.*%s' % os.path.dirname(tmpdir), 'XCrySDen/1.6.2-foss-2024a'),
+                ('.*%s' % os.path.dirname(tmpdir), 'Togl/2.0-GCCcore-13.3.0'),
                 (test_ecs_path, 'GCC/4.6.3'),  # not included in PR, available locally
             ]
             for path_prefix, module in modules:
@@ -2261,19 +2242,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         args = [
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
-            'FFTW-3.3.8-gompi-2018b.eb',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
+            'XCrySDen-1.6.2-foss-2024a.eb',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % self.test_prefix,
             '--extended-dry-run',
         ]
         try:
-            # PR #6424 includes easyconfigs that use 'dummy' toolchain,
-            # so we need to allow triggering deprecated behaviour
-            self.allow_deprecated_behaviour()
-
             self.mock_stderr(True)  # just to capture deprecation warning
             self.mock_stdout(True)
             self.mock_stderr(True)
@@ -2284,8 +2261,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             msg_regexs = [
                 re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-                re.compile(r"^\*\*\* DRY RUN using 'EB_FFTW' easyblock", re.M),
-                re.compile(r"^== building and installing FFTW/3.3.8-gompi-2018b\.\.\.", re.M),
+                re.compile(r"^\*\*\* DRY RUN using 'EB_XCrySDen' easyblock", re.M),
+                re.compile(r"^== building and installing XCrySDen/1.6.2-foss-2024a\.\.\.", re.M),
                 re.compile(r"^building... \[DRY RUN\]", re.M),
                 re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
             ]
@@ -3956,7 +3933,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,  # this shouldn't interfere
-            '--include-easyblocks-from-pr=1915',  # a PR for CMakeMake easyblock
+            '--include-easyblocks-from-pr=3399',  # a PR for CMakeMake easyblock
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3970,7 +3947,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -4000,7 +3977,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # including the same easyblock twice should work and give priority to the one from the PR
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
-            '--include-easyblocks-from-pr=1915',
+            '--include-easyblocks-from-pr=3399',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4014,9 +3991,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         expected = "WARNING: One or more easyblocks included from multiple locations: "
-        expected += "cmakemake.py (the one(s) from PR #1915 will be used)"
+        expected += "cmakemake.py (the one(s) from PR #3399 will be used)"
         self.assertEqual(stderr.strip(), expected)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #1915\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -4050,8 +4027,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         args = [
-            '--from-pr=10487',  # PR for CMake easyconfig
-            '--include-easyblocks-from-pr=1936,2204',  # PRs for EB_CMake and Siesta easyblock
+            '--from-pr=22227',  # PR for Togl easyconfig
+            '--include-easyblocks-from-pr=3563,3634',  # PRs for ConfigureMake and GROMACS easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -4065,25 +4042,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmake.py included from PR #1936\n" +
-                         "== easyblock siesta.py included from PR #2204\n")
+        self.assertEqual(stdout, "== easyblock configuremake.py included from PR #3563\n" +
+                         "== easyblock gromacs.py included from PR #3634\n")
 
         # easyconfig from pr is found
-        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr10487', 'c', 'CMake',
-                                  'CMake-3.16.4-GCCcore-9.3.0.eb')
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22227', 't', 'Togl',
+                                  'Togl-2.0-GCCcore-13.3.0.eb')
         ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
         # easyblock included from pr is found
-        eb_regex = re.compile(r"Successfully obtained EB_CMake class instance from easybuild.easyblocks.cmake", re.M)
+        eb_regex = re.compile(
+            r"Derived full easyblock module path for ConfigureMake: easybuild.easyblocks.generic.configuremake", re.M)
         self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
-        klass = get_easyblock_class('EB_CMake')
+        klass = get_easyblock_class('ConfigureMake')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.cmake']
+        del sys.modules['easybuild.easyblocks.gromacs']
+        del sys.modules['easybuild.easyblocks.generic.configuremake']
+        sys.path[:] = orig_local_sys_path
+        import easybuild.easyblocks
+        reload(easybuild.easyblocks)
+        import easybuild.easyblocks.generic
+        reload(easybuild.easyblocks.generic)
 
     def mk_eb_test_cmd(self, args):
         """Construct test command for 'eb' with given options."""
@@ -4315,17 +4299,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        # PR for gzip 1.10 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/9921
+        # PR for bwidget 1.10.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            '--review-pr=9921',
+            '--review-pr=22227',
         ]
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        regex = re.compile(r"^Comparing gzip-1.10-\S* with gzip-1.10-")
+        regex = re.compile(r"^Comparing bwidget-1.10.1-\S* with bwidget-")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
         self.mock_stdout(True)
@@ -5263,25 +5247,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # note: we frequently need to change to a more recent PR here,
         #       to avoid that this test starts failing because commit status is set to None for old commits
         del args[-1]
-        # easyconfig PR for EasyBuild v4.8.2
-        args[1] = '19105'
+        # easyconfig PR for EasyBuild v5.0.0
+        args[1] = '22405'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #19105 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #22405 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by SebastianAchilles)",
-            "* milestone is set: OK (4.9.0)",
+            "* approved review: OK (by verdurin)",
+            "* milestone is set: OK (5.0.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #19105: 'Going in, thanks @boegel!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #19105",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #22405: 'Going in, thanks @PetrKralCZ!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #22405",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -5290,7 +5274,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
             '--merge-pr',
-            '2995',
+            '3582',
             '--pr-target-repo=easybuild-easyblocks',
             '-D',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -5298,12 +5282,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertEqual(stderr.strip(), '')
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyblocks PR #2995 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyblocks PR #3582 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by boegel)",
-            "* milestone is set: OK (4.8.1)",
+            "* approved review: OK (by hajgato)",
+            "* milestone is set: OK (5.0.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
