@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,7 @@ import tempfile
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import expand_glob_paths, read_file, symlink
+from easybuild.tools.filetools import expand_glob_paths, read_file, symlink, EASYBLOCK_CLASS_PREFIX
 # these are imported just to we can reload them later
 import easybuild.tools.module_naming_scheme
 import easybuild.toolchains
@@ -157,7 +157,8 @@ def verify_imports(pymods, pypkg, from_path):
 
 def is_software_specific_easyblock(module):
     """Determine whether Python module at specified location is a software-specific easyblock."""
-    return bool(re.search(r'^class EB_.*\(.*\):\s*$', read_file(module), re.M))
+    # All software-specific easyblocks start with the prefix and derive from another class, at least EasyBlock
+    return bool(re.search(r"^class %s[^(:]+\([^)]+\):\s*$" % EASYBLOCK_CLASS_PREFIX, read_file(module), re.M))
 
 
 def include_easyblocks(tmpdir, paths):
@@ -198,10 +199,8 @@ def include_easyblocks(tmpdir, paths):
 
     # hard inject location to included (generic) easyblocks into Python search path
     # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
-    new_path = os.path.join(easyblocks_path, 'easybuild', 'easyblocks')
-    easybuild.easyblocks.__path__.insert(0, new_path)
-    new_path = os.path.join(new_path, 'generic')
-    easybuild.easyblocks.generic.__path__.insert(0, new_path)
+    easybuild.easyblocks.__path__.insert(0, easyblocks_dir)
+    easybuild.easyblocks.generic.__path__.insert(0, os.path.join(easyblocks_dir, 'generic'))
 
     # sanity check: verify that included easyblocks can be imported (from expected location)
     for subdir, ebs in [('', included_ebs), ('generic', included_generic_ebs)]:

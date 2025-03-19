@@ -1,5 +1,5 @@
 ##
-# Copyright 2020-2023 Ghent University
+# Copyright 2020-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,6 @@ class EB_toy_eula(EB_toy):
         """Constructor"""
         super(EB_toy_eula, self).prepare_step(*args, **kwargs)
 
-        # EULA for toy must be accepted via --accept-eula EasyBuild configuration option,
+        # EULA for toy must be accepted via --accept-eula-for EasyBuild configuration option,
         # or via 'accept_eula = True' in easyconfig file
         self.check_accepted_eula(more_info='https://example.com/toy_eula.txt')

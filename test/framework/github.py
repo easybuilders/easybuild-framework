@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,9 +36,11 @@ import re
 import sys
 import textwrap
 import unittest
+from string import ascii_letters
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
+from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
@@ -50,9 +52,9 @@ from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
-from easybuild.tools.github import det_pr_title, is_patch_for, pick_default_branch
+from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
+from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
-from easybuild.tools.py2vs3 import HTTPError, URLError, ascii_letters
 import easybuild.tools.github as gh
 
 try:
@@ -221,7 +223,8 @@ class GithubTest(EnhancedTestCase):
             return
 
         try:
-            fp = self.ghfs.read("a_directory/a_file.txt", api=False)
+            with self.mocked_stdout_stderr():
+                fp = self.ghfs.read("a_directory/a_file.txt", api=False)
             self.assertEqual(read_file(fp).strip(), "this is a line of text")
             os.remove(fp)
         except (IOError, OSError):
@@ -249,25 +252,21 @@ class GithubTest(EnhancedTestCase):
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
         init_config(build_options=build_options)
 
-        # PR #11262 includes easyconfigs that use 'dummy' toolchain,
-        # so we need to allow triggering deprecated behaviour
-        self.allow_deprecated_behaviour()
-
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(11262)
+        gh.add_pr_labels(22380)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(8006)  # closed, unmerged, unlabeled PR
+        gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("PR #8006 should be labelled 'update'", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22088", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -407,19 +406,21 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
+        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
-        all_ebs_pr1964 = ['lammps.py']
+        # all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr1967 = ['siesta.py']
+        all_ebs_pr3631 = ['root.py']
 
         # PR with more than one easyblock
-        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
+        all_ebs_pr3596 = ['wps.py', 'wrf.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
+        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    eb_files = gh.fetch_easyblocks_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ebs), sorted([os.path.basename(f) for f in eb_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyblocks_from_pr" % err)
@@ -434,43 +435,30 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of arrow to Arrow,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
-        all_ecs_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        # PR for XCrySDen,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227/files
+        all_ecs_pr22227 = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        # PR where also files are patched in test/
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
-        all_ecs_pr6587 = [
-            'WIEN2k-18.1-foss-2018a.eb',
-            'WIEN2k-18.1-gimkl-2017a.eb',
-            'WIEN2k-18.1-intel-2018a.eb',
-            'libxc-4.2.3-foss-2018a.eb',
-            'libxc-4.2.3-gimkl-2017a.eb',
-            'libxc-4.2.3-intel-2018a.eb',
+        # PR where only files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22061/files
+        all_ecs_pr22061 = [
         ]
-        # PR where files are renamed
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
-        all_ecs_pr7159 = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        # PR where files are unarchived
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19834/files
+        all_ecs_pr19834 = [
+            'Gblocks-0.91b.eb',
         ]
 
-        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        for pr, all_ecs in [(22227, all_ecs_pr22227), (22061, all_ecs_pr22061), (19834, all_ecs_pr19834)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
-                ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
+                with self.mocked_stdout_stderr():
+                    ec_files = gh.fetch_easyconfigs_from_pr(pr, path=tmpdir, github_user=GITHUB_TEST_ACCOUNT)
                 self.assertEqual(sorted(all_ecs), sorted([os.path.basename(f) for f in ec_files]))
             except URLError as err:
                 print("Ignoring URLError '%s' in test_fetch_easyconfigs_from_pr" % err)
@@ -489,35 +477,30 @@ class GithubTest(EnhancedTestCase):
         gh.fetch_files_from_pr.clear_cache()
         self.assertFalse(gh.fetch_files_from_pr._cache)
 
-        pr7159_filenames = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        pr22227_filenames = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
+        with self.mocked_stdout_stderr():
+            pr22227_files = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr22227_filenames), sorted(os.path.basename(f) for f in pr22227_files))
 
-        # check that cache has been populated for PR 7159
+        # check that cache has been populated for PR 22227
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
         # github_account value is None (results in using default 'easybuilders')
-        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        cache_key = (22227, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
-        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr22227_filenames))
 
         # same query should return result from cache entry
-        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, pr7159_files)
+        res = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr22227_files)
 
         # inject entry in cache and check result of matching query
         pr_id = 12345
@@ -535,6 +518,65 @@ class GithubTest(EnhancedTestCase):
 
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
+
+    def test_fetch_files_from_commit(self):
+        """Test fetch_files_from_commit function."""
+
+        # easyconfigs commit to add EasyBuild-4.8.2.eb
+        test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
+
+        # without specifying any files/repo, default is to use easybuilders/easybuilld-easyconfigs
+        # and determine which files were changed in the commit
+        res = fetch_files_from_commit(test_commit)
+        self.assertEqual(len(res), 1)
+        ec_path = res[0]
+        expected_path = 'ecs_commit_7c83a553950c233943c7b0189762f8c05cfea852/e/EasyBuild/EasyBuild-4.8.2.eb'
+        self.assertTrue(ec_path.endswith(expected_path))
+        self.assertTrue(os.path.exists(ec_path))
+        self.assertIn("version = '4.8.2'", read_file(ec_path))
+
+        # also test downloading a specific file from easyblocks repo
+        # commit that enables use_pip & co in PythonPackage easyblock
+        test_commit = 'd6f0cd7b586108e40f7cf1f1054bb07e16718caf'
+        res = fetch_files_from_commit(test_commit, files=['pythonpackage.py'],
+                                      github_account='easybuilders', github_repo='easybuild-easyblocks')
+        self.assertEqual(len(res), 1)
+        self.assertIn("'use_pip': [True,", read_file(res[0]))
+
+        # test downloading with short commit, download_repo currently enforces using long commit
+        error_pattern = r"Specified commit SHA 7c83a55 for downloading easybuilders/easybuild-easyconfigs "
+        error_pattern += r"is not valid, must be full SHA-1 \(40 chars\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
+
+        # test downloading of non-existing commit
+        error_pattern = r"Failed to download diff for commit c0ff33c0ff33 of easybuilders/easybuild-easyconfigs"
+        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
+
+    def test_fetch_easyconfigs_from_commit(self):
+        """Test fetch_easyconfigs_from_commit function."""
+
+        # commit in which easyconfigs for PyTables 3.9.2 + dependencies were added
+        test_commit = '6515b44cd84a20fe7876cb4bdaf3c0080e688566'
+
+        # without specifying any files/repo, default is to determine which files were changed in the commit
+        res = fetch_easyconfigs_from_commit(test_commit)
+        self.assertEqual(len(res), 5)
+        expected_ec_filenames = ['Blosc-1.21.5-GCCcore-13.2.0.eb', 'Blosc2-2.13.2-GCCcore-13.2.0.eb',
+                                 'PyTables-3.9.2-foss-2023b.eb', 'PyTables-3.9.2_fix-find-blosc2-dep.patch',
+                                 'py-cpuinfo-9.0.0-GCCcore-13.2.0.eb']
+        self.assertEqual(sorted([os.path.basename(f) for f in res]), expected_ec_filenames)
+        for ec_path in res:
+            self.assertTrue(os.path.exists(ec_path))
+            if ec_path.endswith('.eb'):
+                self.assertIn("version =", read_file(ec_path))
+            else:
+                self.assertTrue(ec_path.endswith('.patch'))
+
+        # merge commit for release of EasyBuild v4.9.0
+        test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
+        res = fetch_easyconfigs_from_commit(test_commit, files=['RELEASE_NOTES'], path=self.test_prefix)
+        self.assertEqual(len(res), 1)
+        self.assertIn("v4.9.0 (30 December 2023)", read_file(res[0]))
 
     def test_github_fetch_latest_commit_sha(self):
         """Test fetch_latest_commit_sha function."""
@@ -555,6 +597,7 @@ class GithubTest(EnhancedTestCase):
             return
 
         cwd = os.getcwd()
+        self.mock_stdout(True)
 
         # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
         path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
@@ -563,7 +606,7 @@ class GithubTest(EnhancedTestCase):
         self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2024a.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
@@ -589,6 +632,35 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
+        self.mock_stdout(False)
+
+    def test_github_download_repo_commit(self):
+        """Test downloading repo at specific commit (which does not require any GitHub token)"""
+
+        # commit bdcc586189fcb3e5a340cddebb50d0e188c63cdc corresponds to easybuild-easyconfigs release v4.9.0
+        test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
+        gh.download_repo(path=self.test_prefix, commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        setup_py_txt = read_file(os.path.join(repo_path, 'setup.py'))
+        self.assertTrue("VERSION = '4.9.0'" in setup_py_txt)
+
+        # also check downloading non-default forked repo
+        test_commit = '434151c3dbf88b2382e8ead8655b4b2c01b92617'
+        gh.download_repo(path=self.test_prefix, account='boegel', repo='easybuild-framework', commit=test_commit)
+        repo_path = os.path.join(self.test_prefix, 'boegel', 'easybuild-framework-' + test_commit)
+        self.assertTrue(os.path.exists(repo_path))
+
+        release_notes_txt = read_file(os.path.join(repo_path, 'RELEASE_NOTES'))
+        self.assertTrue("v4.9.0 (30 December 2023)" in release_notes_txt)
+
+        # short commit doesn't work, must be full commit ID
+        self.assertErrorRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
+                              path=self.test_prefix, commit='bdcc586')
+
+        self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
+                              path=self.test_prefix, commit='0000000000000000000000000000000000000000')
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -657,7 +729,8 @@ class GithubTest(EnhancedTestCase):
         if self.skip_github_tests:
             print("Skipping test_find_easybuild_easyconfig, no GitHub token available?")
             return
-        path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout_stderr():
+            path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
         regex = re.compile(expected)
         self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
@@ -685,15 +758,17 @@ class GithubTest(EnhancedTestCase):
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
+        self.mock_stdout(True)
         self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
+        self.mock_stdout(False)
 
-        # check behaviour of find_software_name_for_patch when non-UTF8 patch files are present (only with Python 3)
-        if sys.version_info[0] >= 3:
-            non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
-            with open(non_utf8_patch, 'wb') as fp:
-                fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
+        non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
+        with open(non_utf8_patch, 'wb') as fp:
+            fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
 
-            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(True)
+        self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
+        self.mock_stdout(False)
 
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
@@ -728,18 +803,21 @@ class GithubTest(EnhancedTestCase):
         res = gh.det_commit_status('easybuilders', GITHUB_REPO, commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, None)
 
-        # recent commit (2023-04-11) with cancelled checks (GitHub Actions only)
-        commit_sha = 'c074f0bb3110c27d9969c3d0b19dde3eca868bd4'
+        # recent commit with cancelled checks (GitHub Actions only);
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled
+        commit_sha = '52b964c3387d6d6f149ec304f9e23f535e799957'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'cancelled')
 
-        # recent commit (2023-04-10) with failing checks (GitHub Actions only)
-        commit_sha = '1b4a45c62d7deaf19125756c46dc8f011fef66e1'
+        # recent commit with failing checks (GitHub Actions only)
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure
+        commit_sha = '85e6c2bbc2fd515a1d4dab607b8d43d0a1ed668f'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'failure')
 
-        # recent commit (2023-04-10) with successful checks (GitHub Actions only)
-        commit_sha = '56812a347acbaaa87f229fe319425020fe399647'
+        # recent commit with successful checks (GitHub Actions only)
+        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess
+        commit_sha = 'f82a563b8e1f8118c7c3ab23374d0e28e1691fea'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'success')
 

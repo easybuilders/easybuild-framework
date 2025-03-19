@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,7 +36,7 @@ import os
 import sys
 from optparse import OptionParser
 
-from easybuild.tools.filetools import encode_class_name
+from easybuild.tools.filetools import encode_class_name, EASYBLOCK_CLASS_PREFIX
 
 # parse options
 parser = OptionParser()
@@ -83,8 +83,9 @@ if os.path.exists(easyblock_path):
 # determine parent easyblock class
 parent_import = "from easybuild.framework.easyblock import EasyBlock"
 if not options.parent == "EasyBlock":
-    if options.parent.startswith('EB_'):
-        ebmod = options.parent[3:].lower()  # FIXME: here we should actually decode the encoded class name
+    if options.parent.startswith(EASYBLOCK_CLASS_PREFIX):
+        # FIXME: here we should actually decode the encoded class name
+        ebmod = options.parent[len(EASYBLOCK_CLASS_PREFIX):].lower()
     else:
         ebmod = "generic.%s" % options.parent.lower()
     parent_import = "from easybuild.easyblocks.%s import %s" % (ebmod, options.parent)
@@ -122,7 +123,7 @@ import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 %(parent_import)s
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 class %(class_name)s(%(parent)s):
@@ -150,7 +151,7 @@ class %(class_name)s(%(parent)s):
         env.setvar('CUSTOM_ENV_VAR', 'foo')
 
         cmd = "configure command"
-        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
+        run_shell_cmd(cmd)
 
         # complete configuration with configure_method of parent
         super(%(class_name)s, self).configure_step()
@@ -165,22 +166,22 @@ class %(class_name)s(%(parent)s):
         comp_fam = comp_map[self.toolchain.comp_family()]
 
         # enable parallel build
-        par = self.cfg['parallel']
+        par = self.cfg.parallel
         cmd = "build command --parallel %%d --compiler-family %%s" %% (par, comp_fam)
-        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
+        run_shell_cmd(cmd)
 
     def test_step(self):
         \"\"\"Custom built-in test procedure for %(name)s.\"\"\"
 
         if self.cfg['runtest']:
             cmd = "test-command"
-            run_cmd(cmd, simple=True, log_all=True, log_ok=True)
+            run_shell_cmd(cmd)
 
     def install_step(self):
         \"\"\"Custom install procedure for %(name)s.\"\"\"
 
         cmd = "install command"
-        run_cmd(cmd, log_all=True, simple=True, log_ok=True)
+        run_shell_cmd(cmd)
 
     def sanity_check_step(self):
         \"\"\"Custom sanity check for %(name)s.\"\"\"

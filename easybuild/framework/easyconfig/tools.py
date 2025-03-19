@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,25 +45,25 @@ import os
 import re
 import sys
 import tempfile
+from collections import OrderedDict
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.format.yeb import quote_yaml_special_chars
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, is_patch_file, locate_files
-from easybuild.tools.filetools import read_file, resolve_path, which, write_file
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
+from easybuild.tools.filetools import locate_files, read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
-from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_pr, fetch_pr_data
-from easybuild.tools.github import fetch_files_from_pr
+from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
+from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
+from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
@@ -218,10 +218,12 @@ def dep_graph(filename, specs):
             if dep in spec['ec'].build_dependencies:
                 dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
-    _dep_graph_dump(dgr, filename)
-
-    if not build_option('silent'):
-        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
+    what = "dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+    silent = build_option('silent')
+    if _dep_graph_dump(dgr, filename):
+        print_msg("Wrote " + what, silent=silent)
+    else:
+        print_error("Failed writing " + what, silent=silent)
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
@@ -231,9 +233,15 @@ def _dep_graph_dump(dgr, filename):
     dottxt = dot.write(dgr)
     if os.path.splitext(filename)[-1] == '.dot':
         # create .dot file
-        write_file(filename, dottxt)
+        try:
+            write_file(filename, dottxt)
+        except EasyBuildError as e:
+            print(str(e))
+            return False
+        else:
+            return True
     else:
-        _dep_graph_gv(dottxt, filename)
+        return _dep_graph_gv(dottxt, filename)
 
 
 @only_if_module_is_available('gv', pkgname='graphviz-python')
@@ -241,8 +249,8 @@ def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
     gvv = gv.readstring(dottxt)
-    gv.layout(gvv, 'dot')
-    gv.render(gvv, os.path.splitext(filename)[-1], filename)
+    if gv.layout(gvv, 'dot') is not False:
+        return gv.render(gvv, os.path.splitext(filename)[-1], filename)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -310,7 +318,7 @@ def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
     return paths
 
 
-def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=None):
+def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, from_commit=None, review_pr=None):
     """Obtain alternative paths for easyconfig files."""
 
     # paths where tweaked easyconfigs will be placed, easyconfigs listed on the command line take priority and will be
@@ -321,18 +329,20 @@ def alt_easyconfig_paths(tmpdir, tweaked_ecs=False, from_prs=None, review_pr=Non
         tweaked_ecs_paths = (os.path.join(tmpdir, 'tweaked_easyconfigs'),
                              os.path.join(tmpdir, 'tweaked_dep_easyconfigs'))
 
-    # paths where files touched in PRs will be downloaded to,
-    # which are picked up via 'pr_paths' build option in fetch_files_from_pr
-    pr_paths = []
+    # paths where files touched in commit/PRs will be downloaded to,
+    # which are picked up via 'extra_ec_paths' build option in fetch_files_from_pr
+    extra_ec_paths = []
     if from_prs:
-        pr_paths = from_prs[:]
-    if review_pr and review_pr not in pr_paths:
-        pr_paths.append(review_pr)
+        extra_ec_paths = from_prs[:]
+    if review_pr and review_pr not in extra_ec_paths:
+        extra_ec_paths.append(review_pr)
+    if extra_ec_paths:
+        extra_ec_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in extra_ec_paths]
 
-    if pr_paths:
-        pr_paths = [os.path.join(tmpdir, 'files_pr%s' % pr) for pr in pr_paths]
+    if from_commit:
+        extra_ec_paths.append(os.path.join(tmpdir, 'files_commit_' + from_commit))
 
-    return tweaked_ecs_paths, pr_paths
+    return tweaked_ecs_paths, extra_ec_paths
 
 
 def det_easyconfig_paths(orig_paths):
@@ -346,27 +356,31 @@ def det_easyconfig_paths(orig_paths):
     except ValueError:
         raise EasyBuildError("Argument to --from-pr must be a comma separated list of PR #s.")
 
+    from_commit = build_option('from_commit')
     robot_path = build_option('robot_path')
 
     # list of specified easyconfig files
     ec_files = orig_paths[:]
 
+    commit_files, pr_files = [], []
     if from_prs:
-        pr_files = []
         for pr in from_prs:
-            # path to where easyconfig files should be downloaded is determined via 'pr_paths' build option,
-            # which corresponds to the list of PR paths returned by alt_easyconfig_paths
+            # path to where easyconfig files should be downloaded is determined
+            # via 'extra_ec_paths' build options,
+            # which corresponds to the list of commit/PR paths returned by alt_easyconfig_paths
             pr_files.extend(fetch_easyconfigs_from_pr(pr))
+    elif from_commit:
+        commit_files = fetch_easyconfigs_from_commit(from_commit, files=ec_files)
 
-        if ec_files:
-            # replace paths for specified easyconfigs that are touched in PR
-            for i, ec_file in enumerate(ec_files):
-                for pr_file in pr_files:
-                    if ec_file == os.path.basename(pr_file):
-                        ec_files[i] = pr_file
-        else:
-            # if no easyconfigs are specified, use all the ones touched in the PR
-            ec_files = [path for path in pr_files if path.endswith('.eb')]
+    if ec_files:
+        # replace paths for specified easyconfigs that are touched in commit/PRs
+        for i, ec_file in enumerate(ec_files):
+            for file in commit_files + pr_files:
+                if ec_file == os.path.basename(file):
+                    ec_files[i] = file
+    else:
+        # if no easyconfigs are specified, use all the ones touched in the commit/PRs
+        ec_files = [path for path in commit_files + pr_files if path.endswith('.eb')]
 
     filter_ecs = build_option('filter_ecs')
     if filter_ecs:
@@ -389,13 +403,19 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+    parsed_paths = []
 
     for (path, generated) in paths:
+        # Avoid processing the same file multiple times
         path = os.path.abspath(path)
+        if any(os.path.samefile(path, p) for p in parsed_paths):
+            continue
+        parsed_paths.append(path)
+
         # keep track of whether any files were generated
         generated_ecs |= generated
         if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path)
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -412,7 +432,7 @@ def parse_easyconfigs(paths, validate=True):
     return easyconfigs, generated_ecs
 
 
-def stats_to_str(stats, isyeb=False):
+def stats_to_str(stats):
     """
     Pretty print build statistics to string.
     """
@@ -422,13 +442,7 @@ def stats_to_str(stats, isyeb=False):
     txt = "{\n"
     pref = "    "
     for key in sorted(stats):
-        if isyeb:
-            val = stats[key]
-            if isinstance(val, tuple):
-                val = list(val)
-            key, val = quote_yaml_special_chars(key), quote_yaml_special_chars(val)
-        else:
-            key, val = quote_str(key), quote_str(stats[key])
+        key, val = quote_str(key), quote_str(stats[key])
         txt += "%s%s: %s,\n" % (pref, key, val)
     txt += "}"
     return txt
@@ -743,7 +757,7 @@ def avail_easyblocks():
     """Return a list of all available easyblocks."""
 
     module_regexp = re.compile(r"^([^_].*)\.py$")
-    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+    class_regex = re.compile(r"^class ([^(:]*)\(", re.M)
 
     # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
     search_toolchain('')
@@ -753,38 +767,48 @@ def avail_easyblocks():
         __import__(pkg)
 
         # determine paths for this package
-        paths = sys.modules[pkg].__path__
+        paths = [path for path in sys.modules[pkg].__path__ if os.path.exists(path)]
 
         # import all modules in these paths
         for path in paths:
-            if os.path.exists(path):
-                for fn in os.listdir(path):
-                    res = module_regexp.match(fn)
-                    if res:
-                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+            for fn in os.listdir(path):
+                res = module_regexp.match(fn)
+                if not res:
+                    continue
+                easyblock_mod_name = res.group(1)
+                easyblock_full_mod_name = '%s.%s' % (pkg, easyblock_mod_name)
 
-                        if easyblock_mod_name not in easyblocks:
-                            __import__(easyblock_mod_name)
-                            easyblock_loc = os.path.join(path, fn)
+                if easyblock_full_mod_name in easyblocks:
+                    _log.debug("%s already imported from %s, ignoring %s",
+                               easyblock_full_mod_name, easyblocks[easyblock_full_mod_name]['loc'], path)
+                else:
+                    __import__(easyblock_full_mod_name)
+                    easyblock_loc = os.path.join(path, fn)
 
-                            class_names = class_regex.findall(read_file(easyblock_loc))
-                            if len(class_names) == 1:
-                                easyblock_class = class_names[0]
-                            elif class_names:
-                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
-                                                     easyblock_loc, class_names)
-                            else:
-                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
-
-                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
+                    class_names = class_regex.findall(read_file(easyblock_loc))
+                    if len(class_names) > 1:
+                        if pkg.endswith('.generic'):
+                            # In generic easyblocks we have e.g. ConfigureMake in configuremake.py
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.lower() == easyblock_mod_name.lower()]
                         else:
-                            _log.debug("%s already imported from %s, ignoring %s",
-                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+                            # If there is exactly one software specific easyblock we use that
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.startswith(EASYBLOCK_CLASS_PREFIX)]
+                        if len(sw_specific_class_names) == 1:
+                            class_names = sw_specific_class_names
+                    if len(class_names) == 1:
+                        easyblocks[easyblock_full_mod_name] = {'class': class_names[0], 'loc': easyblock_loc}
+                    elif class_names:
+                        raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                             easyblock_loc, class_names)
+                    else:
+                        raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
 
     return easyblocks
 
 
-def det_copy_ec_specs(orig_paths, from_pr):
+def det_copy_ec_specs(orig_paths, from_pr=None, from_commit=None):
     """Determine list of paths + target directory for --copy-ec."""
 
     if from_pr is not None and not isinstance(from_pr, list):
@@ -792,14 +816,13 @@ def det_copy_ec_specs(orig_paths, from_pr):
 
     target_path, paths = None, []
 
-    # if only one argument is specified, use current directory as target directory
     if len(orig_paths) == 1:
-        target_path = os.getcwd()
+        # if only one argument is specified, use current directory as target directory
+        target_path = get_cwd()
         paths = orig_paths[:]
-
-    # if multiple arguments are specified, assume that last argument is target location,
-    # and remove that from list of paths to copy
     elif orig_paths:
+        # if multiple arguments are specified, assume that last argument is target location,
+        # and remove that from list of paths to copy
         target_path = orig_paths[-1]
         paths = orig_paths[:-1]
 
@@ -817,7 +840,7 @@ def det_copy_ec_specs(orig_paths, from_pr):
             pr_paths.extend(fetch_files_from_pr(pr=pr, path=tmpdir))
 
         # assume that files need to be copied to current working directory for now
-        target_path = os.getcwd()
+        target_path = get_cwd()
 
         if orig_paths:
             last_path = orig_paths[-1]
@@ -847,5 +870,42 @@ def det_copy_ec_specs(orig_paths, from_pr):
                 paths[idx] = pr_matches[0]
             elif pr_matches:
                 raise EasyBuildError("Found multiple paths for %s in PR: %s", filename, pr_matches)
+
+    # consider --from-commit (only if --from-pr was not used)
+    elif from_commit:
+        tmpdir = os.path.join(tempfile.gettempdir(), 'fetch_files_from_commit_%s' % from_commit)
+        commit_paths = fetch_files_from_commit(from_commit, path=tmpdir)
+
+        # assume that files need to be copied to current working directory for now
+        target_path = get_cwd()
+
+        if orig_paths:
+            last_path = orig_paths[-1]
+
+            # check files touched by commit and see if the target directory for --copy-ec
+            # corresponds to the name of one of these files;
+            # if so we should copy the specified file(s) to the current working directory,
+            # since interpreting the last argument as target location is very unlikely to be correct in this case
+            commit_filenames = [os.path.basename(p) for p in commit_paths]
+            if last_path in commit_filenames:
+                paths = orig_paths[:]
+            else:
+                target_path = last_path
+                # exclude last argument that is used as target location
+                paths = orig_paths[:-1]
+
+        # if list of files to copy is empty at this point,
+        # we simply copy *all* files touched by the PR
+        if not paths:
+            paths = commit_paths
+
+        # replace path for files touched by commit (no need to worry about others)
+        for idx, path in enumerate(paths):
+            filename = os.path.basename(path)
+            commit_matches = [x for x in commit_paths if os.path.basename(x) == filename]
+            if len(commit_matches) == 1:
+                paths[idx] = commit_matches[0]
+            elif commit_matches:
+                raise EasyBuildError("Found multiple paths for %s in commit: %s", filename, commit_matches)
 
     return paths, target_path
