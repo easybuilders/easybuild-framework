@@ -679,11 +679,12 @@ class EasyBlockTest(EnhancedTestCase):
             err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
             self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
 
-        # Test modextrapaths: with absolute paths, appending and custom delimiters
+        # Test modextrapaths: with absolute + empty paths, appending and custom delimiters
         remove_dir(eb.installdir)
         self.contents += '\n'.join([
             "",
             "modextrapaths = {",
+            "    'PATH': [''],",
             "    'TEST_VAR': ['foo', 'baz', '/bin'],",
             "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
             "    'LD_LIBRARY_PATH': 'foo',",
@@ -717,6 +718,13 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*TEST_VAR.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*/bin",
         ]
+        if get_module_syntax() == 'Tcl':
+            expected_patterns.append(r"^prepend-path\s+PATH\s+\$root$")
+        elif get_module_syntax() == 'Lua':
+            expected_patterns.append(r'^prepend_path\("PATH", root\)$')
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
         for pattern in expected_patterns:
             self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
 
@@ -1499,7 +1507,7 @@ class EasyBlockTest(EnhancedTestCase):
             modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
 
         modextrapaths = {
-            'PATH': ('xbin', 'pibin'),
+            'PATH': ('', 'xbin', 'pibin'),
             'CPATH': 'pi/include',
             'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
             'APPEND_PATH': {'paths': 'pi', 'prepend': False},
@@ -1597,9 +1605,17 @@ class EasyBlockTest(EnhancedTestCase):
 
             for val in paths:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+\$root/{val}$', re.M)
+                    if val == '':
+                        full_val = r'\$root'
+                    else:
+                        full_val = fr'\$root/{val}'
+                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+{full_val}$', re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(fr'^{placement}_path\("{key}", pathJoin\(root, "{val}"\){delim_lua}\)$', re.M)
+                    if val == '':
+                        full_val = 'root'
+                    else:
+                        full_val = fr'pathJoin\(root, "{val}"\)'
+                    regex = re.compile(fr'^{placement}_path\("{key}", {full_val}{delim_lua}\)$', re.M)
                 else:
                     self.fail(f"Unknown module syntax: {get_module_syntax()}")
                 self.assertTrue(regex.search(txt), f"Pattern {regex.pattern} found in {txt}")
@@ -2513,7 +2529,7 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(toy_ec5, toytxt + "\nmaxparallel = False")
 
         # default: parallelism is derived from # available cores + ulimit
-        # Note that maxparallel has a default of 16, so we need a lower auto_parallel value here
+        # Note that --max-parallel has a default of 16, so we need a lower auto_parallel value here
         auto_parallel = 16 - 4  # Using + 3 below which must still be less
         st.det_parallelism._default_parallelism = auto_parallel
 
@@ -2549,7 +2565,10 @@ class EasyBlockTest(EnhancedTestCase):
         buildopt_parallel = 11
         # When build option is given the auto-parallelism is ignored. Verify by setting it very low
         st.det_parallelism._default_parallelism = 2
-        init_config(build_options={'parallel': str(buildopt_parallel), 'validate': False})
+        init_config(build_options={
+            'parallel': str(buildopt_parallel),
+            'validate': False,
+        })
 
         test_cases = {
             '': buildopt_parallel,
@@ -2566,6 +2585,61 @@ class EasyBlockTest(EnhancedTestCase):
             'parallel = False\nmaxparallel = 6': 1,
             'parallel = 8\nmaxparallel = False': 1,
         }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
+
+        # re-check when --max-parallel is used instead
+        buildopt_max_parallel = 8
+        st.det_parallelism._default_parallelism = 16
+        init_config(build_options={
+            'max_parallel': buildopt_max_parallel,
+            'validate': False,
+        })
+
+        test_cases = {
+            '': buildopt_max_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            # --max-parallel value limits max. parallelism, so only 8 cores will be used when 'parallel = 10' is used
+            f'parallel = {buildopt_max_parallel + 2}': buildopt_max_parallel,
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            # minimum of 'maxparallel' easyconfig parameter and --max-parallel configuration option is used
+            f'maxparallel = {buildopt_max_parallel + 2}': buildopt_max_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
+
+        # re-check when both --max-parallel and --parallel are used (--max-parallel wins)
+        init_config(build_options={
+            'max_parallel': buildopt_max_parallel,
+            'parallel': buildopt_parallel,
+            'validate': False,
+        })
 
         for txt, expected in test_cases.items():
             with self.subTest(ec_params=txt):
@@ -2601,13 +2675,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             test_eb = EasyBlock(EasyConfig(self.eb_file))
-            parallel = buildopt_parallel - 2
+            parallel = buildopt_max_parallel - 2
             test_eb.cfg['parallel'] = parallel  # Old Easyblocks might change that before the ready step
             test_eb.post_init()
             self.assertEqual(test_eb.cfg.parallel, parallel)
             self.assertEqual(test_eb.cfg['parallel'], parallel)
             # Afterwards it also gets reflected directly ignoring maxparallel
-            parallel = buildopt_parallel * 3
+            parallel = buildopt_max_parallel * 3
             test_eb.cfg['parallel'] = parallel
             self.assertEqual(test_eb.cfg.parallel, parallel)
             self.assertEqual(test_eb.cfg['parallel'], parallel)
@@ -2999,7 +3073,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
         self.assertEqual(ec_json['ec']['checksums'], [])
-        for ext in ec_json['ec']['exts_list']:
+        for ext in ec_json['ec'].get_ref('exts_list'):
             if isinstance(ext, str):
                 continue
             elif isinstance(ext, tuple):

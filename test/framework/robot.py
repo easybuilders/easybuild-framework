@@ -783,9 +783,9 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
-            'FFTW-3.3.8-gompi-2018b.eb',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
+            'XCrySDen-1.6.2-foss-2024a.eb',
             'gompi-2018b-test.eb',  # relative path, available in robot search path
             '--dry-run',
             '--robot',
@@ -809,9 +809,9 @@ class RobotTest(EnhancedTestCase):
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2018b-test'),  # specified easyconfig, found in robot search path
-            ('.*/files_pr6424', 'FFTW/3.3.8-gompi-2018b'),  # specified easyconfig
-            (test_ecs_path, 'gompi/2018b'),  # part of PR easyconfigs, found in robot search path
-            (test_ecs_path, 'GCC/7.3.0-2.30'),  # dependency for PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'XCrySDen/1.6.2-foss-2024a'),  # specified easyconfig
+            ('.*/files_pr22227', 'Togl/2.0-GCCcore-13.3.0'),  # part of PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'GCC/13.3.0'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))

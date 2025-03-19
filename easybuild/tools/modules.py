@@ -270,6 +270,8 @@ class ModuleLoadEnvironment:
         self.regex['private_attr'] = re.compile('^_[a-z][a-z_]+$')      # private attributes: _var_name
         self.regex['env_var_name'] = re.compile('^[A-Z_]+[A-Z0-9_]+$')  # environment variables: {__}VAR_NAME_00_SUFFIX
 
+        self._log = fancylogger.getLogger(self.__class__.__name__, fname=False)
+
         self._aliases = {}
         if aliases is not None:
             try:
@@ -329,6 +331,25 @@ class ModuleLoadEnvironment:
                 f"Cannot define ModuleEnvironmentVariable ${name} with the following attributes: {value}"
             ) from err
 
+        return True
+
+    def __delattr__(self, name):
+        """
+        Delete private attributes or public ModuleEnvironmentVariables
+        Fails on missing attributes
+        """
+
+        if self.regex['private_attr'].match(name):
+            del self.__dict__[name]
+            return True
+
+        name = self._unmangle_env_var_name(name)
+        try:
+            del self.__dict__['_env_vars'][name]
+        except KeyError as err:
+            raise EasyBuildError(
+                f"Cannot delete environment variable from ModuleEnvironmentVariable: {name} not found."
+            ) from err
         return True
 
     def _unmangle_env_var_name(self, name):

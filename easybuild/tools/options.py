@@ -67,15 +67,15 @@ from easybuild.tools.config import DEFAULT_BRANCH, DEFAULT_DOWNLOAD_TIMEOUT
 from easybuild.tools.config import DEFAULT_ENV_FOR_SHEBANG, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import DEFAULT_FORCE_DOWNLOAD, DEFAULT_INDEX_MAX_AGE, DEFAULT_JOB_BACKEND
 from easybuild.tools.config import DEFAULT_JOB_EB_CMD, DEFAULT_LOGFILE_FORMAT, DEFAULT_MAX_FAIL_RATIO_PERMS
-from easybuild.tools.config import DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
+from easybuild.tools.config import DEFAULT_MAX_PARALLEL, DEFAULT_MINIMAL_BUILD_ENV, DEFAULT_MNS
+from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, DEFAULT_MODULE_SYNTAX, DEFAULT_MODULES_TOOL
 from easybuild.tools.config import DEFAULT_MODULECLASSES, DEFAULT_PATH_SUBDIRS, DEFAULT_PKG_RELEASE, DEFAULT_PKG_TOOL
-from easybuild.tools.config import DEFAULT_MOD_SEARCH_PATH_HEADERS, MOD_SEARCH_PATH_HEADERS
 from easybuild.tools.config import DEFAULT_PKG_TYPE, DEFAULT_PNS, DEFAULT_PREFIX, DEFAULT_EXTRA_SOURCE_URLS
 from easybuild.tools.config import DEFAULT_REPOSITORY, DEFAULT_WAIT_ON_LOCK_INTERVAL, DEFAULT_WAIT_ON_LOCK_LIMIT
 from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPATH_SANITY_LIBS
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
-from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS
+from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, MOD_SEARCH_PATH_HEADERS
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build_option
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
@@ -356,7 +356,7 @@ class EasyBuildOptions(GeneralOption):
         # override options
         descr = ("Override options", "Override default EasyBuild behavior.")
 
-        all_deprecations = ('python2', 'Lmod6', 'easyconfig', 'toolchain')
+        all_deprecations = ('easyconfig', 'toolchain')
 
         opts = OrderedDict({
             'accept-eula-for': ("Accept EULA for specified software", 'strlist', 'store', []),
@@ -475,6 +475,8 @@ class EasyBuildOptions(GeneralOption):
                                   None, 'store_true', True),
             'max-fail-ratio-adjust-permissions': ("Maximum ratio for failures to allow when adjusting permissions",
                                                   'float', 'store', DEFAULT_MAX_FAIL_RATIO_PERMS),
+            'max-parallel': ("Specify maximum level of parallelism that should be used during build procedure",
+                             'int', 'store', DEFAULT_MAX_PARALLEL),
             'minimal-build-env': ("Minimal build environment to define when using system toolchain, "
                                   "specified as a comma-separated list that defines a mapping between name of "
                                   "environment variable and its value separated by a colon (':')",
@@ -496,9 +498,10 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'parallel': ("Specify (maximum) level of parallelism used during build procedure "
-                         "(actual value is determined by available cores + 'max_parallel' easyconfig parameter)",
-                         'int', 'store', 16),
+            'parallel': ("Specify level of parallelism that should be used during build procedure, "
+                         "(bypasses auto-detection of number of available cores; "
+                         "actual value is determined by this value + 'max_parallel' easyconfig parameter)",
+                         'int', 'store', None),
             'parallel-extensions-install': ("Install list of extensions in parallel (if supported)",
                                             None, 'store_true', False),
             'pre-create-installdir': ("Create installation directory before submitting build jobs",
