@@ -630,7 +630,7 @@ class EasyBlock:
                 if isinstance(ext_options, dict):
                     ext_options.update(ext[2])
                 else:
-                    raise EasyBuildError("Unexpected type (non-dict) for 3rd element of %s", ext)
+                    raise EasyBuildError(f"Unexpected type (non-dict) for 3rd element of {ext}")
             elif len(ext) > 3:
                 raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
 
@@ -666,8 +666,8 @@ class EasyBlock:
                     if len(sources) == 1:
                         source = sources[0]
                     else:
-                        error_msg = "'sources' spec for %s in exts_list must be single element list. Is: %s"
-                        raise EasyBuildError(error_msg, ext_name, sources)
+                        raise EasyBuildError(f"'sources' spec for {ext_name} in exts_list must be single element list."
+                                             f" Is: {sources}")
                 else:
                     source = sources
 
@@ -676,7 +676,7 @@ class EasyBlock:
                 if isinstance(source, str):
                     source = {'filename': source}
                 elif not isinstance(source, dict):
-                    raise EasyBuildError("Incorrect value type for source of extension %s: %s", ext_name, source)
+                    raise EasyBuildError(f"Incorrect value type for source of extension {ext_name}: {source}")
 
                 # if no custom source URLs are specified in sources spec,
                 # inject the ones specified for this extension
@@ -701,8 +701,8 @@ class EasyBlock:
                     # use default template for name of source file if none is specified
                     src_fn = '%(name)s-%(version)s.tar.gz'
                 elif not isinstance(src_fn, str):
-                    error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
-                    raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
+                    raise EasyBuildError("source_tmpl value must be a string! "
+                                         f"(found value of type '{type(src_fn).__name__}'): {src_fn}")
 
                 src_fn = resolve_template(src_fn, template_values)
 
@@ -713,7 +713,7 @@ class EasyBlock:
                     if src_path:
                         ext_src.update({'src': src_path})
                     else:
-                        raise EasyBuildError("Source for extension %s not found.", ext)
+                        raise EasyBuildError(f"Source for extension {ext} not found.")
 
             # verify checksum for extension sources
             if verify_checksums and 'src' in ext_src:
@@ -732,10 +732,10 @@ class EasyBlock:
                 if verify_checksum(src_path, fn_checksum, src_checksums):
                     self.log.info('Checksum for extension source %s verified', src_fn)
                 elif build_option('ignore_checksums'):
-                    print_warning("Ignoring failing checksum verification for %s" % src_fn)
+                    print_warning(f"Ignoring failing checksum verification for {src_fn}")
                 else:
                     raise EasyBuildError(
-                        'Checksum verification for extension source %s failed', src_fn,
+                        f'Checksum verification for extension source {src_fn} failed',
                         exit_code=EasyBuildExit.FAIL_CHECKSUM
                     )
 
@@ -770,14 +770,14 @@ class EasyBlock:
                         if verify_checksum(patch, checksum, computed_checksums[patch]):
                             self.log.info('Checksum for extension patch %s verified', patch_fn)
                         elif build_option('ignore_checksums'):
-                            print_warning("Ignoring failing checksum verification for %s" % patch_fn)
+                            print_warning(f"Ignoring failing checksum verification for {patch_fn}")
                         else:
                             raise EasyBuildError(
-                                "Checksum verification for extension patch %s failed", patch_fn,
+                                f"Checksum verification for extension patch {patch_fn} failed",
                                 exit_code=EasyBuildExit.FAIL_CHECKSUM
                             )
             else:
-                self.log.debug('No patches found for extension %s.' % ext_name)
+                self.log.debug('No patches found for extension %s.', ext_name)
 
             exts_sources.append(ext_src)
 
