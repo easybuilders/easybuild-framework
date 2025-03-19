@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -211,6 +211,14 @@ class EnhancedTestCase(TestCase):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
         os.environ.pop('EASYBUILD_DEPRECATED', None)
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
 
     @contextmanager
     def log_to_testlogfile(self):
@@ -432,7 +440,8 @@ class TestLoaderFiltered(unittest.TestLoader):
         retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                if any(filt in test_case_name for filt in filters):
+                full_test_case_name = '%s.%s' % (test_case_class.__name__, test_case_name)
+                if any(filt in full_test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
             retained_tests = ', '.join(retained_test_names)

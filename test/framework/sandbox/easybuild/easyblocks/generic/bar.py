@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,18 @@ Generic EasyBuild support for building and installing bar, implemented as an eas
 
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+
+
+class dummy1:
+    """Only to verify that unrelated classes in software specific easyblocks are ignored"""
+
+
+class dummy2(dummy1):
+    """Same but with inheritance"""
+
+
+class dummy3:
+    """Class without inheritance before the real easyblock to verify the regex not being too greedy"""
 
 
 class bar(EasyBlock):

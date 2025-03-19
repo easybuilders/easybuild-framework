@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -848,11 +848,13 @@ class SystemToolsTest(EnhancedTestCase):
         # mock number of available cores to 8
         st.get_avail_core_count = lambda: 8
         self.assertTrue(det_parallelism(), 8)
+
         # make 'ulimit -u' return '40', which should result in default (max) parallelism of 4 ((40-15)/6)
+        del det_parallelism._default_parallelism
         st.run_shell_cmd = mocked_run_shell_cmd
-        self.assertTrue(det_parallelism(), 4)
-        self.assertTrue(det_parallelism(par=6), 4)
-        self.assertTrue(det_parallelism(maxpar=2), 2)
+        self.assertEqual(det_parallelism(), 4)
+        self.assertEqual(det_parallelism(par=6), 6)
+        self.assertEqual(det_parallelism(maxpar=2), 2)
 
         st.get_avail_core_count = orig_get_avail_core_count
 

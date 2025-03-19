@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,15 +36,16 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
+import itertools
 import os
 import re
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
-from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
@@ -680,21 +681,13 @@ class ModuleGenerator(object):
         """
         multi_deps = []
         if self.app.cfg['multi_deps']:
-            for key in sorted(self.app.cfg['multi_deps'].keys()):
-                mod_list = []
-                txt = ''
-                vlist = self.app.cfg['multi_deps'].get(key)
-                for idx, version in enumerate(vlist):
-                    for deplist in self.app.cfg.multi_deps:
-                        for dep in deplist:
-                            if dep['name'] == key and dep['version'] == version:
-                                modname = dep['short_mod_name']
-                                # indicate which version is loaded by default (unless that's disabled)
-                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
-                                    modname += ' (default)'
-                                mod_list.append(modname)
-                txt += ', '.join(mod_list)
-                multi_deps.append(txt)
+            for name in sorted(self.app.cfg['multi_deps']):
+                mod_list = [dep['short_mod_name'] for dep in itertools.chain.from_iterable(self.app.cfg.multi_deps)
+                            if dep['name'] == name]
+                # indicate that the first version is loaded by default if enabled
+                if self.app.cfg['multi_deps_load_default']:
+                    mod_list[0] += ' (default)'
+                multi_deps.append(', '.join(mod_list))
 
         return multi_deps
 

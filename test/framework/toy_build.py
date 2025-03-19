@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,6 +40,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+import filecmp
 from easybuild.tools import LooseVersion
 from importlib import reload
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
@@ -281,6 +282,82 @@ class ToyBuildTest(EnhancedTestCase):
         # cleanup
         shutil.rmtree(tmpdir)
 
+    def test_toy_broken_copy_log_build_dir(self):
+        """
+        Test whether log files and the build directory are copied to a permanent location
+        after a failed installation.
+        """
+        toy_ec = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec_txt = re.sub(
+            r'toy-0\.0_fix-silly-typo-in-printf-statement\.patch',
+            r'toy-0.0_add-bug.patch',
+            toy_ec_txt
+        )
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-buggy.eb')
+        write_file(test_ec, test_ec_txt)
+
+        # set up subdirectories where stuff should go
+        tmpdir = os.path.join(self.test_prefix, 'tmp')
+        tmp_log_dir = os.path.join(self.test_prefix, 'tmp-logs')
+        failed_install_build_dirs_path = os.path.join(self.test_prefix, 'failed-install-build-dirs')
+        failed_install_logs_path = os.path.join(self.test_prefix, 'failed-install-logs')
+
+        extra_args = [
+            f'--failed-install-build-dirs-path={failed_install_build_dirs_path}',
+            f'--failed-install-logs-path={failed_install_logs_path}',
+            f'--tmp-logdir={tmp_log_dir}',
+        ]
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=test_ec, extra_args=extra_args, tmpdir=tmpdir,
+                                          verify=False, fails=True, verbose=False)
+
+        # find path to temporary log file
+        log_files = glob.glob(os.path.join(tmp_log_dir, '*.log'))
+        self.assertTrue(len(log_files) == 1, f"Expected exactly one log file, found {len(log_files)}: {log_files}")
+        log_file = log_files[0]
+
+        # check that log files were copied
+        saved_log_files = glob.glob(os.path.join(failed_install_logs_path, log_file))
+        self.assertTrue(len(saved_log_files) == 1, f"Unique copy of log file '{log_file}' made")
+        saved_log_file = saved_log_files[0]
+        self.assertTrue(filecmp.cmp(log_file, saved_log_file, shallow=False),
+                        f"Log file '{log_file}' copied successfully")
+
+        # check that build directories were copied
+        build_dir = self.test_buildpath
+        topdir = failed_install_build_dirs_path
+
+        app_build_dir = os.path.join(build_dir, 'toy', '0.0', 'system-system')
+        # pattern: <datestamp>-<timestamp>-<salt>
+        subdir_pattern = '????????-??????-?????'
+
+        # find path to toy.c
+        toy_c_files = glob.glob(os.path.join(app_build_dir, '**', 'toy.c'))
+        self.assertTrue(len(toy_c_files) == 1, f"Exactly one toy.c file found: {toy_c_files}")
+        toy_c_file = toy_c_files[0]
+
+        path = os.path.join(topdir, 'toy-0.0', subdir_pattern, 'toy-0.0', os.path.basename(toy_c_file))
+        res = glob.glob(path)
+        self.assertTrue(len(res) == 1, f"Exactly one hit found for {path}: {res}")
+        copied_toy_c_file = res[0]
+        self.assertTrue(filecmp.cmp(toy_c_file, copied_toy_c_file, shallow=False),
+                        f"Copy of {toy_c_file} should be found under {topdir}")
+
+        # check whether compiler error messages are present in build log
+
+        # compiler error because of missing semicolon at end of line, could be:
+        # "error: expected ; before ..."
+        # "error: expected ';' after expression"
+        output_regexs = [r"^\s*toy\.c:5:44: error: expected (;|.;.)"]
+
+        log_txt = read_file(log_file)
+        for regex_pattern in output_regexs:
+            regex = re.compile(regex_pattern, re.M)
+            self.assertRegex(outtxt, regex)
+            self.assertRegex(log_txt, regex)
+
     def test_toy_tweaked(self):
         """Test toy build with tweaked easyconfig, for testing extra easyconfig parameters."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
@@ -294,8 +371,10 @@ class ToyBuildTest(EnhancedTestCase):
         # tweak easyconfig by appending to it
         ec_extra = '\n'.join([
             "versionsuffix = '-tweaked'",
-            "modextrapaths = {'SOMEPATH': ['foo/bar', 'baz', '']}",
-            "modextrapaths_append = {'SOMEPATH_APPEND': ['qux/fred', 'thud', '']}",
+            "modextrapaths = {",
+            "    'SOMEPATH': ['foo/bar', 'baz', ''],",
+            "    'SOMEPATH_APPEND': {'paths': ['qux/fred', 'thud', ''], 'prepend': False},",
+            "}",
             "modextravars = {'FOO': 'bar'}",
             "modloadmsg =  '%s'" % modloadmsg,
             "modtclfooter = 'puts stderr \"oh hai!\"'",  # ignored when module syntax is Lua
@@ -307,8 +386,22 @@ class ToyBuildTest(EnhancedTestCase):
             "docurls = ['https://easybuilders.github.io/easybuild/toy/docs.html']",
             "upstream_contacts = 'support@toy.org'",
             "site_contacts = ['Jim Admin', 'Jane Admin']",
+            "postinstallcmds = [",
+            "    'mkdir \"%(installdir)s/foo\"',"
+            "    'touch \"%(installdir)s/foo/bar\"',"
+            "    'touch \"%(installdir)s/baz\"',"
+            "    'mkdir \"%(installdir)s/qux\"',"
+            "    'touch \"%(installdir)s/qux/fred\"',"
+            "    'touch \"%(installdir)s/thud\"',"
+            "]",
         ])
         write_file(ec_file, ec_extra, append=True)
+
+        # populate test install dir
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-tweaked')
+        mkdir(os.path.join(toy_installdir, 'foo'), parents=True)
+        write_file(os.path.join(toy_installdir, 'foo', 'bar'), "Test install file")
+        mkdir(os.path.join(toy_installdir, 'baz'), parents=True)
 
         args = [
             ec_file,
@@ -1127,6 +1220,13 @@ class ToyBuildTest(EnhancedTestCase):
         for pattern in patterns:
             self.assertTrue(re.search(pattern, toy_mod_txt, re.M), "Pattern '%s' found in: %s" % (pattern, toy_mod_txt))
 
+        toy_installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0-gompi-2018a-test')
+        toy_libs_path = os.path.join(toy_installdir, 'toy_libs_path.txt')
+        self.assertTrue(os.path.exists(toy_libs_path))
+        txt = read_file(toy_libs_path)
+        regex = re.compile('^TOY_EXAMPLES=.*/examples$')
+        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' should match in: {txt}")
+
     def test_toy_advanced_filter_deps(self):
         """Test toy build with extensions, and filtered build dependency."""
         # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
@@ -1542,21 +1642,22 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict\("toy"\)',
                 r'',
+                r'prepend_path\("CMAKE_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("CMAKE_PREFIX_PATH", root\)',
                 r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
-                r'setenv\("EBROOTTOY", root\)',
-                r'setenv\("EBVERSIONTOY", "0.0"\)',
-                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
-                r'',
-                r'setenv\("FOO", "bar"\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
                 r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
                 r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
                 r'append_path\("SOMEPATH_APPEND", root\)',
+                r'setenv\("EBROOTTOY", root\)',
+                r'setenv\("EBVERSIONTOY", "0.0"\)',
+                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
+                r'',
+                r'setenv\("FOO", "bar"\)',
                 r'',
                 r'if mode\(\) == "load" then',
             ] + modloadmsg_lua + [
@@ -1583,21 +1684,22 @@ class ToyBuildTest(EnhancedTestCase):
                 r'',
                 r'conflict toy',
                 r'',
+                r'prepend-path	CMAKE_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	CMAKE_PREFIX_PATH		\$root',
                 r'prepend-path	LD_LIBRARY_PATH		\$root/lib',
                 r'prepend-path	LIBRARY_PATH		\$root/lib',
                 r'prepend-path	PATH		\$root/bin',
-                r'setenv	EBROOTTOY		"\$root"',
-                r'setenv	EBVERSIONTOY		"0.0"',
-                r'setenv	EBDEVELTOY		"\$root/easybuild/toy-0.0-tweaked-easybuild-devel"',
-                r'',
-                r'setenv	FOO		"bar"',
                 r'prepend-path	SOMEPATH		\$root/foo/bar',
                 r'prepend-path	SOMEPATH		\$root/baz',
                 r'prepend-path	SOMEPATH		\$root',
                 r'append-path	SOMEPATH_APPEND		\$root/qux/fred',
                 r'append-path	SOMEPATH_APPEND		\$root/thud',
                 r'append-path	SOMEPATH_APPEND		\$root',
+                r'setenv	EBROOTTOY		"\$root"',
+                r'setenv	EBVERSIONTOY		"0.0"',
+                r'setenv	EBDEVELTOY		"\$root/easybuild/toy-0.0-tweaked-easybuild-devel"',
+                r'',
+                r'setenv	FOO		"bar"',
                 r'',
                 r'if { \[ module-info mode load \] } {',
             ] + modloadmsg_tcl + [
@@ -2373,6 +2475,8 @@ class ToyBuildTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         toy_ec_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
 
+        out_file = os.path.join(self.test_prefix, 'out.txt')
+
         toy_ec_txt = '\n'.join([
             toy_ec_txt,
             "toolchain = {'name': 'foss', 'version': '2018a'}",
@@ -2388,6 +2492,8 @@ class ToyBuildTest(EnhancedTestCase):
             "   True,",
             # test command to make sure that '-h' is not passed to commands specified as string ('env -h' fails)
             "   'env',"
+            # print current working directory, should *not* be software install directory, but empty dir
+            f"   '(pwd && ls | wc -l) > {out_file}',",
             "]",
         ])
 
@@ -2412,6 +2518,13 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertExists(toy_modfile)
 
+        # check contents of output file created by sanity check commands
+        self.assertExists(out_file)
+        out_txt = read_file(out_file)
+        # working dir for sanity check command should be an empty custom temporary directory
+        regex = re.compile('^.*/eb-[^/]+/eb-sanity-check-[^/]+\n[ ]*0$')
+        self.assertTrue(regex.match(out_txt), f"Pattern '{regex.pattern}' should match in: {out_txt}")
+
     def test_sanity_check_paths_lib64(self):
         """Test whether fallback in sanity check for lib64/ equivalents of library files works."""
         test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs')
@@ -2425,8 +2538,8 @@ class ToyBuildTest(EnhancedTestCase):
             "rm -f %(installdir)s/lib64",
             # create empty lib64 dir
             "mkdir %(installdir)s/lib64",
-            # move libtoy.a
-            "mv %(installdir)s/lib/libtoy.a %(installdir)s/lib64/libtoy.a",
+            # move libtoy*.a
+            "mv %(installdir)s/lib/libtoy*.a %(installdir)s/lib64/",
         ])
         ectxt = re.sub("postinstallcmds.*", "postinstallcmds = ['%s']" % postinstallcmd, ectxt)
 
@@ -2662,6 +2775,99 @@ class ToyBuildTest(EnhancedTestCase):
 
         del sys.modules['easybuild.easyblocks.toy']
 
+    def test_toy_build_enhanced_sanity_check_templated_multi_dep(self):
+        """Test enhancing of sanity check by easyblocks with templates and in the presence of multi_deps."""
+
+        # if toy easyblock was imported, get rid of corresponding entry in sys.modules,
+        # to avoid that it messes up the use of --include-easyblocks=toy.py below...
+        if 'easybuild.easyblocks.toy' in sys.modules:
+            del sys.modules['easybuild.easyblocks.toy']
+
+        test_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+        toy_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+
+        # get rid of custom sanity check paths in test easyconfig
+        regex = re.compile(r'^sanity_check_paths\s*=\s*{[^}]+}', re.M)
+        test_ec_txt = regex.sub('', toy_ec_txt)
+        self.assertNotIn('sanity_check_', test_ec_txt)
+
+        test_ec_txt += "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}"
+        write_file(test_ec, test_ec_txt)
+
+        # create custom easyblock for toy that has a custom sanity_check_step
+        toy_easyblock = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+
+        toy_easyblock_txt = read_file(toy_easyblock)
+
+        toy_custom_sanity_check_step = textwrap.dedent("""
+            # Add to class to indent
+                def sanity_check_step(self):
+                    paths = {
+                        'files': ['bin/python%(pyshortver)s'],
+                        'dirs': ['lib/py-%(pyshortver)s'],
+                    }
+                    cmds = ['python%(pyshortver)s']
+                    return super(EB_toy, self).sanity_check_step(custom_paths=paths, custom_commands=cmds)
+        """)
+        test_toy_easyblock = os.path.join(self.test_prefix, 'toy.py')
+        write_file(test_toy_easyblock, toy_easyblock_txt + toy_custom_sanity_check_step)
+
+        eb_args = [
+            '--extended-dry-run',
+            '--include-easyblocks=%s' % test_toy_easyblock,
+        ]
+
+        # by default, sanity check commands & paths specified by easyblock are used
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            # Cut output to start of the toy-ec, after the Python installations
+            stdout = stdout[stdout.index(test_ec):]
+
+        pattern_template = textwrap.dedent(r"""
+            Sanity check paths - file.*
+            \s*\* bin/python{pyshortver}
+            Sanity check paths - \(non-empty\) directory.*
+            \s*\* lib/py-{pyshortver}
+            Sanity check commands
+            \s*\* python{pyshortver}
+        """)
+        for pyshortver in ('2.7', '3.7'):
+            regex = re.compile(pattern_template.format(pyshortver=pyshortver), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
+        # Enhance sanity check by extra paths to check for, the ones from the easyblock should be kept
+        test_ec_txt += textwrap.dedent("""
+            enhance_sanity_check = True
+            sanity_check_paths = {
+                'files': ['bin/pip%(pyshortver)s'],
+                'dirs': ['bin'],
+            }
+        """)
+        write_file(test_ec, test_ec_txt)
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=test_ec, extra_args=eb_args, verify=False, testing=False, raise_error=True)
+            stdout = self.get_stdout()
+            # Cut output to start of the toy-ec, after the Python installations
+            stdout = stdout[stdout.index(test_ec):]
+
+        pattern_template = textwrap.dedent(r"""
+            Sanity check paths - file.*
+            \s*\* bin/pip{pyshortver}
+            \s*\* bin/python{pyshortver}
+            Sanity check paths - \(non-empty\) directory.*
+            \s*\* bin
+            \s*\* lib/py-{pyshortver}
+            Sanity check commands
+            \s*\* python{pyshortver}
+        """)
+        for pyshortver in ('2.7', '3.7'):
+            regex = re.compile(pattern_template.format(pyshortver=pyshortver), re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+
     def test_toy_dumped_easyconfig(self):
         """ Test dumping of file in eb_filerepo in both .eb format """
         filename = 'toy-0.0'
@@ -2810,14 +3016,15 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(any(p.startswith(os.getenv('TMPDIR')) for p in rpath_filter_paths))
         self.assertTrue(any(p.startswith(self.test_buildpath) for p in rpath_filter_paths))
 
-        # test use of rpath toolchain option
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a.eb'))
-        toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"  # overwrites existing toolchainopts
-        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
-        write_file(toy_ec, toy_ec_txt)
-        with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
+        # test use of rpath toolchain option with SYSTEM and gompi 2018b toolchains
+        for toolchain in ['', '-gompi-2018a']:
+            test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+            toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', f'toy-0.0{toolchain}.eb'))
+            toy_ec_txt += "\ntoolchainopts = {'rpath': False}\n"  # overwrites existing toolchainopts
+            toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+            write_file(toy_ec, toy_ec_txt)
+            with self.mocked_stdout_stderr():
+                self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
     def test_toy_filter_rpath_sanity_libs(self):
         """Test use of --filter-rpath-sanity-libs."""
@@ -2832,7 +3039,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         libtoy_libdir = os.path.join(self.test_installpath, 'software', 'libtoy', '0.0', 'lib')
         toyapp_bin = os.path.join(self.test_installpath, 'software', 'toy-app', '0.0', 'bin', 'toy-app')
-        rpath_regex = re.compile(r"RPATH.*" + libtoy_libdir, re.M)
+        rpath_regex = re.compile(r"\(RPATH\).*" + libtoy_libdir, re.M)
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"readelf -d {toyapp_bin}")
         self.assertTrue(rpath_regex.search(res.output),
@@ -2983,7 +3190,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         patterns = [
             r"^  >> installation prefix: .*/software/toy/0\.0$",
-            r"^== fetching files\.\.\.\n  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
+            r"^== fetching files and verifying checksums\.\.\.\n"
+            r"  >> sources:\n  >> .*/toy-0\.0\.tar\.gz \[SHA256: 44332000.*\]$",
             r"^  >> applying patch toy-0\.0_fix-silly-typo-in-printf-statement\.patch$",
             r'\n'.join([
                 r"^  >> running shell command:",
@@ -4284,6 +4492,48 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertTrue(ebpythonprefixes_regex.search(toy_mod_txt),
                         f"Pattern '{ebpythonprefixes_regex.pattern}' found in: {toy_mod_txt}")
+
+    def test_toy_multiple_ecs_module(self):
+        """
+        Verify whether module file is correct when multiple easyconfigs are being installed.
+        """
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+
+        # modify 'toy' easyconfig so toy-headers subdirectory is created,
+        # which is taken into account by EB_toy easyblock for $CPATH
+        test_toy_ec = os.path.join(self.test_prefix, 'test-toy.eb')
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt += "\npostinstallcmds += ['mkdir %(installdir)s/toy-headers']"
+        toy_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/toy-headers/toy.h']"
+        write_file(test_toy_ec, toy_ec_txt)
+
+        # modify 'toy-app' easyconfig so toy-headers subdirectory is created,
+        # which is consider by EB_toy easyblock for $CPATH,
+        # but should *not* be actually used because software name is not 'toy'
+        toy_app_ec = os.path.join(test_ecs, 't', 'toy-app', 'toy-app-0.0.eb')
+        test_toy_app_ec = os.path.join(self.test_prefix, 'test-toy-app.eb')
+        toy_ec_txt = read_file(toy_app_ec)
+        toy_ec_txt += "\npostinstallcmds += ['mkdir %(installdir)s/toy-headers']"
+        toy_ec_txt += "\npostinstallcmds += ['touch %(installdir)s/toy-headers/toy.h']"
+        write_file(test_toy_app_ec, toy_ec_txt)
+
+        self.run_test_toy_build_with_output(ec_file=test_toy_ec, extra_args=[test_toy_app_ec], raise_error=True)
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        toy_modtxt = read_file(toy_mod)
+        regex = re.compile('prepend[-_]path.*CPATH.*toy-headers', re.M)
+        self.assertTrue(regex.search(toy_modtxt),
+                        f"Pattern '{regex.pattern}' should be found in: {toy_modtxt}")
+
+        toy_app_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy-app', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_app_mod += '.lua'
+        toy_app_modtxt = read_file(toy_app_mod)
+        self.assertFalse(regex.search(toy_app_modtxt),
+                         f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
 
 def suite():

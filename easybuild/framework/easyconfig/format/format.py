@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -68,11 +68,11 @@ GROUPED_PARAMS = [
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
     ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ['maxparallel'],
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
                'sanity_check_paths', 'sanity_check_commands',
-               'modextrapaths', 'modextrapaths_append', 'modextravars',
+               'modextrapaths', 'modextravars',
                'moduleclass']
 
 SANITY_CHECK_PATHS_DIRS = 'dirs'

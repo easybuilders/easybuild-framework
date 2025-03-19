@@ -876,31 +876,24 @@ class Section(dict):
         """
         out = {}
         # scalars first
-        for i in range(len(self.scalars)):
-            entry = self.scalars[i]
+        for i, entry in enumerate(self.scalars):
             try:
                 val = function(self, entry, **keywargs)
-                # bound again in case name has changed
-                entry = self.scalars[i]
-                out[entry] = val
             except Exception:
                 if raise_errors:
                     raise
-                else:
-                    entry = self.scalars[i]
-                    out[entry] = False
+                val = False
+            # bound again in case name has changed
+            entry = self.scalars[i]
+            out[entry] = val
         # then sections
-        for i in range(len(self.sections)):
-            entry = self.sections[i]
+        for i, entry in enumerate(self.sections):
             if call_on_sections:
                 try:
                     function(self, entry, **keywargs)
                 except Exception:
                     if raise_errors:
                         raise
-                    else:
-                        entry = self.sections[i]
-                        out[entry] = False
                 # bound again in case name has changed
                 entry = self.sections[i]
             # previous result is discarded

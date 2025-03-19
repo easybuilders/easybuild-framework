@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -204,23 +204,35 @@ def trace_msg(message, silent=False):
 
 
 def nub(list_):
-    """Returns the unique items of a list of hashables, while preserving order of
-    the original list, i.e. the first unique element encoutered is
-    retained.
+    """Returns the unique items of a list of hashables, while preserving order of the original list,
+    i.e. the first unique element encoutered is retained.
 
-    Code is taken from
-    http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
+    Code is taken from https://www.peterbe.com/plog/fastest-way-to-uniquify-a-list-in-python-3.6
 
-    Supposedly, this is one of the fastest ways to determine the
-    unique elements of a list.
+    Supposedly, this is one of the fastest ways to determine the unique elements of a list.
 
     @type list_: a list :-)
 
     :return: a new list with each element from `list` appearing only once (cfr. Michelle Dubois).
     """
-    seen = set()
-    seen_add = seen.add
-    return [x for x in list_ if x not in seen and not seen_add(x)]
+    return list(dict.fromkeys(list_))
+
+
+def unique_ordered_extend(base, affix):
+    """Extend base list with elements of affix list keeping order and without duplicates"""
+    if isinstance(affix, str):
+        # avoid extending with strings, as iterables generate wrong result without error
+        raise EasyBuildError(f"given affix list is a string: {affix}")
+
+    try:
+        ext_base = base.copy()
+        ext_base.extend(affix)
+    except TypeError as err:
+        raise EasyBuildError(f"given affix list is not iterable: {affix}") from err
+    except AttributeError as err:
+        raise EasyBuildError(f"given base cannot be extended: {base}") from err
+
+    return nub(ext_base)  # remove duplicates
 
 
 def get_class_for(modulepath, class_name):

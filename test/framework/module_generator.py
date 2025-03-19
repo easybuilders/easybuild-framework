@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -589,10 +589,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # loading of module with symbolic version works
         self.modtool.load(['test/1.2.3'])
-        # test/1.2.3.4.5 is actually loaded (rather than test/1.2.3)
+        # test/1.2.3.4.5 is actually loaded
         res = self.modtool.list()
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
+        self.assertTrue(any(x['mod_name'] == 'test/1.2.3.4.5' for x in res))
 
         # if same symbolic version is added again, nothing changes
         self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)

@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -73,6 +73,10 @@ class EB_toy(ExtensionEasyBlock):
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
 
+        # extra paths for environment variables to consider
+        if self.name == 'toy':
+            self.module_load_environment.CPATH.append('toy-headers')
+
     def prepare_for_extensions(self):
         """
         Prepare for installing toy extensions.
@@ -141,6 +145,12 @@ class EB_toy(ExtensionEasyBlock):
         libdir = os.path.join(self.installdir, 'lib')
         mkdir(libdir, parents=True)
         write_file(os.path.join(libdir, 'lib%s.a' % name), name.upper())
+
+    def post_processing_step(self):
+        """Any postprocessing for toy"""
+        libdir = os.path.join(self.installdir, 'lib')
+        write_file(os.path.join(libdir, 'lib%s_post.a' % self.name), self.name.upper())
+        super(EB_toy, self).post_processing_step()
 
     @property
     def required_deps(self):

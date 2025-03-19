@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -100,6 +100,7 @@ DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MAX_PARALLEL = 16
 DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
@@ -168,16 +169,28 @@ LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
-
 OUTPUT_STYLE_AUTO = 'auto'
 OUTPUT_STYLE_BASIC = 'basic'
 OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
 
+SEARCH_PATH_BIN_DIRS = ['bin']
+SEARCH_PATH_HEADER_DIRS = ['include']
+SEARCH_PATH_LIB_DIRS = ['lib', 'lib64']
+
 PYTHONPATH = 'PYTHONPATH'
 EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
 PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
+
+# options to handle header search paths in environment of modules
+MOD_SEARCH_PATH_HEADERS_CPATH = 'cpath'
+MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS = 'include_paths'
+MOD_SEARCH_PATH_HEADERS = {
+    MOD_SEARCH_PATH_HEADERS_CPATH: ['CPATH'],
+    MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS: ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+}
+DEFAULT_MOD_SEARCH_PATH_HEADERS = MOD_SEARCH_PATH_HEADERS_CPATH
 
 
 class Singleton(ABCMeta):
@@ -265,6 +278,8 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_filter',
         'rpath_override_dirs',
         'required_linked_shared_libs',
+        'search_path_cpp_headers',
+        'search_path_linker',
         'skip',
         'software_commit',
         'stop',
@@ -278,6 +293,7 @@ BUILD_OPTIONS_CMDLINE = {
     False: [
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'allow_unresolved_templates',
         'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -298,6 +314,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_locks',
         'ignore_test_failure',
         'install_latest_eb_release',
+        'keep_debug_symbols',
         'logtostdout',
         'minimal_toolchains',
         'module_only',
@@ -379,8 +396,14 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
     ],
+    DEFAULT_MAX_PARALLEL: [
+        'max_parallel',
+    ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
+    ],
+    DEFAULT_MOD_SEARCH_PATH_HEADERS: [
+        'module_search_path_headers',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
@@ -486,6 +509,8 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'buildpath',
         'config',
         'containerpath',
+        'failed_install_build_dirs_path',
+        'failed_install_logs_path',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -856,6 +881,42 @@ def log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
+
+
+def get_failed_install_build_dirs_path(ec):
+    """
+    Return the location where the build directory is copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_build_dirs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
+
+
+def get_failed_install_logs_path(ec):
+    """
+    Return the location where log files are copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_logs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
 
 
 def get_build_log_path():

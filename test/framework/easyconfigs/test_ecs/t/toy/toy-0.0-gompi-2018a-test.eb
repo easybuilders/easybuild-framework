@@ -23,10 +23,14 @@ exts_default_options = {
     'source_urls': ['http://example.com/%(name)s'],
 }
 
+local_bar_buildopts = " && gcc bar.c -o anotherbar && "
+# used to check whether $TOY_LIBS_PATH is defined even when 'lib' subdirectory doesn't exist yet
+local_bar_buildopts += 'echo "TOY_EXAMPLES=$TOY_EXAMPLES" > %(installdir)s/toy_libs_path.txt'
+
 exts_list = [
     'ulimit',  # extension that is part of "standard library"
     ('bar', '0.0', {
-        'buildopts': " && gcc bar.c -o anotherbar",
+        'buildopts': local_bar_buildopts,
         'checksums': ['f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7'],  # checksum for
         # custom extension filter to verify use of stdin value being passed to filter command
         'exts_filter': ("cat | grep '^bar$'", '%(name)s'),
@@ -38,7 +42,7 @@ exts_list = [
         'unknowneasyconfigparameterthatshouldbeignored': 'foo',
         # set boolean value (different from default value) to trigger (now fixed) bug with --inject-checksums
         # cfr. https://github.com/easybuilders/easybuild-framework/pull/3034
-        'keepsymlinks': True,
+        'keepsymlinks': False,
     }),
     ('barbar', '1.2', {
         'start_dir': 'src',
@@ -54,6 +58,8 @@ sanity_check_paths = {
     'files': [('bin/yot', 'bin/toy'), 'bin/bar', 'bin/bar_bis', 'lib/libtoy.a', 'lib/libbar.a'],
     'dirs': [],
 }
+
+modextrapaths = {'TOY_EXAMPLES': 'examples'}
 
 postinstallcmds = ["echo TOY > %(installdir)s/README"]
 

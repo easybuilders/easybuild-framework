@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1141,7 +1141,7 @@ def list_toolchains_md(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1157,6 +1157,8 @@ def list_toolchains_md(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
@@ -1201,7 +1203,7 @@ def list_toolchains_rst(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1217,6 +1219,8 @@ def list_toolchains_rst(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
@@ -1325,15 +1329,19 @@ def get_easyblock_classes(package_name):
     """
     Get list of all easyblock classes in specified easyblocks.* package
     """
-    easyblocks = []
+    easyblocks = set()
     modules = import_available_modules(package_name)
 
     for mod in modules:
+        easyblock_found = False
         for name, _ in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
-            if eb_class.__module__.startswith(package_name) and eb_class not in easyblocks:
-                easyblocks.append(eb_class)
+            if eb_class.__module__.startswith(package_name) and EasyBlock in inspect.getmro(eb_class):
+                easyblocks.add(eb_class)
+                easyblock_found = True
+        if not easyblock_found:
+            raise RuntimeError("No easyblocks found in module: %s", mod.__name__)
 
     return easyblocks
 
