@@ -159,15 +159,15 @@ class TypeCheckingTest(EnhancedTestCase):
             self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (True, inp))
 
         inputs = [
-            {},
-            {'files': []},
+            {'files2': []},
             {'files': [], 'dirs': [], 'somethingelse': []},
             {'files': [['bin/foo']], 'dirs': []},
             {'files': [], 'dirs': [1]},
             {'files': ['foo'], 'dirs': [(1, 2)]},
         ]
         for inp in inputs:
-            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (False, None))
+            self.assertEqual(check_type_of_param_value('sanity_check_paths', inp), (False, None),
+                             msg=f'Should be invalid: {inp}')
 
         # sanity_check_paths (auto-convert)
         inp = {'files': ['bin/foo', ['bin/bar', 'bin/baz']], 'dirs': [['lib', 'lib64', 'lib32']]}
@@ -533,8 +533,8 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # list element for 'files', should be string or tuple
         self.assertFalse(is_value_of_type({'files': ['f1', ['f2a', 'f2b']], 'dirs': []}, SANITY_CHECK_PATHS_DICT))
-        # missing 'dirs' key
-        self.assertFalse(is_value_of_type({'files': ['f1', 'f2']}, SANITY_CHECK_PATHS_DICT))
+        # missing (optional) 'dirs' key
+        self.assertTrue(is_value_of_type({'files': ['f1', 'f2']}, SANITY_CHECK_PATHS_DICT))
         # tuple rather than list
         self.assertFalse(is_value_of_type({'files': (1, 2), 'dirs': []}, SANITY_CHECK_PATHS_DICT))
         # int elements rather than strings/tuples-of-strings
@@ -544,7 +544,7 @@ class TypeCheckingTest(EnhancedTestCase):
         # extra key is not allowed
         self.assertFalse(is_value_of_type({'files': [], 'dirs': [], 'foo': []}, SANITY_CHECK_PATHS_DICT))
         # no keys at all
-        self.assertFalse(is_value_of_type({}, SANITY_CHECK_PATHS_DICT))
+        self.assertTrue(is_value_of_type({}, SANITY_CHECK_PATHS_DICT))
 
     def test_as_hashable(self):
         """Test as_hashable function."""
