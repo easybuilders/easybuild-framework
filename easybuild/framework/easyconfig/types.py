@@ -603,8 +603,8 @@ STRING_DICT = (dict, as_hashable(
 ))
 STRING_OR_TUPLE_DICT = (dict, as_hashable(
     {
-        'elem_types': [str],
-        'key_types': [str, TUPLE_OF_STRINGS],
+        'key_types': [str],
+        'elem_types': [str, TUPLE_OF_STRINGS],
     }
 ))
 STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
