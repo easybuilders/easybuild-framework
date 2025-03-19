@@ -676,11 +676,10 @@ class EasyBlock:
                 'name': ext_name,
                 'version': ext_version,
                 'options': ext_options,
+                # if a particular easyblock is specified, make sure it's used
+                # (this is picked up by init_ext_instances)
+                'easyblock': ext_options.get('easyblock', None),
             }
-
-            # if a particular easyblock is specified, make sure it's used
-            # (this is picked up by init_ext_instances)
-            ext_src['easyblock'] = ext_options.get('easyblock', None)
 
             # construct dictionary with template values;
             # inherited from parent, except for name/version templates which are specific to this extension
