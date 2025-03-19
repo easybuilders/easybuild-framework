@@ -129,7 +129,7 @@ REPROD = 'reprod'
 _log = fancylogger.getLogger('easyblock')
 
 
-class EasyBlock(object):
+class EasyBlock:
     """Generic support for building and installing software, base class for actual easyblocks."""
 
     # static class method for extra easyconfig parameter definitions
