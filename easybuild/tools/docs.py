@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,9 @@ import copy
 import inspect
 import json
 import os
+from collections import OrderedDict
 from easybuild.tools import LooseVersion
+from string import ascii_lowercase
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
@@ -48,7 +50,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class, process_easyconfig
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_CONFIG, TEMPLATE_NAMES_DYNAMIC
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, TEMPLATE_NAMES_EASYCONFIG
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_LOWER, TEMPLATE_NAMES_LOWER_TEMPLATE
@@ -60,8 +62,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.py2vs3 import OrderedDict, ascii_lowercase
-from easybuild.tools.toolchain.toolchain import DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table, nub, quote_str
@@ -314,7 +315,7 @@ def avail_easyconfig_licenses_md():
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_md(title, grouped_params):
+def avail_easyconfig_params_md(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in MarkDown format.
     """
@@ -327,13 +328,14 @@ def avail_easyconfig_params_md(title, grouped_params):
     for grpname in grouped_params:
         # group section title
         title = "%s%s parameters" % (grpname[0].upper(), grpname[1:])
-        table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        table_titles = ["**Parameter name**", "**Description**", "**Default value**", "**Alternative name**"]
         keys = sorted(grouped_params[grpname].keys())
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['`%s`' % name for name in keys],  # parameter name
             [x[0].replace('<', '&lt;').replace('>', '&gt;') for x in values],  # description
-            ['`' + str(quote_str(x[1])) + '`' for x in values]  # default value
+            ['`' + str(quote_str(x[1])) + '`' for x in values],  # default value
+            ['`%s`' % alternative_params[name] if name in alternative_params else '' for name in keys],
         ]
 
         doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
@@ -342,7 +344,7 @@ def avail_easyconfig_params_md(title, grouped_params):
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_rst(title, grouped_params):
+def avail_easyconfig_params_rst(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in RST format.
     """
@@ -356,13 +358,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
     for grpname in grouped_params:
         # group section title
         title = "%s parameters" % grpname
-        table_titles = ["**Parameter name**", "**Description**", "**Default value**"]
+        table_titles = ["**Parameter name**", "**Description**", "**Default value**", "**Alternative name**"]
         keys = sorted(grouped_params[grpname].keys())
         values = [grouped_params[grpname][key] for key in keys]
         table_values = [
             ['``%s``' % name for name in keys],  # parameter name
             [x[0] for x in values],  # description
-            [str(quote_str(x[1])) for x in values]  # default value
+            [str(quote_str(x[1])) for x in values],  # default value
+            ['``%s``' % alternative_params[name] if name in alternative_params else '' for name in keys],
         ]
 
         doc.extend(rst_title_and_table(title, table_titles, table_values))
@@ -371,14 +374,14 @@ def avail_easyconfig_params_rst(title, grouped_params):
     return '\n'.join(doc)
 
 
-def avail_easyconfig_params_json():
+def avail_easyconfig_params_json(*args):
     """
     Compose overview of available easyconfig parameters, in json format.
     """
     raise NotImplementedError("JSON output format not supported for avail_easyconfig_params_json")
 
 
-def avail_easyconfig_params_txt(title, grouped_params):
+def avail_easyconfig_params_txt(title, grouped_params, alternative_params):
     """
     Compose overview of available easyconfig parameters, in plain text format.
     """
@@ -398,7 +401,17 @@ def avail_easyconfig_params_txt(title, grouped_params):
 
         # line by parameter
         for name, (descr, dflt) in sorted(grouped_params[grpname].items()):
-            doc.append("{0:<{nw}}   {1:} [default: {2:}]".format(name, descr, str(quote_str(dflt)), nw=nw))
+            line = ' '.join([
+                '{0:<{nw}}  ',
+                '{1:}',
+                '[default: {2:}]',
+            ]).format(name, descr, str(quote_str(dflt)), nw=nw)
+
+            alternative = alternative_params.get(name)
+            if alternative:
+                line += ' {alternative: %s}' % alternative
+
+            doc.append(line)
         doc.append('')
 
     return '\n'.join(doc)
@@ -416,6 +429,9 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
     if app is not None:
         extra_params = app.extra_options()
     params.update(extra_params)
+
+    # reverse mapping of alternative easyconfig parameter names
+    alternative_params = {v: k for k, v in ALTERNATIVE_EASYCONFIG_PARAMETERS.items()}
 
     # compose title
     title = "Available easyconfig parameters"
@@ -442,7 +458,7 @@ def avail_easyconfig_params(easyblock, output_format=FORMAT_TXT):
             del grouped_params[grpname]
 
     # compose output, according to specified format (txt, rst, ...)
-    return generate_doc('avail_easyconfig_params_%s' % output_format, [title, grouped_params])
+    return generate_doc('avail_easyconfig_params_%s' % output_format, [title, grouped_params, alternative_params])
 
 
 def avail_easyconfig_templates(output_format=FORMAT_TXT):
@@ -462,16 +478,16 @@ def avail_easyconfig_templates_txt():
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
-    for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, curDoc in TEMPLATE_NAMES_EASYCONFIG.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, curDoc))
     doc.append('')
 
     # step 2: add SOFTWARE_VERSIONS
     doc.append('Template names/values for (short) software versions')
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        doc.append("%s%%(%smajver)s: major version for %s" % (INDENT_4SPACES, pref, name))
-        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, pref, name))
-        doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, pref, name))
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        doc.append("%s%%(%smajver)s: major version for %s" % (INDENT_4SPACES, prefix, name))
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (INDENT_4SPACES, prefix, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (INDENT_4SPACES, prefix, name))
     doc.append('')
 
     # step 3: add remaining config
@@ -490,20 +506,20 @@ def avail_easyconfig_templates_txt():
     # step 5: template_values can/should be updated from outside easyconfig
     # (eg the run_step code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
-    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, cur_doc))
     doc.append('')
 
     # some template values are only defined dynamically,
     # see template_constant_dict function in easybuild.framework.easyconfigs.templates
     doc.append('Template values which are defined dynamically')
-    for name in TEMPLATE_NAMES_DYNAMIC:
-        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_DYNAMIC.items():
+        doc.append("%s%%(%s)s: %s" % (INDENT_4SPACES, name, cur_doc))
     doc.append('')
 
     doc.append('Template constants that can be used in easyconfigs')
-    for cst in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, cst[0], cst[2], cst[1]))
+    for name, (value, cur_doc) in TEMPLATE_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (INDENT_4SPACES, name, cur_doc, value))
 
     return '\n'.join(doc)
 
@@ -514,8 +530,8 @@ def avail_easyconfig_templates_rst():
 
     title = 'Template names/values derived from easyconfig instance'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
-        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYCONFIG],
+        list(TEMPLATE_NAMES_EASYCONFIG.values()),
     ]
     doc = rst_title_and_table(title, table_titles, table_values)
     doc.append('')
@@ -523,10 +539,10 @@ def avail_easyconfig_templates_rst():
     title = 'Template names/values for (short) software versions'
     ver = []
     ver_desc = []
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        ver.append('``%%(%smajver)s``' % pref)
-        ver.append('``%%(%sshortver)s``' % pref)
-        ver.append('``%%(%sver)s``' % pref)
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        ver.append('``%%(%smajver)s``' % prefix)
+        ver.append('``%%(%sshortver)s``' % prefix)
+        ver.append('``%%(%sver)s``' % prefix)
         ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (<major>.<minor>)' % name)
         ver_desc.append('full version for %s' % name)
@@ -549,24 +565,24 @@ def avail_easyconfig_templates_rst():
 
     title = 'Template values set outside EasyBlock runstep'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        list(TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.values()),
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
     title = 'Template values which are defined dynamically'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
-        [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_DYNAMIC],
+        list(TEMPLATE_NAMES_DYNAMIC.values()),
     ]
     doc.extend(rst_title_and_table(title, table_titles, table_values))
 
     title = 'Template constants that can be used in easyconfigs'
-    titles = ['Constant', 'Template value', 'Template name']
+    titles = ['Constant', 'Template description', 'Template value']
     table_values = [
-        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
-        [cst[2] for cst in TEMPLATE_CONSTANTS],
-        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
+        ['``%s``' % name for name in TEMPLATE_CONSTANTS],
+        [doc for _, doc in TEMPLATE_CONSTANTS.values()],
+        ['``%s``' % value for value, _ in TEMPLATE_CONSTANTS.values()],
     ]
     doc.extend(rst_title_and_table(title, titles, table_values))
 
@@ -579,8 +595,8 @@ def avail_easyconfig_templates_md():
 
     title = 'Template names/values derived from easyconfig instance'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYCONFIG],
-        [name[1] for name in TEMPLATE_NAMES_EASYCONFIG],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYCONFIG],
+        list(TEMPLATE_NAMES_EASYCONFIG.values()),
     ]
     doc = md_title_and_table(title, table_titles, table_values, title_level=2)
     doc.append('')
@@ -588,10 +604,10 @@ def avail_easyconfig_templates_md():
     title = 'Template names/values for (short) software versions'
     ver = []
     ver_desc = []
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        ver.append('``%%(%smajver)s``' % pref)
-        ver.append('``%%(%sshortver)s``' % pref)
-        ver.append('``%%(%sver)s``' % pref)
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        ver.append('``%%(%smajver)s``' % prefix)
+        ver.append('``%%(%sshortver)s``' % prefix)
+        ver.append('``%%(%sver)s``' % prefix)
         ver_desc.append('major version for %s' % name)
         ver_desc.append('short version for %s (``<major>.<minor>``)' % name)
         ver_desc.append('full version for %s' % name)
@@ -615,27 +631,28 @@ def avail_easyconfig_templates_md():
 
     title = 'Template values set outside EasyBlock runstep'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
-        [name[1] for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP],
+        list(TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.values()),
     ]
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template values which are defined dynamically'
     table_values = [
-        ['``%%(%s)s``' % name[0] for name in TEMPLATE_NAMES_DYNAMIC],
-        [name[1] for name in TEMPLATE_NAMES_DYNAMIC],
+        ['``%%(%s)s``' % name for name in TEMPLATE_NAMES_DYNAMIC],
+        list(TEMPLATE_NAMES_DYNAMIC.values()),
     ]
     doc.extend(md_title_and_table(title, table_titles, table_values, title_level=2))
     doc.append('')
 
     title = 'Template constants that can be used in easyconfigs'
-    titles = ['Constant', 'Template value', 'Template name']
+    titles = ['Constant', 'Template description', 'Template value']
     table_values = [
-        ['``%s``' % cst[0] for cst in TEMPLATE_CONSTANTS],
-        [cst[2] for cst in TEMPLATE_CONSTANTS],
-        ['``%s``' % cst[1] for cst in TEMPLATE_CONSTANTS],
+        ['``%s``' % name for name in TEMPLATE_CONSTANTS],
+        [doc for _, doc in TEMPLATE_CONSTANTS.values()],
+        ['``%s``' % value for value, _ in TEMPLATE_CONSTANTS.values()],
     ]
+
     doc.extend(md_title_and_table(title, titles, table_values, title_level=2))
 
     return '\n'.join(doc)
@@ -788,7 +805,7 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
         if isinstance(ec, dict):
             template_values = template_constant_dict(ec)
             for key in keys:
-                if '%(' in info[key]:
+                if info[key] and '%(' in info[key]:
                     try:
                         info[key] = info[key] % template_values
                     except (KeyError, TypeError, ValueError) as err:
@@ -806,8 +823,8 @@ def list_software(output_format=FORMAT_TXT, detailed=False, only_installed=False
 
         # rebuild software, only retain entries with a corresponding available module
         software, all_software = {}, software
-        for key in all_software:
-            for entry in all_software[key]:
+        for key, entries in all_software.items():
+            for entry in entries:
                 if entry['mod_name'] in avail_mod_names:
                     software.setdefault(key, []).append(entry)
 
@@ -1093,7 +1110,7 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     # filter deprecated 'dummy' toolchain
-    tcs = {tc.NAME: tc for tc in all_tcs if tc.NAME != DUMMY_TOOLCHAIN_NAME}
+    tcs = {tc.NAME: tc for tc in all_tcs}
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]
@@ -1124,7 +1141,7 @@ def list_toolchains_md(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1140,6 +1157,8 @@ def list_toolchains_md(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
@@ -1184,7 +1203,7 @@ def list_toolchains_rst(tcs):
     none_txt = '*(none)*'
 
     # Initialize an empty list of lists for the table data
-    table_values = [[] for i in range(len(table_titles))]
+    table_values = [[] for _ in range(len(table_titles))]
 
     for col_id, col_name in enumerate(table_titles):
         if col_name == 'NAME':
@@ -1200,6 +1219,8 @@ def list_toolchains_rst(tcs):
                         entry = 'cray-mpich'
                     elif col_name == 'LINALG':
                         entry = 'cray-libsci'
+                    else:
+                        entry = none_txt
                 # Combine the linear algebra libraries into a single column
                 elif col_name == 'LINALG':
                     linalg = []
@@ -1308,15 +1329,19 @@ def get_easyblock_classes(package_name):
     """
     Get list of all easyblock classes in specified easyblocks.* package
     """
-    easyblocks = []
+    easyblocks = set()
     modules = import_available_modules(package_name)
 
     for mod in modules:
+        easyblock_found = False
         for name, _ in inspect.getmembers(mod, inspect.isclass):
             eb_class = getattr(mod, name)
             # skip imported classes that are not easyblocks
-            if eb_class.__module__.startswith(package_name) and eb_class not in easyblocks:
-                easyblocks.append(eb_class)
+            if eb_class.__module__.startswith(package_name) and EasyBlock in inspect.getmro(eb_class):
+                easyblocks.add(eb_class)
+                easyblock_found = True
+        if not easyblock_found:
+            raise RuntimeError("No easyblocks found in module: %s", mod.__name__)
 
     return easyblocks
 
