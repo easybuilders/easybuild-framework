@@ -4288,7 +4288,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.6")
+        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.8")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_github_review_pr(self):
@@ -4784,9 +4784,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
         args.extend([
             '--git-working-dirs-path=%s' % git_working_dir,
-            ':bzip2-1.0.6.eb',
+            ':bzip2-1.0.8.eb',
         ])
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: bzip2-1.0.6.eb"
+        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: bzip2-1.0.8.eb"
 
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
@@ -4808,7 +4808,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs[-1] = r"^\s*2 files changed"
         regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0 w/ test\"")
         regexs.append(r"^\* title: \"just a test\"")
-        regexs.append(r".*/bzip2-1.0.6.eb\s*\|")
+        regexs.append(r".*/bzip2-1.0.8.eb\s*\|")
         regexs.append(r".*[0-9]+ deletions\(-\)")
         self._assert_regexs(regexs, txt)
 
@@ -4835,7 +4835,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\* title: \"test-1-2-3\"",
             r"^\* overview of changes:",
             r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
-            r".*/bzip2-1.0.6.eb\s*\|",
+            r".*/bzip2-1.0.8.eb\s*\|",
             r"^\s*2 files changed",
             r".*[0-9]+ deletions\(-\)",
         ]
@@ -5091,17 +5091,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            ':bzip2-1.0.6.eb',
+            ':bzip2-1.0.8.eb',
             '-D',
             '--disable-cleanup-tmpdir',
-            '--pr-title=delete bzip2-1.6.0',
-            '--pr-commit-msg="delete bzip2-1.6.0.eb"'
+            '--pr-title=delete bzip2-1.0.8',
+            '--pr-commit-msg="delete bzip2-1.0.8.eb"'
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
-            r'title: "delete bzip2-1.6.0"',
+            r'title: "delete bzip2-1.0.8"',
             r"1 file(s?) changed,( 0 insertions\(\+\),)? [0-9]+ deletions\(-\)",
         ]
         self._assert_regexs(regexs, txt)
@@ -5302,7 +5302,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get file from develop branch
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
-                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.2.11-GCCcore-6.4.0.eb'])
+                                       'develop/easybuild/easyconfigs/z/zlib/zlib-1.3.1-GCCcore-14.2.0.eb'])
         ec_fn = os.path.basename(full_url)
         with self.mocked_stdout_stderr():
             ec = download_file(ec_fn, full_url, path=os.path.join(self.test_prefix, ec_fn))
