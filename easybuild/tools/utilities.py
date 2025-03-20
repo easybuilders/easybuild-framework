@@ -34,12 +34,11 @@ import glob
 import os
 import re
 import sys
-from string import digits
+from string import ascii_letters, digits
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from easybuild.tools.py2vs3 import ascii_letters, string_type
 
 
 _log = fancylogger.getLogger('tools.utilities')
@@ -72,7 +71,7 @@ def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_back
     :param tcl: Boolean for whether we are quoting for Tcl syntax
     """
 
-    if isinstance(val, string_type):
+    if isinstance(val, str):
         # escape backslashes
         if escape_backslash:
             val = val.replace('\\', '\\\\')
@@ -164,7 +163,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     if pkgname and url is None:
         url = 'https://pypi.python.org/pypi/%s' % pkgname
 
-    if isinstance(modnames, string_type):
+    if isinstance(modnames, str):
         modnames = (modnames,)
 
     def wrap(orig):
@@ -205,23 +204,35 @@ def trace_msg(message, silent=False):
 
 
 def nub(list_):
-    """Returns the unique items of a list of hashables, while preserving order of
-    the original list, i.e. the first unique element encoutered is
-    retained.
+    """Returns the unique items of a list of hashables, while preserving order of the original list,
+    i.e. the first unique element encoutered is retained.
 
-    Code is taken from
-    http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
+    Code is taken from https://www.peterbe.com/plog/fastest-way-to-uniquify-a-list-in-python-3.6
 
-    Supposedly, this is one of the fastest ways to determine the
-    unique elements of a list.
+    Supposedly, this is one of the fastest ways to determine the unique elements of a list.
 
     @type list_: a list :-)
 
     :return: a new list with each element from `list` appearing only once (cfr. Michelle Dubois).
     """
-    seen = set()
-    seen_add = seen.add
-    return [x for x in list_ if x not in seen and not seen_add(x)]
+    return list(dict.fromkeys(list_))
+
+
+def unique_ordered_extend(base, affix):
+    """Extend base list with elements of affix list keeping order and without duplicates"""
+    if isinstance(affix, str):
+        # avoid extending with strings, as iterables generate wrong result without error
+        raise EasyBuildError(f"given affix list is a string: {affix}")
+
+    try:
+        ext_base = base.copy()
+        ext_base.extend(affix)
+    except TypeError as err:
+        raise EasyBuildError(f"given affix list is not iterable: {affix}") from err
+    except AttributeError as err:
+        raise EasyBuildError(f"given base cannot be extended: {base}") from err
+
+    return nub(ext_base)  # remove duplicates
 
 
 def get_class_for(modulepath, class_name):

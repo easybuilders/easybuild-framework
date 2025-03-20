@@ -34,10 +34,9 @@ import re
 from functools import reduce
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
 from easybuild.tools.filetools import which
-from easybuild.tools.py2vs3 import string_type
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 def det_os_deps(easyconfigs):
@@ -49,7 +48,7 @@ def det_os_deps(easyconfigs):
     res = set()
     os_deps = reduce(operator.add, [obj['ec']['osdependencies'] for obj in easyconfigs], [])
     for os_dep in os_deps:
-        if isinstance(os_dep, string_type):
+        if isinstance(os_dep, str):
             res.add(os_dep)
         elif isinstance(os_dep, tuple):
             res.update(os_dep)
@@ -71,20 +70,23 @@ def check_tool(tool_name, min_tool_version=None):
     if not tool_path:
         return False
 
-    print_msg("{0} tool found at {1}".format(tool_name, tool_path))
+    print_msg(f"{tool_name} tool found at {tool_path}")
 
     if not min_tool_version:
         return True
 
-    version_cmd = "{0} --version".format(tool_name)
-    out, ec = run_cmd(version_cmd, simple=False, trace=False, force_in_dry_run=True)
-    if ec:
-        raise EasyBuildError("Error running '{0}' for tool {1} with output: {2}".format(version_cmd, tool_name, out))
-    res = re.search(r"\d+\.\d+(\.\d+)?", out.strip())
-    if not res:
-        raise EasyBuildError("Error parsing version for tool {0}".format(tool_name))
-    tool_version = res.group(0)
+    version_cmd = f"{tool_name} --version"
+    res = run_shell_cmd(version_cmd, hidden=True, in_dry_run=True)
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        raise EasyBuildError(f"Error running '{version_cmd}' for tool {tool_name} with output: {res.output}")
+
+    regex_res = re.search(r"\d+\.\d+(\.\d+)?", res.output.strip())
+    if not regex_res:
+        raise EasyBuildError(f"Error parsing version for tool {tool_name}")
+
+    tool_version = regex_res.group(0)
     version_ok = LooseVersion(str(min_tool_version)) <= LooseVersion(tool_version)
     if version_ok:
-        print_msg("{0} version '{1}' is {2} or higher ... OK".format(tool_name, tool_version, min_tool_version))
+        print_msg(f"{tool_name} version '{tool_version}' is {min_tool_version} or higher ... OK")
+
     return version_ok

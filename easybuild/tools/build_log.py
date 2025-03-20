@@ -40,11 +40,11 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime
+from enum import IntEnum
 
 from easybuild.base import fancylogger
 from easybuild.base.exceptions import LoggedException
 from easybuild.tools.version import VERSION, this_is_easybuild
-
 
 # EasyBuild message prefix
 EB_MSG_PREFIX = "=="
@@ -55,15 +55,69 @@ CURRENT_VERSION = VERSION
 # allow some experimental experimental code
 EXPERIMENTAL = False
 
-DEPRECATED_DOC_URL = 'http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html'
+DEPRECATED_DOC_URL = 'https://docs.easybuild.io/deprecated-functionality/'
 
 DRY_RUN_BUILD_DIR = None
 DRY_RUN_SOFTWARE_INSTALL_DIR = None
 DRY_RUN_MODULES_INSTALL_DIR = None
 
+CWD_NOTFOUND_ERROR = (
+    "Current working directory does not exist! It was either unexpectedly removed "
+    "by an external process to EasyBuild or the filesystem is misbehaving."
+)
+
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
 logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
+
+
+class EasyBuildExit(IntEnum):
+    """
+    Table of exit codes
+    """
+    SUCCESS = 0
+    ERROR = 1
+    # core errors
+    OPTION_ERROR = 2
+    VALUE_ERROR = 3
+    MISSING_EASYCONFIG = 4
+    EASYCONFIG_ERROR = 5
+    MISSING_EASYBLOCK = 6
+    EASYBLOCK_ERROR = 7
+    MODULE_ERROR = 8
+    # step errors in order of execution
+    FAIL_FETCH_STEP = 10
+    FAIL_READY_STEP = 11
+    FAIL_SOURCE_STEP = 12
+    FAIL_PATCH_STEP = 13
+    FAIL_PREPARE_STEP = 14
+    FAIL_CONFIGURE_STEP = 15
+    FAIL_BUILD_STEP = 16
+    FAIL_TEST_STEP = 17
+    FAIL_INSTALL_STEP = 18
+    FAIL_EXTENSIONS_STEP = 19
+    FAIL_POST_ITER_STEP = 20
+    FAIL_POST_PROC_STEP = 21
+    FAIL_SANITY_CHECK_STEP = 22
+    FAIL_CLEANUP_STEP = 23
+    FAIL_MODULE_STEP = 24
+    FAIL_PERMISSIONS_STEP = 25
+    FAIL_PACKAGE_STEP = 26
+    FAIL_TEST_CASES_STEP = 27
+    # errors on missing things
+    MISSING_SOURCES = 30
+    MISSING_DEPENDENCY = 31
+    MISSING_SYSTEM_DEPENDENCY = 32
+    MISSING_EB_DEPENDENCY = 33
+    # errors on specific task failures
+    FAIL_SYSTEM_CHECK = 40
+    FAIL_DOWNLOAD = 41
+    FAIL_CHECKSUM = 42
+    FAIL_EXTRACT = 43
+    FAIL_PATCH_APPLY = 44
+    FAIL_SANITY_CHECK = 45
+    FAIL_MODULE_WRITE = 46
+    FAIL_GITHUB = 47
 
 
 class EasyBuildError(LoggedException):
@@ -75,12 +129,13 @@ class EasyBuildError(LoggedException):
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
 
-    def __init__(self, msg, *args):
+    def __init__(self, msg, *args, exit_code=EasyBuildExit.ERROR, **kwargs):
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
-        LoggedException.__init__(self, msg)
+        LoggedException.__init__(self, msg, exit_code=exit_code, **kwargs)
         self.msg = msg
+        self.exit_code = exit_code
 
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
@@ -167,7 +222,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def error(self, msg, *args, **kwargs):
         """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild crashed with an error %s: " % self.caller_info()
+        ebmsg = "EasyBuild encountered an error %s: " % self.caller_info()
         fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
 
     def devel(self, msg, *args, **kwargs):
@@ -335,8 +390,18 @@ def print_error(msg, *args, **kwargs):
     if args:
         msg = msg % args
 
+    # grab exit code, if specified;
+    # also consider deprecated 'exitCode' option
+    exitCode = kwargs.pop('exitCode', None)
+    exit_code = kwargs.pop('exit_code', exitCode)
+    if exitCode is not None:
+        _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
+
+    # use 1 as defaut exit code
+    if exit_code is None:
+        exit_code = 1
+
     log = kwargs.pop('log', None)
-    exitCode = kwargs.pop('exitCode', 1)
     opt_parser = kwargs.pop('opt_parser', None)
     exit_on_error = kwargs.pop('exit_on_error', True)
     silent = kwargs.pop('silent', False)
@@ -348,7 +413,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exitCode)
+        sys.exit(exit_code)
     elif log is not None:
         raise EasyBuildError(msg)
 

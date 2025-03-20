@@ -41,7 +41,7 @@ class EB_toy_buggy(EasyBlock):
     def build_step(self):
         """Build toy."""
         # note: import is (purposely) missing, so this will go down hard
-        run_cmd('gcc toy.c -o toy')  # noqa
+        run_shell_cmd('gcc toy.c -o toy')  # noqa
 
     def install_step(self):
         """Install toy."""

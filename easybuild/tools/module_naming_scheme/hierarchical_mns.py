@@ -204,10 +204,10 @@ class HierarchicalMNS(ModuleNamingScheme):
 
             comp_name_ver = None
             if ec['name'] in extend_comps:
-                for key in COMP_NAME_VERSION_TEMPLATES:
+                for key, comp_tmpl in COMP_NAME_VERSION_TEMPLATES.items():
                     comp_names = key.split(',')
                     if ec['name'] in comp_names:
-                        comp_name, comp_ver_tmpl = COMP_NAME_VERSION_TEMPLATES[key]
+                        comp_name, comp_ver_tmpl = comp_tmpl
                         comp_versions = {ec['name']: self.det_full_version(ec)}
                         if ec['name'] == 'ifort':
                             # 'icc' key should be provided since it's the only one used in the template

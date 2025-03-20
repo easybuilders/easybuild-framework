@@ -116,11 +116,12 @@ class BuildLogTest(EnhancedTestCase):
         stderr = self.get_stderr()
         self.mock_stderr(False)
 
-        more_info = "see http://easybuild.readthedocs.org/en/latest/Deprecated-functionality.html for more information"
+        more_info = "see https://docs.easybuild.io/deprecated-functionality/ for more information"
+        common_warning = "\nWARNING: Deprecated functionality, will no longer work in"
         expected_stderr = '\n\n'.join([
-            "\nWARNING: Deprecated functionality, will no longer work in v10000001: anotherwarning; " + more_info,
-            "\nWARNING: Deprecated functionality, will no longer work in v2.0: onemorewarning",
-            "\nWARNING: Deprecated functionality, will no longer work in v2.0: lastwarning",
+            common_warning + " EasyBuild v10000001: anotherwarning; " + more_info,
+            common_warning + " EasyBuild v2.0: onemorewarning",
+            common_warning + " EasyBuild v2.0: lastwarning",
         ]) + '\n\n'
         self.assertEqual(stderr, expected_stderr)
 
@@ -139,8 +140,8 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*onemorewarning.*",
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*lastwarning.*",
             r"fancyroot.test_easybuildlog \[WARNING\] :: Deprecated functionality.*thisisnotprinted.*",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): err: msg: %s",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): kaput",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): err: msg: %s",
             r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
@@ -168,7 +169,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[WARNING\] :: bleh",
             r"fancyroot.test_easybuildlog \[INFO\] :: 4\+2 = 42",
             r"fancyroot.test_easybuildlog \[DEBUG\] :: this is just a test",
-            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): foo baz baz",
+            r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): foo baz baz",
             '',
         ])
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
@@ -183,7 +184,7 @@ class BuildLogTest(EnhancedTestCase):
         self.mock_stderr(False)
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
-            "[WARNING] :: Deprecated functionality, will no longer work in v10000001: ",
+            "[WARNING] :: Deprecated functionality, will no longer work in EasyBuild v10000001: ",
             "this is just a test",
             "(see URLGOESHERE for more information)",
         ])
@@ -208,7 +209,7 @@ class BuildLogTest(EnhancedTestCase):
             log.error('kaput')
             log.deprecated('almost kaput', '10000000000000')
             log.raiseError = True
-            log.warn('this is a warning')
+            log.warning('this is a warning')
             log.info('fyi')
             log.debug('gdb')
             log.devel('tmi')
@@ -223,7 +224,7 @@ class BuildLogTest(EnhancedTestCase):
         info_msg = r"%s \[INFO\] :: fyi" % prefix
         warning_msg = r"%s \[WARNING\] :: this is a warning" % prefix
         deprecated_msg = r"%s \[WARNING\] :: Deprecated functionality, .*: almost kaput; see .*" % prefix
-        error_msg = r"%s \[ERROR\] :: EasyBuild crashed with an error \(at .* in .*\): kaput" % prefix
+        error_msg = r"%s \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): kaput" % prefix
 
         expected_logtxt = '\n'.join([
             error_msg,

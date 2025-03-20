@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
-from easybuild.tools.py2vs3 import subprocess_terminate
+from easybuild.tools.run import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):
