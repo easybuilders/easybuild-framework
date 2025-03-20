@@ -279,9 +279,12 @@ class TestEBConfigObj(EnhancedTestCase):
         self.assertEqual(res, {'foo': 'bar'})
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(TestEBConfigObj)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -44,6 +44,7 @@ from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.version import VERSION
+from test.framework.utilities import requires_pysvn
 
 
 class RepositoryTest(EnhancedTestCase):
@@ -111,15 +112,9 @@ class RepositoryTest(EnhancedTestCase):
             shutil.rmtree(repo.wc)
             shutil.rmtree(tmpdir)
 
+    @requires_pysvn()
     def test_svnrepo(self):
         """Test using SvnRepository."""
-        # only run this test if pysvn Python module is available
-        try:
-            from pysvn import ClientError  # noqa
-        except ImportError:
-            print("(skipping SvnRepository test)")
-            return
-
         # GitHub also supports SVN
         test_repo_url = 'https://github.com/easybuilders/testrepository'
 
@@ -170,9 +165,12 @@ class RepositoryTest(EnhancedTestCase):
         shutil.rmtree(self.path, True)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RepositoryTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
