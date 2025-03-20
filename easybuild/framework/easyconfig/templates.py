@@ -38,7 +38,6 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 from easybuild.tools.config import build_option
 
@@ -46,21 +45,20 @@ from easybuild.tools.config import build_option
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
 # derived from easyconfig, but not from ._config directly
-TEMPLATE_NAMES_EASYCONFIG = [
-    ('module_name', "Module name"),
-    ('nameletter', "First letter of software name"),
-    ('toolchain_name', "Toolchain name"),
-    ('toolchain_version', "Toolchain version"),
-    ('version_major_minor', "Major.Minor version"),
-    ('version_major', "Major version"),
-    ('version_minor', "Minor version"),
-]
+TEMPLATE_NAMES_EASYCONFIG = {
+    'module_name': 'Module name',
+    'nameletter': 'First letter of software name',
+    'toolchain_name': 'Toolchain name',
+    'toolchain_version': 'Toolchain version',
+    'version_major_minor': "Major.Minor version",
+    'version_major': 'Major version',
+    'version_minor': 'Minor version',
+}
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
     'github_account',
     'name',
-    'parallel',
     'version',
     'versionsuffix',
     'versionprefix',
@@ -72,107 +70,202 @@ TEMPLATE_NAMES_LOWER = [
     'nameletter',
 ]
 # values taken from the EasyBlock before each step
-TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = [
-    ('builddir', "Build directory"),
-    ('installdir', "Installation directory"),
-    ('start_dir', "Directory in which the build process begins"),
-]
+TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = {
+    'builddir': 'Build directory',
+    'installdir': 'Installation directory',
+    'start_dir': 'Directory in which the build process begins',
+}
 # software names for which to define <pref>ver, <pref>majver and <pref>shortver templates
-TEMPLATE_SOFTWARE_VERSIONS = [
-    # software name, prefix for *ver, *majver and *shortver
-    ('CUDA', 'cuda'),
-    ('CUDAcore', 'cuda'),
-    ('Java', 'java'),
-    ('Perl', 'perl'),
-    ('Python', 'py'),
-    ('R', 'r'),
-]
+TEMPLATE_SOFTWARE_VERSIONS = {
+    # software name -> prefix for *ver, *majver and *shortver
+    'CUDA': 'cuda',
+    'CUDAcore': 'cuda',
+    'Java': 'java',
+    'Perl': 'perl',
+    'Python': 'py',
+    'R': 'r',
+}
 # template values which are only generated dynamically
-TEMPLATE_NAMES_DYNAMIC = [
-    ('arch', "System architecture (e.g. x86_64, aarch64, ppc64le, ...)"),
-    ('cuda_compute_capabilities', "Comma-separated list of CUDA compute capabilities, as specified via "
-     "--cuda-compute-capabilities configuration option or via cuda_compute_capabilities easyconfig parameter"),
-    ('cuda_cc_cmake', "List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+"),
-    ('cuda_cc_space_sep', "Space-separated list of CUDA compute capabilities"),
-    ('cuda_cc_space_sep_no_period',
-     "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90')."),
-    ('cuda_cc_semicolon_sep', "Semicolon-separated list of CUDA compute capabilities"),
-    ('cuda_sm_comma_sep', "Comma-separated list of sm_* values that correspond with CUDA compute capabilities"),
-    ('cuda_sm_space_sep', "Space-separated list of sm_* values that correspond with CUDA compute capabilities"),
-    ('mpi_cmd_prefix', "Prefix command for running MPI programs (with default number of ranks)"),
+TEMPLATE_NAMES_DYNAMIC = {
+    'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
+    'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
+                                 "--cuda-compute-capabilities configuration option or "
+                                 "via cuda_compute_capabilities easyconfig parameter",
+    'cuda_cc_cmake': 'List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
+    'cuda_cc_space_sep': 'Space-separated list of CUDA compute capabilities',
+    'cuda_cc_space_sep_no_period':
+    "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90').",
+    'cuda_cc_semicolon_sep': 'Semicolon-separated list of CUDA compute capabilities',
+    'cuda_int_comma_sep': 'Comma-separated list of integer CUDA compute capabilities',
+    'cuda_int_space_sep': 'Space-separated list of integer CUDA compute capabilities',
+    'cuda_int_semicolon_sep': 'Semicolon-separated list of integer CUDA compute capabilities',
+    'cuda_sm_comma_sep': 'Comma-separated list of sm_* values that correspond with CUDA compute capabilities',
+    'cuda_sm_space_sep': 'Space-separated list of sm_* values that correspond with CUDA compute capabilities',
+    'mpi_cmd_prefix': 'Prefix command for running MPI programs (with default number of ranks)',
+    'parallel': "Degree of parallelism for e.g. make",
     # can't be a boolean (True/False), must be a string value since it's a string template
-    ('rpath_enabled', "String value indicating whether or not RPATH linking is used ('true' or 'false')"),
-    ('software_commit', "Git commit id to use for the software as specified by --software-commit command line option"),
-    ('sysroot', "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
-     "as specified by the --sysroot configuration option"),
-]
+    'rpath_enabled': "String value indicating whether or not RPATH linking is used ('true' or 'false')",
+    'software_commit': "Git commit id to use for the software as specified by --software-commit command line option",
+    'sysroot': "Location root directory of system, prefix for standard paths like /usr/lib and /usr/include"
+               "as specify by the --sysroot configuration option",
+}
 
 # constant templates that can be used in easyconfigs
-TEMPLATE_CONSTANTS = [
+# Entry: constant -> (value, doc)
+TEMPLATE_CONSTANTS = {
     # source url constants
-    ('APACHE_SOURCE', 'https://archive.apache.org/dist/%(namelower)s',
-     'apache.org source url'),
-    ('BITBUCKET_SOURCE', 'https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
-     'bitbucket.org source url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
-    ('BITBUCKET_DOWNLOADS', 'https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
-     'bitbucket.org downloads url (namelower is used if bitbucket_account easyconfig parameter is not specified)'),
-    ('CRAN_SOURCE', 'https://cran.r-project.org/src/contrib',
-     'CRAN (contrib) source url'),
-    ('FTPGNOME_SOURCE', 'https://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
-     'http download for gnome ftp server'),
-    ('GITHUB_SOURCE', 'https://github.com/%(github_account)s/%(name)s/archive',
-     'GitHub source URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
-    ('GITHUB_LOWER_SOURCE', 'https://github.com/%(github_account)s/%(namelower)s/archive',
-     'GitHub source URL with lowercase name (if github_account easyconfig '
-     'parameter is not specified, namelower is used in its place)'),
-    ('GITHUB_RELEASE', 'https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
-     'GitHub release URL (if github_account easyconfig parameter is not specified, namelower is used in its place)'),
-    ('GITHUB_LOWER_RELEASE', 'https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
-     'GitHub release URL with lowercase name (if github_account easyconfig '
-     'parameter is not specified, namelower is used in its place)'),
-    ('GNU_SAVANNAH_SOURCE', 'https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
-     'download.savannah.gnu.org source url'),
-    ('GNU_SOURCE', 'https://ftpmirror.gnu.org/gnu/%(namelower)s',
-     'gnu.org source url (ftp mirror)'),
-    ('GNU_FTP_SOURCE', 'https://ftp.gnu.org/gnu/%(namelower)s',
-     'gnu.org source url (main ftp)'),
-    ('GOOGLECODE_SOURCE', 'http://%(namelower)s.googlecode.com/files',
-     'googlecode.com source url'),
-    ('LAUNCHPAD_SOURCE', 'https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
-     'launchpad.net source url'),
-    ('PYPI_SOURCE', 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
-     'pypi source url'),  # e.g., Cython, Sphinx
-    ('PYPI_LOWER_SOURCE', 'https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
-     'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
-    ('R_SOURCE', 'https://cran.r-project.org/src/base/R-%(version_major)s',
-     'cran.r-project.org (base) source url'),
-    ('SOURCEFORGE_SOURCE', 'https://download.sourceforge.net/%(namelower)s',
-     'sourceforge.net source url'),
-    ('XORG_DATA_SOURCE', 'https://xorg.freedesktop.org/archive/individual/data/',
-     'xorg data source url'),
-    ('XORG_LIB_SOURCE', 'https://xorg.freedesktop.org/archive/individual/lib/',
-     'xorg lib source url'),
-    ('XORG_PROTO_SOURCE', 'https://xorg.freedesktop.org/archive/individual/proto/',
-     'xorg proto source url'),
-    ('XORG_UTIL_SOURCE', 'https://xorg.freedesktop.org/archive/individual/util/',
-     'xorg util source url'),
-    ('XORG_XCB_SOURCE', 'https://xorg.freedesktop.org/archive/individual/xcb/',
-     'xorg xcb source url'),
+    'APACHE_SOURCE': ('https://archive.apache.org/dist/%(namelower)s',
+                      'apache.org source url'),
+    'BITBUCKET_SOURCE': ('https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
+                         'bitbucket.org source url '
+                         '(namelower is used if bitbucket_account easyconfig parameter is not specified)'),
+    'BITBUCKET_DOWNLOADS': ('https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
+                            'bitbucket.org downloads url '
+                            '(namelower is used if bitbucket_account easyconfig parameter is not specified)'),
+    'CRAN_SOURCE': ('https://cran.r-project.org/src/contrib',
+                    'CRAN (contrib) source url'),
+    'FTPGNOME_SOURCE': ('https://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
+                        'http download for gnome ftp server'),
+    'GITHUB_SOURCE': ('https://github.com/%(github_account)s/%(name)s/archive',
+                      'GitHub source URL '
+                      '(namelower is used if github_account easyconfig parameter is not specified)'),
+    'GITHUB_LOWER_SOURCE': ('https://github.com/%(github_account)s/%(namelower)s/archive',
+                            'GitHub source URL with lowercase name '
+                            '(namelower is used if github_account easyconfig parameter is not specified)'),
+    'GITHUB_RELEASE': ('https://github.com/%(github_account)s/%(name)s/releases/download/v%(version)s',
+                       'GitHub release URL '
+                       '(namelower is use if github_account easyconfig parameter is not specified)'),
+    'GITHUB_LOWER_RELEASE': ('https://github.com/%(github_account)s/%(namelower)s/releases/download/v%(version)s',
+                             'GitHub release URL with lowercase name (if github_account easyconfig '
+                             'parameter is not specified, namelower is used in its place)'),
+    'GNU_SAVANNAH_SOURCE': ('https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
+                            'download.savannah.gnu.org source url'),
+    'GNU_SOURCE': ('https://ftpmirror.gnu.org/gnu/%(namelower)s',
+                   'gnu.org source url (ftp mirror)'),
+    'GNU_FTP_SOURCE': ('https://ftp.gnu.org/gnu/%(namelower)s',
+                       'gnu.org source url (main ftp)'),
+    'GOOGLECODE_SOURCE': ('http://%(namelower)s.googlecode.com/files',
+                          'googlecode.com source url'),
+    'LAUNCHPAD_SOURCE': ('https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
+                         'launchpad.net source url'),
+    'PYPI_SOURCE': ('https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+                    'pypi source url'),  # e.g., Cython, Sphinx
+    'PYPI_LOWER_SOURCE': ('https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+                          'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
+    'R_SOURCE': ('https://cran.r-project.org/src/base/R-%(version_major)s',
+                 'cran.r-project.org (base) source url'),
+    'SOURCEFORGE_SOURCE': ('https://download.sourceforge.net/%(namelower)s',
+                           'sourceforge.net source url'),
+    'XORG_DATA_SOURCE': ('https://xorg.freedesktop.org/archive/individual/data/',
+                         'xorg data source url'),
+    'XORG_LIB_SOURCE': ('https://xorg.freedesktop.org/archive/individual/lib/',
+                        'xorg lib source url'),
+    'XORG_PROTO_SOURCE': ('https://xorg.freedesktop.org/archive/individual/proto/',
+                          'xorg proto source url'),
+    'XORG_UTIL_SOURCE': ('https://xorg.freedesktop.org/archive/individual/util/',
+                         'xorg util source url'),
+    'XORG_XCB_SOURCE': ('https://xorg.freedesktop.org/archive/individual/xcb/',
+                        'xorg xcb source url'),
 
     # TODO, not urgent, yet nice to have:
     # CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
 
     # other constants
-    ('SHLIB_EXT', get_shared_lib_ext(), 'extension for shared libraries'),
-]
+    'SHLIB_EXT': (get_shared_lib_ext(), 'extension for shared libraries'),
+}
 
-extensions = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
-for ext in extensions:
+# alternative templates, and their equivalents
+ALTERNATIVE_EASYCONFIG_TEMPLATES = {
+    # <new>: <equivalent_template>,
+    'build_dir': 'builddir',
+    'cuda_cc_comma_sep': 'cuda_compute_capabilities',
+    'cuda_maj_ver': 'cudamajver',
+    'cuda_short_ver': 'cudashortver',
+    'cuda_ver': 'cudaver',
+    'install_dir': 'installdir',
+    'java_maj_ver': 'javamajver',
+    'java_short_ver': 'javashortver',
+    'java_ver': 'javaver',
+    'name_letter_lower': 'nameletterlower',
+    'name_letter': 'nameletter',
+    'name_lower': 'namelower',
+    'perl_maj_ver': 'perlmajver',
+    'perl_short_ver': 'perlshortver',
+    'perl_ver': 'perlver',
+    'py_maj_ver': 'pymajver',
+    'py_short_ver': 'pyshortver',
+    'py_ver': 'pyver',
+    'r_maj_ver': 'rmajver',
+    'r_short_ver': 'rshortver',
+    'r_ver': 'rver',
+    'toolchain_ver': 'toolchain_version',
+    'ver_maj_min': 'version_major_minor',
+    'ver_maj': 'version_major',
+    'ver_min': 'version_minor',
+    'version_prefix': 'versionprefix',
+    'version_suffix': 'versionsuffix',
+}
+
+# deprecated templates, and their replacements
+DEPRECATED_EASYCONFIG_TEMPLATES = {
+    # <old_template>: (<new_template>, <deprecation_version>),
+}
+
+# alternative template constants, and their equivalents
+ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
+    # <new_template_constant>: <equivalent_template_constant>,
+    'APACHE_URL': 'APACHE_SOURCE',
+    'BITBUCKET_GET_URL': 'BITBUCKET_SOURCE',
+    'BITBUCKET_DOWNLOADS_URL': 'BITBUCKET_DOWNLOADS',
+    'CRAN_URL': 'CRAN_SOURCE',
+    'FTP_GNOME_URL': 'FTPGNOME_SOURCE',
+    'GITHUB_URL': 'GITHUB_SOURCE',
+    'GITHUB_URL_LOWER': 'GITHUB_LOWER_SOURCE',
+    'GITHUB_RELEASE_URL': 'GITHUB_RELEASE',
+    'GITHUB_RELEASE_URL_LOWER': 'GITHUB_LOWER_RELEASE',
+    'GNU_SAVANNAH_URL': 'GNU_SAVANNAH_SOURCE',
+    'GNU_FTP_URL': 'GNU_FTP_SOURCE',
+    'GNU_URL': 'GNU_SOURCE',
+    'GOOGLECODE_URL': 'GOOGLECODE_SOURCE',
+    'LAUNCHPAD_URL': 'LAUNCHPAD_SOURCE',
+    'PYPI_URL': 'PYPI_SOURCE',
+    'PYPI_URL_LOWER': 'PYPI_LOWER_SOURCE',
+    'R_URL': 'R_SOURCE',
+    'SOURCEFORGE_URL': 'SOURCEFORGE_SOURCE',
+    'XORG_DATA_URL': 'XORG_DATA_SOURCE',
+    'XORG_LIB_URL': 'XORG_LIB_SOURCE',
+    'XORG_PROTO_URL': 'XORG_PROTO_SOURCE',
+    'XORG_UTIL_URL': 'XORG_UTIL_SOURCE',
+    'XORG_XCB_URL': 'XORG_XCB_SOURCE',
+    'SOURCE_LOWER_TAR_GZ': 'SOURCELOWER_TAR_GZ',
+    'SOURCE_LOWER_TAR_XZ': 'SOURCELOWER_TAR_XZ',
+    'SOURCE_LOWER_TAR_BZ2': 'SOURCELOWER_TAR_BZ2',
+    'SOURCE_LOWER_TGZ': 'SOURCELOWER_TGZ',
+    'SOURCE_LOWER_TXZ': 'SOURCELOWER_TXZ',
+    'SOURCE_LOWER_TBZ2': 'SOURCELOWER_TBZ2',
+    'SOURCE_LOWER_TB2': 'SOURCELOWER_TB2',
+    'SOURCE_LOWER_GTGZ': 'SOURCELOWER_GTGZ',
+    'SOURCE_LOWER_ZIP': 'SOURCELOWER_ZIP',
+    'SOURCE_LOWER_TAR': 'SOURCELOWER_TAR',
+    'SOURCE_LOWER_XZ': 'SOURCELOWER_XZ',
+    'SOURCE_LOWER_TAR_Z': 'SOURCELOWER_TAR_Z',
+    'SOURCE_LOWER_WHL': 'SOURCELOWER_WHL',
+    'SOURCE_LOWER_PY2_WHL': 'SOURCELOWER_PY2_WHL',
+    'SOURCE_LOWER_PY3_WHL': 'SOURCELOWER_PY3_WHL',
+}
+
+# deprecated template constants, and their replacements
+DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS = {
+    # <old_template_constant>: (<new_template_constant>, <deprecation_version>),
+}
+
+EXTENSIONS = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
+for ext in EXTENSIONS:
     suffix = ext.replace('.', '_').upper()
-    TEMPLATE_CONSTANTS += [
-        ('SOURCE_%s' % suffix, '%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
-        ('SOURCELOWER_%s' % suffix, '%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
-    ]
+    TEMPLATE_CONSTANTS.update({
+        'SOURCE_%s' % suffix: ('%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
+        'SOURCELOWER_%s' % suffix: ('%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
+    })
 for pyver in ('py2.py3', 'py2', 'py3'):
     if pyver == 'py2.py3':
         desc = 'Python 2 & Python 3'
@@ -180,26 +273,22 @@ for pyver in ('py2.py3', 'py2', 'py3'):
     else:
         desc = 'Python ' + pyver[-1]
         name_infix = pyver.upper() + '_'
-    TEMPLATE_CONSTANTS += [
-        ('SOURCE_%sWHL' % name_infix, '%%(name)s-%%(version)s-%s-none-any.whl' % pyver,
-         'Generic (non-compiled) %s wheel package' % desc),
-        ('SOURCELOWER_%sWHL' % name_infix, '%%(namelower)s-%%(version)s-%s-none-any.whl' % pyver,
-         'Generic (non-compiled) %s wheel package with lowercase name' % desc),
-    ]
+    TEMPLATE_CONSTANTS.update({
+        'SOURCE_%sWHL' % name_infix: ('%%(name)s-%%(version)s-%s-none-any.whl' % pyver,
+                                      'Generic (non-compiled) %s wheel package' % desc),
+        'SOURCELOWER_%sWHL' % name_infix: ('%%(namelower)s-%%(version)s-%s-none-any.whl' % pyver,
+                                           'Generic (non-compiled) %s wheel package with lowercase name' % desc),
+    })
 
 # TODO derived config templates
 # versionmajor, versionminor, versionmajorminor (eg '.'.join(version.split('.')[:2])) )
 
 
-def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None):
+def template_constant_dict(config, ignore=None, toolchain=None):
     """Create a dict for templating the values in the easyconfigs.
-        - config is a dict with the structure of EasyConfig._config
+        - config -- Dict with the structure of EasyConfig._config
+        - ignore -- List of template names to ignore
     """
-    if skip_lower is not None:
-        _log.deprecated("Use of 'skip_lower' named argument for template_constant_dict has no effect anymore", '4.0')
-
-    # TODO find better name
-    # ignore
     if ignore is None:
         ignore = []
     # make dict
@@ -225,10 +314,10 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
             continue
 
         # check if this template name is already handled
-        if template_values.get(name[0]) is not None:
+        if template_values.get(name) is not None:
             continue
 
-        if name[0].startswith('toolchain_'):
+        if name.startswith('toolchain_'):
             tc = config.get('toolchain')
             if tc is not None:
                 template_values['toolchain_name'] = tc.get('name', None)
@@ -236,7 +325,7 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                 # only go through this once
                 ignore.extend(['toolchain_name', 'toolchain_version'])
 
-        elif name[0].startswith('version_'):
+        elif name.startswith('version_'):
             # parse major and minor version numbers
             version = config['version']
             if version is not None:
@@ -255,87 +344,85 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
                 # only go through this once
                 ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
 
-        elif name[0].endswith('letter'):
+        elif name.endswith('letter'):
             # parse first letters
-            if name[0].startswith('name'):
+            if name.startswith('name'):
                 softname = config['name']
                 if softname is not None:
                     template_values['nameletter'] = softname[0]
 
-        elif name[0] == 'module_name':
+        elif name == 'module_name':
             template_values['module_name'] = getattr(config, 'short_mod_name', None)
 
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
     # step 2: define *ver and *shortver templates
-    if TEMPLATE_SOFTWARE_VERSIONS:
+    name_to_prefix = {name.lower(): prefix for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items()}
+    deps = config.get('dependencies', [])
 
-        name_to_prefix = {name.lower(): pref for name, pref in TEMPLATE_SOFTWARE_VERSIONS}
-        deps = config.get('dependencies', [])
+    # also consider build dependencies for *ver and *shortver templates;
+    # we need to be a bit careful here, because for iterative installations
+    # (when multi_deps is used for example) the builddependencies value may be a list of lists
 
-        # also consider build dependencies for *ver and *shortver templates;
-        # we need to be a bit careful here, because for iterative installations
-        # (when multi_deps is used for example) the builddependencies value may be a list of lists
-
-        # first, determine if we have an EasyConfig instance
-        # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
-        #  because we can't import the EasyConfig class here without introducing
-        #  a cyclic import...);
-        # we need to know to determine whether we're iterating over a list of build dependencies
-        is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
-        if is_easyconfig:
-            # if we're iterating over different lists of build dependencies,
-            # only consider build dependencies when we're actually in iterative mode!
-            if 'builddependencies' in config.iterate_options:
-                if config.iterating:
-                    build_deps = config.get('builddependencies')
-                else:
-                    build_deps = None
-            else:
+    # first, determine if we have an EasyConfig instance
+    # (indirectly by checking for 'iterating' and 'iterate_options' attributes,
+    #  because we can't import the EasyConfig class here without introducing
+    #  a cyclic import...);
+    # we need to know to determine whether we're iterating over a list of build dependencies
+    is_easyconfig = hasattr(config, 'iterating') and hasattr(config, 'iterate_options')
+    if is_easyconfig:
+        # if we're iterating over different lists of build dependencies,
+        # only consider build dependencies when we're actually in iterative mode!
+        if 'builddependencies' in config.iterate_options:
+            if config.iterating:
                 build_deps = config.get('builddependencies')
-            if build_deps:
-                # Don't use += to avoid changing original list
-                deps = deps + build_deps
-            # include all toolchain deps (e.g. CUDAcore component in fosscuda);
-            # access Toolchain instance via _toolchain to avoid triggering initialization of the toolchain!
-            if config._toolchain is not None and config._toolchain.tcdeps:
-                # If we didn't create a new list above do it here
-                if build_deps:
-                    deps.extend(config._toolchain.tcdeps)
-                else:
-                    deps = deps + config._toolchain.tcdeps
-
-        for dep in deps:
-            if isinstance(dep, dict):
-                dep_name, dep_version = dep['name'], dep['version']
-
-                # take into account dependencies marked as external modules,
-                # where name/version may have to be harvested from metadata available for that external module
-                if dep.get('external_module', False):
-                    metadata = dep.get('external_module_metadata', {})
-                    if dep_name is None:
-                        # name is a list in metadata, just take first value (if any)
-                        dep_name = metadata.get('name', [None])[0]
-                    if dep_version is None:
-                        # version is a list in metadata, just take first value (if any)
-                        dep_version = metadata.get('version', [None])[0]
-
-            elif isinstance(dep, (list, tuple)):
-                dep_name, dep_version = dep[0], dep[1]
             else:
-                raise EasyBuildError("Unexpected type for dependency: %s", dep)
+                build_deps = None
+        else:
+            build_deps = config.get('builddependencies')
+        if build_deps:
+            # Don't use += to avoid changing original list
+            deps = deps + build_deps
+        # include all toolchain deps (e.g. CUDAcore component in fosscuda);
+        # access Toolchain instance via _toolchain to avoid triggering initialization of the toolchain!
+        if config._toolchain is not None and config._toolchain.tcdeps:
+            # If we didn't create a new list above do it here
+            if build_deps:
+                deps.extend(config._toolchain.tcdeps)
+            else:
+                deps = deps + config._toolchain.tcdeps
 
-            if isinstance(dep_name, string_type) and dep_version:
-                pref = name_to_prefix.get(dep_name.lower())
-                if pref:
-                    dep_version = pick_dep_version(dep_version)
-                    template_values['%sver' % pref] = dep_version
-                    dep_version_parts = dep_version.split('.')
-                    template_values['%smajver' % pref] = dep_version_parts[0]
-                    if len(dep_version_parts) > 1:
-                        template_values['%sminver' % pref] = dep_version_parts[1]
-                    template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
+    for dep in deps:
+        if isinstance(dep, dict):
+            dep_name, dep_version = dep['name'], dep['version']
+
+            # take into account dependencies marked as external modules,
+            # where name/version may have to be harvested from metadata available for that external module
+            if dep.get('external_module', False):
+                metadata = dep.get('external_module_metadata', {})
+                if dep_name is None:
+                    # name is a list in metadata, just take first value (if any)
+                    dep_name = metadata.get('name', [None])[0]
+                if dep_version is None:
+                    # version is a list in metadata, just take first value (if any)
+                    dep_version = metadata.get('version', [None])[0]
+
+        elif isinstance(dep, (list, tuple)):
+            dep_name, dep_version = dep[0], dep[1]
+        else:
+            raise EasyBuildError("Unexpected type for dependency: %s", dep)
+
+        if isinstance(dep_name, str) and dep_version:
+            pref = name_to_prefix.get(dep_name.lower())
+            if pref:
+                dep_version = pick_dep_version(dep_version)
+                template_values['%sver' % pref] = dep_version
+                dep_version_parts = dep_version.split('.')
+                template_values['%smajver' % pref] = dep_version_parts[0]
+                if len(dep_version_parts) > 1:
+                    template_values['%sminver' % pref] = dep_version_parts[1]
+                template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
     # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
@@ -383,14 +470,17 @@ def template_constant_dict(config, ignore=None, skip_lower=None, toolchain=None)
         template_values['cuda_cc_space_sep_no_period'] = ' '.join(cc.replace('.', '') for cc in cuda_cc)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_cc)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_cc)
+        int_values = [cc.replace('.', '') for cc in cuda_cc]
+        template_values['cuda_int_comma_sep'] = ','.join(int_values)
+        template_values['cuda_int_space_sep'] = ' '.join(int_values)
+        template_values['cuda_int_semicolon_sep'] = ';'.join(int_values)
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
 
     unknown_names = []
     for key in template_values:
-        dynamic_template_names = set(x for (x, _) in TEMPLATE_NAMES_DYNAMIC)
-        if not (key in common_template_names or key in dynamic_template_names):
+        if not (key in common_template_names or key in TEMPLATE_NAMES_DYNAMIC):
             unknown_names.append(key)
     if unknown_names:
         raise EasyBuildError("One or more template values found with unknown name: %s", ','.join(unknown_names))
@@ -440,15 +530,15 @@ def template_documentation():
 
     # step 1: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
-    for name in TEMPLATE_NAMES_EASYCONFIG:
-        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_EASYCONFIG.items():
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name, cur_doc))
 
     # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
-    for name, pref in TEMPLATE_SOFTWARE_VERSIONS:
-        doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, pref, name))
-        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, pref, name))
-        doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, pref, name))
+    for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
+        doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, prefix, name))
+        doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, prefix, name))
+        doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, prefix, name))
 
     # step 3: add remaining self._config
     doc.append('Template names/values as set in easyconfig')
@@ -464,11 +554,16 @@ def template_documentation():
     # step 5. self.template_values can/should be updated from outside easyconfig
     # (eg the run_setp code in EasyBlock)
     doc.append('Template values set outside EasyBlock runstep')
-    for name in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-        doc.append("%s%%(%s)s: %s" % (indent_l1, name[0], name[1]))
+    for name, cur_doc in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP.items():
+        doc.append("%s%%(%s)s: %s" % (indent_l1, name, cur_doc))
 
     doc.append('Template constants that can be used in easyconfigs')
-    for cst in TEMPLATE_CONSTANTS:
-        doc.append('%s%s: %s (%s)' % (indent_l1, cst[0], cst[2], cst[1]))
+    for name, (value, cur_doc) in TEMPLATE_CONSTANTS.items():
+        doc.append('%s%s: %s (%s)' % (indent_l1, name, cur_doc, value))
 
     return "\n".join(doc)
+
+
+# Add template constants to export list
+globals().update({name: value for name, (value, _) in TEMPLATE_CONSTANTS.items()})
+__all__ = list(TEMPLATE_CONSTANTS.keys())

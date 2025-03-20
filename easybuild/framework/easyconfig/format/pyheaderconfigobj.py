@@ -39,7 +39,8 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
 from easybuild.framework.easyconfig.format.format import get_format_version, EasyConfigFormat
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS
+from easybuild.framework.easyconfig.templates import DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS, TEMPLATE_CONSTANTS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -51,8 +52,8 @@ _log = fancylogger.getLogger('easyconfig.format.pyheaderconfigobj', fname=False)
 def build_easyconfig_constants_dict():
     """Make a dictionary with all constants that can be used"""
     all_consts = [
-        ('TEMPLATE_CONSTANTS', {x[0]: x[1] for x in TEMPLATE_CONSTANTS}),
-        ('EASYCONFIG_CONSTANTS', {key: val[0] for key, val in EASYCONFIG_CONSTANTS.items()}),
+        ('TEMPLATE_CONSTANTS', {name: value for name, (value, _) in TEMPLATE_CONSTANTS.items()}),
+        ('EASYCONFIG_CONSTANTS', {name: value for name, (value, _) in EASYCONFIG_CONSTANTS.items()}),
         ('EASYCONFIG_LICENSES', {klass().name: name for name, klass in EASYCONFIG_LICENSES_DICT.items()}),
     ]
     err = []
@@ -84,6 +85,58 @@ def build_easyconfig_variables_dict():
     }
 
     return vars_dict
+
+
+def handle_deprecated_constants(method):
+    """Decorator to handle deprecated easyconfig template constants"""
+    def wrapper(self, key, *args, **kwargs):
+        """Check whether any deprecated constants are used"""
+        alternative = ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS
+        deprecated = DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS
+        if key in alternative:
+            key = alternative[key]
+        elif key in deprecated:
+            depr_key = key
+            key, ver = deprecated[depr_key]
+            _log.deprecated(f"Easyconfig template constant '{depr_key}' is deprecated, use '{key}' instead", ver)
+        return method(self, key, *args, **kwargs)
+    return wrapper
+
+
+class DeprecatedDict(dict):
+    """Custom dictionary that handles deprecated easyconfig template constants gracefully"""
+
+    def __init__(self, *args, **kwargs):
+        self.clear()
+        self.update(*args, **kwargs)
+
+    @handle_deprecated_constants
+    def __contains__(self, key):
+        return super().__contains__(key)
+
+    @handle_deprecated_constants
+    def __delitem__(self, key):
+        return super().__delitem__(key)
+
+    @handle_deprecated_constants
+    def __getitem__(self, key):
+        return super().__getitem__(key)
+
+    @handle_deprecated_constants
+    def __setitem__(self, key, value):
+        return super().__setitem__(key, value)
+
+    def update(self, *args, **kwargs):
+        if args:
+            if isinstance(args[0], dict):
+                for key, value in args[0].items():
+                    self.__setitem__(key, value)
+            else:
+                for key, value in args[0]:
+                    self.__setitem__(key, value)
+
+        for key, value in kwargs.items():
+            self.__setitem__(key, value)
 
 
 class EasyConfigFormatConfigObj(EasyConfigFormat):
@@ -176,7 +229,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def parse_pyheader(self, pyheader):
         """Parse the python header, assign to docstring and cfg"""
-        global_vars = self.pyheader_env()
+        global_vars = DeprecatedDict(self.pyheader_env())
         self.log.debug("pyheader initial global_vars %s", global_vars)
         self.log.debug("pyheader text being exec'ed: %s", pyheader)
 

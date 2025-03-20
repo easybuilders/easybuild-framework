@@ -107,7 +107,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
@@ -211,7 +211,7 @@ class FileCompleter(Completer):
     CALL_ARGS_OPTIONAL = ['prefix']
 
     def __init__(self, endings=None):
-        if isinstance(endings, string_type):
+        if isinstance(endings, str):
             endings = [endings]
         elif endings is None:
             endings = []
@@ -282,11 +282,11 @@ class RegexCompleter(Completer):
     def __init__(self, regexlist, always_dirs=True):
         self.always_dirs = always_dirs
 
-        if isinstance(regexlist, string_type):
+        if isinstance(regexlist, str):
             regexlist = [regexlist]
         self.regexlist = []
         for regex in regexlist:
-            if isinstance(regex, string_type):
+            if isinstance(regex, str):
                 regex = re.compile(regex)
             self.regexlist.append(regex)
 
@@ -538,7 +538,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
         # Note: this will get filtered properly below.
 
     completer_kwargs = {
-        'pwd': os.getcwd(),
+        'pwd': get_cwd(),
         'cline': cline,
         'cpoint': cpoint,
         'prefix': prefix,
@@ -547,7 +547,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
     # File completion.
     if completer and (not prefix or not prefix.startswith('-')):
         # Call appropriate completer depending on type.
-        if isinstance(completer, (string_type, list, tuple)):
+        if isinstance(completer, (str, list, tuple)):
             completer = FileCompleter(completer)
         elif not isinstance(completer, (types.FunctionType, types.LambdaType, types.ClassType, types.ObjectType)):
             # TODO: what to do here?
@@ -555,7 +555,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
         completions = completer(**completer_kwargs)
 
-    if isinstance(completions, string_type):
+    if isinstance(completions, str):
         # is a bash command, just run it
         if SHELL in (BASH,):  # TODO: zsh
             print(completions)
