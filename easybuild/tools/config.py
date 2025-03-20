@@ -53,7 +53,7 @@ from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 
 try:
-    import rich  # noqa
+    import rich  # noqa # pylint:disable=unused-import
     HAVE_RICH = True
 except ImportError:
     HAVE_RICH = False
