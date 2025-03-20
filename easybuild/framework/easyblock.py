@@ -687,6 +687,11 @@ class EasyBlock(object):
                                 # copy 'path' entry to 'src' for use with extensions
                                 'src': src['path'],
                             })
+                            filename = src['name']
+                        else:
+                            filename = source.get('filename')
+                        if filename is not None:
+                            ext_src['sources'] = [filename]
 
                     else:
 
@@ -700,6 +705,7 @@ class EasyBlock(object):
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
 
                         src_fn = resolve_template(src_fn, template_values)
+                        ext_src['sources'] = [src_fn]
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
