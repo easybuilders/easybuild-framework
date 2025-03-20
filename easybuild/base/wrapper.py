@@ -6,7 +6,24 @@ with attribution required
 Original code by http://stackoverflow.com/users/416467/kindall from answer 4 of
 http://stackoverflow.com/questions/9057669/how-can-i-intercept-calls-to-pythons-magic-methods-in-new-style-classes
 """
-from easybuild.tools.py2vs3 import mk_wrapper_baseclass
+
+
+# based on six's 'with_metaclass' function
+# see also https://stackoverflow.com/questions/18513821/python-metaclass-understanding-the-with-metaclass
+def create_base_metaclass(base_class_name, metaclass, *bases):
+    """Create new class with specified metaclass based on specified base class(es)."""
+    return metaclass(base_class_name, bases, {})
+
+
+def mk_wrapper_baseclass(metaclass):
+
+    class WrapperBase(object, metaclass=metaclass):
+        """
+        Wrapper class that provides proxy access to an instance of some internal instance.
+        """
+        __wraps__ = None
+
+    return WrapperBase
 
 
 class WrapperMeta(type):

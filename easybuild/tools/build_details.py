@@ -1,4 +1,4 @@
-# Copyright 2014-2024 Ghent University
+# Copyright 2014-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,8 +31,8 @@ Authors:
 * Stijn De Weirdt (Ghent University)
 """
 import time
+from collections import OrderedDict
 from easybuild.tools.filetools import det_size
-from easybuild.tools.py2vs3 import OrderedDict
 from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 

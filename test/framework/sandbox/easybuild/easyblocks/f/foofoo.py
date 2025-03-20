@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,6 +30,14 @@ EasyBuild support for building and installing foofoo, implemented as an easybloc
 
 from easybuild.easyblocks.foo import EB_foo
 from easybuild.framework.easyconfig import CUSTOM, MANDATORY
+
+
+class dummy1:
+    """Only to verify that unrelated classes in software specific easyblocks are ignored"""
+
+
+class dummy2(dummy1):
+    """Same but with inheritance"""
 
 
 class EB_foofoo(EB_foo):

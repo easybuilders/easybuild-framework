@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,8 +45,9 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('4.9.2.dev0')
+VERSION = LooseVersion('5.0.1.dev0')
 UNKNOWN = 'UNKNOWN'
+UNKNOWN_EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'
 
 
 def get_git_revision():
@@ -87,13 +88,12 @@ FRAMEWORK_VERSION = VERBOSE_VERSION
 try:
     from easybuild.easyblocks import VERBOSE_VERSION as EASYBLOCKS_VERSION
 except Exception:
-    EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'  # make sure it is smaller then anything
+    EASYBLOCKS_VERSION = UNKNOWN_EASYBLOCKS_VERSION  # make sure it is smaller then anything
 
 
 def this_is_easybuild():
     """Standard starting message"""
-    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
+    top_version = max(FRAMEWORK_VERSION, LooseVersion(EASYBLOCKS_VERSION))
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 
@@ -103,3 +103,14 @@ def this_is_easybuild():
         msg = msg.encode('ascii')
 
     return msg
+
+
+def different_major_versions(v1, v2):
+    """Compare major versions"""
+    # Deal with version instances being either strings or LooseVersion
+    if isinstance(v1, str):
+        v1 = LooseVersion(v1)
+    if isinstance(v2, str):
+        v2 = LooseVersion(v2)
+
+    return v1.version[0] != v2.version[0]

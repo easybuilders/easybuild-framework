@@ -1,5 +1,5 @@
 ##
-# Copyright 2021-2024 Ghent University
+# Copyright 2021-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,7 +48,8 @@ class IntelCompilers(IntelIccIfort):
         'oneapi': (None, "Use oneAPI compilers icx/icpx/ifx instead of classic compilers"),
         'oneapi_c_cxx': (None, "Use oneAPI C/C++ compilers icx/icpx instead of classic Intel C/C++ compilers "
                                "(auto-enabled for Intel compilers version 2022.2.0, or newer)"),
-        'oneapi_fortran': (False, "Use oneAPI Fortran compiler ifx instead of classic Intel Fortran compiler"),
+        'oneapi_fortran': (None, "Use oneAPI Fortran compiler ifx instead of classic Intel Fortran compiler "
+                                 "(auto-enabled for Intel compilers version 2024.0.0, or newer)"),
     })
 
     def _set_compiler_vars(self):
@@ -75,6 +76,9 @@ class IntelCompilers(IntelIccIfort):
         # auto-enable use of oneAPI C/C++ compilers for sufficiently recent versions of Intel compilers
         comp_ver = self.get_software_version(self.COMPILER_MODULE_NAME)[0]
         if LooseVersion(comp_ver) >= LooseVersion('2022.2.0'):
+            if LooseVersion(comp_ver) >= LooseVersion('2024.0.0'):
+                if self.options.get('oneapi_fortran', None) is None:
+                    self.options['oneapi_fortran'] = True
             if self.options.get('oneapi_c_cxx', None) is None:
                 self.options['oneapi_c_cxx'] = True
 
@@ -102,22 +106,22 @@ class IntelCompilers(IntelIccIfort):
 
         if oneapi:
             # fp-model source is not supported by icx but is equivalent to precise
-            self.options.options_map['defaultprec'] = ['fp-speculation=safe', 'fp-model precise']
+            self.options.options_map['defaultprec'] = ['-fp-speculation=safe', '-fp-model precise']
             if LooseVersion(comp_ver) >= LooseVersion('2022'):
-                self.options.options_map['defaultprec'].insert(0, 'ftz')
+                self.options.options_map['defaultprec'].insert(0, '-ftz')
             # icx doesn't like -fp-model fast=1; fp-model fast is equivalent
-            self.options.options_map['loose'] = ['fp-model fast']
+            self.options.options_map['loose'] = ['-fp-model fast']
             # fp-model fast=2 gives "warning: overriding '-ffp-model=fast=2' option with '-ffp-model=fast'"
-            self.options.options_map['veryloose'] = ['fp-model fast']
+            self.options.options_map['veryloose'] = ['-fp-model fast']
             # recommended in porting guide: qopenmp, unlike fiopenmp, works for both classic and oneapi compilers
             # https://www.intel.com/content/www/us/en/developer/articles/guide/porting-guide-for-ifort-to-ifx.html
-            self.options.options_map['openmp'] = ['qopenmp']
+            self.options.options_map['openmp'] = ['-qopenmp']
 
             # -xSSE2 is not supported by Intel oneAPI compilers,
             # so use -march=x86-64 -mtune=generic when using optarch=GENERIC
             self.COMPILER_GENERIC_OPTION = {
-                (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
-                (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
+                (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
+                (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
             }
 
         # skip IntelIccIfort.set_variables (no longer relevant for recent versions)
