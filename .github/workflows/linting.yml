@@ -10,16 +10,19 @@ concurrency:
 
 jobs:
   python-linting:
-    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, '3.10', '3.11']
-        
+        python: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
+        include:
+          - python: 3.7
+            os: ubuntu-22.04
+      fail-fast: false
+    runs-on: ${{matrix.os || 'ubuntu-24.04'}}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
     - name: set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -30,10 +33,4 @@ jobs:
 
     - name: Run flake8 to verify PEP8-compliance of Python code
       run: |
-        # don't check py2vs3/py3.py when testing with Python 2, and vice versa
-        if [[ "${{ matrix.python-version }}" =~ "2." ]]; then
-            py_excl=py3
-        else
-            py_excl=py2
-        fi
-        flake8 --exclude ./easybuild/tools/py2vs3/${py_excl}.py
+        flake8
