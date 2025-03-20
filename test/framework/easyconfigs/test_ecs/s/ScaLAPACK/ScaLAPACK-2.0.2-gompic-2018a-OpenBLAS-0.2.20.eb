@@ -22,6 +22,6 @@ versionsuffix = "-%s-%s" % (local_blaslib, local_blasver)
 dependencies = [(local_blaslib, local_blasver)]
 
 # parallel build tends to fail, so disabling it
-parallel = 1
+maxparallel = 1
 
 moduleclass = 'numlib'
