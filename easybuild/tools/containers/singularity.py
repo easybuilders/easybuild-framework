@@ -34,14 +34,13 @@ import os
 import re
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path
 from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.filetools import read_file, remove_file, which
-from easybuild.tools.run import run_cmd
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.run import run_shell_cmd
 
 
 ARCH = 'arch'  # Arch Linux
@@ -163,15 +162,15 @@ class SingularityContainer(ContainerGenerator):
     def singularity_version():
         """Get Singularity version."""
         version_cmd = "singularity --version"
-        out, ec = run_cmd(version_cmd, simple=False, trace=False, force_in_dry_run=True)
-        if ec:
-            raise EasyBuildError("Error running '%s': %s for tool {1} with output: {2}" % (version_cmd, out))
+        res = run_shell_cmd(version_cmd, hidden=True, in_dry_run=True)
+        if res.exit_code != EasyBuildExit.SUCCESS:
+            raise EasyBuildError(f"Error running '{version_cmd}': {res.output}")
 
-        res = re.search(r"\d+\.\d+(\.\d+)?", out.strip())
-        if not res:
-            raise EasyBuildError("Error parsing Singularity version: %s" % out)
+        regex_res = re.search(r"\d+\.\d+(\.\d+)?", res.output.strip())
+        if not regex_res:
+            raise EasyBuildError(f"Error parsing Singularity version: {res.output}")
 
-        return res.group(0)
+        return regex_res.group(0)
 
     def resolve_template(self):
         """Return template container recipe."""
@@ -299,7 +298,7 @@ class SingularityContainer(ContainerGenerator):
 
         install_os_deps = []
         for osdep in osdeps:
-            if isinstance(osdep, string_type):
+            if isinstance(osdep, str):
                 install_os_deps.append("yum install --quiet --assumeyes %s" % osdep)
             # tuple entry indicates multiple options
             elif isinstance(osdep, tuple):
@@ -404,5 +403,5 @@ class SingularityContainer(ContainerGenerator):
 
         cmd = ' '.join(['sudo', cmd_env, singularity, 'build', cmd_opts, img_path, recipe_path])
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % cmd)
-        run_cmd(cmd, stream_output=True)
+        run_shell_cmd(cmd, stream_output=True)
         print_msg("Singularity image created at %s" % img_path, log=self.log)

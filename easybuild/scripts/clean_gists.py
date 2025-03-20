@@ -29,6 +29,7 @@ Authors:
 
 
 import re
+from urllib.request import HTTPError, URLError
 
 from easybuild.base import fancylogger
 from easybuild.base.generaloption import simple_option
@@ -37,7 +38,6 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.github import GITHUB_API_URL, HTTP_STATUS_OK, GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO
 from easybuild.tools.github import GITHUB_EB_MAIN, fetch_github_token
 from easybuild.tools.options import EasyBuildOptions
-from easybuild.tools.py2vs3 import HTTPError, URLError
 
 HTTP_DELETE_OK = 204
 

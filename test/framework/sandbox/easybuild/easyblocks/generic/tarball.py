@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for dummy compiler toolchain.
-
-Authors:
-
-* Kenneth Hoste (Ghent University)
+Dummy support for building and installing applications from a Tarball.
 """
+from easybuild.framework.easyblock import EasyBlock
 
-from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
 
+class Tarball(EasyBlock):
+    """Dummy support for building and installing applications from a Tarball."""
 
-class Dummy(DummyCompiler):
-    """Dummy toolchain."""
-    NAME = 'dummy'
+    pass
