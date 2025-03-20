@@ -89,6 +89,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
             self.module_generator = self.master.module_generator
+            self.module_load_environment = self.master.module_load_environment
             self.robot_path = self.master.robot_path
             self.is_extension = True
             self.unpack_options = None
@@ -135,7 +136,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
-    def run(self, unpack_src=False):
+    def install_extension(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired

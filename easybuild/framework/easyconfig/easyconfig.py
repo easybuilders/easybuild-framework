@@ -51,31 +51,32 @@ from contextlib import contextmanager
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG
 from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.one import EB_FORMAT_EXTENSION, retrieve_blocks_in_spec
-from easybuild.framework.easyconfig.format.yeb import YEB_FORMAT_EXTENSION, is_yeb_format
 from easybuild.framework.easyconfig.licenses import EASYCONFIG_LICENSES_DICT
-from easybuild.framework.easyconfig.parser import DEPRECATED_PARAMETERS, REPLACED_PARAMETERS
-from easybuild.framework.easyconfig.parser import EasyConfigParser, fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, DEPRECATED_EASYCONFIG_PARAMETERS
+from easybuild.framework.easyconfig.parser import REPLACED_PARAMETERS, EasyConfigParser
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme
 from easybuild.tools.filetools import convert_name, copy_file, create_index, decode_class_name, encode_class_name
 from easybuild.tools.filetools import find_backup_name_candidate, find_easyconfigs, load_index
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.hooks import PARSE, load_hooks, run_hook
+from easybuild.tools.hooks import PARSE, EXTRACT_STEP, STEP_NAMES, load_hooks, run_hook
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.module_naming_scheme.utilities import avail_module_naming_schemes, det_full_ec_version
 from easybuild.tools.module_naming_scheme.utilities import det_hidden_modname, is_valid_module_name
 from easybuild.tools.modules import modules_tool, NoModulesTool
-from easybuild.tools.py2vs3 import create_base_metaclass, string_type
 from easybuild.tools.systemtools import check_os_dependency, pick_dep_version
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system_toolchain
 from easybuild.tools.toolchain.toolchain import TOOLCHAIN_CAPABILITIES, TOOLCHAIN_CAPABILITY_CUDA
@@ -119,11 +120,24 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
-        if key in DEPRECATED_PARAMETERS:
+        if key == 'parallel':
+            _log.deprecated("Easyconfig parameter 'parallel' is deprecated, "
+                            "use 'max_parallel' or the parallel property instead.", '6.0')
+            # This hidden parameter allows easyblocks to continue using self.cfg['parallel'] which contains
+            # the computed parallelism after the ready step but the easyconfig parameter before that step.
+
+            # Easyblocks using `max_parallel` always get the value from the easyconfig unmodified.
+            # Easyblocks should use either the parallel property or `max_parallel` such that the semantic is clear.
+            # In particular writes to self.cfg['parallel'] do NOT update the %(parallel)s template.
+            # It can be removed when the deprecation expires.
+            key = '_parallelLegacy'
+        elif key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
+            key = ALTERNATIVE_EASYCONFIG_PARAMETERS[key]
+        elif key in DEPRECATED_EASYCONFIG_PARAMETERS:
             depr_key = key
-            key, ver = DEPRECATED_PARAMETERS[depr_key]
-            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead." % (depr_key, key), ver)
-        if key in REPLACED_PARAMETERS:
+            key, ver = DEPRECATED_EASYCONFIG_PARAMETERS[depr_key]
+            _log.deprecated("Easyconfig parameter '%s' is deprecated, use '%s' instead" % (depr_key, key), ver)
+        elif key in REPLACED_PARAMETERS:
             _log.nosupport("Easyconfig parameter '%s' is replaced by '%s'" % (key, REPLACED_PARAMETERS[key]), '2.0')
         return ec_method(self, key, *args, **kwargs)
 
@@ -141,7 +155,10 @@ def is_local_var_name(name):
     """
     res = False
     if name.startswith(LOCAL_VAR_PREFIX) or name.startswith('_'):
-        res = True
+        # make exception for '_parallelLegacy' hidden easyconfig parameter,
+        # which is used to deprecate use of 'paralell' easyconfig parameter
+        if name != '_parallelLegacy':
+            res = True
     # __builtins__ is always defined as a 'local' variables
     # single-letter local variable names are allowed (mainly for use in list comprehensions)
     # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
@@ -180,7 +197,8 @@ def triage_easyconfig_params(variables, ec):
 
     for key in variables:
         # validations are skipped, just set in the config
-        if key in ec:
+        if any(key in d for d in (ec, DEPRECATED_EASYCONFIG_PARAMETERS.keys(),
+                                  ALTERNATIVE_EASYCONFIG_PARAMETERS.keys())):
             ec_params[key] = variables[key]
             _log.debug("setting config option %s: value %s (type: %s)", key, ec_params[key], type(ec_params[key]))
         elif key in REPLACED_PARAMETERS:
@@ -236,7 +254,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
     subtoolchain_version = None
 
     # ensure we always have a tuple of alternative subtoolchain names, which makes things easier below
-    if isinstance(subtoolchain_names, string_type):
+    if isinstance(subtoolchain_names, str):
         subtoolchain_names = (subtoolchain_names,)
 
     system_subtoolchain = False
@@ -248,11 +266,6 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
         # system toolchain: bottom of the hierarchy
         if is_system_toolchain(subtoolchain_name):
             add_system_to_minimal_toolchains = build_option('add_system_to_minimal_toolchains')
-            if not add_system_to_minimal_toolchains and build_option('add_dummy_to_minimal_toolchains'):
-                depr_msg = "Use --add-system-to-minimal-toolchains instead of --add-dummy-to-minimal-toolchains"
-                _log.deprecated(depr_msg, '5.0')
-                add_system_to_minimal_toolchains = True
-
             system_subtoolchain = True
 
             if add_system_to_minimal_toolchains and not incl_capabilities:
@@ -409,20 +422,6 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
-@contextmanager
-def disable_templating(ec):
-    """Temporarily disable templating on the given EasyConfig
-
-    Usage:
-        with disable_templating(ec):
-            # Do what you want without templating
-        # Templating set to previous value
-    """
-    _log.deprecated("disable_templating(ec) was replaced by ec.disable_templating()", '5.0')
-    with ec.disable_templating() as old_value:
-        yield old_value
-
-
 class EasyConfig(object):
     """
     Class which handles loading, reading, validation of easyconfigs
@@ -443,7 +442,11 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        self.enable_templating = True  # a boolean to control templating
+        # a boolean to control templating, can be (temporarily) disabled via disable_templating context manager
+        self._templating_enabled = True
+        # boolean to control whether all template values must be resolvable on access,
+        # can be (temporarily) disabled via allow_unresolved_templates context manager
+        self._expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -514,6 +517,12 @@ class EasyConfig(object):
         self.iterate_options = []
         self.iterating = False
 
+        # Storage for parallel property. Mark as unset initially
+        self._parallel = None
+        # introduce hidden '_parallelLegacy' easyconfig parameter,
+        # used to deprecate use of 'parallel' easyconfig parameter
+        self._config['_parallelLegacy'] = [None, '', ('', )]
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -557,12 +566,48 @@ class EasyConfig(object):
                 # Do what you want without templating
             # Templating set to previous value
         """
-        old_enable_templating = self.enable_templating
-        self.enable_templating = False
+        old_templating_enabled = self._templating_enabled
+        self._templating_enabled = False
         try:
-            yield old_enable_templating
+            yield old_templating_enabled
         finally:
-            self.enable_templating = old_enable_templating
+            self._templating_enabled = old_templating_enabled
+
+    @property
+    def templating_enabled(self):
+        """Check whether templating is enabled on this EasyConfig"""
+        return self._templating_enabled
+
+    def _enable_templating(self, *_):
+        self.log.nosupport("self.enable_templating is replaced by self.templating_enabled. "
+                           "To disable it use the self.disable_templating context manager", '5.0')
+    enable_templating = property(_enable_templating, _enable_templating)
+
+    @contextmanager
+    def allow_unresolved_templates(self):
+        """Temporarily allow templates to be not (fully) resolved.
+
+        This should only be used when it is intended to use partially resolved templates.
+        Otherwise `ec.get(key, resolve=False)` should be used.
+        See also @ref disable_templating.
+
+        Usage:
+            with ec.allow_unresolved_templates():
+                value = ec.get('key')  # This will not raise an error
+                print(value % {'extra_key': exta_value})
+            # Resolving is enforced again if it was before
+        """
+        old_expect_resolved_template_values = self._expect_resolved_template_values
+        self._expect_resolved_template_values = False
+        try:
+            yield old_expect_resolved_template_values
+        finally:
+            self._expect_resolved_template_values = old_expect_resolved_template_values
+
+    @property
+    def expect_resolved_template_values(self):
+        """Check whether resolving all template values on access is enforced."""
+        return self._expect_resolved_template_values
 
     def __str__(self):
         """Return a string representation of this EasyConfig instance"""
@@ -574,10 +619,7 @@ class EasyConfig(object):
     def filename(self):
         """Determine correct filename for this easyconfig file."""
 
-        if is_yeb_format(self.path, self.rawtxt):
-            ext = YEB_FORMAT_EXTENSION
-        else:
-            ext = EB_FORMAT_EXTENSION
+        ext = EB_FORMAT_EXTENSION
 
         return '%s-%s%s' % (self.name, det_full_ec_version(self), ext)
 
@@ -613,6 +655,7 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
+        ec._parallel = self._parallel  # Might be already set, e.g. for extensions
         # since rawtxt is defined, self.path may not get inherited, make sure it does
         if self.path:
             ec.path = self.path
@@ -627,7 +670,7 @@ class EasyConfig(object):
         Update an easyconfig parameter with the specified value (i.e. append to it).
         Note: For dictionary easyconfig parameters, 'allow_duplicate' is ignored (since it's meaningless).
         """
-        if isinstance(value, string_type):
+        if isinstance(value, str):
             inval = [value]
         elif isinstance(value, (list, dict, tuple)):
             inval = value
@@ -645,7 +688,7 @@ class EasyConfig(object):
         # Grab current parameter value so we can modify it
         param_value = copy.deepcopy(self[key])
 
-        if isinstance(param_value, string_type):
+        if isinstance(param_value, str):
             for item in inval:
                 # re.search: only add value to string if it's not there yet (surrounded by whitespace)
                 if allow_duplicate or (not re.search(r'(^|\s+)%s(\s+|$)' % re.escape(item), param_value)):
@@ -683,7 +726,8 @@ class EasyConfig(object):
         with self.disable_templating():
             for key in sorted(params.keys()):
                 # validations are skipped, just set in the config
-                if key in self._config.keys():
+                if any(key in x.keys() for x in (self._config, ALTERNATIVE_EASYCONFIG_PARAMETERS,
+                                                 DEPRECATED_EASYCONFIG_PARAMETERS)):
                     self[key] = params[key]
                     self.log.info("setting easyconfig parameter %s: value %s (type: %s)",
                                   key, self[key], type(self[key]))
@@ -715,6 +759,12 @@ class EasyConfig(object):
         missing_mandatory_keys = [key for key in self.mandatory if key not in ec_vars]
         if missing_mandatory_keys:
             raise EasyBuildError("mandatory parameters not provided in %s: %s", self.path, missing_mandatory_keys)
+
+        if 'parallel' in ec_vars:
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks)
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
+            ec_vars['_parallelLegacy'] = ec_vars.pop('parallel')
 
         # provide suggestions for typos. Local variable names are excluded from this check
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
@@ -782,12 +832,16 @@ class EasyConfig(object):
         """
         Determine number of files (sources + patches) required for this easyconfig.
         """
-        cnt = len(self['sources']) + len(self['patches'])
 
-        for ext in self['exts_list']:
+        # No need to resolve templates as we only need a count not the names
+        with self.disable_templating():
+            cnt = len(self['sources']) + len(self['patches'])
+            exts = self['exts_list']
+
+        for ext in exts:
             if isinstance(ext, tuple) and len(ext) >= 3:
                 ext_opts = ext[2]
-                # check for 'sources' first, since that's also considered first by EasyBlock.fetch_extension_sources
+                # check for 'sources' first, since that's also considered first by EasyBlock.collect_exts_file_info
                 if 'sources' in ext_opts:
                     cnt += len(ext_opts['sources'])
                 elif 'source_tmpl' in ext_opts:
@@ -817,7 +871,7 @@ class EasyConfig(object):
             msg = "Use of %d unknown easyconfig parameters detected %s: %s\n" % (cnt, in_fn, unknown_keys_msg)
             msg += "If these are just local variables please rename them to start with '%s', " % LOCAL_VAR_PREFIX
             msg += "or try using --fix-deprecated-easyconfigs to do this automatically.\nFor more information, see "
-            msg += "https://easybuild.readthedocs.io/en/latest/Easyconfig-files-local-variables.html ."
+            msg += "https://docs.easybuild.io/easyconfig-files-local-variables/ ."
 
             # always log a warning if local variable that don't follow recommended naming scheme are found
             self.log.warning(msg)
@@ -836,7 +890,7 @@ class EasyConfig(object):
 
         deprecated = self['deprecated']
         if deprecated:
-            if isinstance(deprecated, string_type):
+            if isinstance(deprecated, str):
                 if 'easyconfig' not in build_option('silence_deprecation_warnings'):
                     depr_msgs.append("easyconfig file '%s' is marked as deprecated:\n%s\n" % (path, deprecated))
             else:
@@ -852,10 +906,10 @@ class EasyConfig(object):
         if depr_msgs:
             depr_msg = ', '.join(depr_msgs)
 
-            depr_maj_ver = int(str(VERSION).split('.')[0]) + 1
+            depr_maj_ver = int(str(VERSION).split('.', maxsplit=1)[0]) + 1
             depr_ver = '%s.0' % depr_maj_ver
 
-            more_info_depr_ec = " (see also http://easybuild.readthedocs.org/en/latest/Deprecated-easyconfigs.html)"
+            more_info_depr_ec = " (see also https://docs.easybuild.io/deprecated-easyconfigs)"
 
             self.log.deprecated(depr_msg, depr_ver, more_info=more_info_depr_ec, silent=build_option('silent'))
 
@@ -867,8 +921,8 @@ class EasyConfig(object):
         - check license
         """
         self.log.info("Validating easyconfig")
-        for attr in self.validations:
-            self._validate(attr, self.validations[attr])
+        for attr, valid_values in self.validations.items():
+            self._validate(attr, valid_values)
 
         if check_osdeps:
             self.log.info("Checking OS dependencies")
@@ -877,9 +931,25 @@ class EasyConfig(object):
             self.log.info("Not checking OS dependencies")
 
         self.log.info("Checking skipsteps")
-        if not isinstance(self._config['skipsteps'][0], (list, tuple,)):
+        skipsteps = self._config['skipsteps'][0]
+        if not isinstance(skipsteps, (list, tuple,)):
             raise EasyBuildError('Invalid type for skipsteps. Allowed are list or tuple, got %s (%s)',
-                                 type(self._config['skipsteps'][0]), self._config['skipsteps'][0])
+                                 type(skipsteps), skipsteps)
+        unknown_step_names = [step for step in skipsteps if step not in STEP_NAMES]
+        if unknown_step_names:
+            error_lines = ["Found one or more unknown step names in 'skipsteps' easyconfig parameter:"]
+            for step in unknown_step_names:
+                error_line = "* %s" % step
+                # try to find close match, may be just a typo in the step name
+                close_matches = difflib.get_close_matches(step, STEP_NAMES, 2, 0.8)
+                # 'source' step was renamed to 'extract' in EasyBuild 5.0, see provide a useful suggestion in that case;
+                # see https://github.com/easybuilders/easybuild-framework/pull/4629
+                if not close_matches and step == 'source':
+                    close_matches.append(EXTRACT_STEP)
+                if close_matches:
+                    error_line += " (did you mean %s?)" % ', or '.join("'%s'" % s for s in close_matches)
+                error_lines.append(error_line)
+            raise EasyBuildError('\n'.join(error_lines))
 
         self.log.info("Checking build option lists")
         self.validate_iterate_opts_lists()
@@ -914,7 +984,7 @@ class EasyConfig(object):
         not_found = []
         for dep in self['osdependencies']:
             # make sure we have a tuple
-            if isinstance(dep, string_type):
+            if isinstance(dep, str):
                 dep = (dep,)
             elif not isinstance(dep, tuple):
                 raise EasyBuildError("Non-tuple value type for OS dependency specification: %s (type %s)",
@@ -924,9 +994,12 @@ class EasyConfig(object):
                 not_found.append(dep)
 
         if not_found:
-            raise EasyBuildError("One or more OS dependencies were not found: %s", not_found)
-        else:
-            self.log.info("OS dependencies ok: %s" % self['osdependencies'])
+            raise EasyBuildError(
+                "One or more OS dependencies were not found: %s", not_found,
+                exit_code=EasyBuildExit.MISSING_SYSTEM_DEPENDENCY
+            )
+
+        self.log.info("OS dependencies ok: %s" % self['osdependencies'])
 
         return True
 
@@ -1119,15 +1192,19 @@ class EasyConfig(object):
 
         return retained_deps
 
-    def dependencies(self, build_only=False):
+    def dependencies(self, build_only=False, runtime_only=False):
         """
         Returns an array of parsed dependencies (after filtering, if requested)
         dependency = {'name': '', 'version': '', 'system': (False|True), 'versionsuffix': '', 'toolchain': ''}
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        deps = self.builddependencies()
+        if runtime_only:
+            deps = []
+        else:
+            deps = self.builddependencies()
 
         if not build_only:
             # use += rather than .extend to get a new list rather than updating list of build deps in place...
@@ -1222,6 +1299,32 @@ class EasyConfig(object):
 
         return self._all_dependencies
 
+    @property
+    def is_parallel_set(self):
+        """Return if the desired parallelism has been determined yet"""
+        return self._parallel is not None
+
+    @property
+    def parallel(self):
+        """Degree of parallellism (number of cores) to be used for building, etc."""
+        if not self.is_parallel_set:
+            raise ValueError("Parallelism not set yet, 'set_parallel' method of easyblock must be called first")
+
+        # This gets set when an easyblock changes ec['parallel'].
+        # It also gets set/updated in set_parallel to mirror the old behavior during the deprecation phase
+        parallelLegacy = self._config['_parallelLegacy'][0]
+        if parallelLegacy is not None:
+            return max(1, parallelLegacy)
+        return self._parallel
+
+    @parallel.setter
+    def parallel(self, value):
+        # Update backstorage and template value
+        self._parallel = max(1, value)  # Also handles False
+        self.template_values['parallel'] = self._parallel
+        # Backwards compatibility, only for easyblocks still reading self.cfg['parallel']
+        self._config['_parallelLegacy'][0] = self._parallel
+
     def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
         Dump this easyconfig to file, with the given filename.
@@ -1232,11 +1335,11 @@ class EasyConfig(object):
         # templated values should be dumped unresolved
         with self.disable_templating():
             # build dict of default values
-            default_values = {key: DEFAULT_CONFIG[key][0] for key in DEFAULT_CONFIG}
-            default_values.update({key: self.extra_options[key][0] for key in self.extra_options})
+            default_values = {key: value[0] for key, value in DEFAULT_CONFIG.items()}
+            default_values.update({key: value[0] for key, value in self.extra_options.items()})
 
             self.generate_template_values()
-            templ_const = {quote_py_str(const[1]): const[0] for const in TEMPLATE_CONSTANTS}
+            templ_const = {quote_py_str(value): name for name, (value, _) in TEMPLATE_CONSTANTS.items()}
 
             # create reverse map of templates, to inject template values where possible
             # longer template values are considered first, shorter template keys get preference over longer ones
@@ -1289,7 +1392,10 @@ class EasyConfig(object):
         if values is None:
             values = []
         if self[attr] and self[attr] not in values:
-            raise EasyBuildError("%s provided '%s' is not valid: %s", attr, self[attr], values)
+            raise EasyBuildError(
+                "%s provided '%s' is not valid: %s", attr, self[attr], values,
+                exit_code=EasyBuildExit.VALUE_ERROR
+            )
 
     def probe_external_module_metadata(self, mod_name, existing_metadata=None):
         """
@@ -1485,13 +1591,13 @@ class EasyConfig(object):
             # all multi_deps entries should be listed in builddependencies (if not, something is very wrong)
             if isinstance(builddeps, list) and all(isinstance(x, list) for x in builddeps):
 
-                for iter_id in range(len(builddeps)):
+                for iter_id, current_builddeps in enumerate(builddeps):
 
                     # only build dependencies that correspond to multi_deps entries should be loaded as extra modules
                     # (other build dependencies should not be required to make sanity check pass for this iteration)
                     iter_deps = []
                     for key in self['multi_deps']:
-                        hits = [d for d in builddeps[iter_id] if d['name'] == key]
+                        hits = [d for d in current_builddeps if d['name'] == key]
                         if len(hits) == 1:
                             iter_deps.append(hits[0])
                         else:
@@ -1644,8 +1750,9 @@ class EasyConfig(object):
         filter_deps_specs = self.parse_filter_deps()
 
         for key in DEPENDENCY_PARAMETERS:
-            # loop over a *copy* of dependency dicts (with resolved templates);
-            deps = self[key]
+            # loop over a *copy* of dependency dicts with resolved templates,
+            # although some templates may not resolve yet (e.g. those relying on dependencies like %(pyver)s)
+            deps = resolve_template(self.get_ref(key), self.template_values, expect_resolved=False)
 
             # to update the original dep dict, we need to get a reference with templating disabled...
             deps_ref = self.get_ref(key)
@@ -1759,7 +1866,7 @@ class EasyConfig(object):
         """Resolve all templates in the given value using this easyconfig"""
         if not self.template_values:
             self.generate_template_values()
-        return resolve_template(value, self.template_values)
+        return resolve_template(value, self.template_values, expect_resolved=self.expect_resolved_template_values)
 
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __contains__(self, key):
@@ -1769,13 +1876,12 @@ class EasyConfig(object):
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """Return value of specified easyconfig parameter (without help text, etc.)"""
-        value = None
-        if key in self._config:
+        try:
             value = self._config[key][0]
-        else:
+        except KeyError:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
-        if self.enable_templating:
+        if self.templating_enabled:
             value = self.resolve_template(value)
 
         return value
@@ -1821,11 +1927,14 @@ class EasyConfig(object):
     # see also https://docs.python.org/2/reference/datamodel.html#object.__eq__
     def __eq__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() == ec.asdict()
+        # Compare raw values to check that templates used are the same
+        with self.disable_templating():
+            with ec.disable_templating():
+                return self.asdict() == ec.asdict()
 
     def __ne__(self, ec):
         """Is this EasyConfig instance equivalent to the provided one?"""
-        return self.asdict() != ec.asdict()
+        return not self == ec
 
     def __hash__(self):
         """Return hash value for a hashable representation of this EasyConfig instance."""
@@ -1838,8 +1947,9 @@ class EasyConfig(object):
             return val
 
         lst = []
-        for (key, val) in sorted(self.asdict().items()):
-            lst.append((key, make_hashable(val)))
+        with self.disable_templating():
+            for (key, val) in sorted(self.asdict().items()):
+                lst.append((key, make_hashable(val)))
 
         # a list is not hashable, but a tuple is
         return hash(tuple(lst))
@@ -1849,11 +1959,13 @@ class EasyConfig(object):
         Return dict representation of this EasyConfig instance.
         """
         res = {}
-        for key, tup in self._config.items():
-            value = tup[0]
-            if self.enable_templating:
-                value = self.resolve_template(value)
-            res[key] = value
+        # Not all values can be resolved, e.g. %(installdir)s
+        with self.allow_unresolved_templates():
+            for key, tup in self._config.items():
+                value = tup[0]
+                if self.templating_enabled:
+                    value = self.resolve_template(value)
+                res[key] = value
         return res
 
     def get_cuda_cc_template_value(self, key):
@@ -1863,7 +1975,7 @@ class EasyConfig(object):
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
         """
-        if key.startswith('cuda_') and any(x[0] == key for x in TEMPLATE_NAMES_DYNAMIC):
+        if key.startswith('cuda_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
             try:
                 return self.template_values[key]
             except KeyError:
@@ -1882,19 +1994,10 @@ def det_installversion(version, toolchain_name, toolchain_version, prefix, suffi
     _log.nosupport('Use det_full_ec_version from easybuild.tools.module_generator instead of %s' % old_fn, '2.0')
 
 
-def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=None, **kwargs):
+def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error_on_missing_easyblock=True, **kwargs):
     """
     Get class for a particular easyblock (or use default)
     """
-    if 'default_fallback' in kwargs:
-        msg = "Named argument 'default_fallback' for get_easyblock_class is deprecated, "
-        msg += "use 'error_on_missing_easyblock' instead"
-        _log.deprecated(msg, '4.0')
-        if error_on_missing_easyblock is None:
-            error_on_missing_easyblock = kwargs['default_fallback']
-    elif error_on_missing_easyblock is None:
-        error_on_missing_easyblock = True
-
     cls = None
     try:
         if easyblock:
@@ -1950,12 +2053,20 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                 error_re = re.compile(r"No module named '?.*/?%s'?" % modname)
                 _log.debug("error regexp for ImportError on '%s' easyblock: %s", modname, error_re.pattern)
                 if error_re.match(str(err)):
+                    # Missing easyblock type of error
                     if error_on_missing_easyblock:
-                        raise EasyBuildError("No software-specific easyblock '%s' found for %s", class_name, name)
-                elif error_on_failed_import:
-                    raise EasyBuildError("Failed to import %s easyblock: %s", class_name, err)
+                        raise EasyBuildError(
+                            "No software-specific easyblock '%s' found for %s", class_name, name,
+                            exit_code=EasyBuildExit.MISSING_EASYBLOCK
+                        ) from err
                 else:
-                    _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
+                    # Broken import
+                    if error_on_failed_import:
+                        raise EasyBuildError(
+                            "Failed to import %s easyblock: %s", class_name, err,
+                            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+                        ) from err
+                _log.debug("Failed to import easyblock for %s, but ignoring it: %s" % (class_name, err))
 
         if cls is not None:
             _log.info("Successfully obtained class '%s' for easyblock '%s' (software name '%s')",
@@ -1969,13 +2080,10 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
         # simply reraise rather than wrapping it into another error
         raise err
     except Exception as err:
-        raise EasyBuildError("Failed to obtain class for %s easyblock (not available?): %s", easyblock, err)
-
-
-def is_generic_easyblock(easyblock):
-    """Return whether specified easyblock name is a generic easyblock or not."""
-    _log.deprecated("is_generic_easyblock function was moved to easybuild.tools.filetools", '5.0')
-    return filetools.is_generic_easyblock(easyblock)
+        raise EasyBuildError(
+            "Failed to obtain class for %s easyblock (not available?): %s", easyblock, err,
+            exit_code=EasyBuildExit.EASYBLOCK_ERROR
+        )
 
 
 def get_module_path(name, generic=None, decode=True):
@@ -2004,12 +2112,13 @@ def get_module_path(name, generic=None, decode=True):
     return '.'.join(modpath + [module_name])
 
 
-def resolve_template(value, tmpl_dict):
+def resolve_template(value, tmpl_dict, expect_resolved=True):
     """Given a value, try to susbstitute the templated strings with actual values.
         - value: some python object (supported are string, tuple/list, dict or some mix thereof)
         - tmpl_dict: template dictionary
+        - expect_resolved: Expects that all templates get resolved
     """
-    if isinstance(value, string_type):
+    if isinstance(value, str):
         # simple escaping, making all '%foo', '%%foo', '%%%foo' post-templates values available,
         #         but ignore a string like '%(name)s'
         # behaviour of strings like '%(name)s',
@@ -2033,14 +2142,48 @@ def resolve_template(value, tmpl_dict):
         # '%(name)s' -> '%(name)s'
         # '%%(name)s' -> '%%(name)s'
         if '%' in value:
-            orig_value = value
+            raw_value = value
             value = re.sub(re.compile(r'(%)(?!%*\(\w+\)s)'), r'\1\1', value)
 
             try:
                 value = value % tmpl_dict
             except KeyError:
-                _log.warning("Unable to resolve template value %s with dict %s", value, tmpl_dict)
-                value = orig_value  # Undo "%"-escaping
+                # check if any alternative and/or deprecated templates resolve
+                try:
+                    orig_value = value
+                    # map old templates to new values for alternative and deprecated templates
+                    alt_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, new_tmpl) in
+                               ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                    alt_map2 = {new_tmpl: tmpl_dict[old_tmpl] for (old_tmpl, new_tmpl) in
+                                ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if old_tmpl in tmpl_dict.keys()}
+                    depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
+                                DEPRECATED_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+
+                    # try templating with alternative and deprecated templates included
+                    value = value % {**tmpl_dict, **alt_map, **alt_map2, **depr_map}
+
+                    for old_tmpl, val in depr_map.items():
+                        # check which deprecated templates were replaced, and issue deprecation warnings
+                        if old_tmpl in orig_value and val in value:
+                            new_tmpl, ver = DEPRECATED_EASYCONFIG_TEMPLATES[old_tmpl]
+                            _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
+                                            ver)
+                except KeyError:
+                    if expect_resolved:
+                        msg = (f'Failed to resolve all templates in "{value}" using template dictionary: {tmpl_dict}. '
+                               'This might cause failures or unexpected behavior, '
+                               'check for correct escaping if this is intended!')
+                        if build_option('allow_unresolved_templates'):
+                            print_warning(msg)
+                        else:
+                            raise EasyBuildError(msg)
+                    value = raw_value  # Undo "%"-escaping
+
+                for key in tmpl_dict:
+                    if key in DEPRECATED_EASYCONFIG_TEMPLATES:
+                        new_key, ver = DEPRECATED_EASYCONFIG_TEMPLATES[key]
+                        _log.deprecated(f"Easyconfig template '{key}' is deprecated, use '{new_key}' instead", ver)
+
     else:
         # this block deals with references to objects and returns other references
         # for reading this is ok, but for self['x'] = {}
@@ -2054,11 +2197,12 @@ def resolve_template(value, tmpl_dict):
         # self._config['x']['y'] = z
         # it can not be intercepted with __setitem__ because the set is done at a deeper level
         if isinstance(value, list):
-            value = [resolve_template(val, tmpl_dict) for val in value]
+            value = [resolve_template(val, tmpl_dict, expect_resolved) for val in value]
         elif isinstance(value, tuple):
-            value = tuple(resolve_template(list(value), tmpl_dict))
+            value = tuple(resolve_template(list(value), tmpl_dict, expect_resolved))
         elif isinstance(value, dict):
-            value = {resolve_template(k, tmpl_dict): resolve_template(v, tmpl_dict) for k, v in value.items()}
+            value = {resolve_template(k, tmpl_dict, expect_resolved): resolve_template(v, tmpl_dict, expect_resolved)
+                     for k, v in value.items()}
 
     return value
 
@@ -2093,7 +2237,11 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         try:
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
-            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg)
+            try:
+                exit_code = err.exit_code
+            except AttributeError:
+                exit_code = EasyBuildExit.EASYCONFIG_ERROR
+            raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
         name = ec['name']
 
@@ -2507,8 +2655,6 @@ def copy_patch_files(patch_specs, target_dir):
 def fix_deprecated_easyconfigs(paths):
     """Fix use of deprecated functionality in easyconfigs at specified locations."""
 
-    dummy_tc_regex = re.compile(r'^toolchain\s*=\s*{.*name.*dummy.*}', re.M)
-
     easyconfig_paths = []
     for path in paths:
         easyconfig_paths.extend(find_easyconfigs(path))
@@ -2520,11 +2666,6 @@ def fix_deprecated_easyconfigs(paths):
         print_msg("* [%d/%d] fixing %s... ", idx, cnt, path, prefix=False, newline=False)
 
         fixed = False
-
-        # fix use of 'dummy' toolchain, use SYSTEM constant instead
-        if dummy_tc_regex.search(ectxt):
-            ectxt = dummy_tc_regex.sub("toolchain = SYSTEM", ectxt)
-            fixed = True
 
         # fix use of local variables with a name other than a single letter or 'local_*'
         ec = EasyConfig(path, local_var_naming_check=LOCAL_VAR_NAMING_CHECK_LOG)

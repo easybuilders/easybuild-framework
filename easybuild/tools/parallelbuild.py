@@ -33,6 +33,7 @@ Authors:
 * Toon Willems (Ghent University)
 * Kenneth Hoste (Ghent University)
 * Stijn De Weirdt (Ghent University)
+* Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
 """
 import math
 import os
@@ -43,8 +44,9 @@ from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
-from easybuild.tools.job.backend import job_backend
+from easybuild.tools.job.backend import job_backend, JobBackend
 from easybuild.tools.repository.repository import init_repository
 
 
@@ -56,7 +58,8 @@ def _to_key(dep):
     return ActiveMNS().det_full_module_name(dep)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', prepare_first=True):
+def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', testing=False,
+                                  prepare_first=True, tweak_map=None, try_opts=''):
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
@@ -68,11 +71,14 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     :param build_command: build command to use
     :param easyconfigs: list of easyconfig files
     :param output_dir: output directory
+    :param testing: If `True`, skip actual job submission
     :param prepare_first: prepare by runnning fetch step first for each easyconfig
+    :param tweak_map: Mapping from tweaked to original easyconfigs
+    :param try_opts: --try-* options to pass if the easyconfig is tweaked
     """
     _log.info("going to build these easyconfigs in parallel: %s", [os.path.basename(ec['spec']) for ec in easyconfigs])
 
-    active_job_backend = job_backend()
+    active_job_backend = JobBackend() if testing else job_backend()
     if active_job_backend is None:
         raise EasyBuildError("Can not use --job if no job backend is available.")
 
@@ -92,12 +98,17 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
         # this is very important, otherwise we might have race conditions
         # e.g. GCC-4.5.3 finds cloog.tar.gz but it was incorrectly downloaded by GCC-4.6.3
         # running this step here, prevents this
-        if prepare_first:
+        if prepare_first and not testing:
             prepare_easyconfig(easyconfig)
 
+        # convert <tweaked easyconfig.eb> to <original-easyconfig.eb --try-xxx> to avoid needing a shared tmpdir
+        spec = easyconfig['spec']
+        if spec in (tweak_map or {}):
+            spec = tweak_map[spec] + try_opts
+
         # the new job will only depend on already submitted jobs
-        _log.info("creating job for ec: %s" % os.path.basename(easyconfig['spec']))
-        new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir)
+        _log.info("creating job for ec: %s using %s" % (os.path.basename(easyconfig['spec']), spec))
+        new_job = create_job(active_job_backend, build_command, easyconfig, output_dir=output_dir, spec=spec)
 
         # filter out dependencies marked as external modules
         deps = [d for d in easyconfig['ec'].all_dependencies if not d.get('external_module', False)]
@@ -115,24 +126,27 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
 
     active_job_backend.complete()
 
-    return jobs
+    return build_command if testing else jobs
 
 
-def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
+def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True, tweak_map=None):
     """
     Submit jobs.
     :param ordered_ecs: list of easyconfigs, in the order they should be processed
     :param cmd_line_opts: list of command line options (in 'longopt=value' form)
     :param testing: If `True`, skip actual job submission
     :param prepare_first: prepare by runnning fetch step first for each easyconfig
+    :param tweak_map: Mapping from tweaked to original easyconfigs
     """
-    curdir = os.getcwd()
+    curdir = get_cwd()
 
-    # regex pattern for options to ignore (help options can't reach here)
+    # regex patterns for options to ignore and tweak options (help options can't reach here)
     ignore_opts = re.compile('^--robot$|^--job|^--try-.*$|^--easystack$')
+    try_opts_re = re.compile('^--try-.*$')
 
     # generate_cmd_line returns the options in form --longopt=value
     opts = [o for o in cmd_line_opts if not ignore_opts.match(o.split('=')[0])]
+    try_opts = [o for o in cmd_line_opts if try_opts_re.match(o.split('=')[0])]
 
     # add --disable-job to make sure the submitted job doesn't submit a job itself,
     # resulting in an infinite cycle of jobs;
@@ -142,6 +156,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
 
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
+    try_opts_str = ' ' + ' '.join(try_opts).replace('%', '%%')
 
     eb_cmd = build_option('job_eb_cmd')
 
@@ -153,12 +168,11 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True):
     _log.info("Command template for jobs: %s", command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
-        return command
-    else:
-        return build_easyconfigs_in_parallel(command, ordered_ecs, prepare_first=prepare_first)
+    return build_easyconfigs_in_parallel(command, ordered_ecs, testing=testing, prepare_first=prepare_first,
+                                         tweak_map=tweak_map, try_opts=try_opts_str)
 
 
-def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build'):
+def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build', spec=''):
     """
     Creates a job to build a *single* easyconfig.
 
@@ -166,6 +180,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     :param build_command: format string for command, full path to an easyconfig file will be substituted in it
     :param easyconfig: easyconfig as processed by process_easyconfig
     :param output_dir: optional output path; --regtest-output-dir will be used inside the job with this variable
+    :param spec: untweaked easyconfig name with optional --try-* options
 
     returns the job
     """
@@ -182,7 +197,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     command = build_command % {
         'add_opts': add_opts,
         'output_dir': os.path.join(os.path.abspath(output_dir), name),
-        'spec': easyconfig['spec'],
+        'spec': spec or easyconfig['spec'],
     }
 
     # just use latest build stats

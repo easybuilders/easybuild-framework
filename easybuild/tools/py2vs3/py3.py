@@ -34,10 +34,8 @@ Authors:
 # these are not used here, but imported from here in other places
 import configparser  # noqa
 import json
-import subprocess
 import sys
 import urllib.request as std_urllib  # noqa
-from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
 from functools import cmp_to_key
 from importlib.util import spec_from_file_location, module_from_spec
@@ -61,10 +59,14 @@ try:
 except ImportError:
     HAVE_DISTUTILS = False
 
+from easybuild.base.wrapper import mk_wrapper_baseclass  # noqa
+from easybuild.tools.run import subprocess_popen_text, subprocess_terminate  # noqa
+
 # string type that can be used in 'isinstance' calls
 string_type = str
 
 
+# note: also available in easybuild.tools.filetools, should be imported from there!
 def load_source(filename, path):
     """Load file as Python module"""
     spec = spec_from_file_location(filename, path)
@@ -85,24 +87,6 @@ def json_loads(body):
     return json.loads(body)
 
 
-def subprocess_popen_text(cmd, **kwargs):
-    """Call subprocess.Popen in text mode with specified named arguments."""
-    # open stdout/stderr in text mode in Popen when using Python 3
-    kwargs.setdefault('stderr', subprocess.PIPE)
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
-
-
-def subprocess_terminate(proc, timeout):
-    """Terminate the subprocess if it hasn't finished after the given timeout"""
-    try:
-        proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        for pipe in (proc.stdout, proc.stderr, proc.stdin):
-            if pipe:
-                pipe.close()
-        proc.terminate()
-
-
 def raise_with_traceback(exception_class, message, traceback):
     """Raise exception of specified class with given message and traceback."""
     raise exception_class(message).with_traceback(traceback)
@@ -111,17 +95,6 @@ def raise_with_traceback(exception_class, message, traceback):
 def extract_method_name(method_func):
     """Extract method name from lambda function."""
     return '_'.join(method_func.__code__.co_names)
-
-
-def mk_wrapper_baseclass(metaclass):
-
-    class WrapperBase(object, metaclass=metaclass):
-        """
-        Wrapper class that provides proxy access to an instance of some internal instance.
-        """
-        __wraps__ = None
-
-    return WrapperBase
 
 
 def safe_cmp_looseversions(v1, v2):

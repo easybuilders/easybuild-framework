@@ -783,9 +783,9 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
-            'FFTW-3.3.8-gompi-2018b.eb',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
+            'XCrySDen-1.6.2-foss-2024a.eb',
             'gompi-2018b-test.eb',  # relative path, available in robot search path
             '--dry-run',
             '--robot',
@@ -796,8 +796,10 @@ class RobotTest(EnhancedTestCase):
         ]
 
         self.mock_stderr(True)
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
         self.mock_stderr(False)
+        self.mock_stdout(False)
 
         # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
         test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
@@ -807,9 +809,9 @@ class RobotTest(EnhancedTestCase):
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2018b-test'),  # specified easyconfig, found in robot search path
-            ('.*/files_pr6424', 'FFTW/3.3.8-gompi-2018b'),  # specified easyconfig
-            (test_ecs_path, 'gompi/2018b'),  # part of PR easyconfigs, found in robot search path
-            (test_ecs_path, 'GCC/7.3.0-2.30'),  # dependency for PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'XCrySDen/1.6.2-foss-2024a'),  # specified easyconfig
+            ('.*/files_pr22227', 'Togl/2.0-GCCcore-13.3.0'),  # part of PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'GCC/13.3.0'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -1137,7 +1139,8 @@ class RobotTest(EnhancedTestCase):
 
         # Tweak the toolchain version of the easyconfig
         tweak_specs = {'toolchain_version': '6.4.0-2.28'}
-        easyconfigs = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
+                                       return_map=True)
 
         # Check that all expected tweaked easyconfigs exists
         tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
@@ -1153,6 +1156,10 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertIn(untweaked_hwloc, specs)
+        # Check correctness of tweak_map (maps back to the original untweaked file, even for hwloc, where the
+        # tweaked version is generated but not used)
+        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi,
+                                     tweaked_hwloc: untweaked_hwloc.replace("6.4.0-2.28", "4.6.4")})
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
