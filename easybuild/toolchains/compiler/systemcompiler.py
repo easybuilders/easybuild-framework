@@ -40,3 +40,12 @@ class SystemCompiler(Compiler):
     """System compiler"""
     COMPILER_MODULE_NAME = []
     COMPILER_FAMILY = TC_CONSTANT_SYSTEM
+
+    # The system compiler does not currently support even the shared options
+    # (changing this would require updating set_minimal_build_env() of the toolchain class)
+    COMPILER_UNIQUE_OPTS = None
+    # only keep the rpath toolchainopt since we want to be able to disable it for
+    # sanity checks in binary-only installations
+    COMPILER_SHARED_OPTS = {k: Compiler.COMPILER_SHARED_OPTS[k] for k in ('rpath',)}
+    COMPILER_UNIQUE_OPTION_MAP = None
+    COMPILER_SHARED_OPTION_MAP = None

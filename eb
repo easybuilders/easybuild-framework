@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 ##
 # Copyright 2009-2025 Ghent University
 #
@@ -32,6 +32,7 @@
 # @author: Kenneth Hoste (Ghent University)
 # @author: Pieter De Baets (Ghent University)
 # @author: Jens Timmerman (Ghent University)
+# @author: Simon Branford (University of Birmingham)
 
 keyboard_interrupt() {
     echo "Keyboard interrupt!"
@@ -40,9 +41,8 @@ keyboard_interrupt() {
 
 trap keyboard_interrupt SIGINT
 
-# Python 2.7+ or 3.5+ required
-REQ_MIN_PY2VER=7
-REQ_MIN_PY3VER=5
+# Python 3.6+ required
+REQ_MIN_PY3VER=6
 
 EASYBUILD_MAIN='easybuild.main'
 
@@ -60,7 +60,7 @@ PYTHON=
 # - EB_INSTALLPYTHON is set when EasyBuild is installed as a module (by EasyBuild). It is set to the PYTHON
 #   used during that installation (for example, you could override PYTHON using EB_PYTHON at installation
 #   time, this variable preserves that choice).
-for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'python2'; do
+for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python3' 'python'; do
 
     # Only consider non-empty values, i.e. continue if e.g. $EB_PYTHON is not set
     [ -n "${python_cmd}" ] || continue
@@ -76,10 +76,7 @@ for python_cmd in "${EB_PYTHON}" "${EB_INSTALLPYTHON}" 'python' 'python3' 'pytho
         pyver_maj=$(echo "${pyver}" | cut -f1 -d'.')
         pyver_min=$(echo "${pyver}" | cut -f2 -d'.')
 
-        if [ "${pyver_maj}" -eq 2 ] && [ "${pyver_min}" -ge "${REQ_MIN_PY2VER}" ]; then
-            verbose "'${python_cmd}' version: ${pyver}, which matches Python 2 version requirement (>= 2.${REQ_MIN_PY2VER})"
-            PYTHON="${python_cmd}"
-        elif [ "${pyver_maj}" -eq 3 ] && [ "${pyver_min}" -ge "${REQ_MIN_PY3VER}" ]; then
+        if [ "${pyver_maj}" -eq 3 ] && [ "${pyver_min}" -ge "${REQ_MIN_PY3VER}" ]; then
             verbose "'${python_cmd}' version: ${pyver}, which matches Python 3 version requirement (>= 3.${REQ_MIN_PY3VER})"
             PYTHON="${python_cmd}"
         fi
@@ -106,7 +103,7 @@ done
 
 if [ -z "${PYTHON}" ]; then
     echo -n "ERROR: No compatible 'python' command found via \$PATH " >&2
-    echo "(EasyBuild requires Python 2.${REQ_MIN_PY2VER}+ or 3.${REQ_MIN_PY3VER}+)" >&2
+    echo "(EasyBuild requires Python 3.${REQ_MIN_PY3VER}+)" >&2
     exit 1
 else
     verbose "Selected Python command: ${python_cmd} ($(command -v "${python_cmd}"))"

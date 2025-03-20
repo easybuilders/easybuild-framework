@@ -43,9 +43,9 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
 from easybuild.framework.easyconfig.easyconfig import robot_find_easyconfig, verify_easyconfig_filename
 from easybuild.framework.easyconfig.tools import find_resolved_modules, skip_available
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 from easybuild.tools.config import build_option
-from easybuild.tools.filetools import det_common_path_prefix, search_file
+from easybuild.tools.filetools import det_common_path_prefix, get_cwd, search_file
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.utilities import flatten, nub
@@ -242,7 +242,7 @@ def dry_run(easyconfigs, modtool, short=False):
     :param short: use short format for overview: use a variable for common prefixes
     """
     lines = []
-    if build_option('robot_path') is None:
+    if build_option('robot') is None:
         lines.append("Dry run: printing build status of easyconfigs")
         all_specs = easyconfigs
     else:
@@ -325,7 +325,7 @@ def raise_error_missing_deps(missing_deps, extra_msg=None):
     error_msg = "Missing dependencies: %s" % mod_names
     if extra_msg:
         error_msg += ' (%s)' % extra_msg
-    raise EasyBuildError(error_msg)
+    raise EasyBuildError(error_msg, exit_code=EasyBuildExit.MISSING_DEPENDENCY)
 
 
 def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_error_missing_ecs=True):
@@ -491,7 +491,7 @@ def search_easyconfigs(query, short=False, filename_only=False, terse=False, con
     """
     search_path = build_option('robot_path')
     if not search_path:
-        search_path = [os.getcwd()]
+        search_path = [get_cwd()]
     extra_search_paths = build_option('search_paths')
     # If we're returning a list of possible resolutions by the robot, don't include the extra_search_paths
     if extra_search_paths and consider_extra_paths:

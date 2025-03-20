@@ -30,7 +30,7 @@ EasyBuild support for building and installing libtoy, implemented as an easybloc
 import os
 
 from easybuild.framework.easyblock import EasyBlock
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 SHLIB_EXT = get_shared_lib_ext()
@@ -40,7 +40,7 @@ class EB_libtoy(EasyBlock):
     """Support for building/installing libtoy."""
 
     def banned_linked_shared_libs(self):
-        default = '/thiswillnotbethere,libtoytoytoy.%s,toytoytoy' % SHLIB_EXT
+        default = f'/thiswillnotbethere,libtoytoytoy.{SHLIB_EXT},toytoytoy'
         return os.getenv('EB_LIBTOY_BANNED_SHARED_LIBS', default).split(',')
 
     def required_linked_shared_libs(self):
@@ -53,8 +53,8 @@ class EB_libtoy(EasyBlock):
 
     def build_step(self, name=None, buildopts=None):
         """Build libtoy."""
-        run_cmd('make')
+        run_shell_cmd('make')
 
     def install_step(self, name=None):
         """Install libtoy."""
-        run_cmd('make install PREFIX="%s"' % self.installdir)
+        run_shell_cmd(f'make install PREFIX="{self.installdir}"')

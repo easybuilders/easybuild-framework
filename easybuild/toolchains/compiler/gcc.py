@@ -55,26 +55,26 @@ class Gcc(Compiler):
         'lto': (False, "Enable Link Time Optimization"),
     }
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'fdefault-integer-8',
-        'r8': ['fdefault-real-8', 'fdefault-double-8'],
-        'unroll': 'funroll-loops',
-        'f2c': 'ff2c',
-        'loop': ['ftree-switch-conversion', 'floop-interchange', 'floop-strip-mine', 'floop-block'],
-        'lto': 'flto',
-        'ieee': ['mieee-fp', 'fno-trapping-math'],
-        'strict': ['mieee-fp', 'mno-recip'],
-        'precise': ['mno-recip'],
-        'defaultprec': ['fno-math-errno'],
-        'loose': ['fno-math-errno', 'mrecip', 'mno-ieee-fp'],
-        'veryloose': ['fno-math-errno', 'mrecip=all', 'mno-ieee-fp'],
-        'vectorize': {False: 'fno-tree-vectorize', True: 'ftree-vectorize'},
-        DEFAULT_OPT_LEVEL: ['O2', 'ftree-vectorize'],
+        'i8': '-fdefault-integer-8',
+        'r8': ['-fdefault-real-8', '-fdefault-double-8'],
+        'unroll': '-funroll-loops',
+        'f2c': '-ff2c',
+        'loop': ['-ftree-switch-conversion', '-floop-interchange', '-floop-strip-mine', '-floop-block'],
+        'lto': '-flto',
+        'ieee': ['-mieee-fp', '-fno-trapping-math'],
+        'strict': ['-mieee-fp', '-mno-recip'],
+        'precise': ['-mno-recip'],
+        'defaultprec': ['-fno-math-errno'],
+        'loose': ['-fno-math-errno', '-mrecip', '-mno-ieee-fp'],
+        'veryloose': ['-fno-math-errno', '-mrecip=all', '-mno-ieee-fp'],
+        'vectorize': {False: '-fno-tree-vectorize', True: '-ftree-vectorize'},
+        DEFAULT_OPT_LEVEL: ['-O2', '-ftree-vectorize'],
     }
 
     # gcc on aarch64 does not support -mno-recip, -mieee-fp, -mfno-math-errno...
     # https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html
     if systemtools.get_cpu_architecture() == systemtools.AARCH64:
-        no_recip_alternative = ['mno-low-precision-recip-sqrt', 'mno-low-precision-sqrt', 'mno-low-precision-div']
+        no_recip_alternative = ['-mno-low-precision-recip-sqrt', '-mno-low-precision-sqrt', '-mno-low-precision-div']
         COMPILER_UNIQUE_OPTION_MAP['strict'] = no_recip_alternative
         COMPILER_UNIQUE_OPTION_MAP['precise'] = no_recip_alternative
 
@@ -84,47 +84,44 @@ class Gcc(Compiler):
     if systemtools.get_cpu_family() == systemtools.RISCV:
         COMPILER_UNIQUE_OPTION_MAP['strict'] = []
         COMPILER_UNIQUE_OPTION_MAP['precise'] = []
-        COMPILER_UNIQUE_OPTION_MAP['loose'] = ['fno-math-errno']
-        COMPILER_UNIQUE_OPTION_MAP['veryloose'] = ['fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['loose'] = ['-fno-math-errno']
+        COMPILER_UNIQUE_OPTION_MAP['veryloose'] = ['-fno-math-errno']
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.AARCH32, systemtools.ARM): 'mcpu=native',  # implies -march=native and -mtune=native
-        (systemtools.AARCH64, systemtools.ARM): 'mcpu=native',  # since GCC 6; implies -march=native and -mtune=native
+        (systemtools.AARCH32, systemtools.ARM): '-mcpu=native',  # implies -march=native and -mtune=native
+        (systemtools.AARCH64, systemtools.ARM): '-mcpu=native',  # since GCC 6; implies -march=native and -mtune=native
         # no support for -march on POWER; implies -mtune=native
-        (systemtools.POWER, systemtools.POWER): 'mcpu=native',
-        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=native',
-        (systemtools.X86_64, systemtools.AMD): 'march=native',  # implies -mtune=native
-        (systemtools.X86_64, systemtools.INTEL): 'march=native',  # implies -mtune=native
+        (systemtools.POWER, systemtools.POWER): '-mcpu=native',
+        (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',
+        (systemtools.X86_64, systemtools.AMD): '-march=native',  # implies -mtune=native
+        (systemtools.X86_64, systemtools.INTEL): '-march=native',  # implies -mtune=native
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.AARCH32, systemtools.ARM): 'mcpu=generic-armv7',  # implies -march=armv7 and -mtune=generic-armv7
-        (systemtools.AARCH64, systemtools.ARM): 'mcpu=generic',       # implies -march=armv8-a and -mtune=generic
-        (systemtools.POWER, systemtools.POWER): 'mcpu=powerpc64',    # no support for -march on POWER
-        (systemtools.POWER, systemtools.POWER_LE): 'mcpu=powerpc64le',    # no support for -march on POWER
-        (systemtools.RISCV64, systemtools.RISCV): 'march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
-        (systemtools.X86_64, systemtools.AMD): 'march=x86-64 -mtune=generic',
-        (systemtools.X86_64, systemtools.INTEL): 'march=x86-64 -mtune=generic',
+        (systemtools.AARCH32, systemtools.ARM): '-mcpu=generic-armv7',  # implies -march=armv7 and -mtune=generic-armv7
+        (systemtools.AARCH64, systemtools.ARM): '-mcpu=generic',       # implies -march=armv8-a and -mtune=generic
+        (systemtools.POWER, systemtools.POWER): '-mcpu=powerpc64',    # no support for -march on POWER
+        (systemtools.POWER, systemtools.POWER_LE): '-mcpu=powerpc64le',    # no support for -march on POWER
+        (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
+        (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
+        (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
     }
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
-    COMPILER_C_UNIQUE_FLAGS = []
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = 'gfortran'
     COMPILER_F90 = 'gfortran'
     COMPILER_FC = 'gfortran'
-    COMPILER_F_UNIQUE_FLAGS = ['f2c']
+    COMPILER_F_UNIQUE_OPTIONS = ['f2c']
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
         super(Gcc, self)._set_compiler_vars()
-
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_compiler_vars: 32bit set, but no support yet for 32bit GCC in EasyBuild")
 
         # to get rid of lots of problems with libgfortranbegin
         # or remove the system gcc-gfortran
@@ -189,8 +186,8 @@ class Gcc(Compiler):
                     break
             if core_types:
                 # On big.LITTLE setups, sort core types to have big core (higher model number) first.
-                # Example: 'mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
-                default_optarch = 'mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
+                # Example: '-mcpu=cortex-a72.cortex-a53' for "ARM Cortex-A53 + Cortex-A72"
+                default_optarch = '-mcpu=%s' % '.'.join([ct[1] for ct in sorted(core_types, reverse=True)])
                 self.log.debug("Using architecture-specific compiler optimization flag '%s'", default_optarch)
 
         return default_optarch

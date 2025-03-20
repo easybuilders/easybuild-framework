@@ -37,16 +37,74 @@ import re
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
-from easybuild.framework.easyconfig.format.yeb import FormatYeb, is_yeb_format
 from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
-from easybuild.tools.py2vs3 import string_type
 
+
+# alternative easyconfig parameters, and their non-deprecated equivalents
+ALTERNATIVE_EASYCONFIG_PARAMETERS = {
+    # <new_param>: <equivalent_param>,
+    'build_deps': 'builddependencies',
+    'build_in_install_dir': 'buildininstalldir',
+    'build_opts': 'buildopts',
+    'build_stats': 'buildstats',
+    'clean_up_old_build': 'cleanupoldbuild',
+    'clean_up_old_install': 'cleanupoldinstall',
+    'configure_opts': 'configopts',
+    'deps': 'dependencies',
+    'doc_paths': 'docpaths',
+    'doc_urls': 'docurls',
+    'do_not_create_install_dir': 'dontcreateinstalldir',
+    'exts_class_map': 'exts_classmap',
+    'exts_default_class': 'exts_defaultclass',
+    'exts_default_opts': 'exts_default_options',
+    'hidden_deps': 'hiddendependencies',
+    'include_modulepath_exts': 'include_modpath_extensions',
+    'install_opts': 'installopts',
+    'keep_previous_install': 'keeppreviousinstall',
+    'keep_symlinks': 'keepsymlinks',
+    'max_parallel': 'maxparallel',
+    'env_mod_aliases': 'modaliases',
+    'env_mod_alt_soft_name': 'modaltsoftname',
+    'modulepath_prepend_paths': 'moddependpaths',
+    'env_mod_extra_paths': 'modextrapaths',
+    'env_mod_extra_vars': 'modextravars',
+    'env_mod_load_msg': 'modloadmsg',
+    'env_mod_lua_footer': 'modluafooter',
+    'env_mod_tcl_footer': 'modtclfooter',
+    'env_mod_category': 'moduleclass',
+    'env_mod_depends_on': 'module_depends_on',
+    'env_mod_force_unload': 'moduleforceunload',
+    'env_mod_load_no_conflict': 'moduleloadnoconflict',
+    'env_mod_unload_msg': 'modunloadmsg',
+    'only_toolchain_env_mod': 'onlytcmod',
+    'os_deps': 'osdependencies',
+    'post_install_cmds': 'postinstallcmds',
+    'post_install_msgs': 'postinstallmsgs',
+    'post_install_patches': 'postinstallpatches',
+    'pre_build_opts': 'prebuildopts',
+    'pre_configure_opts': 'preconfigopts',
+    'pre_install_opts': 'preinstallopts',
+    'pre_test_opts': 'pretestopts',
+    'recursive_env_mod_unload': 'recursive_module_unload',
+    'run_test': 'runtest',
+    'sanity_check_cmds': 'sanity_check_commands',
+    'skip_fortran_mod_files_sanity_check': 'skip_mod_files_sanity_check',
+    'skip_steps': 'skipsteps',
+    'test_opts': 'testopts',
+    'toolchain_opts': 'toolchainopts',
+    'unpack_opts': 'unpack_options',
+    'version_prefix': 'versionprefix',
+    'version_suffix': 'versionsuffix',
+}
 
 # deprecated easyconfig parameters, and their replacements
-DEPRECATED_PARAMETERS = {
+DEPRECATED_EASYCONFIG_PARAMETERS = {
     # <old_param>: (<new_param>, <deprecation_version>),
+    'allow_append_abs_path': ('modextrapaths', '6.0'),
+    'allow_prepend_abs_path': ('modextrapaths', '6.0'),
+    'modextrapaths_append': ('modextrapaths', '6.0'),
 }
 
 # replaced easyconfig parameters, and their replacements
@@ -161,7 +219,7 @@ class EasyConfigParser(object):
         except IOError as err:
             raise EasyBuildError('Failed to obtain content with %s: %s', self.get_fn, err)
 
-        if not isinstance(self.rawcontent, string_type):
+        if not isinstance(self.rawcontent, str):
             msg = 'rawcontent is not a string: type %s, content %s' % (type(self.rawcontent), self.rawcontent)
             raise EasyBuildError("Unexpected result for raw content: %s", msg)
 
@@ -189,11 +247,8 @@ class EasyConfigParser(object):
     def _set_formatter(self, filename):
         """Obtain instance of the formatter"""
         if self._formatter is None:
-            if is_yeb_format(filename, self.rawcontent):
-                self._formatter = FormatYeb()
-            else:
-                klass = self._get_format_version_class()
-                self._formatter = klass()
+            klass = self._get_format_version_class()
+            self._formatter = klass()
         self._formatter.parse(self.rawcontent)
 
     def set_format_text(self):

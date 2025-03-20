@@ -57,40 +57,40 @@ class IntelIccIfort(Compiler):
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'i8',
-        'r8': 'r8',
-        'optarch': 'xHost',
-        'ieee': 'fltconsistency',
-        'strict': ['fp-speculation=strict', 'fp-model strict'],
-        'precise': ['fp-model precise'],
-        'defaultprec': ['ftz', 'fp-speculation=safe', 'fp-model source'],
-        'loose': ['fp-model fast=1'],
-        'veryloose': ['fp-model fast=2'],
-        'vectorize': {False: 'no-vec', True: 'vec'},
-        'intel-static': 'static-intel',
-        'no-icc': 'no-icc',
-        'error-unknown-option': 'we10006',  # error at warning #10006: ignoring unknown option
+        'i8': '-i8',
+        'r8': '-r8',
+        'optarch': '-xHost',
+        'ieee': '-fltconsistency',
+        'strict': ['-fp-speculation=strict', '-fp-model strict'],
+        'precise': ['-fp-model precise'],
+        'defaultprec': ['-ftz', '-fp-speculation=safe', '-fp-model source'],
+        'loose': ['-fp-model fast=1'],
+        'veryloose': ['-fp-model fast=2'],
+        'vectorize': {False: '-no-vec', True: '-vec'},
+        'intel-static': '-static-intel',
+        'no-icc': '-no-icc',
+        'error-unknown-option': '-we10006',  # error at warning #10006: ignoring unknown option
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xHost',
-        (systemtools.X86_64, systemtools.INTEL): 'xHost',
+        (systemtools.X86_64, systemtools.AMD): '-xHost',
+        (systemtools.X86_64, systemtools.INTEL): '-xHost',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'xSSE2',
-        (systemtools.X86_64, systemtools.INTEL): 'xSSE2',
+        (systemtools.X86_64, systemtools.AMD): '-xSSE2',
+        (systemtools.X86_64, systemtools.INTEL): '-xSSE2',
     }
 
     COMPILER_CC = 'icc'
     COMPILER_CXX = 'icpc'
-    COMPILER_C_UNIQUE_FLAGS = ['intel-static', 'no-icc']
+    COMPILER_C_UNIQUE_OPTIONS = ['intel-static', 'no-icc']
 
     COMPILER_F77 = 'ifort'
     COMPILER_F90 = 'ifort'
     COMPILER_FC = 'ifort'
-    COMPILER_F_UNIQUE_FLAGS = ['intel-static']
+    COMPILER_F_UNIQUE_OPTIONS = ['intel-static']
 
     LINKER_TOGGLE_STATIC_DYNAMIC = {
         'static': '-Bstatic',
@@ -124,20 +124,17 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('2011'):
             self.LIB_MULTITHREAD.insert(1, "guide")
 
-        libpaths = ['intel64']
-        if self.options.get('32bit', None):
-            libpaths.append('ia32')
-        libpaths = ['lib/%s' % x for x in libpaths]
+        libpath = 'lib/intel64'
         if LooseVersion(icc_version) > LooseVersion('2011.4') and LooseVersion(icc_version) < LooseVersion('2013_sp1'):
-            libpaths = ['compiler/%s' % x for x in libpaths]
+            libpath = 'compiler/%s' % libpath
 
-        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=libpaths)
+        self.variables.append_subdirs("LDFLAGS", icc_root, subdirs=[libpath])
 
     def set_variables(self):
         """Set the variables."""
         # -fopenmp is not supported in old versions (11.x)
         icc_version, _ = self.get_software_version(self.COMPILER_MODULE_NAME)[0:2]
         if LooseVersion(icc_version) < LooseVersion('12'):
-            self.options.options_map['openmp'] = 'openmp'
+            self.options.options_map['openmp'] = '-openmp'
 
         super(IntelIccIfort, self).set_variables()

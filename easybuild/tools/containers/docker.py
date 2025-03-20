@@ -36,7 +36,7 @@ from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.containers.utils import det_os_deps
 from easybuild.tools.filetools import remove_dir
 from easybuild.tools.module_naming_scheme.easybuild_mns import EasyBuildMNS
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 DOCKER_TMPL_HEADER = """\
@@ -164,7 +164,7 @@ class DockerContainer(ContainerGenerator):
         docker_cmd = ' '.join(['sudo', 'docker', 'build', '-f', dockerfile, '-t', container_name, '.'])
 
         print_msg("Running '%s', you may need to enter your 'sudo' password..." % docker_cmd)
-        run_cmd(docker_cmd, path=tempdir, stream_output=True)
+        run_shell_cmd(docker_cmd, work_dir=tempdir, stream_output=True)
         print_msg("Docker image created at %s" % container_name, log=self.log)
 
         remove_dir(tempdir)

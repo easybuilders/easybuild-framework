@@ -27,12 +27,13 @@ EasyBuild support for building and installing toy extensions, implemented as an 
 
 @author: Kenneth Hoste (Ghent University)
 """
+import os
 
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.easyblocks.toy import EB_toy, compose_toy_build_cmd
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 class Toy_Extension(ExtensionEasyBlock):
@@ -59,7 +60,17 @@ class Toy_Extension(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def run(self, *args, **kwargs):
+    def pre_install_extension(self):
+        """
+        Prepare installation of toy extension.
+        """
+        super(Toy_Extension, self).pre_install_extension()
+
+        if self.src:
+            super(Toy_Extension, self).install_extension(unpack_src=True)
+            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
+
+    def install_extension(self, *args, **kwargs):
         """
         Install toy extension.
         """
@@ -67,35 +78,28 @@ class Toy_Extension(ExtensionEasyBlock):
             EB_toy.build_step(self.master, name=self.name, cfg=self.cfg)
 
             if self.cfg['toy_ext_param']:
-                run_cmd(self.cfg['toy_ext_param'])
+                run_shell_cmd(self.cfg['toy_ext_param'])
 
             return self.module_generator.set_environment('TOY_EXT_%s' % self.name.upper().replace('-', '_'), self.name)
 
-    def prerun(self):
-        """
-        Prepare installation of toy extension.
-        """
-        super(Toy_Extension, self).prerun()
-
-        if self.src:
-            super(Toy_Extension, self).run(unpack_src=True)
-            EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
-
-    def run_async(self):
+    def install_extension_async(self, thread_pool):
         """
         Install toy extension asynchronously.
         """
+        task_id = f'ext_{self.name}_{self.version}'
         if self.src:
             cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-            self.async_cmd_start(cmd)
         else:
-            self.async_cmd_info = False
+            cmd = f"echo 'no sources for {self.name}'"
 
-    def postrun(self):
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
+
+    def post_install_extension(self):
         """
         Wrap up installation of toy extension.
         """
-        super(Toy_Extension, self).postrun()
+        super(Toy_Extension, self).post_install_extension()
 
         EB_toy.install_step(self.master, name=self.name)
 

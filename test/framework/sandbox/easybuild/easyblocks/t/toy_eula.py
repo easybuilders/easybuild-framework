@@ -37,6 +37,6 @@ class EB_toy_eula(EB_toy):
         """Constructor"""
         super(EB_toy_eula, self).prepare_step(*args, **kwargs)
 
-        # EULA for toy must be accepted via --accept-eula EasyBuild configuration option,
+        # EULA for toy must be accepted via --accept-eula-for EasyBuild configuration option,
         # or via 'accept_eula = True' in easyconfig file
         self.check_accepted_eula(more_info='https://example.com/toy_eula.txt')
