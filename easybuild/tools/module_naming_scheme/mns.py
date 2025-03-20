@@ -33,9 +33,9 @@ Authors:
 import re
 
 from easybuild.base import fancylogger
+from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import Singleton
-from easybuild.tools.py2vs3 import create_base_metaclass
 
 
 DEVEL_MODULE_SUFFIX = '-easybuild-devel'

@@ -39,7 +39,6 @@ from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.py2vs3 import string_type
 
 
 TESTDIRBASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
@@ -198,11 +197,11 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # make sure both keys and values are of appropriate types
         for constant_name in constants:
-            self.assertIsInstance(constant_name, string_type, "Constant name %s is a string" % constant_name)
+            self.assertIsInstance(constant_name, str, "Constant name %s is a string" % constant_name)
             val = constants[constant_name]
             fail_msg = "The constant %s should have an acceptable type, found %s (%s)" % (constant_name,
                                                                                           type(val), str(val))
-            self.assertIsInstance(val, (string_type, dict, tuple), fail_msg)
+            self.assertIsInstance(val, (str, dict, tuple), fail_msg)
 
         # check a couple of randomly picked constant values
         self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')

@@ -39,15 +39,9 @@ import pprint
 import re
 import sys
 from contextlib import contextmanager
-
-try:
-    from cStringIO import StringIO  # Python 2
-except ImportError:
-    from io import StringIO  # Python 3
+from io import StringIO
 
 from unittest import TestCase as OrigTestCase
-
-from easybuild.tools.py2vs3 import string_type
 
 
 def nicediff(txta, txtb, offset=5):
@@ -61,15 +55,12 @@ def nicediff(txta, txtb, offset=5):
     """
     diff = list(difflib.ndiff(txta.splitlines(1), txtb.splitlines(1)))
     different_idx = [idx for idx, line in enumerate(diff) if not line.startswith(' ')]
-    res_idx = []
+    res_idx = set()
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
-            if idx not in res_idx:
-                res_idx.append(idx)
-    res_idx.sort()
+        res_idx.update(range(max(didx - offset, 0), min(didx + offset, len(diff))))
     # insert linenumbers too? what are the linenumbers in ndiff?
-    newdiff = [diff[idx] for idx in res_idx]
+    newdiff = [diff[idx] for idx in sorted(res_idx)]
 
     return newdiff
 
@@ -82,30 +73,34 @@ class TestCase(OrigTestCase):
     ASSERT_MAX_DIFF = 100
     DIFF_OFFSET = 5  # lines of text around changes
 
-    def is_string(self, x):
-        """test if the variable x is a string)"""
-        try:
-            return isinstance(x, string_type)
-        except NameError:
-            return isinstance(x, str)
+    def _is_diffable(self, x):
+        """Test if it makes sense to show a diff for x"""
+        if isinstance(x, (int, float, bool, type(None))):
+            return False
+        if isinstance(x, str) and '\n' not in x:
+            return False
+        return True
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=arguments-differ,arguments-renamed
     def assertEqual(self, a, b, msg=None):
         """Make assertEqual always print useful messages"""
 
         try:
             super(TestCase, self).assertEqual(a, b)
         except AssertionError as e:
+            if not self._is_diffable(a) or not self._is_diffable(b):
+                raise
+
             if msg is None:
                 msg = str(e)
             else:
-                msg = "%s: %s" % (msg, e)
+                msg = "%s: %s" % (msg, str(e))
 
-            if self.is_string(a):
+            if isinstance(a, str):
                 txta = a
             else:
                 txta = pprint.pformat(a)
-            if self.is_string(b):
+            if isinstance(b, str):
                 txtb = b
             else:
                 txtb = pprint.pformat(b)
@@ -116,7 +111,7 @@ class TestCase(OrigTestCase):
             else:
                 limit = ''
 
-            raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF])))
+            raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF]))) from None
 
     def assertExists(self, path, msg=None):
         """Assert the given path exists"""
@@ -129,6 +124,11 @@ class TestCase(OrigTestCase):
         if msg is None:
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
+
+    def assertAllExist(self, paths, msg=None):
+        """Assert that all paths in the given list exist"""
+        for path in paths:
+            self.assertExists(path, msg)
 
     def setUp(self):
         """Prepare test case."""
@@ -173,7 +173,7 @@ class TestCase(OrigTestCase):
             self.fail("Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error as err:
             msg = self.convert_exception_to_str(err)
-            if self.is_string(regex):
+            if isinstance(regex, str):
                 regex = re.compile(regex)
             self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
 

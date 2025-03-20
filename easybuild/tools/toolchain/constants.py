@@ -31,9 +31,9 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.variables import AbsPathList
-from easybuild.tools.toolchain.variables import CommandFlagList, CommaSharedLibs, CommaStaticLibs
-from easybuild.tools.toolchain.variables import FlagList, IncludePaths, LibraryList, LinkLibraryPaths
+from easybuild.tools.toolchain.variables import CommaSharedLibs, CommaStaticLibs
+from easybuild.tools.toolchain.variables import IncludePaths, LibraryList, LinkLibraryPaths, SearchPaths
+from easybuild.tools.variables import AbsPathList, StrList
 
 
 COMPILER_VARIABLES = [
@@ -53,32 +53,36 @@ COMPILER_FLAGS = [
 ]
 
 COMPILER_MAP_CLASS = {
-    FlagList: [
+    StrList: [
         ('OPTFLAGS', 'Optimization flags'),
         ('PRECFLAGS', 'FP precision flags'),
-    ] + COMPILER_FLAGS,
+    ] + COMPILER_FLAGS + COMPILER_VARIABLES,
     LibraryList: [
-        ('LIBS', 'Libraries'),  # TODO: where are these used? ld?
-        ('FLIBS', 'Fortran libraries'),  # TODO: where are these used? gfortran only?
+        ('LIBS', 'Libraries'),  # -l options to pass to the linker (C/C++/Fortran)
+        ('FLIBS', 'Fortran libraries'),  # linker flags (e.g. -L and -l) for Fortran libraries
     ],
     LinkLibraryPaths: [
-        ('LDFLAGS', 'Flags passed to linker'),  # TODO: overridden by command line?
+        ('LDFLAGS', 'Linker flags'),
     ],
     IncludePaths: [
-        ('CPPFLAGS', 'Precompiler flags'),
+        ('CPPFLAGS', 'Preprocessor flags'),
     ],
-    CommandFlagList: COMPILER_VARIABLES,
+    SearchPaths: [
+        ('CPATH', 'Location of C/C++ header files'),
+        ('C_INCLUDE_PATH', 'Location of C header files'),
+        ('CPLUS_INCLUDE_PATH', 'Location of C++ header files'),
+        ('OBJC_INCLUDE_PATH', 'Location of Objective C header files'),
+        ('LIBRARY_PATH', 'Location of linker files'),
+    ],
 }
 
 CO_COMPILER_MAP_CLASS = {
-    CommandFlagList: [
+    StrList: [
         ('CUDA_CC', 'CUDA C compiler command'),
         ('CUDA_CXX', 'CUDA C++ compiler command'),
         ('CUDA_F77', 'CUDA Fortran 77 compiler command'),
         ('CUDA_F90', 'CUDA Fortran 90 compiler command'),
         ('CUDA_FC', 'CUDA Fortran 77/90 compiler command'),
-    ],
-    FlagList: [
         ('CUDA_CFLAGS', 'CUDA C compiler flags'),
         ('CUDA_CXXFLAGS', 'CUDA C++ compiler flags'),
         ('CUDA_FCFLAGS', 'CUDA Fortran 77/90 compiler flags'),
@@ -103,7 +107,7 @@ MPI_MAP_CLASS = {
         ('MPI_LIB_DIR', 'MPI library directory'),
         ('MPI_INC_DIR', 'MPI include directory'),
     ],
-    CommandFlagList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
+    StrList: MPI_COMPILER_VARIABLES + SEQ_COMPILER_VARIABLES,
 }
 
 BLAS_MAP_CLASS = {

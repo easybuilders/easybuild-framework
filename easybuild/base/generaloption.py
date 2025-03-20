@@ -31,6 +31,7 @@ Authors:
 * Jens Timmerman (Ghent University)
 """
 
+import configparser
 import copy
 import difflib
 import inspect
@@ -39,13 +40,15 @@ import os
 import re
 import sys
 import textwrap
+from configparser import ConfigParser
 from functools import reduce
+from io import StringIO
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
-from easybuild.tools.py2vs3 import StringIO, configparser, ConfigParser, string_type, subprocess_popen_text
+from easybuild.tools.run import subprocess_popen_text
 from easybuild.tools.utilities import mk_md_table, mk_rst_table, nub, shell_quote
 
 try:
@@ -138,7 +141,7 @@ def get_empty_add_flex(allvalues, self=None):
     empty = None
 
     if isinstance(allvalues, (list, tuple)):
-        if isinstance(allvalues[0], string_type):
+        if isinstance(allvalues[0], str):
             empty = ''
 
     if empty is None:
@@ -471,7 +474,7 @@ class ExtOptionParser(OptionParser):
         # --longopt=value, so no issues there either.
 
         # following checks assume that value is a string (not a store_or_None)
-        if not isinstance(value, string_type):
+        if not isinstance(value, str):
             return None
 
         cmdline_index = None
@@ -1198,7 +1201,7 @@ class GeneralOption(object):
                         # choices
                         nameds['choices'] = [str(x) for x in extra_detail]  # force to strings
                         hlp += ' (choices: %s)' % ', '.join(nameds['choices'])
-                    elif isinstance(extra_detail, string_type) and len(extra_detail) == 1:
+                    elif isinstance(extra_detail, str) and len(extra_detail) == 1:
                         args.insert(0, "-%s" % extra_detail)
                     elif isinstance(extra_detail, (dict,)):
                         # extract any optcomplete completer hints
@@ -1715,7 +1718,7 @@ class SimpleOption(GeneralOption):
     PARSER = SimpleOptionParser
     SETROOTLOGGER = True
 
-    def __init__(self, go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+    def __init__(self, go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
         """Initialisation
         :param go_dict: General Option option dict
         :param short_groupdescr: short description of main options
@@ -1744,18 +1747,13 @@ class SimpleOption(GeneralOption):
 
         super(SimpleOption, self).__init__(**kwargs)
 
-        if descr is not None:
-            # TODO: as there is no easy/clean way to access the version of the vsc-base package,
-            # this is equivalent to a warning
-            self.log.deprecated('SimpleOption descr argument', '2.5.0', '3.0.0')
-
     def main_options(self):
         if self.go_dict is not None:
             prefix = None
             self.add_group_parser(self.go_dict, self.descr, prefix=prefix)
 
 
-def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
+def simple_option(go_dict=None, short_groupdescr=None, long_groupdescr=None, config_files=None):
     """A function that returns a single level GeneralOption option parser
 
     :param go_dict: General Option option dict
@@ -1769,5 +1767,5 @@ def simple_option(go_dict=None, descr=None, short_groupdescr=None, long_groupdes
 
     the generated help will include the docstring
     """
-    return SimpleOption(go_dict=go_dict, descr=descr, short_groupdescr=short_groupdescr,
-                        long_groupdescr=long_groupdescr, config_files=config_files)
+    return SimpleOption(go_dict=go_dict, short_groupdescr=short_groupdescr, long_groupdescr=long_groupdescr,
+                        config_files=config_files)

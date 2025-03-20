@@ -24,38 +24,23 @@
 #
 import sys
 
-# all functionality provided by the py2 and py3 modules is made available via the easybuild.tools.py2vs3 namespace
-if sys.version_info[0] >= 3:
-    from easybuild.tools.py2vs3.py3 import *  # noqa
-else:
-    from easybuild.tools.py2vs3.py2 import *  # noqa
+from easybuild.base import fancylogger
+
+from easybuild.base.wrapper import create_base_metaclass  # noqa
+
+# all functionality provided by the py3 modules is made available via the easybuild.tools.py2vs3 namespace
+from easybuild.tools.py2vs3.py3 import *  # noqa
 
 
-# based on six's 'with_metaclass' function
-# see also https://stackoverflow.com/questions/18513821/python-metaclass-understanding-the-with-metaclass
-def create_base_metaclass(base_class_name, metaclass, *bases):
-    """Create new class with specified metaclass based on specified base class(es)."""
-    return metaclass(base_class_name, bases, {})
+_log = fancylogger.getLogger('py2vs3', fname=False)
+_log.deprecated("Using py2vs3 is deprecated, since EasyBuild no longer runs on Python 2.", '6.0')
 
 
 def python2_is_deprecated():
     """
-    Print warning when using Python 2, since the support for running EasyBuild with it is deprecated.
+    Exit with an error when using Python 2, since EasyBuild does not support it.
+    We preserve the function name here in here EB5, to maintain the API, even though it now exits.
     """
     if sys.version_info[0] == 2:
-        full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
-        warning_lines = [
-            "Running EasyBuild with Python v2.x is deprecated, found Python v%s." % full_py_ver,
-            "Support for running EasyBuild with Python v2.x will be removed in EasyBuild v5.0.",
-            '',
-            "It is strongly recommended to start using Python v3.x for running EasyBuild,",
-            "see https://docs.easybuild.io/en/latest/Python-2-3-compatibility.html for more information.",
-        ]
-        max_len = max(len(x) for x in warning_lines)
-        for i in range(len(warning_lines)):
-            line_len = len(warning_lines[i])
-            warning_lines[i] = '!!! ' + warning_lines[i] + ' ' * (max_len - line_len) + ' !!!'
-        max_len = max(len(x) for x in warning_lines)
-        warning_lines.insert(0, '!' * max_len)
-        warning_lines.append('!' * max_len)
-        sys.stderr.write('\n\n' + '\n'.join(warning_lines) + '\n\n\n')
+        sys.stderr.write('\n\nEasyBuild v5.0+ is not compatible with Python v2. Use Python >= 3.6.\n\n\n')
+        sys.exit(1)

@@ -69,16 +69,10 @@ from easybuild.tools.modules import get_software_version, get_software_version_e
 from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import nub, trace_msg
+from easybuild.tools.utilities import nub, unique_ordered_extend, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
-
-# name/version for dummy toolchain
-# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
-# NOTE: use of 'dummy' toolchain is deprecated, replaced by 'system' toolchain (which always loads dependencies)
-DUMMY_TOOLCHAIN_NAME = 'dummy'
-DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
 SYSTEM_TOOLCHAIN_NAME = 'system'
 
@@ -101,11 +95,27 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
+# modes to handle header and linker search paths
+# see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler, LLVM-based
+SEARCH_PATH = {
+    "cpp_headers": {
+        "flags": ["CPPFLAGS"],
+        "cpath": ["CPATH"],
+        "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+    },
+    "linker": {
+        "flags": ["LDFLAGS"],
+        "library_path": ["LIBRARY_PATH"],
+    },
+}
+DEFAULT_SEARCH_PATH_CPP_HEADERS = "flags"
+DEFAULT_SEARCH_PATH_LINKER = "flags"
 
 
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
-    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
+    return tc_name in [SYSTEM_TOOLCHAIN_NAME]
 
 
 def env_vars_external_module(name, version, metadata):
@@ -197,10 +207,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0',
-                                silent=build_option('silent'))
-            self.name = SYSTEM_TOOLCHAIN_NAME
 
         if version is None:
             version = self.VERSION
@@ -224,6 +230,11 @@ class Toolchain(object):
 
         self.use_rpath = False
 
+        self.search_path = {
+            "cpp_headers": DEFAULT_SEARCH_PATH_CPP_HEADERS,
+            "linker": DEFAULT_SEARCH_PATH_LINKER,
+        }
+
         self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
@@ -237,7 +248,7 @@ class Toolchain(object):
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def is_system_toolchain(self):
-        """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
+        """Return boolean to indicate whether this toolchain is a system toolchain."""
         return is_system_toolchain(self.name)
 
     def set_minimal_build_env(self):
@@ -371,9 +382,11 @@ class Toolchain(object):
         return res
 
     def set_variables(self):
-        """Do nothing? Everything should have been set by others
-            Needs to be defined for super() relations
         """
+        No generic toolchain variables set.
+        Post-process variables set by child Toolchain classes.
+        """
+
         if self.options.option('packed-linker-options'):
             self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
@@ -564,16 +577,6 @@ class Toolchain(object):
 
         return deps
 
-    def add_dependencies(self, dependencies):
-        """
-        [DEPRECATED] Verify if the given dependencies exist, and return them.
-
-        This method is deprecated.
-        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
-        """
-        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
-        self.dependencies = self._check_dependencies(dependencies)
-
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
         # default: assume every element is required
@@ -608,8 +611,8 @@ class Toolchain(object):
         self.log.debug("Defining $EB* environment variables for software named %s", name)
 
         env_vars = env_vars_external_module(name, version, metadata)
-        for key in env_vars:
-            setvar(key, env_vars[key], verbose=verbose)
+        for var, value in env_vars.items():
+            setvar(var, value, verbose=verbose)
 
     def _load_toolchain_module(self, silent=False):
         """Load toolchain module."""
@@ -768,6 +771,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def _validate_search_path(self):
+        """
+        Validate search path toolchain options.
+        Toolchain option has precedence over build option
+        """
+        for search_path in self.search_path:
+            sp_build_opt = f"search_path_{search_path}"
+            sp_toolchain_opt = sp_build_opt.replace("_", "-")
+            if self.options.get(sp_toolchain_opt) is not None:
+                self.search_path[search_path] = self.options.option(sp_toolchain_opt)
+            elif build_option(sp_build_opt) is not None:
+                self.search_path[search_path] = build_option(sp_build_opt)
+
+            if self.search_path[search_path] not in SEARCH_PATH[search_path]:
+                raise EasyBuildError(
+                    "Unknown value selected for toolchain option %s: %s. Choose one of: %s",
+                    sp_toolchain_opt, self.search_path[search_path], ", ".join(SEARCH_PATH[search_path])
+                )
+
+            self.log.debug("%s toolchain option set to: %s", sp_toolchain_opt, self.search_path[search_path])
+
     def symlink_commands(self, paths):
         """
         Create a symlink for each command to binary/script at specified path.
@@ -847,7 +871,6 @@ class Toolchain(object):
             self._load_modules(silent=silent)
 
         if self.is_system_toolchain():
-
             # define minimal build environment when using system toolchain;
             # this is mostly done to try controlling which compiler commands are being used,
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
@@ -860,6 +883,7 @@ class Toolchain(object):
                 self._verify_toolchain()
 
             # Generate the variables to be set
+            self._validate_search_path()
             self.set_variables()
 
             # set the variables
@@ -870,7 +894,7 @@ class Toolchain(object):
             else:
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
-                # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+                # add linker and preprocessor paths of dependencies to self.vars
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
@@ -1048,7 +1072,7 @@ class Toolchain(object):
 
     def handle_sysroot(self):
         """
-        Extra stuff to be done when alternate system root is specified via --sysroot EasyBuild configuration option.
+        Extra stuff to be done when alternative system root is specified via --sysroot EasyBuild configuration option.
 
         * Update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc).
         """
@@ -1069,41 +1093,54 @@ class Toolchain(object):
                 setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
-            names should be a list of strings containing the name of the dependency
         """
-        cpp_paths = ['include']
-        ld_paths = ['lib']
-        if not self.options.get('32bit', None):
-            ld_paths.insert(0, 'lib64')
-
-        if cpp is not None:
-            for p in cpp:
-                if p not in cpp_paths:
-                    cpp_paths.append(p)
-        if ld is not None:
-            for p in ld:
-                if p not in ld_paths:
-                    ld_paths.append(p)
-
-        if not names:
-            deps = self.dependencies
-        else:
-            deps = [{'name': name} for name in names if name is not None]
+        Add linker and preprocessor paths of dependencies to self.variables
+        :names: list of strings containing the name of the dependency
+        """
+        # collect dependencies
+        dependencies = self.dependencies if names is None else [{"name": name} for name in names if name]
 
         # collect software install prefixes for dependencies
-        roots = []
-        for dep in deps:
-            if dep.get('external_module', False):
+        dependency_roots = []
+        for dep in dependencies:
+            if dep.get("external_module", False):
                 # for software names provided via external modules, install prefix may be unknown
-                names = dep['external_module_metadata'].get('name', [])
-                roots.extend([root for root in self.get_software_root(names) if root is not None])
+                names = dep["external_module_metadata"].get("name", [])
+                dependency_roots.extend([root for root in self.get_software_root(names) if root is not None])
             else:
-                roots.extend(self.get_software_root(dep['name']))
+                dependency_roots.extend(self.get_software_root(dep["name"]))
 
-        for root in roots:
-            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        for root in dependency_roots:
+            self._add_dependency_cpp_headers(root, extra_dirs=cpp)
+            self._add_dependency_linker_paths(root, extra_dirs=ld)
+
+    def _add_dependency_cpp_headers(self, dep_root, extra_dirs=None):
+        """
+        Append prepocessor paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        header_dirs = ["include"]
+        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+
+        for env_var in SEARCH_PATH["cpp_headers"][self.search_path["cpp_headers"]]:
+            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
+
+    def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
+        """
+        Append linker paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        lib_dirs = ["lib64", "lib"]
+        lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
+
+        for env_var in SEARCH_PATH["linker"][self.search_path["linker"]]:
+            self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
@@ -1136,9 +1173,9 @@ class Toolchain(object):
     def get_flag(self, name):
         """Get compiler flag(s) for a certain option."""
         if isinstance(self.options.option(name), list):
-            return " ".join("-%s" % x for x in list(self.options.option(name)))
+            return " ".join(self.options.option(name))
         else:
-            return "-%s" % self.options.option(name)
+            return self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""

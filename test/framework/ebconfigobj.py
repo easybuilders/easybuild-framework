@@ -116,6 +116,23 @@ class TestEBConfigObj(EnhancedTestCase):
                 res = cov.squash(version, tc['name'], tc['version'])
                 self.assertEqual(res, {})  # very simple
 
+        # Ensure that a version of '0' with trailing '.0's is matched against '0.0' but not anything higher
+        # This is for testing the DEFAULT_UNDEFINED_VERSION detection
+        for num_zeroes in range(1, 6):
+            tc = tc_first
+            zero_version = '.'.join(['0'] * num_zeroes)
+            txt = [
+                '[SUPPORTED]',
+                'versions = ' + zero_version,
+                'toolchains = ' + tc_tmpl % tc,
+                '[DEFAULT]',
+                'y=a',
+            ]
+            co = ConfigObj(txt)
+            cov = EBConfigObj(co)
+            self.assertEqual(cov.squash('0.0', tc['name'], tc['version']), {'y': 'a'})
+            self.assertEqual(cov.squash('0.1', tc['name'], tc['version']), {})
+
     def test_squash_invalid(self):
         """Try to squash invalid files. Should trigger error"""
         tc_first = {'version': '10', 'name': self.tc_first}
@@ -123,8 +140,8 @@ class TestEBConfigObj(EnhancedTestCase):
 
         tc_tmpl = '%(name)s == %(version)s'
 
-        default_version = '1.0'
-        all_wrong_versions = [default_version, '>= 0.0', '< 1.0']
+        default_version = '1.1'
+        all_wrong_versions = [default_version, '>= 0.0', '< 1.1']
 
         # all txt should have default version and first toolchain unmodified
 

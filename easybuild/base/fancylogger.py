@@ -87,7 +87,6 @@ import traceback
 import weakref
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.py2vs3 import raise_with_traceback, string_type
 
 
 def _env_to_boolean(varname, default=False):
@@ -214,11 +213,11 @@ class MissingLevelName(KeyError):
 
 def getLevelInt(level_name):
     """Given a level name, return the int value"""
-    if not isinstance(level_name, string_type):
+    if not isinstance(level_name, str):
         raise TypeError('Provided name %s is not a string (type %s)' % (level_name, type(level_name)))
 
     level = logging.getLevelName(level_name)
-    if isinstance(level, string_type):
+    if isinstance(level, str):
         raise MissingLevelName('Unknown loglevel name %s' % level_name)
 
     return level
@@ -328,7 +327,7 @@ class FancyLogger(logging.getLoggerClass()):
             exception = self.RAISE_EXCEPTION_CLASS
 
         self.RAISE_EXCEPTION_LOG_METHOD(fullmessage)
-        raise_with_traceback(exception, message, tb)
+        raise exception(message).with_traceback(tb)
 
     # pylint: disable=unused-argument
     def deprecated(self, msg, cur_ver, max_ver, depth=2, exception=None, log_callback=None, *args, **kwargs):
@@ -346,7 +345,7 @@ class FancyLogger(logging.getLoggerClass()):
         if loose_cv.version[:depth] >= loose_mv.version[:depth]:
             self.raiseException("DEPRECATED (since v%s) functionality used: %s" % (max_ver, msg), exception=exception)
         else:
-            deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg)
+            deprecation_msg = "Deprecated functionality, will no longer work in EasyBuild v%s: %s" % (max_ver, msg)
             log_callback(deprecation_msg)
 
     def _handleFunction(self, function, levelno, **kwargs):
@@ -588,7 +587,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
             os.makedirs(directory)
         except Exception as ex:
             exc, detail, tb = sys.exc_info()
-            raise_with_traceback(exc, "Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail), tb)
+            raise exc("Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail)).with_traceback(tb)
 
     return _logToSomething(
         logging.handlers.RotatingFileHandler,
@@ -741,7 +740,7 @@ def setLogLevel(level):
     """
     Set a global log level for all FancyLoggers
     """
-    if isinstance(level, string_type):
+    if isinstance(level, str):
         level = getLevelInt(level)
     logger = getLogger(fname=False, clsname=False)
     logger.setLevel(level)

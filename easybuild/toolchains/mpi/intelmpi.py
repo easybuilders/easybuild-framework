@@ -97,6 +97,6 @@ class IntelMPI(Mpich2):
         super(IntelMPI, self).set_variables()
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
         if self.options.get('openmp', None) and self.options.get('usempi', None):
-            mt_mpi_option = ['mt_mpi']
+            mt_mpi_option = ['-mt_mpi']
             for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, mt_mpi_option)
