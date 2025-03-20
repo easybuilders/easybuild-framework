@@ -62,16 +62,16 @@ class ToolchainVariablesTest(EnhancedTestCase):
         tcv.join('MPICC', 'CC')
         self.assertEqual(str(tcv['MPICC']), "gcc")
 
-        tcv['F90'] = ['gfortran', 'foo', 'bar']
-        self.assertEqual(tcv['F90'].__repr__(), "[['gfortran', 'foo', 'bar']]")
+        tcv['F90'] = ['gfortran', '-foo', '-bar']
+        self.assertEqual(tcv['F90'].__repr__(), "[['gfortran', '-foo', '-bar']]")
         self.assertEqual(str(tcv['F90']), "gfortran -foo -bar")
 
-        tcv.nappend('FLAGS', ['one', 'two'])
-        x = tcv.nappend('FLAGS', ['three', 'four'])
+        tcv.nappend('FLAGS', ['-one', '-two'])
+        x = tcv.nappend('FLAGS', ['-three', '-four'])
         x.POSITION = -5  # sanitize will reorder, default POSITION is 0
-        self.assertEqual(tcv['FLAGS'].__repr__(), "[['one', 'two'], ['three', 'four']]")
+        self.assertEqual(tcv['FLAGS'].__repr__(), "[['-one', '-two'], ['-three', '-four']]")
         tcv['FLAGS'].sanitize()  # sort on position, called by __str__ also
-        self.assertEqual(tcv['FLAGS'].__repr__(), "[['three', 'four'], ['one', 'two']]")
+        self.assertEqual(tcv['FLAGS'].__repr__(), "[['-three', '-four'], ['-one', '-two']]")
         self.assertEqual(str(tcv['FLAGS']), "-three -four -one -two")
 
         # LIBBLAS is a LibraryList
@@ -159,7 +159,7 @@ class ToolchainVariablesTest(EnhancedTestCase):
 
         tcv.nappend('MPICH_CC', 'icc', var_class=CommandFlagList)
         self.assertEqual(str(tcv['MPICH_CC']), "icc")
-        tcv.nappend('MPICH_CC', 'test')
+        tcv.nappend('MPICH_CC', '-test')
         self.assertEqual(str(tcv['MPICH_CC']), "icc -test")
 
 

@@ -37,6 +37,7 @@ import platform
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import print_warning
+from easybuild.tools.modules import MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.systemtools import KNOWN_ARCH_CONSTANTS, get_os_name, get_os_type, get_os_version
 
 
@@ -67,6 +68,7 @@ EASYCONFIG_CONSTANTS = {
     'ARCH': (_get_arch_constant(), "CPU architecture of current system (aarch64, x86_64, ppc64le, ...)"),
     'EXTERNAL_MODULE': (EXTERNAL_MODULE_MARKER, "External module marker"),
     'HOME': (os.path.expanduser('~'), "Home directory ($HOME)"),
+    'MODULE_LOAD_ENV_HEADERS': (MODULE_LOAD_ENV_HEADERS, "Environment variables with search paths to CPP headers"),
     'OS_TYPE': (get_os_type(), "System type (e.g. 'Linux' or 'Darwin')"),
     'OS_NAME': (get_os_name(), "System name (e.g. 'fedora' or 'RHEL')"),
     'OS_VERSION': (get_os_version(), "System version"),

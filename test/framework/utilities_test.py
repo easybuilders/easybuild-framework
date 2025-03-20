@@ -36,10 +36,10 @@ import tempfile
 from datetime import datetime
 from unittest import TextTestRunner
 
+import easybuild.tools.utilities as tu
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.utilities import time2str, natural_keys
 
 
 class UtilitiesTest(EnhancedTestCase):
@@ -77,10 +77,10 @@ class UtilitiesTest(EnhancedTestCase):
             (datetime(2019, 8, 5, 20, 39, 44), "159 hours 25 mins 21 secs"),
         ]
         for end, expected in test_cases:
-            self.assertEqual(time2str(end - start), expected)
+            self.assertEqual(tu.time2str(end - start), expected)
 
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
-        self.assertErrorRegex(EasyBuildError, error_pattern, time2str, 123)
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.time2str, 123)
 
     def test_natural_keys(self):
         """Test the natural_keys function"""
@@ -98,7 +98,7 @@ class UtilitiesTest(EnhancedTestCase):
         ]
         shuffled_items = sorted_items[:]
         random.shuffle(shuffled_items)
-        shuffled_items.sort(key=natural_keys)
+        shuffled_items.sort(key=tu.natural_keys)
         self.assertEqual(shuffled_items, sorted_items)
 
     def test_LooseVersion(self):
@@ -140,11 +140,22 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertLess(LooseVersion('2.1.5'), LooseVersion('2.2'))
         self.assertLess(LooseVersion('2.1.3'), LooseVersion('3'))
         self.assertLessEqual(LooseVersion('2.1.0'), LooseVersion('2.2'))
-        # Careful here: 1.0 > 1 !!!
-        self.assertGreater(LooseVersion('1.0'), LooseVersion('1'))
-        self.assertLess(LooseVersion('1'), LooseVersion('1.0'))
+        # Missing components are either empty strings or zeroes
+        self.assertEqual(LooseVersion('1.0'), LooseVersion('1'))
+        self.assertEqual(LooseVersion('1'), LooseVersion('1.0'))
+        self.assertEqual(LooseVersion('1.0'), LooseVersion('1.'))
+        self.assertGreater(LooseVersion('2.1.a'), LooseVersion('2.1'))
+        self.assertGreater(LooseVersion('2.a'), LooseVersion('2'))
 
-        # The following test is taken from Python distutils tests
+        # checking prereleases
+        version_4beta = LooseVersion('4.0.0-beta')
+        self.assertGreater(version_4beta, LooseVersion('4.0.0'))
+        self.assertTrue(version_4beta.is_prerelease('4.0.0', ['-beta']))
+        self.assertTrue(version_4beta.is_prerelease(LooseVersion('4.0.0'), ['-beta']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc']))
+        self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc, -beta']))
+
+        # The following test is based on the Python distutils tests
         # licensed under the Python Software Foundation License Version 2
         versions = (('1.5.1', '1.5.2b2', -1),
                     ('161', '3.10a', 1),
@@ -154,16 +165,21 @@ class UtilitiesTest(EnhancedTestCase):
                     ('2g6', '11g', -1),
                     ('0.960923', '2.2beta29', -1),
                     ('1.13++', '5.5.kw', -1),
-                    # Added from https://bugs.python.org/issue14894
                     ('a.12.b.c', 'a.b.3', -1),
-                    ('1.0', '1', 1),
-                    ('1', '1.0', -1))
+                    ('1.0', '1', 0),
+                    ('1.a', '1', 1),
+                    )
 
         for v1, v2, wanted in versions:
             res = LooseVersion(v1)._cmp(LooseVersion(v2))
             self.assertEqual(res, wanted,
                              'cmp(%s, %s) should be %s, got %s' %
                              (v1, v2, wanted, res))
+            # Test the inverse
+            res = LooseVersion(v2)._cmp(LooseVersion(v1))
+            self.assertEqual(res, -wanted,
+                             'cmp(%s, %s) should be %s, got %s' %
+                             (v2, v1, -wanted, res))
             # vstring is the unparsed version
             self.assertEqual(LooseVersion(v1).vstring, v1)
 
@@ -186,6 +202,26 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertEqual(LooseVersion('2.a.5').version, [2, 'a', 5])
         self.assertEqual(LooseVersion('2.a').version, [2, 'a'])
         self.assertEqual(LooseVersion('2.a5').version, [2, 'a', 5])
+
+    def test_unique_ordered_extend(self):
+        """Test unique_ordered_list_append method"""
+        base = ["potato", "tomato", "orange"]
+        base_orig = base.copy()
+
+        reference = ["potato", "tomato", "orange", "apple"]
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple"]), reference)
+        self.assertEqual(tu.unique_ordered_extend(base, ["apple", "apple"]), reference)
+        self.assertNotEqual(tu.unique_ordered_extend(base, ["apple"]), sorted(reference))
+        # original list should not be modified
+        self.assertEqual(base, base_orig)
+
+        error_pattern = "given affix list is a string"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, "apple")
+        error_pattern = "given affix list is not iterable"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
+        base = "potato"
+        error_pattern = "given base cannot be extended"
+        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
 
 
 def suite():

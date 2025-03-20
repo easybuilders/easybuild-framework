@@ -41,7 +41,6 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 from easybuild.tools.utilities import get_subclasses
-from easybuild.tools.py2vs3 import string_type
 
 
 # format is mandatory major.minor
@@ -69,11 +68,11 @@ GROUPED_PARAMS = [
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
     ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ['maxparallel'],
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
                'sanity_check_paths', 'sanity_check_commands',
-               'modextrapaths', 'modextrapaths_append', 'modextravars',
+               'modextrapaths', 'modextravars',
                'moduleclass']
 
 SANITY_CHECK_PATHS_DIRS = 'dirs'
@@ -323,7 +322,7 @@ class EBConfigObj(object):
                     value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
-                    if isinstance(value, string_type):
+                    if isinstance(value, str):
                         # so the split should be unnecessary
                         # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj
@@ -434,7 +433,7 @@ class EBConfigObj(object):
         # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
         for key, value in processed.items():
             if isinstance(value, NestedDict):
-                tmp = self._squash_netsed_dict(key, value, squashed, sanity, vt_tuple)
+                tmp = self._squash_nested_dict(key, value, squashed, sanity, vt_tuple)
                 res_sections.update(tmp)
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.debug("Found VERSION_OPERATOR_VALUE_TYPES entry (%s)" % key)
@@ -454,7 +453,7 @@ class EBConfigObj(object):
                        (processed, squashed.versions, squashed.result))
         return squashed
 
-    def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
+    def _squash_nested_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
         """
         Squash NestedDict instance, returns dict with already squashed data
             from possible higher sections
