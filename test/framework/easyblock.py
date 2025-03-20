@@ -36,6 +36,7 @@ import shutil
 import sys
 import tempfile
 from inspect import cleandoc
+from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -49,12 +50,12 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
+from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import verify_checksum, write_file
+from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, ModEnvVarType, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
-from easybuild.tools.py2vs3 import string_type
 
 
 class EasyBlockTest(EnhancedTestCase):
@@ -196,18 +197,17 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         eb.prepare_step(start_dir=False)
         stderr = self.get_stderr()
-        stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertFalse(stdout)
         self.assertTrue(stderr.strip().startswith("WARNING: Long $TMPDIR path may cause problems with OpenMPI 2.x"))
 
         # we expect $TMPDIR to be tweaked by the prepare step (OpenMPI 2.x doesn't like long $TMPDIR values)
         tweaked_tmpdir = os.environ.get('TMPDIR')
         self.assertNotEqual(tweaked_tmpdir, orig_tmpdir)
 
-        eb.make_module_step()
-        eb.load_module()
+        with self.mocked_stdout_stderr():
+            eb.make_module_step()
+            eb.load_module()
 
         # $TMPDIR does *not* get reset to original value after loading of module
         # (which involves resetting the environment before loading the module)
@@ -287,8 +287,11 @@ class EasyBlockTest(EnhancedTestCase):
         txt = eb.make_module_extend_modpath()
         if module_syntax == 'Tcl':
             regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-            home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
-            home += r'else { concat "HOME_NOT_DEFINED" } \]'
+            if self.modtool.supports_tcl_getenv:
+                home = r'\[getenv HOME "HOME_NOT_DEFINED"\]'
+            else:
+                home = r'\[if { \[info exists ::env\(HOME\)\] } { concat \$::env\(HOME\) } '
+                home += r'else { concat "HOME_NOT_DEFINED" } \]'
             fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
             regexs.extend([
                 # extension for user modules is guarded
@@ -313,7 +316,7 @@ class EasyBlockTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # Repeat this but using an alternate envvars (instead of $HOME)
+        # Repeat this but using an alternative envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
 
         build_options = {
@@ -330,9 +333,12 @@ class EasyBlockTest(EnhancedTestCase):
         for envvar in list_of_envvars:
             if module_syntax == 'Tcl':
                 regexs = [r'^module use ".*/modules/funky/Compiler/pi/3.14/%s"$' % c for c in modclasses]
-                module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
-                module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
-                module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
+                if self.modtool.supports_tcl_getenv:
+                    module_envvar = r'\[getenv %s "%s"]' % (envvar, envvar + '_NOT_DEFINED')
+                else:
+                    module_envvar = r'\[if \{ \[info exists ::env\(%s\)\] \} ' % envvar
+                    module_envvar += r'\{ concat \$::env\(%s\) \} ' % envvar
+                    module_envvar += r'else { concat "%s" } \]' % (envvar + '_NOT_DEFINED')
                 fj_usermodsdir = 'file join "%s" "funky" "Compiler/pi/3.14"' % usermodsdir
                 regexs.extend([
                     # extension for user modules is guarded
@@ -430,12 +436,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create fake directories and files that should be guessed
         os.makedirs(eb.installdir)
+        for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
+            path_components = (path, ) if isinstance(path, str) else path
+            os.mkdir(os.path.join(eb.installdir, *path_components))
+
         write_file(os.path.join(eb.installdir, 'foo.jar'), 'foo.jar')
         write_file(os.path.join(eb.installdir, 'bla.jar'), 'bla.jar')
-        for path in ('bin', ('bin', 'testdir'), 'sbin', 'share', ('share', 'man'), 'lib', 'lib64'):
-            if isinstance(path, string_type):
-                path = (path, )
-            os.mkdir(os.path.join(eb.installdir, *path))
+        write_file(os.path.join(eb.installdir, 'share', 'man', 'pi'), 'Man page')
         # this is not a path that should be picked up
         os.mkdir(os.path.join(eb.installdir, 'CPATH'))
 
@@ -515,8 +522,18 @@ class EasyBlockTest(EnhancedTestCase):
                 self.assertEqual(len(re.findall(r'^prepend_path\("%s", pathJoin\(root, "lib"\)\)$' % var,
                                                 guess, re.M)), 1)
 
-        # check for behavior when a string value is used as dict value by make_module_req_guesses
-        eb.make_module_req_guess = lambda: {'PATH': 'bin'}
+        # nuke default module load environment
+        default_mod_load_vars = [
+            'ACLOCAL_PATH', 'CLASSPATH', 'CMAKE_PREFIX_PATH', 'CMAKE_LIBRARY_PATH', 'CPATH', 'GI_TYPELIB_PATH',
+            'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'MANPATH', 'PATH', 'PKG_CONFIG_PATH', 'XDG_DATA_DIRS',
+        ]
+        for env_var in default_mod_load_vars:
+            eb.module_load_environment.remove(env_var)
+
+        self.assertEqual(len(eb.module_load_environment.vars), 0)
+
+        # check for behavior when a string value is used as value of module_load_environment
+        eb.module_load_environment.PATH = 'bin'
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -528,7 +545,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check for correct behaviour if empty string is specified as one of the values
         # prepend-path statements should be included for both the 'bin' subdir and the install root
-        eb.make_module_req_guess = lambda: {'PATH': ['bin', '']}
+        eb.module_load_environment.PATH = ['bin', '']
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
@@ -541,7 +558,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         # check for correct order of prepend statements when providing a list (and that no duplicates are allowed)
-        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']}
+        eb.module_load_environment.LD_LIBRARY_PATH = ['lib/pathC', 'lib/pathA', 'lib/pathB', 'lib/pathA']
         for path in ['pathA', 'pathB', 'pathC']:
             os.mkdir(os.path.join(eb.installdir, 'lib', path))
             write_file(os.path.join(eb.installdir, 'lib', path, 'libfoo.so'), 'test')
@@ -569,12 +586,14 @@ class EasyBlockTest(EnhancedTestCase):
         # If PATH or LD_LIBRARY_PATH contain only folders, do not add an entry
         sub_lib_path = os.path.join('lib', 'path_folders')
         sub_path_path = os.path.join('bin', 'path_folders')
-        eb.make_module_req_guess = lambda: {'LD_LIBRARY_PATH': sub_lib_path, 'PATH': sub_path_path}
+        eb.module_load_environment.LD_LIBRARY_PATH = sub_lib_path
+        eb.module_load_environment.PATH = sub_path_path
         for path in (sub_lib_path, sub_path_path):
             full_path = os.path.join(eb.installdir, path, 'subpath')
             os.makedirs(full_path)
             write_file(os.path.join(full_path, 'any.file'), 'test')
-        txt = eb.make_module_req()
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"prepend-path\s+LD_LIBRARY_PATH\s+\$%s\n" % sub_lib_path,
                                        txt, re.M))
@@ -584,6 +603,231 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertFalse(re.search(r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "%s"\)\)\n' % sub_lib_path,
                                        txt, re.M))
             self.assertFalse(re.search(r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, txt, re.M))
+
+        # Module load environement may contain non-path variables
+        # TODO: remove whenever this is properly supported, in the meantime check warning
+        eb.module_load_environment.NONPATH = {'contents': 'non_path', 'var_type': "STRING"}
+        eb.module_load_environment.PATH = ['bin']
+        with self.mocked_stdout_stderr():
+            txt = eb.make_module_req()
+
+        self.assertEqual(list(eb.module_load_environment), ['PATH', 'LD_LIBRARY_PATH', 'NONPATH'])
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
+            self.assertFalse(re.match(r"^\nprepend-path\s+NONPATH\s+\$root/non_path\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
+            self.assertFalse(re.match(r'^\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n$', txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        logtxt = read_file(eb.logfile)
+        self.assertTrue(re.search(r"WARNING Non-path variables found in module load env.*NONPATH", logtxt, re.M))
+
+        eb.module_load_environment.remove('NONPATH')
+
+        # make sure that entries that symlink to another directory are retained;
+        # the test case inspired by the directory structure for old imkl versions (like 2020.4)
+        remove_dir(eb.installdir)
+        # lib/ symlinked to libraries/
+        real_libdir = os.path.join(eb.installdir, 'libraries')
+        mkdir(real_libdir, parents=True)
+        symlink(real_libdir, os.path.join(eb.installdir, 'lib'))
+        # lib/intel64/ symlinked to lib/intel64_lin/
+        mkdir(os.path.join(eb.installdir, 'lib', 'intel64_lin'), parents=True)
+        symlink(os.path.join(eb.installdir, 'lib', 'intel64_lin'), os.path.join(eb.installdir, 'lib', 'intel64'))
+        # library file present in lib/intel64
+        write_file(os.path.join(eb.installdir, 'lib', 'intel64', 'libfoo.so'), 'libfoo.so')
+        # lib64/ symlinked to lib/
+        symlink(os.path.join(eb.installdir, 'lib'), os.path.join(eb.installdir, 'lib64'))
+
+        eb.module_load_environment.LD_LIBRARY_PATH = [os.path.join('lib', 'intel64')]
+        eb.module_load_environment.LIBRARY_PATH = eb.module_load_environment.LD_LIBRARY_PATH
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/libraries/intel64_lin$", txt, re.M))
+            self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/libraries/intel64_lin\n$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
+                                      txt, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
+                                      txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # test absolute paths
+        eb.module_load_environment.PATH = ['/bin']
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        if get_module_syntax() == 'Tcl':
+            self.assertTrue(re.search(r"^prepend-path\s+PATH\s+/bin$", txt, re.M))
+        elif get_module_syntax() == 'Lua':
+            self.assertTrue(re.search(r'^prepend_path\("PATH", "/bin"\)$', txt, re.M))
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        # make sure that relative entries that symlink to directories outside of install dir trigger an error
+        symlink("/bin", os.path.join(eb.installdir, 'bin'))
+        eb.module_load_environment.PATH = ['bin']
+
+        with eb.module_generator.start_module_creation():
+            err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
+            self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
+
+        # Test modextrapaths: with absolute + empty paths, appending and custom delimiters
+        remove_dir(eb.installdir)
+        self.contents += '\n'.join([
+            "",
+            "modextrapaths = {",
+            "    'PATH': [''],",
+            "    'TEST_VAR': ['foo', 'baz', '/bin'],",
+            "    'TEST_VAR_CUSTOM': {'paths': ['foo', 'baz'], 'delimiter': ';', 'prepend': False},",
+            "    'LD_LIBRARY_PATH': 'foo',",
+            "    MODULE_LOAD_ENV_HEADERS: ['include/foo', 'include/bar'],",
+            "}",
+        ])
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.installdir = config.install_path()
+
+        # populate install dir
+        mkdir(os.path.join(eb.installdir, 'lib'), parents=True)
+        write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'install lib')
+        mkdir(os.path.join(eb.installdir, 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'foo', 'bar'), 'install file')
+        mkdir(os.path.join(eb.installdir, 'baz'), parents=True)
+        mkdir(os.path.join(eb.installdir, 'include', 'foo'), parents=True)
+        write_file(os.path.join(eb.installdir, 'include', 'foo', 'foo.h'), 'header file')
+        mkdir(os.path.join(eb.installdir, 'include', 'bar'), parents=True)
+
+        with eb.module_generator.start_module_creation():
+            txt = eb.make_module_req()
+
+        expected_patterns = [
+            r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*",
+            r"^prepend[-_]path.*CPATH.*root.*include.*",
+            r"^prepend[-_]path.*CPATH.*root.*include/foo.*",
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
+            r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*root.*foo",
+            r"^prepend[-_]path.*TEST_VAR.*/bin",
+        ]
+        if get_module_syntax() == 'Tcl':
+            expected_patterns.append(r"^prepend-path\s+PATH\s+\$root$")
+        elif get_module_syntax() == 'Lua':
+            expected_patterns.append(r'^prepend_path\("PATH", root\)$')
+        else:
+            self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+        for pattern in expected_patterns:
+            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
+
+        non_expected_patterns = [
+            r"^append[-_]path.*TEST_VAR_APPEND.*root.*baz",
+            r"^prepend[-_]path.*CPATH.*root.*include/bar.*",
+            r"^prepend[-_]path.*TEST_VAR.*root.*baz",
+        ]
+        for pattern in non_expected_patterns:
+            self.assertFalse(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_module_search_path_headers(self):
+        """Test functionality of module-search-path-headers option"""
+        sp_headers_mode = {
+            "cpath": ["CPATH"],
+            "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+        }
+
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.writeEC()
+
+        for build_opt, sp_headers in sp_headers_mode.items():
+            update_build_option('module_search_path_headers', build_opt)
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            with eb.module_generator.start_module_creation():
+                guess = eb.make_module_req()
+
+            if not sp_headers:
+                # none option adds nothing to module file
+                if get_module_syntax() == 'Tcl':
+                    tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                    self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                elif get_module_syntax() == 'Lua':
+                    lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                    self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+            else:
+                for env_var in sp_headers:
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                        self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                        self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test with easyconfig parameter
+        for ec_param, sp_headers in sp_headers_mode.items():
+            self.contents += f'\nmodule_search_path_headers = "{ec_param}"'
+            self.writeEC()
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.installdir = config.install_path()
+            try:
+                os.makedirs(os.path.join(eb.installdir, 'include'))
+                write_file(os.path.join(eb.installdir, 'include', 'header.h'), 'dummy header file')
+            except FileExistsError:
+                pass
+
+            for build_opt in sp_headers_mode:
+                update_build_option('module_search_path_headers', build_opt)
+                with eb.module_generator.start_module_creation():
+                    guess = eb.make_module_req()
+                if not sp_headers:
+                    # none option adds nothing to module file
+                    if get_module_syntax() == 'Tcl':
+                        tcl_ref_pattern = r"^prepend-path\s+CPATH\s+\$root/include$"
+                        self.assertFalse(re.search(tcl_ref_pattern, guess, re.M))
+                    elif get_module_syntax() == 'Lua':
+                        lua_ref_pattern = r'^prepend_path\("CPATH", pathJoin\(root, "include"\)\)$'
+                        self.assertFalse(re.search(lua_ref_pattern, guess, re.M))
+                else:
+                    for env_var in sp_headers:
+                        if get_module_syntax() == 'Tcl':
+                            tcl_ref_pattern = rf"^prepend-path\s+{env_var}\s+\$root/include$"
+                            self.assertTrue(re.search(tcl_ref_pattern, guess, re.M))
+                        elif get_module_syntax() == 'Lua':
+                            lua_ref_pattern = rf'^prepend_path\("{env_var}", pathJoin\(root, "include"\)\)$'
+                            self.assertTrue(re.search(lua_ref_pattern, guess, re.M))
+
+        # test wrong easyconfig parameter
+        self.contents += '\nmodule_search_path_headers = "WRONG_OPT"'
+        self.writeEC()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = "Unknown value selected for option module-search-path-headers"
+        with eb.module_generator.start_module_creation():
+            self.assertErrorRegex(EasyBuildError, error_pattern, EasyBlock, ec)
 
         # cleanup
         eb.close_log()
@@ -642,49 +886,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertTrue(expected_alt.match(alttxt),
                         "Pattern %s found in %s" % (expected_alt.pattern, alttxt))
 
-        installver = '3.14-gompi-2018a'
-
-        # also check how absolute paths specified in modexself.contents = '\n'.join([
-        self.contents += "\nmodextrapaths = {'TEST_PATH_VAR': ['foo', '/test/absolute/path', 'bar']}"
-        self.contents += "\nmodextrapaths_append = {'TEST_PATH_VAR_APPEND': ['foo', '/test/absolute/path', 'bar']}"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        # absolute paths are not allowed by default
-        error_pattern = "Absolute path .* passed to update_paths which only expects relative paths"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
-
-        # allow use of absolute paths, and verify contents of module
-        self.contents += "\nallow_prepend_abs_path = True"
-        self.contents += "\nallow_append_abs_path = True"
-        self.writeEC()
-        ec = EasyConfig(self.eb_file)
-        eb = EasyBlock(ec)
-        eb.installdir = os.path.join(config.install_path(), 'pi', installver)
-        eb.check_readiness_step()
-
-        modrootpath = eb.make_module_step()
-
-        modpath = os.path.join(modrootpath, 'pi', installver)
-        if get_module_syntax() == 'Lua':
-            modpath += '.lua'
-
-        self.assertExists(modpath)
-        txt = read_file(modpath)
-        patterns = [
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*foo",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*/test/absolute/path",
-            r"^prepend[-_]path.*TEST_PATH_VAR.*root.*bar",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*foo",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*/test/absolute/path",
-            r"^append[-_]path.*TEST_PATH_VAR_APPEND.*root.*bar",
-        ]
-        for pattern in patterns:
-            self.assertTrue(re.search(pattern, txt, re.M), "Pattern '%s' found in: %s" % (pattern, txt))
-
     def test_make_module_deppaths(self):
         """Test for make_module_deppaths"""
         init_config(build_options={'silent': True})
@@ -705,9 +906,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
-        eb.check_readiness_step()
-        eb.make_builddir()
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
+            eb.make_builddir()
+            eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
             use_load = '\n'.join([
@@ -725,7 +927,8 @@ class EasyBlockTest(EnhancedTestCase):
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         expected = use_load
-        self.assertEqual(eb.make_module_deppaths().strip(), expected)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(eb.make_module_deppaths().strip(), expected)
 
     def test_make_module_dep(self):
         """Test for make_module_dep"""
@@ -747,26 +950,32 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
-        eb.check_readiness_step()
-        eb.make_builddir()
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
+            eb.make_builddir()
+            eb.prepare_step()
 
         if get_module_syntax() == 'Tcl':
-            tc_load = '\n'.join([
-                "if { ![ is-loaded gompi/2018a ] } {",
-                "    module load gompi/2018a",
-                "}",
-            ])
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
-            lapack_load = '\n'.join([
-                "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
-                "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                tc_load = "module load gompi/2018a"
+                fftw_load = "module load FFTW/3.3.7-gompi-2018a"
+                lapack_load = "module load OpenBLAS/0.2.20-GCC-6.4.0-2.28"
+            else:
+                tc_load = '\n'.join([
+                    "if { ![ is-loaded gompi/2018a ] } {",
+                    "    module load gompi/2018a",
+                    "}",
+                ])
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
+                lapack_load = '\n'.join([
+                    "if { ![ is-loaded OpenBLAS/0.2.20-GCC-6.4.0-2.28 ] } {",
+                    "    module load OpenBLAS/0.2.20-GCC-6.4.0-2.28",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             tc_load = '\n'.join([
                 'if not ( isloaded("gompi/2018a") ) then',
@@ -787,7 +996,8 @@ class EasyBlockTest(EnhancedTestCase):
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
-        self.assertEqual(eb.make_module_dep().strip(), expected)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(eb.make_module_dep().strip(), expected)
 
         # provide swap info for FFTW to trigger an extra 'unload FFTW'
         unload_info = {
@@ -795,12 +1005,18 @@ class EasyBlockTest(EnhancedTestCase):
         }
 
         if get_module_syntax() == 'Tcl':
-            fftw_load = '\n'.join([
-                "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
-                "    module unload FFTW",
-                "    module load FFTW/3.3.7-gompi-2018a",
-                "}",
-            ])
+            if self.modtool.supports_safe_auto_load:
+                fftw_load = '\n'.join([
+                    "module unload FFTW",
+                    "module load FFTW/3.3.7-gompi-2018a",
+                ])
+            else:
+                fftw_load = '\n'.join([
+                    "if { ![ is-loaded FFTW/3.3.7-gompi-2018a ] } {",
+                    "    module unload FFTW",
+                    "    module load FFTW/3.3.7-gompi-2018a",
+                    "}",
+                ])
         elif get_module_syntax() == 'Lua':
             fftw_load = '\n'.join([
                 'if not ( isloaded("FFTW/3.3.7-gompi-2018a") ) then',
@@ -811,7 +1027,8 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
         expected = tc_load + '\n\n' + fftw_load + '\n\n' + lapack_load
-        self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
+        with self.mocked_stdout_stderr():
+            self.assertEqual(eb.make_module_dep(unload_info=unload_info).strip(), expected)
 
     def test_make_module_dep_hmns(self):
         """Test for make_module_dep under HMNS"""
@@ -843,17 +1060,19 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
-        eb.check_readiness_step()
-        eb.make_builddir()
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
+            eb.make_builddir()
+            eb.prepare_step()
 
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
-        mod_dep_txt = eb.make_module_dep()
+        with self.mocked_stdout_stderr():
+            mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
-            regex = re.compile('load.*%s' % mod)
+            regex = re.compile('(load|depends[-_]on).*%s' % mod)
             self.assertFalse(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
-        regex = re.compile('load.*FFTW/3.3.7')
+        regex = re.compile('(load|depends[-_]on).*FFTW/3.3.7')
         self.assertTrue(regex.search(mod_dep_txt), "Pattern '%s' found in: %s" % (regex.pattern, mod_dep_txt))
 
     def test_make_module_dep_of_dep_hmns(self):
@@ -995,6 +1214,60 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
+    def test_post_processing_step(self):
+        """Test post_processing_step and deprecated post_install_step."""
+        init_config(build_options={'silent': True})
+
+        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+
+        # these imports only work here, since EB_toy is a test easyblock
+        from easybuild.easyblocks.toy import EB_toy
+        from easybuild.easyblocks.toy_deprecated import EB_toy_deprecated
+
+        cwd = os.getcwd()
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy_deprecated(toy_ec)
+        eb.silent = True
+        depr_msg = r"EasyBlock.post_install_step\(\) is deprecated, use EasyBlock.post_processing_step\(\) instead"
+        expected_error = r"DEPRECATED \(since v6.0\).*" + depr_msg
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
+
+        change_dir(cwd)
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy(toy_ec)
+        eb.silent = True
+        with self.mocked_stdout_stderr() as (_, stderr):
+            eb.run_all_steps(True)
+            # no deprecation warning
+            stderr = stderr.getvalue()
+            self.assertFalse(stderr)
+
+        libtoy_post_a = os.path.join(eb.installdir, 'lib', 'libtoy_post.a')
+        self.assertExists(libtoy_post_a)
+
+        # check again with toy easyblock that still uses post_install_step,
+        # to verify that the expected file is being created when deprecated functionality is allow
+        remove_file(libtoy_post_a)
+        modify_env(os.environ, self.orig_environ, verbose=False)
+        change_dir(cwd)
+
+        self.allow_deprecated_behaviour()
+        toy_ec = EasyConfig(toy_ec_fn)
+        eb = EB_toy_deprecated(toy_ec)
+        eb.silent = True
+        with self.mocked_stdout_stderr() as (stdout, stderr):
+            eb.run_all_steps(True)
+
+            regex = re.compile(depr_msg, re.M)
+            stdout = stdout.getvalue()
+            self.assertTrue("This step is deprecated.\n" in stdout)
+            stderr = stderr.getvalue()
+            self.assertTrue(regex.search(stderr), f"Pattern {regex.pattern} found in: {stderr}")
+
+        self.assertExists(libtoy_post_a)
+
     def test_extensions_step(self):
         """Test the extensions_step"""
         init_config(build_options={'silent': True})
@@ -1031,6 +1304,64 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_extensions_step_deprecations(self):
+        """Test extension install with deprecated substeps."""
+        install_substeps = ["pre_install_extension", "install_extension", "post_install_extension"]
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+            'exts_defaultclass = "DummyExtension"',
+            'exts_list = ["ext1"]',
+            'exts_list = [',
+            '    "dummy_ext",',
+            '    ("custom_ext", "0.0", {"easyblock": "CustomDummyExtension"}),',
+            '    ("deprec_ext", "0.0", {"easyblock": "DeprecatedDummyExtension"}),',
+            '    ("childcustom_ext", "0.0", {"easyblock": "ChildCustomDummyExtension"}),',
+            '    ("childdeprec_ext", "0.0", {"easyblock": "ChildDeprecatedDummyExtension"}),',
+            ']',
+        ])
+        write_file(test_ec, test_ec_txt)
+        ec = process_easyconfig(test_ec)[0]
+        eb = get_easyblock_instance(ec)
+        eb.prepare_for_extensions()
+        eb.init_ext_instances()
+
+        # Default DummyExtension without deprecated or custom install substeps
+        ext = eb.ext_instances[0]
+        self.assertEqual(ext.__class__.__name__, "DummyExtension")
+        for substep in install_substeps:
+            self.assertEqual(ext.install_extension_substep(substep), None)
+        # CustomDummyExtension
+        ext = eb.ext_instances[1]
+        self.assertEqual(ext.__class__.__name__, "CustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # DeprecatedDummyExtension
+        ext = eb.ext_instances[2]
+        self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+        # ChildCustomDummyExtension
+        ext = eb.ext_instances[3]
+        self.assertEqual(ext.__class__.__name__, "ChildCustomDummyExtension")
+        for substep in install_substeps:
+            expected_return = f"Extension installed with custom {substep}()"
+            self.assertEqual(ext.install_extension_substep(substep), expected_return)
+        # ChildDeprecatedDummyExtension
+        ext = eb.ext_instances[4]
+        self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
+        for substep in install_substeps:
+            expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
+            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
 
     def test_init_extensions(self):
         """Test creating extension instances."""
@@ -1087,7 +1418,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         error_pattern = r"source_tmpl value must be a string! "
-        error_pattern += r"\(found value of type 'list'\): \['bar-0\.0\.tar\.gz'\]"
+        error_pattern += r"\(found value of type 'list'\): \['%\(name\)s-%\(version\)s.tar.gz'\]"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
 
         self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")
@@ -1176,10 +1507,11 @@ class EasyBlockTest(EnhancedTestCase):
             modextravars['TEST_PUSHENV'] = {'value': '123', 'pushenv': True}
 
         modextrapaths = {
-            'PATH': ('xbin', 'pibin'),
+            'PATH': ('', 'xbin', 'pibin'),
             'CPATH': 'pi/include',
+            'TCLLIBPATH': {'paths': 'pi', 'delimiter': ' '},
+            'APPEND_PATH': {'paths': 'pi', 'prepend': False},
         }
-        modextrapaths_append = {'APPEND_PATH': 'append_path'}
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "%s"' % name,
@@ -1193,7 +1525,6 @@ class EasyBlockTest(EnhancedTestCase):
             "hiddendependencies = [('test', '1.2.3'), ('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]",
             "modextravars = %s" % str(modextravars),
             "modextrapaths = %s" % str(modextrapaths),
-            "modextrapaths_append = %s" % str(modextrapaths_append),
         ])
 
         # test if module is generated correctly
@@ -1201,15 +1532,20 @@ class EasyBlockTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         eb = EasyBlock(ec)
         eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
-        eb.check_readiness_step()
-        eb.make_builddir()
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
+            eb.make_builddir()
+            eb.prepare_step()
 
-        # Create a dummy file in bin to test if the duplicate entry of modextrapaths is ignored
-        os.makedirs(os.path.join(eb.installdir, 'bin'))
-        write_file(os.path.join(eb.installdir, 'bin', 'dummy_exe'), 'hello')
+        # populate install dir
+        for bin_dir in ('bin', 'xbin', 'pibin'):
+            mkdir(os.path.join(eb.installdir, bin_dir), parents=True)
+            write_file(os.path.join(eb.installdir, bin_dir, 'dummy.exe'), 'hello')
+        mkdir(os.path.join(eb.installdir, 'pi', 'include'), parents=True)
+        write_file(os.path.join(eb.installdir, 'pi', 'include', 'dummy.h'), 'hello')
 
-        modpath = os.path.join(eb.make_module_step(), name, version)
+        with self.mocked_stdout_stderr():
+            modpath = os.path.join(eb.make_module_step(), name, version)
         if get_module_syntax() == 'Lua':
             modpath += '.lua'
         self.assertExists(modpath)
@@ -1250,55 +1586,66 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (key, vals) in modextrapaths.items():
-            if isinstance(vals, string_type):
-                vals = [vals]
-            for val in vals:
+            placement = 'prepend'
+            delim_tcl = ''
+            delim_lua = ''
+            if isinstance(vals, dict):
+                paths = vals['paths']
+                if isinstance(paths, str):
+                    paths = [paths]
+                if 'delimiter' in vals:
+                    delim_tcl = fr'+-d\s+"{vals["delimiter"]}"\s'
+                    delim_lua = fr', "{vals["delimiter"]}"'
+                if 'prepend' in vals:
+                    placement = 'prepend' if vals['prepend'] else 'append'
+            elif isinstance(vals, str):
+                paths = [vals]
+            else:
+                paths = vals
+
+            for val in paths:
                 if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^prepend-path\s+%s\s+\$root/%s$' % (key, val), re.M)
+                    if val == '':
+                        full_val = r'\$root'
+                    else:
+                        full_val = fr'\$root/{val}'
+                    regex = re.compile(fr'^{placement}-path\s{delim_tcl}+{key}\s+{full_val}$', re.M)
                 elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^prepend_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
+                    if val == '':
+                        full_val = 'root'
+                    else:
+                        full_val = fr'pathJoin\(root, "{val}"\)'
+                    regex = re.compile(fr'^{placement}_path\("{key}", {full_val}{delim_lua}\)$', re.M)
                 else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                    self.fail(f"Unknown module syntax: {get_module_syntax()}")
+                self.assertTrue(regex.search(txt), f"Pattern {regex.pattern} found in {txt}")
                 # Check for duplicates
                 num_prepends = len(regex.findall(txt))
-                self.assertEqual(num_prepends, 1, "Expected exactly 1 %s command in %s" % (regex.pattern, txt))
-
-        for (key, vals) in modextrapaths_append.items():
-            if isinstance(vals, string_type):
-                vals = [vals]
-            for val in vals:
-                if get_module_syntax() == 'Tcl':
-                    regex = re.compile(r'^append-path\s+%s\s+\$root/%s$' % (key, val), re.M)
-                elif get_module_syntax() == 'Lua':
-                    regex = re.compile(r'^append_path\("%s", pathJoin\(root, "%s"\)\)$' % (key, val), re.M)
-                else:
-                    self.fail("Unknown module syntax: %s" % get_module_syntax())
-                self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
+                self.assertEqual(num_prepends, 1, f"Expected exactly 1 {regex.pattern} command in {txt}")
 
         for (name, ver) in [('GCC', '6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s\s*$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s\s*$' % os.path.join(name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s"\)$' % os.path.join(name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s"\)$' % os.path.join(name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('test', '1.2.3')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertTrue(regex.search(txt), "Pattern %s found in %s" % (regex.pattern, txt))
 
         for (name, ver) in [('OpenMPI', '2.1.2-GCC-6.4.0-2.28')]:
             if get_module_syntax() == 'Tcl':
-                regex = re.compile(r'^\s*module load %s/.?%s\s*$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(module load|depends-on) %s/.?%s\s*$' % (name, ver), re.M)
             elif get_module_syntax() == 'Lua':
-                regex = re.compile(r'^\s*load\("%s/.?%s"\)$' % (name, ver), re.M)
+                regex = re.compile(r'^\s*(load|depends_on)\("%s/.?%s"\)$' % (name, ver), re.M)
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
             self.assertFalse(regex.search(txt), "Pattern '%s' *not* found in %s" % (regex.pattern, txt))
@@ -1325,7 +1672,8 @@ class EasyBlockTest(EnhancedTestCase):
                 eb = EasyBlock(ec)
                 eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
                 eb.check_readiness_step()
-                self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
+                with self.mocked_stdout_stderr():
+                    self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
@@ -1391,13 +1739,15 @@ class EasyBlockTest(EnhancedTestCase):
         eb.gen_builddir()
 
         # by default, make_builddir will re-create the build directory (i.e. remove existing & re-create)
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
         builddir = eb.builddir
         testfile = os.path.join(builddir, 'test123', 'foobar.txt')
         write_file(testfile, 'test123')
         self.assertExists(testfile)
 
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
         self.assertEqual(builddir, eb.builddir)
         # file is gone because directory was removed and re-created
         self.assertNotExists(testfile)
@@ -1407,7 +1757,8 @@ class EasyBlockTest(EnhancedTestCase):
         # make sure that build directory does *not* get re-created when we're building in installation directory
         # and we're iterating over a list of (pre)config/build/installopts
         eb.build_in_installdir = True
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
         # also need to create install directory since build dir == install dir
         eb.make_installdir()
         builddir = eb.builddir
@@ -1419,7 +1770,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # with iteration count > 0, build directory is not re-created because of build-in-installdir
         eb.iter_idx = 1
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
         eb.make_installdir()
         self.assertEqual(builddir, eb.builddir)
         self.assertExists(testfile)
@@ -1428,7 +1780,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # resetting iteration index to 0 results in re-creating build directory
         eb.iter_idx = 0
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
         eb.make_installdir()
         self.assertEqual(builddir, eb.builddir)
         self.assertNotExists(testfile)
@@ -1458,14 +1811,14 @@ class EasyBlockTest(EnhancedTestCase):
 
         toy_source = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
-        eb.fetch_sources()
+        with self.mocked_stdout_stderr():
+            eb.fetch_sources()
         self.assertEqual(len(eb.src), 1)
         self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
         self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.src[0]['cmd'], None)
-        self.assertEqual(len(eb.src[0]['checksum']), 7)
-        self.assertEqual(eb.src[0]['checksum'][0], 'be662daa971a640e40be5c804d9d7d10')
-        self.assertEqual(eb.src[0]['checksum'][1], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
+        self.assertEqual(len(eb.src[0]['checksum']), 2)
+        self.assertEqual(eb.src[0]['checksum'][0], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
 
         # reconfigure EasyBuild so we can check 'downloaded' sources
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
@@ -1495,7 +1848,8 @@ class EasyBlockTest(EnhancedTestCase):
                 'extract_cmd': "tar xfz %s",
             },
         ]
-        eb.fetch_sources(sources, checksums=[])
+        with self.mocked_stdout_stderr():
+            eb.fetch_sources(sources, checksums=[])
 
         toy_source_dir = os.path.join(self.test_prefix, 't', 'toy')
         expected_sources = ['toy-0.0-extra.txt', 'toy-0.0_gzip.patch.gz', 'toy-0.0-renamed.tar.gz']
@@ -1528,14 +1882,53 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "Found one or more unexpected keys in 'sources' specification: {'nosuchkey': 'foobar'}"
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
 
+    @requires_github_access()
+    def test_fetch_sources_git(self):
+        """Test fetch_sources method from git repo."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+        eb.src = []
+        sources = [
+            {
+                'filename': 'testrepository.tar.xz',
+                'git_config': {
+                    'repo_name': 'testrepository',
+                    'url': 'https://github.com/easybuilders',
+                    'tag': 'branch_tag_for_test',
+                }
+            }
+        ]
+        checksums = ["00000000"]
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            self.allow_deprecated_behaviour()
+
+        with self.mocked_stdout_stderr():
+            eb.fetch_sources(sources, checksums=checksums)
+
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            self.disallow_deprecated_behaviour()
+
+        self.assertEqual(len(eb.src), 1)
+        self.assertEqual(eb.src[0]['name'], "testrepository.tar.xz")
+        self.assertExists(eb.src[0]['path'])
+        self.assertEqual(eb.src[0]['cmd'], None)
+
+        reference_checksum = "00000000"
+        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
+            # due to changes introduced in python/cpython#90021
+            reference_checksum = None
+
+        self.assertEqual(eb.src[0]['checksum'], reference_checksum)
+
+        # cleanup
+        remove_file(eb.src[0]['path'])
+
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
-
-        # skip test when using Python 2, since it somehow fails then,
-        # cfr. https://github.com/easybuilders/easybuild-framework/pull/4333
-        if sys.version_info[0] == 2:
-            print("Skipping test_download_instructions because Python 2.x is being used")
-            return
 
         orig_test_ec = '\n'.join([
             "easyblock = 'ConfigureMake'",
@@ -1557,7 +1950,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         common_error_pattern = "^Couldn't find file software_with_missing_sources-0.0.tar.gz anywhere"
         error_pattern = common_error_pattern + ", and downloading it didn't work either"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
 
         download_instructions = "download_instructions = 'Manual download from example.com required'"
         sources = "sources = [SOURCE_TAR_GZ]"
@@ -1570,11 +1964,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
-        self.mock_stdout(False)
-        self.assertEqual(stderr, "Download instructions:\n\nManual download from example.com required")
-        self.assertEqual(stdout, '')
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file
         write_file(os.path.join(os.path.dirname(self.eb_file), 'software_with_missing_sources-0.0.tar.gz'), '')
@@ -1586,11 +1978,10 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stderr, "Download instructions:\n\nManual download from example.com required")
-        self.assertEqual(stdout, '')
+        self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # wipe top-level download instructions, try again
         self.contents = self.contents.replace(download_instructions, '')
@@ -1602,10 +1993,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stdout, '')
 
         # inject download instructions for extension
         download_instructions = ' ' * 8 + "'download_instructions': "
@@ -1619,11 +2008,10 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stderr, "Download instructions:\n\nExtension sources must be downloaded via example.com")
-        self.assertEqual(stdout, '')
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # download instructions should also be printed if 'source_tmpl' is used to specify extension sources
         self.contents = self.contents.replace(sources, "'source_tmpl': SOURCE_TAR_GZ,")
@@ -1634,11 +2022,10 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stderr, "Download instructions:\n\nExtension sources must be downloaded via example.com")
-        self.assertEqual(stdout, '')
+        self.assertIn("Download instructions:\n\n    Extension sources must be downloaded via example.com", stderr)
+        self.assertIn("Make the files available in the active source path", stderr)
 
         # create dummy source file for extension
         write_file(os.path.join(os.path.dirname(self.eb_file), 'ext_with_missing_sources-0.0.tar.gz'), '')
@@ -1648,11 +2035,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         eb.fetch_step()
         stderr = self.get_stderr().strip()
-        stdout = self.get_stdout().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stderr, '')
-        self.assertEqual(stdout, '')
 
     def test_fetch_patches(self):
         """Test fetch_patches method."""
@@ -1721,41 +2106,50 @@ class EasyBlockTest(EnhancedTestCase):
         # 'downloading' a file to (first) sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, testdir)])
         shutil.copy2(toy_tarball_path, tmpdir_subdir)
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, os.path.join(tmpdir, 't', 'toy', toy_tarball))
 
         # test no_download option
         urls = ['file://%s' % tmpdir_subdir]
-        error_pattern = "Couldn't find file toy-0.0.tar.gz anywhere, and downloading it is disabled"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
-                              toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
+        error_pattern = "Couldn't find file 'toy-0.0.tar.gz' anywhere, and downloading it is disabled"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
+                                  toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
 
         # 'downloading' a file to (first) alternative sourcepath works
-        res = eb.obtain_file(toy_tarball, urls=urls, alt_location='alt_toy')
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=urls, alt_location='alt_toy')
         self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
 
         # make sure that directory in which easyconfig file is located is *ignored* when alt_location is used
         dummy_toy_tar_gz = os.path.join(os.path.dirname(test_ec), 'toy-0.0.tar.gz')
         write_file(dummy_toy_tar_gz, '')
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, dummy_toy_tar_gz)
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
         self.assertEqual(res, os.path.join(tmpdir, 'a', 'alt_toy', toy_tarball))
         remove_file(dummy_toy_tar_gz)
 
         # finding a file in sourcepath works
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
-        res = eb.obtain_file(toy_tarball)
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball)
         self.assertEqual(res, toy_tarball_path)
 
-        # finding a file in the alternate location works
-        res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
+        # finding a file in the alternative location works
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
         self.assertEqual(res, alt_toy_tarball_path)
 
         # sourcepath has preference over downloading
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
         self.assertEqual(res, toy_tarball_path)
-        res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
+        with self.mocked_stdout_stderr():
+            res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
         self.assertEqual(res, alt_toy_tarball_path)
 
         init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
@@ -1770,10 +2164,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stdout(True)
         res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], force_download=True)
         stderr = self.get_stderr()
-        stdout = self.get_stdout()
         self.mock_stderr(False)
         self.mock_stdout(False)
-        self.assertEqual(stdout, '')
         msg = "WARNING: Found file toy-0.0.tar.gz at %s, but re-downloading it anyway..." % toy_tarball_path
         self.assertEqual(stderr.strip(), msg)
 
@@ -1784,13 +2176,15 @@ class EasyBlockTest(EnhancedTestCase):
         # obtain_file yields error for non-existing files
         fn = 'thisisclearlyanonexistingfile'
         error_regex = "Couldn't find file %s anywhere, and downloading it didn't work either" % fn
-        self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
 
         # also test triggering error when downloading from a URL that includes URL-encoded characters
         # cfr. https://github.com/easybuilders/easybuild-framework/pull/4005
         url = 'file://%s' % os.path.dirname(tmpdir_subdir)
         url += '%2F' + os.path.basename(tmpdir_subdir)
-        self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=[url])
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=[url])
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
@@ -1802,7 +2196,8 @@ class EasyBlockTest(EnhancedTestCase):
             fn = os.path.basename(file_url)
             res = None
             try:
-                res = eb.obtain_file(file_url)
+                with self.mocked_stdout_stderr():
+                    res = eb.obtain_file(file_url)
             except EasyBuildError as err:
                 # if this fails, it should be because there's no online access
                 download_fail_regex = re.compile('socket error')
@@ -1844,7 +2239,8 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(udunits_ec)[0]
         eb = EasyBlock(ec['ec'])
 
-        eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
 
         expected_path = os.path.join(self.test_prefix, 'u', 'UDUNITS', 'udunits-2.2.26.tar.gz')
         self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path))
@@ -1918,7 +2314,8 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec = process_easyconfig(toy_ec_file)[0]
         toy_eb = EasyBlock(toy_ec['ec'])
 
-        toy_eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            toy_eb.fetch_step()
 
         test_ext = toy_eb.exts[-1]
         test_ext_src_fn = os.path.basename(test_ext['src'])
@@ -1991,8 +2388,9 @@ class EasyBlockTest(EnhancedTestCase):
         for ec_file, modfile_path, excluded_deps in tests:
             ec = EasyConfig(os.path.join(test_ecs_path, ec_file))
             eb = EasyBlock(ec)
-            eb.toolchain.prepare()
-            modpath = eb.make_module_step()
+            with self.mocked_stdout_stderr():
+                eb.toolchain.prepare()
+                modpath = eb.make_module_step()
             modfile_path = os.path.join(modpath, modfile_path)
             modtxt = read_file(modfile_path)
 
@@ -2033,16 +2431,18 @@ class EasyBlockTest(EnhancedTestCase):
         # test applying patches without sources
         ec['ec']['sources'] = []
         eb = EasyBlock(ec['ec'])
-        eb.fetch_step()
-        eb.extract_step()
-        self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
+            eb.extract_step()
+            self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
 
         # test actual patching of unpacked sources
         ec['ec']['sources'] = orig_sources
         eb = EasyBlock(ec['ec'])
-        eb.fetch_step()
-        eb.extract_step()
-        eb.patch_step()
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
+            eb.extract_step()
+            eb.patch_step()
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source'])
@@ -2052,9 +2452,10 @@ class EasyBlockTest(EnhancedTestCase):
         # check again with backup of patched files enabled
         update_build_option('backup_patched_files', True)
         eb = EasyBlock(ec['ec'])
-        eb.fetch_step()
-        eb.extract_step()
-        eb.patch_step()
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
+            eb.extract_step()
+            eb.patch_step()
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
@@ -2087,8 +2488,9 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
-        error_pattern += r'command "thisshouldfail" failed; output:\n/bin/bash:.* thisshouldfail: command not found'
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
+        error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
         # to check whether sanity check is only run once;
@@ -2097,7 +2499,8 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
         eb = EB_toy(toy_ec)
         eb.silent = True
-        eb.run_all_steps(True)
+        with self.mocked_stdout_stderr():
+            eb.run_all_steps(True)
 
     def test_parallel(self):
         """Test defining of parallelism."""
@@ -2107,56 +2510,204 @@ class EasyBlockTest(EnhancedTestCase):
 
         handle, toy_ec1 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec1, toytxt + "\nparallel = 123")
+        write_file(toy_ec1, toytxt + "\nparallel = 13")
 
         handle, toy_ec2 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
-        write_file(toy_ec2, toytxt + "\nparallel = 123\nmaxparallel = 67")
+        write_file(toy_ec2, toytxt + "\nparallel = 12\nmaxparallel = 6")
 
         handle, toy_ec3 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(handle)
         write_file(toy_ec3, toytxt + "\nparallel = False")
 
+        handle, toy_ec4 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec4, toytxt + "\nmaxparallel = 6")
+
+        handle, toy_ec5 = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
+        os.close(handle)
+        write_file(toy_ec5, toytxt + "\nmaxparallel = False")
+
         # default: parallelism is derived from # available cores + ulimit
-        test_eb = EasyBlock(EasyConfig(toy_ec))
-        test_eb.check_readiness_step()
-        self.assertTrue(isinstance(test_eb.cfg['parallel'], int) and test_eb.cfg['parallel'] > 0)
+        # Note that --max-parallel has a default of 16, so we need a lower auto_parallel value here
+        auto_parallel = 16 - 4  # Using + 3 below which must still be less
+        st.det_parallelism._default_parallelism = auto_parallel
 
-        # only 'parallel' easyconfig parameter specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec1))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 123)
+        # 'parallel' build option NOT specified
+        test_cases = {
+            '': auto_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            f'parallel = {auto_parallel + 3}': auto_parallel + 3,  # Setting parallel disables auto-detection
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            f'maxparallel = {auto_parallel + 3}': auto_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec2))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
 
-        # make sure 'parallel = False' is not overriden (no 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], False)
+        # 'parallel' build option specified
+        buildopt_parallel = 11
+        # When build option is given the auto-parallelism is ignored. Verify by setting it very low
+        st.det_parallelism._default_parallelism = 2
+        init_config(build_options={
+            'parallel': str(buildopt_parallel),
+            'validate': False,
+        })
 
-        # only 'parallel' build option specified
-        init_config(build_options={'parallel': '97', 'validate': False})
-        test_eb = EasyBlock(EasyConfig(toy_ec))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        test_cases = {
+            '': buildopt_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            f'parallel = {buildopt_parallel + 2}': buildopt_parallel,
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            f'maxparallel = {buildopt_parallel + 2}': buildopt_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
 
-        # both 'parallel' build option and easyconfig parameter specified (no 'maxparallel')
-        test_eb = EasyBlock(EasyConfig(toy_ec1))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 97)
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
 
-        # both 'parallel' and 'maxparallel' easyconfig parameters specified + 'parallel' build option
-        test_eb = EasyBlock(EasyConfig(toy_ec2))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 67)
+        # re-check when --max-parallel is used instead
+        buildopt_max_parallel = 8
+        st.det_parallelism._default_parallelism = 16
+        init_config(build_options={
+            'max_parallel': buildopt_max_parallel,
+            'validate': False,
+        })
 
-        # make sure 'parallel = False' is not overriden (with 'parallel' build option)
-        test_eb = EasyBlock(EasyConfig(toy_ec3))
-        test_eb.check_readiness_step()
-        self.assertEqual(test_eb.cfg['parallel'], 0)
+        test_cases = {
+            '': buildopt_max_parallel,
+            'parallel = False': 1,
+            'parallel = 1': 1,
+            'parallel = 6': 6,
+            # --max-parallel value limits max. parallelism, so only 8 cores will be used when 'parallel = 10' is used
+            f'parallel = {buildopt_max_parallel + 2}': buildopt_max_parallel,
+            'maxparallel = False': 1,
+            'maxparallel = 1': 1,
+            'maxparallel = 6': 6,
+            # minimum of 'maxparallel' easyconfig parameter and --max-parallel configuration option is used
+            f'maxparallel = {buildopt_max_parallel + 2}': buildopt_max_parallel,
+            'parallel = 8\nmaxparallel = 6': 6,
+            'parallel = 8\nmaxparallel = 9': 8,
+            'parallel = False\nmaxparallel = 6': 1,
+            'parallel = 8\nmaxparallel = False': 1,
+        }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
+
+        # re-check when both --max-parallel and --parallel are used (--max-parallel wins)
+        init_config(build_options={
+            'max_parallel': buildopt_max_parallel,
+            'parallel': buildopt_parallel,
+            'validate': False,
+        })
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg.parallel, expected)
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                    self.assertEqual(test_eb.cfg['parallel'], expected)
+
+        # Template updated correctly
+        self.contents = toytxt + '\nmaxparallel=2'
+        self.writeEC()
+        test_eb = EasyBlock(EasyConfig(self.eb_file))
+        test_eb.post_init()
+
+        test_eb.cfg['buildopts'] = '-j %(parallel)s'
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 2')
+        # Might be done in an easyblock step
+        test_eb.cfg.parallel = 42
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 42')
+        # Unaffected by build settings
+        test_eb.cfg.parallel = 421337
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 421337')
+        # False is equal to 1
+        test_eb.cfg.parallel = False
+        self.assertEqual(test_eb.cfg['buildopts'], '-j 1')
+
+        # Legacy behavior. To be removed after deprecation of the parallel EC parameter
+        self.contents = toytxt + '\nmaxparallel=99'
+        self.writeEC()
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            test_eb = EasyBlock(EasyConfig(self.eb_file))
+            parallel = buildopt_max_parallel - 2
+            test_eb.cfg['parallel'] = parallel  # Old Easyblocks might change that before the ready step
+            test_eb.post_init()
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+            # Afterwards it also gets reflected directly ignoring maxparallel
+            parallel = buildopt_max_parallel * 3
+            test_eb.cfg['parallel'] = parallel
+            self.assertEqual(test_eb.cfg.parallel, parallel)
+            self.assertEqual(test_eb.cfg['parallel'], parallel)
+
+        # Reset mocked value
+        del st.det_parallelism._default_parallelism
+
+    def test_keepsymlinks(self):
+        """Test keepsymlinks parameter (default: True)."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toytxt = read_file(toy_ec)
+
+        test_cases = {
+            '': True,
+            'keepsymlinks = False': False,
+            'keepsymlinks = True': True,
+        }
+
+        for txt, expected in test_cases.items():
+            with self.subTest(ec_params=txt):
+                self.contents = toytxt + '\n' + txt
+                self.writeEC()
+                test_eb = EasyBlock(EasyConfig(self.eb_file))
+                test_eb.post_init()
+                self.assertEqual(test_eb.cfg['keepsymlinks'], expected)
 
     def test_guess_start_dir(self):
         """Test guessing the start dir."""
@@ -2173,7 +2724,8 @@ class EasyBlockTest(EnhancedTestCase):
             eb = EasyBlock(ec['ec'])
             eb.silent = True
             eb.cfg['stop'] = 'patch'
-            eb.run_all_steps(False)
+            with self.mocked_stdout_stderr():
+                eb.run_all_steps(False)
             eb.guess_start_dir()
             abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
             self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
@@ -2214,7 +2766,7 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True, install=False)
             # extract sources of the extension
             ext = eb.ext_instances[-1]
-            ext.run(unpack_src=unpack_src)
+            ext.install_extension(unpack_src=unpack_src)
 
             if expected_start_dir is None:
                 self.assertIsNone(ext.start_dir)
@@ -2343,14 +2895,16 @@ class EasyBlockTest(EnhancedTestCase):
         os.environ['EBROOTHWLOC'] = self.test_prefix
 
         # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
-        eb.prepare_step(load_tc_deps_modules=False)
+        with self.mocked_stdout_stderr():
+            eb.prepare_step(load_tc_deps_modules=False)
         self.assertEqual(self.modtool.list(), [])
 
         del os.environ['EBROOTGCC']
         del os.environ['EBROOTHWLOC']
 
         # modules for toolchain + dependencies are still loaded by default
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.prepare_step()
         loaded_modules = self.modtool.list()
         self.assertEqual(len(loaded_modules), 2)
         self.assertEqual(loaded_modules[0]['mod_name'], 'GCC/6.4.0-2.28')
@@ -2389,7 +2943,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(test_ec['ec'])
 
         mkdir(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system'), parents=True)
-        eb.prepare_step()
+        with self.mocked_stdout_stderr():
+            eb.prepare_step()
 
         loaded_modules = self.modtool.list()
         self.assertEqual(len(loaded_modules), 1)
@@ -2405,7 +2960,8 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(toy_ec)[0]
         eb = EasyBlock(ec['ec'])
         eb.silent = True
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
 
         eb.prepare_step(start_dir=False)
         logtxt = read_file(eb.logfile)
@@ -2420,10 +2976,12 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(test_ec)[0]
         eb = EasyBlock(ec['ec'])
         eb.silent = True
-        eb.make_builddir()
+        with self.mocked_stdout_stderr():
+            eb.make_builddir()
 
         write_file(eb.logfile, '')
-        eb.prepare_step(start_dir=False)
+        with self.mocked_stdout_stderr():
+            eb.prepare_step(start_dir=False)
         logtxt = read_file(eb.logfile)
         self.assertNotIn('Disabling CUDA PTX cache', logtxt)
         self.assertIn('Enabling CUDA PTX cache', logtxt)
@@ -2431,7 +2989,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         init_config(build_options={'cuda_cache_maxsize': 0})  # Disable
         write_file(eb.logfile, '')
-        eb.prepare_step(start_dir=False)
+        with self.mocked_stdout_stderr():
+            eb.prepare_step(start_dir=False)
         logtxt = read_file(eb.logfile)
         self.assertIn('Disabling CUDA PTX cache', logtxt)
         self.assertNotIn('Enabling CUDA PTX cache', logtxt)
@@ -2441,7 +3000,8 @@ class EasyBlockTest(EnhancedTestCase):
         cuda_cache_dir = os.path.join(self.test_prefix, 'custom-cuda-cache')
         init_config(build_options={'cuda_cache_maxsize': 1234, 'cuda_cache_dir': cuda_cache_dir})
         write_file(eb.logfile, '')
-        eb.prepare_step(start_dir=False)
+        with self.mocked_stdout_stderr():
+            eb.prepare_step(start_dir=False)
         logtxt = read_file(eb.logfile)
         self.assertNotIn('Disabling CUDA PTX cache', logtxt)
         self.assertIn('Enabling CUDA PTX cache', logtxt)
@@ -2486,8 +3046,8 @@ class EasyBlockTest(EnhancedTestCase):
         copy_file(toy_ec, self.test_prefix)
         toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
         ectxt = read_file(toy_ec)
-        # replace MD5 checksum for toy-0.0.tar.gz
-        ectxt = ectxt.replace('be662daa971a640e40be5c804d9d7d10', '00112233445566778899aabbccddeeff')
+        # replace SHA256 checksum for toy-0.0.tar.gz
+        ectxt = ectxt.replace('44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc', '76543210' * 8)
         # replace SHA256 checksums for source of bar extension
         ectxt = ectxt.replace('f3676716b610545a4e8035087f5be0a0248adee0abb3930d3edb76d498ae91e7', '01234567' * 8)
         write_file(toy_ec, ectxt)
@@ -2502,13 +3062,6 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
 
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
-
         # create test easyconfig from which checksums have been stripped
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         ectxt = read_file(toy_ec)
@@ -2520,8 +3073,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # make sure that test easyconfig file indeed doesn't contain any checksums (either top-level or for extensions)
         self.assertEqual(ec_json['ec']['checksums'], [])
-        for ext in ec_json['ec']['exts_list']:
-            if isinstance(ext, string_type):
+        for ext in ec_json['ec'].get_ref('exts_list'):
+            if isinstance(ext, str):
                 continue
             elif isinstance(ext, tuple):
                 self.assertEqual(ext[2].get('checksums', []), [])
@@ -2556,16 +3109,9 @@ class EasyBlockTest(EnhancedTestCase):
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
 
-        # also check verification of checksums for extensions, which is part of fetch_extension_sources
+        # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
         self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
-
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_extension_sources)
-        self.mock_stderr(False)
-        self.disallow_deprecated_behaviour()
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
@@ -2591,20 +3137,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz")
-
-        # also check with deprecated fetch_extension_sources method
-        self.allow_deprecated_behaviour()
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        eb.fetch_extension_sources()
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
-        self.assertEqual(stdout, '')
-        self.assertTrue(stderr.strip().endswith("WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz"))
-        self.disallow_deprecated_behaviour()
+        self.assertEqual(stderr.strip(), "WARNING: Ignoring failing checksum verification for bar-0.0.tar.gz\n\n\n"
+                                         "WARNING: Ignoring failing checksum verification for toy-0.0.tar.gz")
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
@@ -2660,10 +3194,10 @@ class EasyBlockTest(EnhancedTestCase):
         # no checksum issues
         self.assertEqual(eb.check_checksums(), [])
 
-        # tuple of two alternate SHA256 checksums: OK
+        # tuple of two alternative SHA256 checksums: OK
         eb.cfg['checksums'] = [
             (
-                # two alternate checksums for toy-0.0.tar.gz
+                # two alternative checksums for toy-0.0.tar.gz
                 'a2848f34fcd5d6cf47def00461fcb528a0484d8edef8208d6d2e2909dc61d9cd',
                 '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',
             ),
@@ -2713,6 +3247,20 @@ class EasyBlockTest(EnhancedTestCase):
         copy_file(os.path.join(os.path.dirname(toy_ec), 'checksums.json'), self.test_prefix)
         eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
+
+        # more checks for check_checksums_for method, which also takes regular dict as input
+        self.assertEqual(eb.check_checksums_for({}), [])
+        expected = "Checksums missing for one or more sources/patches in test.eb: "
+        expected += "found 1 sources + 0 patches vs 0 checksums"
+        self.assertEqual(eb.check_checksums_for({'sources': ['test.tar.gz']}), [expected])
+
+        # example from QuantumESPRESSO easyconfig, template used in extract_cmd should not cause trouble
+        eb.cfg['sources'] = [{
+            'filename': 'q-e-qe-%(version)s.tar.gz',
+            'extract_cmd': 'mkdir -p %(builddir)s/qe-%(version)s && tar xzvf %s --strip-components=1 -C $_',
+            'source_urls': ['https://gitlab.com/QEF/q-e/-/archive/qe-%(version)s'],
+        }]
+        res = eb.check_checksums_for(eb.cfg)
 
     def test_this_is_easybuild(self):
         """Test 'this_is_easybuild' function (and get_git_revision function used by it)."""
@@ -2772,7 +3320,8 @@ class EasyBlockTest(EnhancedTestCase):
         # installing both one.eb and two.eb in one go should work
         # this verifies whether the "module show" cache is cleared in between builds,
         # since one/1.0 is required for ec2, and the underlying one/1.0.2 is installed via ec1 in the same session
-        self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
+        with self.mocked_stdout_stderr():
+            self.eb_main([ec1, ec2], raise_error=True, do_build=True, verbose=True)
 
     def test_avail_easyblocks(self):
         """Test avail_easyblocks function."""
@@ -2936,6 +3485,134 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
 
         os.remove(eb.logfile)
+
+    def test_expand_module_search_path(self):
+        """Testcase for expand_module_search_path"""
+        top_dir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(top_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        eb = EasyBlock(EasyConfig(toy_ec))
+        eb.installdir = config.install_path()
+        test_emsp = eb.expand_module_search_path  # shortcut
+
+        # create test directories and files
+        os.makedirs(eb.installdir)
+        test_directories = (
+            'empty_dir',
+            'dir_empty_subdir',
+            ('dir_empty_subdir', 'empty_subdir'),
+            'dir_with_file',
+            'dir_full_subdirs',
+            ('dir_full_subdirs', 'subdir1'),
+            ('dir_full_subdirs', 'subdir2'),
+        )
+        for path in test_directories:
+            path_components = (path, ) if isinstance(path, str) else path
+            os.mkdir(os.path.join(eb.installdir, *path_components))
+
+        write_file(os.path.join(eb.installdir, 'dir_with_file', 'file.txt'), 'test file')
+        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file11.txt'), 'test file 1.1')
+        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
+        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
+
+        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH), [])
+        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH), ["empty_dir"])
+        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH), ["dir_empty_subdir"])
+        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH), ["dir_with_file"])
+        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH_WITH_FILES), ["dir_with_file"])
+        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH_WITH_TOP_FILES), ["dir_with_file"])
+        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH), ["dir_full_subdirs"])
+        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH_WITH_FILES), ["dir_full_subdirs"])
+        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+
+        # test globs
+        ref_expanded_paths = ["dir_empty_subdir/empty_subdir"]
+        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH), ref_expanded_paths)
+        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        ref_expanded_paths = ["dir_full_subdirs/subdir1", "dir_full_subdirs/subdir2"]
+        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH)), ref_expanded_paths)
+        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH_WITH_FILES)), ref_expanded_paths)
+        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH_WITH_TOP_FILES)), ref_expanded_paths)
+        ref_expanded_paths = ["dir_full_subdirs/subdir2/file21.txt"]
+        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH), ref_expanded_paths)
+        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH_WITH_FILES), ref_expanded_paths)
+        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH_WITH_TOP_FILES), ref_expanded_paths)
+        self.assertEqual(test_emsp("nonexistent/*", True), [])
+        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH), [])
+        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+
+        # test just one lib directory
+        os.mkdir(os.path.join(eb.installdir, "lib"))
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), [])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), [])
+        write_file(os.path.join(eb.installdir, "lib", "libtest.so"), "not actually a lib")
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+
+        # test both lib and lib64 directories
+        os.mkdir(os.path.join(eb.installdir, "lib64"))
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
+
+        # test lib64 symlinked to lib
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        os.symlink("lib", os.path.join(eb.installdir, "lib64"))
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib", "lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib", "lib"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib", "lib"])
+
+        # test lib symlinked to lib64
+        remove_dir(os.path.join(eb.installdir, "lib"))
+        remove_file(os.path.join(eb.installdir, "lib64"))
+        os.mkdir(os.path.join(eb.installdir, "lib64"))
+        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
+        os.symlink("lib64", os.path.join(eb.installdir, "lib"))
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64", "lib64"])
+        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64", "lib64"])
+
+        # test both lib and lib64 symlinked to some other folder
+        remove_dir(os.path.join(eb.installdir, "lib64"))
+        remove_file(os.path.join(eb.installdir, "lib"))
+        os.mkdir(os.path.join(eb.installdir, "some_dir"))
+        write_file(os.path.join(eb.installdir, "some_dir", "libtest.so"), "not actually a lib")
+        os.symlink("some_dir", os.path.join(eb.installdir, "lib"))
+        os.symlink("some_dir", os.path.join(eb.installdir, "lib64"))
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["some_dir"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
+        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["some_dir", "some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["some_dir", "some_dir"])
+        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["some_dir", "some_dir"])
 
 
 def suite():

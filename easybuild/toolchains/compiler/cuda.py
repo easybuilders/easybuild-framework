@@ -60,8 +60,8 @@ class Cuda(Compiler):
 
     # always C++ compiler command, even for C!
     COMPILER_CUDA_UNIQUE_OPTION_MAP = {
-        '_opt_CUDA_CC': 'ccbin="%(CXX_base)s"',
-        '_opt_CUDA_CXX': 'ccbin="%(CXX_base)s"',
+        '_opt_CUDA_CC': '-ccbin="%(CXX_base)s"',
+        '_opt_CUDA_CXX': '-ccbin="%(CXX_base)s"',
     }
 
     COMPILER_CUDA_CC = 'nvcc'
@@ -90,14 +90,14 @@ class Cuda(Compiler):
         # note: using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
 
         cuda_flags = [
-            'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
-            'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
+            '-Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
+            '-Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
         ]
         self.variables.nextend('CUDA_CFLAGS', cuda_flags)
         self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
         for gencode_val in self.options.get('cuda_gencode', []):
-            gencode_option = 'gencode %s' % gencode_val
+            gencode_option = '-gencode %s' % gencode_val
             self.variables.nappend('CUDA_CFLAGS', gencode_option)
             self.variables.nappend('CUDA_CXXFLAGS', gencode_option)

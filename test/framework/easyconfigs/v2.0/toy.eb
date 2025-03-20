@@ -16,7 +16,6 @@ software_license_urls = ['https://github.com/easybuilders/easybuild/wiki/License
 
 sources = ['%(name)s-0.0.tar.gz']  # purposely fixed to 0.0
 checksums = [
-    'be662daa971a640e40be5c804d9d7d10',  # MD5
     '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc',  # SHA256
 ]
 

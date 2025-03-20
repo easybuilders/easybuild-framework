@@ -45,11 +45,12 @@ import random
 import tempfile
 import time
 from abc import ABCMeta
+from string import ascii_letters
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import ascii_letters, create_base_metaclass, string_type
+from easybuild.base.wrapper import create_base_metaclass
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 
 try:
     import rich  # noqa
@@ -95,10 +96,11 @@ DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
 DEFAULT_INDEX_MAX_AGE = 7 * 24 * 60 * 60  # 1 week (in seconds)
-DEFAULT_JOB_BACKEND = 'GC3Pie'
+DEFAULT_JOB_BACKEND = 'Slurm'
 DEFAULT_JOB_EB_CMD = 'eb'
 DEFAULT_LOGFILE_FORMAT = ("easybuild", "easybuild-%(name)s-%(version)s-%(date)s.%(time)s.log")
 DEFAULT_MAX_FAIL_RATIO_PERMS = 0.5
+DEFAULT_MAX_PARALLEL = 16
 DEFAULT_MINIMAL_BUILD_ENV = 'CC:gcc,CXX:g++'
 DEFAULT_MNS = 'EasyBuildMNS'
 DEFAULT_MODULE_SYNTAX = 'Lua'
@@ -167,12 +169,28 @@ LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
-
 OUTPUT_STYLE_AUTO = 'auto'
 OUTPUT_STYLE_BASIC = 'basic'
 OUTPUT_STYLE_NO_COLOR = 'no_color'
 OUTPUT_STYLE_RICH = 'rich'
 OUTPUT_STYLES = (OUTPUT_STYLE_AUTO, OUTPUT_STYLE_BASIC, OUTPUT_STYLE_NO_COLOR, OUTPUT_STYLE_RICH)
+
+SEARCH_PATH_BIN_DIRS = ['bin']
+SEARCH_PATH_HEADER_DIRS = ['include']
+SEARCH_PATH_LIB_DIRS = ['lib', 'lib64']
+
+PYTHONPATH = 'PYTHONPATH'
+EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
+PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
+
+# options to handle header search paths in environment of modules
+MOD_SEARCH_PATH_HEADERS_CPATH = 'cpath'
+MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS = 'include_paths'
+MOD_SEARCH_PATH_HEADERS = {
+    MOD_SEARCH_PATH_HEADERS_CPATH: ['CPATH'],
+    MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS: ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+}
+DEFAULT_MOD_SEARCH_PATH_HEADERS = MOD_SEARCH_PATH_HEADERS_CPATH
 
 
 class Singleton(ABCMeta):
@@ -260,6 +278,8 @@ BUILD_OPTIONS_CMDLINE = {
         'rpath_filter',
         'rpath_override_dirs',
         'required_linked_shared_libs',
+        'search_path_cpp_headers',
+        'search_path_linker',
         'skip',
         'software_commit',
         'stop',
@@ -268,13 +288,12 @@ BUILD_OPTIONS_CMDLINE = {
         'test_report_env_filter',
         'testoutput',
         'umask',
-        'wait_on_lock',
         'zip_logs',
     ],
     False: [
-        'add_dummy_to_minimal_toolchains',
         'add_system_to_minimal_toolchains',
         'allow_modules_tool_mismatch',
+        'allow_unresolved_templates',
         'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
@@ -285,6 +304,7 @@ BUILD_OPTIONS_CMDLINE = {
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
+        'fail_on_mod_files_gcccore',
         'force',
         'generate_devel_module',
         'group_writable_installdir',
@@ -294,9 +314,9 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_locks',
         'ignore_test_failure',
         'install_latest_eb_release',
+        'keep_debug_symbols',
         'logtostdout',
         'minimal_toolchains',
-        'module_extensions',
         'module_only',
         'package',
         'parallel_extensions_install',
@@ -315,7 +335,6 @@ BUILD_OPTIONS_CMDLINE = {
         'skip_test_step',
         'sticky_bit',
         'terse',
-        'trace',
         'unit_testing_mode',
         'upload_test_report',
         'update_modules_tool_cache',
@@ -334,10 +353,13 @@ BUILD_OPTIONS_CMDLINE = {
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',
         'map_toolchains',
+        'module_extensions',
         'modules_tool_version_check',
         'mpi_tests',
         'pre_create_installdir',
         'show_progress_bar',
+        'strict_rpath_sanity_check',
+        'trace',
     ],
     EMPTY_LIST: [
         'accept_eula_for',
@@ -374,8 +396,14 @@ BUILD_OPTIONS_CMDLINE = {
     DEFAULT_MAX_FAIL_RATIO_PERMS: [
         'max_fail_ratio_adjust_permissions',
     ],
+    DEFAULT_MAX_PARALLEL: [
+        'max_parallel',
+    ],
     DEFAULT_MINIMAL_BUILD_ENV: [
         'minimal_build_env',
+    ],
+    DEFAULT_MOD_SEARCH_PATH_HEADERS: [
+        'module_search_path_headers',
     ],
     DEFAULT_PKG_RELEASE: [
         'package_release',
@@ -407,6 +435,9 @@ BUILD_OPTIONS_CMDLINE = {
     OUTPUT_STYLE_AUTO: [
         'output_style',
     ],
+    PYTHONPATH: [
+        'prefer_python_search_path',
+    ]
 }
 # build option that do not have a perfectly matching command line option
 BUILD_OPTIONS_OTHER = {
@@ -415,13 +446,13 @@ BUILD_OPTIONS_OTHER = {
         'command_line',
         'external_modules_metadata',
         'extra_ec_paths',
+        'mod_depends_on',  # deprecated
         'robot_path',
         'valid_module_classes',
         'valid_stops',
     ],
     False: [
         'dry_run',
-        'mod_depends_on',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',
@@ -478,6 +509,8 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'buildpath',
         'config',
         'containerpath',
+        'failed_install_build_dirs_path',
+        'failed_install_logs_path',
         'installpath',
         'installpath_modules',
         'installpath_software',
@@ -506,7 +539,10 @@ class ConfigurationVariables(BaseConfigurationVariables):
         """
         missing = [x for x in self.KNOWN_KEYS if x not in self]
         if len(missing) > 0:
-            raise EasyBuildError("Cannot determine value for configuration variables %s. Please specify it.", missing)
+            raise EasyBuildError(
+                "Cannot determine value for configuration variables %s. Please specify it.", ', '.join(missing),
+                exit_code=EasyBuildExit.OPTION_ERROR
+            )
 
         return self.items()
 
@@ -535,11 +571,14 @@ def init(options, config_options_dict):
 
     # make sure source path is a list
     sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, string_type):
+    if isinstance(sourcepath, str):
         tmpdict['sourcepath'] = sourcepath.split(':')
         _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
     elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError("Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath)
+        raise EasyBuildError(
+            "Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -580,10 +619,6 @@ def init_build_options(build_options=None, cmdline_options=None):
             _log.info("Auto-enabling ignoring of OS dependencies")
             cmdline_options.ignore_osdeps = True
 
-        if not cmdline_options.accept_eula_for and cmdline_options.accept_eula:
-            _log.deprecated("Use accept-eula-for configuration setting rather than accept-eula.", '5.0')
-            cmdline_options.accept_eula_for = cmdline_options.accept_eula
-
         cmdline_build_option_names = [k for ks in BUILD_OPTIONS_CMDLINE.values() for k in ks]
         active_build_options.update({key: getattr(cmdline_options, key) for key in cmdline_build_option_names})
         # other options which can be derived but have no perfectly matching cmdline option
@@ -603,12 +638,12 @@ def init_build_options(build_options=None, cmdline_options=None):
     # seed in defaults to make sure all build options are defined, and that build_option() doesn't fail on valid keys
     bo = {}
     for build_options_by_default in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER]:
-        for default in build_options_by_default:
+        for default, options in build_options_by_default.items():
             if default == EMPTY_LIST:
-                for opt in build_options_by_default[default]:
+                for opt in options:
                     bo[opt] = []
             else:
-                bo.update({opt: default for opt in build_options_by_default[default]})
+                bo.update({opt: default for opt in options})
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
@@ -621,16 +656,13 @@ def build_option(key, **kwargs):
     build_options = BuildOptions()
     if key in build_options:
         return build_options[key]
-    elif key == 'accept_eula':
-        _log.deprecated("Use accept_eula_for build option rather than accept_eula.", '5.0')
-        return build_options['accept_eula_for']
     elif 'default' in kwargs:
         return kwargs['default']
     else:
         error_msg = "Undefined build option: '%s'. " % key
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
-        raise EasyBuildError(error_msg)
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.OPTION_ERROR)
 
 
 def update_build_option(key, value):
@@ -695,7 +727,10 @@ def install_path(typ=None):
 
     known_types = ['modules', 'software']
     if typ not in known_types:
-        raise EasyBuildError("Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types))
+        raise EasyBuildError(
+            "Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types),
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     variables = ConfigurationVariables()
 
@@ -748,7 +783,7 @@ def container_path():
 
 def get_modules_tool():
     """
-    Return modules tool (EnvironmentModulesC, Lmod, ...)
+    Return modules tool (EnvironmentModules, Lmod, ...)
     """
     # 'modules_tool' key will only be present if EasyBuild config is initialized
     return ConfigurationVariables().get('modules_tool', None)
@@ -787,7 +822,10 @@ def get_output_style():
             output_style = OUTPUT_STYLE_BASIC
 
     if output_style == OUTPUT_STYLE_RICH and not HAVE_RICH:
-        raise EasyBuildError("Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH)
+        raise EasyBuildError(
+            "Can't use '%s' output style, Rich Python package is not available!", OUTPUT_STYLE_RICH,
+            exit_code=EasyBuildExit.MISSING_EB_DEPENDENCY
+        )
 
     return output_style
 
@@ -812,8 +850,10 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
 
     logfile_format = ConfigurationVariables()['logfile_format']
     if not isinstance(logfile_format, tuple) or len(logfile_format) != 2:
-        raise EasyBuildError("Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s",
-                             logfile_format)
+        raise EasyBuildError(
+            "Incorrect log file format specification, should be 2-tuple (<dir>, <filename>): %s", logfile_format,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     idx = int(not return_directory)
     res = ConfigurationVariables()['logfile_format'][idx] % {
@@ -841,6 +881,42 @@ def log_path(ec=None):
     date = time.strftime("%Y%m%d")
     timestamp = time.strftime("%H%M%S")
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
+
+
+def get_failed_install_build_dirs_path(ec):
+    """
+    Return the location where the build directory is copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_build_dirs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
+
+
+def get_failed_install_logs_path(ec):
+    """
+    Return the location where log files are copied to if installation failed
+
+    :param ec:  dict-like value with 'name' and 'version' keys defined
+    """
+    base_path = ConfigurationVariables()['failed_install_logs_path']
+    if not base_path:
+        return None
+
+    try:
+        name, version = ec['name'], ec['version']
+    except KeyError:
+        raise EasyBuildError("The 'name' and 'version' keys are required.")
+
+    return os.path.join(base_path, f'{name}-{version}')
 
 
 def get_build_log_path():
@@ -920,7 +996,10 @@ def find_last_log(curlog):
         sorted_paths = [p for (_, p) in sorted(paths)]
 
     except OSError as err:
-        raise EasyBuildError("Failed to locate/select/order log files matching '%s': %s", glob_pattern, err)
+        raise EasyBuildError(
+            "Failed to locate/select/order log files matching '%s': %s", glob_pattern, err,
+            exit_code=EasyBuildExit.OPTION_ERROR
+        )
 
     try:
         # log of current session is typically listed last, should be taken into account

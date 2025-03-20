@@ -54,8 +54,8 @@ def write_changes(filename):
     """
     try:
         with open(filename, 'w') as script:
-            for key in _changes:
-                script.write('export %s=%s\n' % (key, shell_quote(_changes[key])))
+            for key, changed_value in _changes.items():
+                script.write('export %s=%s\n' % (key, shell_quote(changed_value)))
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
     reset_changes()

@@ -112,6 +112,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
     def test_build_easyconfigs_in_parallel_pbs_python(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) pbs_python as backend for --job."""
+        self.mock_stdout(True)
         # put mocked functions in place
         PbsPython__init__ = PbsPython.__init__
         PbsPython_check_version = PbsPython._check_version
@@ -212,10 +213,13 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.connect_to_server = PbsPython_connect_to_server
         PbsPython.ppn = PbsPython_ppn
         pbs_python.PbsJob = pbs_python_PbsJob
+        self.mock_stdout(False)
 
     @requires_GC3Pie()
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
+        self.allow_deprecated_behaviour()
+
         # put GC3Pie config in place to use local host and fork/exec
         resourcedir = os.path.join(self.test_prefix, 'gc3pie')
         gc3pie_cfgfile = os.path.join(self.test_prefix, 'gc3pie_local.ini')
@@ -255,7 +259,9 @@ class ParallelBuildTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
-        build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
+
+        with self.mocked_stdout_stderr():
+            build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
 
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
@@ -273,12 +279,13 @@ class ParallelBuildTest(EnhancedTestCase):
         ecs = resolve_dependencies(process_easyconfig(test_ecfile), self.modtool)
 
         error = "1 jobs failed: toy-1.2.3"
-        self.assertErrorRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
 
     def test_submit_jobs(self):
         """Test submit_jobs"""
         test_easyconfigs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec = process_easyconfig(os.path.join(test_easyconfigs_dir, 't', 'toy', 'toy-0.0.eb'))
 
         args = [
             '--debug',
@@ -291,7 +298,7 @@ class ParallelBuildTest(EnhancedTestCase):
             '--job-cores=3',
         ]
         eb_go = parse_options(args=args)
-        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+        cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
 
         # these patterns must be found
         regexs = [
@@ -319,7 +326,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # test again with custom EasyBuild command to use in jobs
         update_build_option('job_eb_cmd', "/just/testing/bin/eb --debug")
-        cmd = submit_jobs([toy_ec], eb_go.generate_cmd_line(), testing=True)
+        cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
         regex = re.compile(r" && /just/testing/bin/eb --debug %\(spec\)s ")
         self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
 
