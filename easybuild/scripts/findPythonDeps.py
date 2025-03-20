@@ -82,7 +82,7 @@ def can_run(cmd, *arguments):
         return False
 
 
-def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
+def run_shell_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
     """Run the command and return the return code and output"""
     extra_args = kwargs or {}
     if sys.version_info[0] >= 3:
@@ -100,7 +100,7 @@ def run_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
 def run_in_venv(cmd, venv_path, action_desc):
     """Run the given command in the virtualenv at the given path"""
     cmd = f'source {venv_path}/bin/activate && {cmd}'
-    return run_cmd(cmd, action_desc, shell=True, executable='/bin/bash')
+    return run_shell_cmd(cmd, action_desc, shell=True, executable='/bin/bash')
 
 
 def get_dep_tree(package_spec, verbose):
@@ -112,7 +112,9 @@ def get_dep_tree(package_spec, verbose):
         venv_dir = os.path.join(tmp_dir, 'venv')
         if verbose:
             print('Creating virtualenv at ' + venv_dir)
-        run_cmd([sys.executable, '-m', 'venv', '--system-site-packages', venv_dir], action_desc='create virtualenv')
+        run_shell_cmd(
+            [sys.executable, '-m', 'venv', '--system-site-packages', venv_dir], action_desc='create virtualenv'
+        )
         if verbose:
             print('Updating pip in virtualenv')
         run_in_venv('pip install --upgrade pip', venv_dir, action_desc='update pip')
@@ -226,10 +228,9 @@ def main():
             sys.exit(1)
         if args.verbose:
             print('Checking with EasyBuild for missing dependencies')
-        missing_dep_out = run_cmd(['eb', args.ec, '--missing'],
-                                  capture_stderr=False,
-                                  action_desc='Get missing dependencies'
-                                  )
+        missing_dep_out = run_shell_cmd(['eb', args.ec, '--missing'],
+                                        capture_stderr=False,
+                                        action_desc='Get missing dependencies')
         excluded_dep = f'({os.path.basename(args.ec)})'
         missing_deps = [dep for dep in missing_dep_out.split('\n')
                         if dep.startswith('*') and excluded_dep not in dep
@@ -246,7 +247,7 @@ def main():
             os.chdir(tmp_dir)
             if args.verbose:
                 print('Running EasyBuild to get build environment')
-            run_cmd(['eb', ec_arg, '--dump-env', '--force'], action_desc='Dump build environment')
+            run_shell_cmd(['eb', ec_arg, '--dump-env', '--force'], action_desc='Dump build environment')
             os.chdir(old_dir)
 
             cmd = f"source {tmp_dir}/*.env && python {sys.argv[0]} '{args.package}'"
@@ -254,7 +255,7 @@ def main():
                 cmd += ' --verbose'
                 print('Restarting script in new build environment')
 
-            out = run_cmd(cmd, action_desc='Run in new environment', shell=True, executable='/bin/bash')
+            out = run_shell_cmd(cmd, action_desc='Run in new environment', shell=True, executable='/bin/bash')
             print(out)
     else:
         if not can_run(sys.executable, '-m', 'venv', '-h'):

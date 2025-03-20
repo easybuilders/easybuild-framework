@@ -11,53 +11,47 @@ concurrency:
 
 jobs:
   setup:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
-        lmod7: Lmod-7.8.22
-        lmod8: Lmod-8.7.6
-        modulesTcl: modules-tcl-1.147
-        modules3: modules-3.2.10
-        modules4: modules-4.1.4
+        lmod8: Lmod-8.7.58
+        modules4: modules-4.5.3
+        modules5: modules-5.3.1
     steps:
       - run: "true"
   build:
     needs: setup
-    runs-on: ubuntu-20.04
+    runs-on: ${{matrix.os || 'ubuntu-24.04'}}
     strategy:
       matrix:
-        python: [3.6]
+        # Python 3.10 is default in Ubuntu 22.04
+        python: ['3.10']
         modules_tool:
           # use variables defined by 'setup' job above, see also
           # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#needs-context
-          - ${{needs.setup.outputs.lmod7}}
           - ${{needs.setup.outputs.lmod8}}
-          - ${{needs.setup.outputs.modulesTcl}}
-          - ${{needs.setup.outputs.modules3}}
           - ${{needs.setup.outputs.modules4}}
-        lc_all: [""]
+          - ${{needs.setup.outputs.modules5}}
         include:
-          # Test different Python 3 versions with Lmod 8.x
-          - python: 3.7
+          # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
+          - python: '3.7'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-          - python: 3.8
+            os: ubuntu-22.04
+          - python: '3.8'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-          - python: 3.9
-            modules_tool: ${{needs.setup.outputs.lmod8}}
-          - python: '3.10'
+          - python: '3.9'
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.11'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-          # There may be encoding errors in Python 3 which are hidden when an UTF-8 encoding is set
-          # Hence run the tests (again) with LC_ALL=C and Python 3.6 (or any < 3.7)
-          - python: 3.6
+          - python: '3.12'
             modules_tool: ${{needs.setup.outputs.lmod8}}
-            lc_all: C
+          - python: '3.13'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
       fail-fast: false
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
     - name: set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -65,7 +59,7 @@ jobs:
     - name: install OS & Python packages
       run: |
         # for modules tool
-        APT_PKGS="lua5.2 liblua5.2-dev lua-filesystem lua-posix tcl tcl-dev"
+        APT_PKGS="lua5.3 liblua5.3-dev lua-filesystem lua-posix tcl tcl-dev"
         # for GitPython, python-hglib
         APT_PKGS+=" git mercurial"
         # dep for GC3Pie
@@ -79,19 +73,18 @@ jobs:
           sudo apt-get install $APT_PKGS
         fi
 
-        # fix for lua-posix packaging issue, see https://bugs.launchpad.net/ubuntu/+source/lua-posix/+bug/1752082
-        # needed for Ubuntu 18.04, but not for Ubuntu 20.04, so skipping symlinking if posix.so already exists
-        if [ ! -e /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so ] ; then
-            sudo ln -s /usr/lib/x86_64-linux-gnu/lua/5.2/posix_c.so /usr/lib/x86_64-linux-gnu/lua/5.2/posix.so
-        fi
         # Python packages
         pip --version
         pip install --upgrade pip
         pip --version
         pip install -r requirements.txt
+        if ! python -c "import distutils" 2> /dev/null; then
+            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
+            pip install --upgrade setuptools
+        fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)
-        git config --global user.name "Travis CI"
-        git config --global user.email "travis@travis-ci.org"
+        git config --global user.name "Github Actions"
+        git config --global user.email "actions@github.com"
         git config --get-regexp 'user.*'
 
     - name: install GitHub token (if available)
@@ -101,9 +94,9 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
-        # only install GitHub token when testing with Lmod 8.x + Python 3.6 or 3.9, to avoid hitting GitHub rate limit
+        # only install GitHub token when testing with Lmod 8.x + Python 3.9, to avoid hitting GitHub rate limit
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
-        if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.[69] ]]; then
+        if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.9 ]]; then
           if [ ! -z $GITHUB_TOKEN ]; then
             SET_KEYRING="import keyrings.alt.file; keyring.set_keyring(keyrings.alt.file.PlaintextKeyring())"
             python -c "import keyring; $SET_KEYRING; keyring.set_password('github_token', 'easybuild_test', '$GITHUB_TOKEN')"
@@ -129,7 +122,7 @@ jobs:
       run: |
           # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
           # since EasyBuild should not have a runtime requirement on setuptools
-          SETUPTOOLS_IMPORTS=$(egrep -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
+          SETUPTOOLS_IMPORTS=$(egrep --exclude setup.py -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
           test "x$SETUPTOOLS_IMPORTS" = "x" || (echo "Found setuptools and/or pkg_resources imports in easybuild/:\n${SETUPTOOLS_IMPORTS}" && exit 1)
 
     - name: install sources
@@ -143,14 +136,16 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        LC_ALL: ${{matrix.lc_all}}
+        LC_ALL: "" 
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
           cd $HOME
           # initialize environment for modules tool
           if [ -f $HOME/moduleshome ]; then export MODULESHOME=$(cat $HOME/moduleshome); fi
-          source $(cat $HOME/mod_init); type module
+          source $(cat $HOME/mod_init)
+          type module
+          module --version
           # make sure 'eb' is available via $PATH, and that $PYTHONPATH is set (some tests expect that);
           # also pick up changes to $PATH set by sourcing $MOD_INIT
           export PREFIX=/tmp/$USER/$GITHUB_SHA
@@ -158,11 +153,7 @@ jobs:
           export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
           eb --version
           # tell EasyBuild which modules tool is available
-          if [[ ${{matrix.modules_tool}} =~ ^modules-tcl- ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesTcl
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-3 ]]; then
-            export EASYBUILD_MODULES_TOOL=EnvironmentModulesC
-          elif [[ ${{matrix.modules_tool}} =~ ^modules-4 ]]; then
+          if [[ ${{matrix.modules_tool}} =~ ^modules- ]]; then
             export EASYBUILD_MODULES_TOOL=EnvironmentModules
           else
             export EASYBUILD_MODULES_TOOL=Lmod
@@ -195,9 +186,8 @@ jobs:
             IGNORE_PATTERNS+="|skipping SvnRepository test"
             IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
-            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.[567]"
+            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
             IGNORE_PATTERNS+="|from cryptography.* import "
-            IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 2"
             IGNORE_PATTERNS+="|Blowfish"
             IGNORE_PATTERNS+="|GC3Pie not available, skipping test"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: TripleDES has been moved"

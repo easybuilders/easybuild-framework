@@ -41,7 +41,6 @@ from easybuild.framework.easyconfig.types import to_list_of_strings, to_list_of_
 from easybuild.framework.easyconfig.types import to_list_of_strings_and_tuples_and_dicts
 from easybuild.framework.easyconfig.types import to_sanity_check_paths_dict, to_toolchain_dict
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 
 
 class TypeCheckingTest(EnhancedTestCase):
@@ -172,16 +171,18 @@ class TypeCheckingTest(EnhancedTestCase):
         out = {'files': ['bin/foo', ('bin/bar', 'bin/baz')], 'dirs': [('lib', 'lib64', 'lib32')]}
         self.assertEqual(check_type_of_param_value('sanity_check_paths', inp, auto_convert=True), (True, out))
 
-    def test_check_type_of_param_value_checksums(self):
-        """Test check_type_of_param_value function for checksums."""
+    @staticmethod
+    def get_valid_checksums_values():
+        """Return list of values valid for the 'checksums' EC parameter"""
 
-        md5_checksum = 'fa618be8435447a017fd1bf2c7ae9224'
-        sha256_checksum1 = 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
-        sha256_checksum2 = 'b5f9cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
-        sha256_checksum3 = '033be54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
-
+        # Using (actually invalid) prefix to better detect those in case of errors
+        md5_checksum = 'md518be8435447a017fd1bf2c7ae9224'
+        sha256_checksum1 = 'sha18be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265'
+        sha256_checksum2 = 'sha2cb06105c1d2d30719db5ffb3ea67da60919fb68deaefa583deccd8813551'
+        sha256_checksum3 = 'sha3e54514a03e255df75c5aee8f9e672f663f93abb723444caec8fe43437bde'
+        filesize = 45617379
         # valid values for 'checksums' easyconfig parameters
-        inputs = [
+        return [
             [],
             # single checksum (one file)
             [md5_checksum],
@@ -191,6 +192,7 @@ class TypeCheckingTest(EnhancedTestCase):
             # one checksum of specific type (as 2-tuple)
             [('md5', md5_checksum)],
             [('sha256', sha256_checksum1)],
+            [('size', filesize)],
             # alternative checksums for a single file (n-tuple)
             [(sha256_checksum1, sha256_checksum2)],
             [(sha256_checksum1, sha256_checksum2, sha256_checksum3)],
@@ -214,17 +216,37 @@ class TypeCheckingTest(EnhancedTestCase):
                 # two checksums for a single file, *both* should match
                 [sha256_checksum1, md5_checksum],
                 # three checksums for a single file, *all* should match
-                [sha256_checksum1, ('md5', md5_checksum), {'foo.txt': sha256_checksum1}],
+                [sha256_checksum1, ('md5', md5_checksum), ('size', filesize)],
                 # single checksum for a single file
                 sha256_checksum1,
                 # filename-to-checksum mapping
-                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2},
+                {'foo.txt': sha256_checksum1, 'bar.txt': sha256_checksum2, 'baz.txt': ('size', filesize)},
                 # 3 alternative checksums for a single file, one match is sufficient
                 (sha256_checksum1, sha256_checksum2, sha256_checksum3),
-            ]
+                # two alternative checksums for a single file (not to be confused by checksum-type & -value tuple)
+                (sha256_checksum1, md5_checksum),
+                # three alternative checksums for a single file of different types
+                (sha256_checksum1, ('md5', md5_checksum), ('size', filesize)),
+                # alternative checksums in dicts are also allowed
+                {'foo.txt': (sha256_checksum2, sha256_checksum3), 'bar.txt': (sha256_checksum1, md5_checksum)},
+                # Same but with lists -> all must match for each file
+                {'foo.txt': [sha256_checksum2, sha256_checksum3], 'bar.txt': [sha256_checksum1, md5_checksum]},
+            ],
+            # None is allowed, meaning skip the checksum
+            [
+                None,
+                # Also in mappings
+                {'foo.txt': sha256_checksum1, 'bar.txt': None},
+            ],
         ]
-        for inp in inputs:
-            self.assertEqual(check_type_of_param_value('checksums', inp), (True, inp))
+
+    def test_check_type_of_param_value_checksums(self):
+        """Test check_type_of_param_value function for checksums."""
+
+        for inp in TypeCheckingTest.get_valid_checksums_values():
+            type_ok, newval = check_type_of_param_value('checksums', inp)
+            self.assertIs(type_ok, True, 'Failed for ' + str(inp))
+            self.assertEqual(newval, inp)
 
     def test_check_type_of_param_value_patches(self):
         """Test check_type_of_param_value function for patches."""
@@ -248,9 +270,9 @@ class TypeCheckingTest(EnhancedTestCase):
     def test_convert_value_type(self):
         """Test convert_value_type function."""
         # to string
-        self.assertEqual(convert_value_type(100, string_type), '100')
+        self.assertEqual(convert_value_type(100, str), '100')
         self.assertEqual(convert_value_type((100,), str), '(100,)')
-        self.assertEqual(convert_value_type([100], string_type), '[100]')
+        self.assertEqual(convert_value_type([100], str), '[100]')
         self.assertEqual(convert_value_type(None, str), 'None')
 
         # to int/float
@@ -269,7 +291,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type((), LIST_OF_STRINGS), [])
 
         # idempotency
-        self.assertEqual(convert_value_type('foo', string_type), 'foo')
+        self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type('foo', str), 'foo')
         self.assertEqual(convert_value_type(100, int), 100)
         self.assertEqual(convert_value_type(1.6, float), 1.6)
@@ -318,9 +340,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
 
         # invalid truth value
-        errstr = "invalid truth value .*"
-        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, "intel, 2015, foo")
-        self.assertErrorRegex(ValueError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
+        errstr = "Invalid truth value .*"
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, foo")
+        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
 
         # missing keys
         self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})
@@ -706,19 +728,94 @@ class TypeCheckingTest(EnhancedTestCase):
 
     def test_to_checksums(self):
         """Test to_checksums function."""
+        # Some hand-crafted examples. Only the types are important, values are for easier verification
         test_inputs = [
-            ['be662daa971a640e40be5c804d9d7d10'],
-            ['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')],
-            [['be662daa971a640e40be5c804d9d7d10', ('md5', 'be662daa971a640e40be5c804d9d7d10')]],
-            [('md5', 'be662daa971a640e40be5c804d9d7d10')],
-            ['be662daa971a640e40be5c804d9d7d10', ('adler32', '0x998410035'), ('crc32', '0x1553842328'),
-             ('md5', 'be662daa971a640e40be5c804d9d7d10'), ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
-             ('size', 273)],
+            ['checksumvalue'],
+            [('md5', 'md5checksumvalue')],
+            ['file_1_checksum', ('md5', 'file_2_md5_checksum')],
+            # One checksum per file, some with checksum type
+            [
+                'be662daa971a640e40be5c804d9d7d10',
+                ('adler32', '0x998410035'),
+                ('crc32', '0x1553842328'),
+                ('md5', 'be662daa971a640e40be5c804d9d7d10'),
+                ('sha1', 'f618096c52244539d0e89867405f573fdb0b55b0'),
+                # int type as the 2nd value
+                ('size', 273),
+            ],
             # None values should not be filtered out, but left in place
-            [None, 'fa618be8435447a017fd1bf2c7ae922d0428056cfc7449f7a8641edf76b48265', None],
+            [None, 'checksum', None],
+            # Alternative checksums, not to be confused with multiple checksums for a file
+            [('main_checksum', 'alternative_checksum')],
+            [('1st_of_3', '2nd_of_3', '3rd_of_3')],
+            # Lists must be kept: This means all must match
+            [['checksum_1_in_list']],
+            [['checksum_must_match', 'this_must_also_match']],
+            [['1st_of_3_list', '2nd_of_3_list', '3rd_of_3_list']],
+            # Alternative checksums with types
+            [
+                (('adler32', '1st_adler'), ('crc32', '1st_crc')),
+                (('adler32', '2nd_adler'), ('crc32', '2nd_crc'), ('sha1', '2nd_sha')),
+            ],
+            # Entries can be dicts even containing `None`
+            [
+                {
+                    'src-arm.tgz': 'arm_checksum',
+                    'src-x86.tgz': ('mainchecksum', 'altchecksum'),
+                    'src-ppc.tgz': ('mainchecksum', ('md5', 'altchecksum')),
+                    'git-clone.tgz': None,
+                },
+                {
+                    'src': ['checksum_must_match', 'this_must_also_match']
+                },
+                # 2nd required checksum a dict
+                ['first_checksum', {'src-arm': 'arm_checksum'}]
+            ],
         ]
         for checksums in test_inputs:
             self.assertEqual(to_checksums(checksums), checksums)
+        # Also reuse the checksums we use in test_check_type_of_param_value_checksums
+        # When a checksum is valid it must not be modified
+        for checksums in TypeCheckingTest.get_valid_checksums_values():
+            self.assertEqual(to_checksums(checksums), checksums)
+
+        # List in list converted to tuple -> alternatives or checksum with type
+        checksums = [['1stchecksum', ['md5', 'md5sum']]]
+        checksums_expected = [['1stchecksum', ('md5', 'md5sum')]]
+        self.assertEqual(to_checksums(checksums), checksums_expected)
+
+        # Error detection
+        wrong_nesting = [('1stchecksum', ('md5', ('md5sum', 'altmd5sum')))]
+        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, wrong_nesting)
+        correct_nesting = [('1stchecksum', ('md5', 'md5sum'), ('md5', 'altmd5sum'))]
+        self.assertEqual(to_checksums(correct_nesting), correct_nesting)
+        # YEB (YAML EC) doesn't has tuples so it uses lists instead which need to get converted
+        correct_nesting_yeb = [[['1stchecksum', ['md5', 'md5sum'], ['md5', 'altmd5sum']]]]
+        correct_nesting_yeb_conv = [[('1stchecksum', ('md5', 'md5sum'), ('md5', 'altmd5sum'))]]
+        self.assertEqual(to_checksums(correct_nesting_yeb), correct_nesting_yeb_conv)
+        self.assertEqual(to_checksums(correct_nesting_yeb_conv), correct_nesting_yeb_conv)
+
+        unexpected_set = [('1stchecksum', {'md5', 'md5sum'})]
+        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, unexpected_set)
+        unexpected_dict = [{'src': ('md5sum', {'src': 'shasum'})}]
+        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*shasum', to_checksums, unexpected_dict)
+        correct_dict = [{'src': ('md5sum', 'shasum')}]
+        self.assertEqual(to_checksums(correct_dict), correct_dict)
+        correct_dict_1 = [{'src': [['md5', 'md5sum'], ['sha', 'shasum']]}]
+        correct_dict_2 = [{'src': [('md5', 'md5sum'), ('sha', 'shasum')]}]
+        self.assertEqual(to_checksums(correct_dict_2), correct_dict_2)
+        self.assertEqual(to_checksums(correct_dict_1), correct_dict_2)  # inner lists to tuples
+
+        unexpected_Nones = [
+            [('1stchecksum', None)],
+            [['1stchecksum', None]],
+            [{'src': ('md5sum', None)}],
+            [{'src': ['md5sum', None]}],
+        ]
+        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[0])
+        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[1])
+        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[2])
+        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[3])
 
     def test_ensure_iterable_license_specs(self):
         """Test ensure_iterable_license_specs function."""

@@ -40,10 +40,9 @@ import os
 
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, raise_nosupport
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import check_async_cmd, run_cmd
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.run import run_shell_cmd
 
 
 def resolve_exts_filter_template(exts_filter, ext):
@@ -54,7 +53,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     :return: (cmd, input) as a tuple of strings
     """
 
-    if isinstance(exts_filter, string_type) or len(exts_filter) != 2:
+    if isinstance(exts_filter, str) or len(exts_filter) != 2:
         raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
 
     cmd, cmdinput = exts_filter
@@ -117,7 +116,7 @@ class Extension(object):
 
         # Add install/builddir templates with values from master.
         for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
+            self.cfg.template_values[key] = str(getattr(self.master, key, None))
 
         # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
         # It should be specified for the extension specifically, or be empty (so it is auto-derived).
@@ -129,7 +128,15 @@ class Extension(object):
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
         self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
-        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
+        # Some options may not be resolvable yet
+        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
+                                        self.cfg.template_values,
+                                        expect_resolved=False)
+        if 'parallel' in self.options:
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
+            self.options['max_parallel'] = self.options.pop('parallel')
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -147,16 +154,17 @@ class Extension(object):
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
 
+        # If parallelism has been set already take potentially new limitation into account
+        if self.cfg.is_parallel_set:
+            max_par = self.cfg['max_parallel']
+            if max_par is not None and max_par < self.cfg.parallel:
+                self.cfg.parallel = max_par
+
         self.sanity_check_fail_msgs = []
         self.sanity_check_module_loaded = False
         self.fake_mod_data = None
 
-        self.async_cmd_info = None
-        self.async_cmd_output = None
-        self.async_cmd_check_cnt = None
-        # initial read size should be relatively small,
-        # to avoid hanging for a long time until desired output is available in async_cmd_check
-        self.async_cmd_read_size = 1024
+        self.async_cmd_task = None
 
     @property
     def name(self):
@@ -174,11 +182,25 @@ class Extension(object):
 
     def prerun(self):
         """
+        [DEPRECATED][6.0] Stuff to do before installing a extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.pre_install_extension()
+
+    def pre_install_extension(self):
+        """
         Stuff to do before installing a extension.
         """
         pass
 
     def run(self, *args, **kwargs):
+        """
+        [DEPRECATED][6.0] Actual installation of an extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.install_extension(*args, **kwargs)
+
+    def install_extension(self, *args, **kwargs):
         """
         Actual installation of an extension.
         """
@@ -186,53 +208,71 @@ class Extension(object):
 
     def run_async(self, *args, **kwargs):
         """
+        [DEPRECATED][6.0] Asynchronous installation of an extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.install_extension_async(*args, **kwargs)
+
+    def install_extension_async(self, *args, **kwargs):
+        """
         Asynchronous installation of an extension.
         """
         raise NotImplementedError
 
     def postrun(self):
         """
+        [DEPRECATED][6.0] Stuff to do after installing a extension.
+        """
+        # Deprecation warning triggered by Extension.install_extension_substep()
+        self.post_install_extension()
+
+    def post_install_extension(self):
+        """
         Stuff to do after installing a extension.
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
 
-    def async_cmd_start(self, cmd, inp=None):
+    def install_extension_substep(self, substep, *args, **kwargs):
         """
-        Start installation asynchronously using specified command.
+        Carry out extension installation substep allowing use of deprecated
+        methods on those extensions using an older EasyBlock
         """
-        self.async_cmd_output = ''
-        self.async_cmd_check_cnt = 0
-        self.async_cmd_info = run_cmd(cmd, log_all=True, simple=False, inp=inp, regexp=False, asynchronous=True)
+        substeps_mapping = {
+            'pre_install_extension': 'prerun',
+            'install_extension': 'run',
+            'install_extension_async': 'run_async',
+            'post_install_extension': 'postrun',
+        }
 
-    def async_cmd_check(self):
-        """
-        Check progress of installation command that was started asynchronously.
+        deprecated_substep = substeps_mapping.get(substep)
+        if deprecated_substep is None:
+            raise EasyBuildError("Unknown extension installation substep: %s", substep)
 
-        :return: True if command completed, False otherwise
-        """
-        if self.async_cmd_info is None:
-            raise EasyBuildError("No installation command running asynchronously for %s", self.name)
-        elif self.async_cmd_info is False:
-            self.log.info("No asynchronous command was started for extension %s", self.name)
-            return True
+        try:
+            substep_method = getattr(self, deprecated_substep)
+        except AttributeError:
+            log_msg = f"EasyBlock does not implement deprecated method '{deprecated_substep}' "
+            log_msg += f"for installation substep {substep}"
+            self.log.debug(log_msg)
+            substep_method = getattr(self, substep)
         else:
-            self.log.debug("Checking on installation of extension %s...", self.name)
-            # use small read size, to avoid waiting for a long time until sufficient output is produced
-            res = check_async_cmd(*self.async_cmd_info, output_read_size=self.async_cmd_read_size)
-            self.async_cmd_output += res['output']
-            if res['done']:
-                self.log.info("Installation of extension %s completed!", self.name)
-                self.async_cmd_info = None
-            else:
-                self.async_cmd_check_cnt += 1
-                self.log.debug("Installation of extension %s still running (checked %d times)",
-                               self.name, self.async_cmd_check_cnt)
-                # increase read size after sufficient checks,
-                # to avoid that installation hangs due to output buffer filling up...
-                if self.async_cmd_check_cnt % 10 == 0 and self.async_cmd_read_size < (1024 ** 2):
-                    self.async_cmd_read_size *= 2
+            # Qualified method name contains class defining the method (PEP 3155)
+            substep_method_name = substep_method.__qualname__
+            self.log.debug(f"Found deprecated method in EasyBlock: {substep_method_name}")
 
-            return res['done']
+            base_method_name = f"Extension.{deprecated_substep}"
+            if substep_method_name == base_method_name:
+                # No custom method in child Easyblock, deprecated method is defined by base Extension class
+                # Switch to non-deprecated substep method
+                substep_method = getattr(self, substep)
+            else:
+                # Custom deprecated method used by child Easyblock
+                self.log.deprecated(
+                    f"{substep_method_name}() is deprecated, use {substep}() instead.",
+                    "6.0",
+                )
+
+        return substep_method(*args, **kwargs)
 
     @property
     def required_deps(self):
@@ -274,15 +314,14 @@ class Extension(object):
             self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
         elif exts_filter:
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
-            # set log_ok to False so we can catch the error instead of run_cmd
-            (output, ec) = run_cmd(cmd, log_ok=False, simple=False, regexp=False, inp=stdin)
+            cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin)
 
-            if ec:
+            if cmd_res.exit_code != EasyBuildExit.SUCCESS:
                 if stdin:
                     fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
                 else:
                     fail_msg = 'command "%s" failed' % cmd
-                fail_msg += "; output:\n%s" % output.strip()
+                fail_msg += "; output:\n%s" % cmd_res.output.strip()
                 self.log.warning("Sanity check for '%s' extension failed: %s", self.name, fail_msg)
                 res = (False, fail_msg)
                 # keep track of all reasons of failure

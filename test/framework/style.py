@@ -40,10 +40,7 @@ from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, 
 try:
     import pycodestyle  # noqa
 except ImportError:
-    try:
-        import pep8  # noqa
-    except ImportError:
-        pass
+    pass
 
 
 class StyleTest(EnhancedTestCase):
@@ -51,8 +48,8 @@ class StyleTest(EnhancedTestCase):
 
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping style checks (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_style_conformance pycodestyle is not available")
             return
 
         # all available easyconfig files
@@ -66,8 +63,8 @@ class StyleTest(EnhancedTestCase):
 
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
-        if not ('pycodestyle' in sys.modules or 'pep8' in sys.modules):
-            print("Skipping trailing whitespace checks (no pycodestyle or pep8 available)")
+        if 'pycodestyle' not in sys.modules:
+            print("Skipping test_check_trailing_whitespace is not available")
             return
 
         lines = [
@@ -77,6 +74,12 @@ class StyleTest(EnhancedTestCase):
             '''description = """start of long description, ''',  # trailing whitespace, but allowed in description
             ''' continuation of long description ''',  # trailing whitespace, but allowed in continued description
             ''' end of long description"""''',
+            '''citing = """start of long citing text, ''',  # trailing whitespace, but allowed in citing
+            ''' continuation of long citing text ''',  # trailing whitespace, but allowed in continued citing
+            ''' end of long citing text"""''',
+            '''examples = """start of long examples, ''',  # trailing whitespace, but allowed in examples
+            ''' continuation of long examples ''',  # trailing whitespace, but allowed in continued examples
+            ''' end of long examples"""''',
             "moduleclass = 'tools'   ",  # trailing whitespace
             '',
         ]
@@ -86,6 +89,12 @@ class StyleTest(EnhancedTestCase):
             None,
             (17, "W299 trailing whitespace"),
             (0, "W293 blank line contains whitespace"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
             None,
             None,
             None,

@@ -110,8 +110,6 @@ DEFAULT_CONFIG = {
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
@@ -131,6 +129,7 @@ DEFAULT_CONFIG = {
     'sanity_check_paths': [{}, ("List of files and directories to check "
                                 "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
     'skip': [False, "Skip existing software", BUILD],
+    'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
     'sources': [[], "List of source files", BUILD],
@@ -155,8 +154,8 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
-    'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
+    'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
+                            'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],
@@ -190,12 +189,9 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in modextrapaths_append", MODULES],
-    'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
-    'modextrapaths_append': [{}, "Extra paths to be appended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],
@@ -205,12 +201,13 @@ DEFAULT_CONFIG = {
     'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
-                          '(implies recursive unloading of modules).', MODULES],
+    'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                          '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
+    'module_search_path_headers': [None, "Environment variable set by modules on load "
+                                   "with search paths to header files (if None, use $CPATH)", MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
-                                      "(True/False to hard enable/disable; None implies honoring "
-                                      "the --recursive-module-unload EasyBuild configuration setting",
-                                MODULES],
+                                "(True/False to hard enable/disable; None implies honoring the "
+                                "--recursive-module-unload EasyBuild configuration setting", MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)

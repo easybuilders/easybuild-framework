@@ -35,7 +35,6 @@ import re
 from easybuild.base import fancylogger
 from easybuild.base.wrapper import Wrapper
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 
 
 _log = fancylogger.getLogger('tools.convert', fname=False)
@@ -52,7 +51,7 @@ class Convert(Wrapper):
         """Support the conversion of obj to something"""
         self.__dict__['log'] = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.__dict__['data'] = None
-        if isinstance(obj, string_type):
+        if isinstance(obj, str):
             self.data = self._from_string(obj)
         else:
             raise EasyBuildError("unsupported type %s for %s: %s", type(obj), self.__class__.__name__, obj)

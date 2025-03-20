@@ -37,6 +37,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import contextmanager
+from importlib import reload
 
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
@@ -48,13 +49,12 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
-from easybuild.tools.py2vs3 import reload
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -106,8 +106,8 @@ class EnhancedTestCase(TestCase):
         os.close(fd)
         self.cwd = os.getcwd()
 
-        # keep track of original environment to restore
-        self.orig_environ = copy.deepcopy(os.environ)
+        # keep track of original environment to restore after tests
+        self._initial_environ = copy.deepcopy(os.environ)
 
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
@@ -131,16 +131,18 @@ class EnhancedTestCase(TestCase):
             if eb_path is not None:
                 os.environ['EB_SCRIPT_PATH'] = eb_path
 
+        # disable progress bars when running the tests,
+        # since it messes with test suite progress output when test installations are performed
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
+        # Store the environment as setup (including the above paths) for tests to restore
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         self.orig_current_version = eb_build_log.CURRENT_VERSION
         self.disallow_deprecated_behaviour()
 
         init_config()
-
-        # disable progress bars when running the tests,
-        # since it messes with test suite progress output when test installations are performed
-        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
-        update_build_option('show_progress_bar', False)
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
@@ -209,6 +211,14 @@ class EnhancedTestCase(TestCase):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
         os.environ.pop('EASYBUILD_DEPRECATED', None)
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
 
     @contextmanager
     def log_to_testlogfile(self):
@@ -399,7 +409,7 @@ class EnhancedTestCase(TestCase):
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
-        # create empty module file directory to make C/Tcl modules happy
+        # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(os.path.join(mpi_pref, 'base'))
 
@@ -430,7 +440,8 @@ class TestLoaderFiltered(unittest.TestLoader):
         retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                if any(filt in test_case_name for filt in filters):
+                full_test_case_name = '%s.%s' % (test_case_class.__name__, test_case_name)
+                if any(filt in full_test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
             retained_tests = ', '.join(retained_test_names)
