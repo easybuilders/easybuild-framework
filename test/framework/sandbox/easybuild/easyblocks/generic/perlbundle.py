@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,16 +23,11 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for dummy compiler toolchain.
-
-Authors:
-
-* Kenneth Hoste (Ghent University)
+Dummy easyblock for bundle of Perl modules.
 """
+from easybuild.framework.easyblock import EasyBlock
 
-from easybuild.toolchains.compiler.dummycompiler import DummyCompiler
 
-
-class Dummy(DummyCompiler):
-    """Dummy toolchain."""
-    NAME = 'dummy'
+class PerlBundle(EasyBlock):
+    """Dummy support for bundle of Perl modules."""
+    pass
