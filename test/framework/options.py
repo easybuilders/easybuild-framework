@@ -3484,6 +3484,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertTrue(ec_regex.search(outtxt), "Pattern %s found in %s" % (ec_regex.pattern, outtxt))
 
+        # Check for disabling --robot
+        args.append('--disable-robot')
+        self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
+
     def test_robot_path_check(self):
         """Test path check for --robot"""
         empty_file = os.path.join(self.test_prefix, 'empty')
