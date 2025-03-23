@@ -4288,7 +4288,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.eb_main(args, raise_error=True)
         txt = self.get_stdout()
         self.mock_stdout(False)
-        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.6")
+        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.8")
         self.assertTrue(regex.search(txt), "Pattern '%s' not found in: %s" % (regex.pattern, txt))
 
     def test_github_review_pr(self):
