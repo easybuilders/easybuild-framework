@@ -3435,13 +3435,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
             't/toy/toy-0.0-deps.eb',
             'g/gzip/gzip-1.4-GCC-4.6.3.eb',
         ]
+        re_template = r'^\s\*\s\[[xF ]\]\s%s'
         for ecfile in ecfiles:
-            ec_regex = re.compile(r'^\s\*\s\[[xF ]\]\s%s' % os.path.join(test_ecs_path, ecfile), re.M)
+            ec_regex = re.compile(re_template % os.path.join(test_ecs_path, ecfile), re.M)
             self.assertRegex(outtxt, ec_regex)
 
         # Check for disabling --robot
         args.append('--disable-robot')
-        self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
+        # Enabled on cmdline before and via option, but should be disabled
+        os.environ['EASYBUILD_ROBOT'] = self.test_prefix
+        with self.mocked_stdout_stderr():
+            outtxt = self.eb_main(args, raise_error=True)
+        for ecfile in ecfiles:
+            ec_regex = re.compile(re_template % os.path.join(test_ecs_path, ecfile), re.M)
+            # Only the EC passed would be build but not the dependencies
+            if os.path.basename(ecfile) == os.path.basename(eb_file):
+                self.assertRegex(outtxt, ec_regex)
+            else:
+                self.assertNotRegex(outtxt, ec_regex)
 
     def test_robot_path_check(self):
         """Test path check for --robot"""
