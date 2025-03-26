@@ -839,7 +839,7 @@ class Toolchain(object):
         self.variables_init()
 
     def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
-                rpath_filter_dirs=None, rpath_include_dirs=None):
+                rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -853,6 +853,7 @@ class Toolchain(object):
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         :param rpath_include_dirs: extra directories to include in RPATH
+        :param rpath_wrappers_dir: directory in which to create RPATH wrappers
         """
 
         # take into account --sysroot configuration setting
@@ -906,7 +907,11 @@ class Toolchain(object):
 
         if build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers(rpath_filter_dirs, rpath_include_dirs)
+                self.prepare_rpath_wrappers(
+                    rpath_filter_dirs=rpath_filter_dirs,
+                    rpath_include_dirs=rpath_include_dirs,
+                    rpath_wrappers_dir=rpath_wrappers_dir
+                    )
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
@@ -975,7 +980,7 @@ class Toolchain(object):
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
@@ -998,7 +1003,13 @@ class Toolchain(object):
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all wrappers will be placed
-        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        disable_wrapper_log = False
+        if rpath_wrappers_dir is None:
+            wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        else:
+            wrappers_dir = os.path.join(rpath_wrappers_dir, RPATH_WRAPPERS_SUBDIR)
+            # No logging when we may be exporting wrappers
+            disable_wrapper_log = True
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
@@ -1045,7 +1056,7 @@ class Toolchain(object):
                     raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 # enable debug mode in wrapper script by specifying location for log file
-                if build_option('debug'):
+                if build_option('debug') and not disable_wrapper_log:
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
                 else:
                     rpath_wrapper_log = '/dev/null'

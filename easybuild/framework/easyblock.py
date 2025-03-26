@@ -238,6 +238,9 @@ class EasyBlock(object):
         # list of locations to include in RPATH used by toolchain
         self.rpath_include_dirs = []
 
+        # directory to export RPATH wrappers to
+        self.rpath_wrappers_dir = None
+
         # logging
         self.log = None
         self.logfile = logfile
@@ -2103,7 +2106,9 @@ class EasyBlock(object):
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs)
+                                      rpath_filter_dirs=self.rpath_filter_dirs,
+                                      rpath_include_dirs=self.rpath_include_dirs,
+                                      rpath_wrappers_dir=self.rpath_wrappers_dir)
 
             # actual installation of the extension
             if install:
@@ -2265,7 +2270,9 @@ class EasyBlock(object):
                     # don't reload modules for toolchain, there is no need since they will be loaded already;
                     # the (fake) module for the parent software gets loaded before installing extensions
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs)
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     if install:
                         ext.install_extension_substep("pre_install_extension")
                         ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
@@ -2894,6 +2901,15 @@ class EasyBlock(object):
             '$ORIGIN/../lib64',
         ])
 
+        # Location to store RPATH wrappers
+        self.rpath_wrappers_dir = build_option('rpath_wrappers_dir')
+        if self.rpath_wrappers_dir is not None:
+            # Verify the path given is absolute
+            if os.path.isabs(self.rpath_wrappers_dir):
+                _log.debug("Using %s to store/use RPATH wrappers" % self.rpath_wrappers_dir)
+            else:
+                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s", path)
+
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
@@ -2911,7 +2927,7 @@ class EasyBlock(object):
         # prepare toolchain: load toolchain module and dependencies, set up build environment
         self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
                                loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
-                               rpath_include_dirs=self.rpath_include_dirs)
+                               rpath_include_dirs=self.rpath_include_dirs, rpath_wrappers_dir=self.rpath_wrappers_dir)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
