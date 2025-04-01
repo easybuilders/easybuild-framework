@@ -26,9 +26,9 @@ jobs:
         run: |
           cd $HOME
           for pkg in easyblocks easyconfigs; do
-              curl -OL https://github.com/easybuilders/easybuild-${pkg}/archive/5.0.x.tar.gz
-              tar xfz 5.0.x.tar.gz
-              rm -f 5.0.x.tar.gz
+              curl -OL https://github.com/easybuilders/easybuild-${pkg}/archive/develop.tar.gz
+              tar xfz develop.tar.gz
+              rm -f develop.tar.gz
           done
 
       - name: Set up environment
@@ -36,7 +36,7 @@ jobs:
         run: |
           # collect environment variables to be set in subsequent steps in script that can be sourced
           echo "export PATH=$PWD:$PATH" > /tmp/eb_env
-          echo "export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-5.0.x:$HOME/easybuild-easyconfigs-5.0.x" >> /tmp/eb_env
+          echo "export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop" >> /tmp/eb_env
 
       - name: Run commands to check test environment
         shell: bash

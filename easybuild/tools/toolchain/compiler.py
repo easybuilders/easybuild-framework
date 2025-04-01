@@ -178,7 +178,7 @@ class Compiler(Toolchain):
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
         # Initialize default value of debug symbols based on global build option
-        if self.COMPILER_SHARED_OPTS:
+        if self.COMPILER_SHARED_OPTS and 'debug' in self.COMPILER_SHARED_OPTS:
             _, desc = self.COMPILER_SHARED_OPTS['debug']
             self.COMPILER_SHARED_OPTS['debug'] = (build_option('keep_debug_symbols'), desc)
         self.options.add_options(self.COMPILER_SHARED_OPTS, self.COMPILER_SHARED_OPTION_MAP)

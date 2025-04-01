@@ -29,11 +29,14 @@ Authors:
 
 * Jens Timmerman (Ghent University)
 * Ward Poelmans (Ghent University)
+* Jan Andre Reuter (Forschungszentrum Juelich GmbH)
 """
+import csv
 import ctypes
 import errno
 import fcntl
 import grp  # @UnresolvedImport
+import io
 import os
 import platform
 import pwd
@@ -638,9 +641,41 @@ def get_gpu_info():
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
 
+    amdgpu_checked = False
+    if not which('amd-smi', on_error=IGNORE):
+        _log.info("amd-smi not found. Trying to detect AMD GPUs via rocm-smi")
+    else:
+        try:
+            cmd = "amd-smi static --driver --board --asic --csv"
+            _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                csv_reader = csv.DictReader(io.StringIO(res.output.strip()))
+
+                for row in csv_reader:
+                    amd_card_series = row['product_name']
+                    amd_card_device_id = row['device_id']
+                    amd_card_gfx = row['target_graphics_version']
+                    amd_card_driver = row['version']
+
+                    amd_gpu = ("%s (device id: %s, gfx: %s, driver: %s)" %
+                               (amd_card_series, amd_card_device_id, amd_card_gfx, amd_card_driver))
+                    amd_gpu_info = gpu_info.setdefault('AMD', {})
+                    amd_gpu_info.setdefault(amd_gpu, 0)
+                    amd_gpu_info[amd_gpu] += 1
+                amdgpu_checked = True
+            else:
+                _log.debug("None zero exit (%s) from amd-smi: %s.", res.exit_code, res.output)
+        except EasyBuildError as err:
+            _log.debug("Exception was raised when running amd-smi: %s", err)
+            _log.info("No AMD GPUs detected via amd-smi.")
+        except KeyError as err:
+            _log.warning("Failed to extract AMD GPU info from amd-smi output: %s.", err)
+
     if not which('rocm-smi', on_error=IGNORE):
         _log.info("rocm-smi not found. Cannot detect AMD GPUs")
-    else:
+    elif not amdgpu_checked:
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)

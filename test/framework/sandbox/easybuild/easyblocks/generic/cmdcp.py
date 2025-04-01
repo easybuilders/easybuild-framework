@@ -1,5 +1,5 @@
 ##
-# Copyright 2019-2025 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,29 +23,12 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for system compiler.
-
-Authors:
-
-* Kenneth Hoste (Ghent University)
+Dummy support for building and installing applications via a command and copy.
 """
-
-from easybuild.tools.toolchain.compiler import Compiler
-
-
-TC_CONSTANT_SYSTEM = 'SYSTEM'
+from easybuild.framework.easyblock import EasyBlock
 
 
-class SystemCompiler(Compiler):
-    """System compiler"""
-    COMPILER_MODULE_NAME = []
-    COMPILER_FAMILY = TC_CONSTANT_SYSTEM
+class CmdCp(EasyBlock):
+    """Dummy support for building and installing applications via a command and copy."""
 
-    # The system compiler does not currently support even the shared options
-    # (changing this would require updating set_minimal_build_env() of the toolchain class)
-    COMPILER_UNIQUE_OPTS = None
-    # only keep the rpath toolchainopt since we want to be able to disable it for
-    # sanity checks in binary-only installations
-    COMPILER_SHARED_OPTS = {k: Compiler.COMPILER_SHARED_OPTS[k] for k in ('rpath',)}
-    COMPILER_UNIQUE_OPTION_MAP = None
-    COMPILER_SHARED_OPTION_MAP = None
+    pass

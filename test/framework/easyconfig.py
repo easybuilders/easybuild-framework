@@ -752,6 +752,32 @@ class EasyConfigTest(EnhancedTestCase):
         # cleanup
         os.remove(tweaked_fn)
 
+    def test_parse_easyconfig(self):
+        """Test parse_easyconfig function"""
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+        """)
+        self.prep()
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
+        self.assertIsInstance(ecs[0]['ec'], EasyConfig)
+        self.assertFalse(gen_ecs)
+        # Passing the same EC multiple times is ignored
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (self.eb_file, False)])
+        self.assertEqual(len(ecs), 1)
+        # Similar for symlinks
+        linked_ec = os.path.join(self.test_prefix, 'linked.eb')
+        os.symlink(self.eb_file, linked_ec)
+        ecs, gen_ecs = parse_easyconfigs([(self.eb_file, False), (linked_ec, False)])
+        self.assertEqual(len(ecs), 1)
+        self.assertEqual(ecs[0]['spec'], self.eb_file)
+
     def test_alt_easyconfig_paths(self):
         """Test alt_easyconfig_paths function that collects list of additional paths for easyconfig files."""
 
@@ -4798,60 +4824,51 @@ class EasyConfigTest(EnhancedTestCase):
             return
 
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007
-        from_pr = 8007
-        arrow_ec_fn = 'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb'
-        bat_ec_fn = 'bat-0.3.3-intel-2017b-Python-3.6.3.eb'
-        bat_patch_fn = 'bat-0.3.3-fix-pyspark.patch'
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22345
+        from_pr = 22345
+        ec_fn = 'QuantumESPRESSO-7.4-foss-2024a.eb'
+        patch_fn = 'QuantumESPRESSO-7.4-parallel-symmetrization.patch'
         pr_files = [
-            arrow_ec_fn,
-            bat_ec_fn,
-            bat_patch_fn,
+            ec_fn,
+            patch_fn,
         ]
 
         # if no paths are specified, default is to copy all files touched by PR to current working directory
         paths, target_path = det_copy_ec_specs([], from_pr)
-        self.assertEqual(len(paths), 3)
+        self.assertEqual(len(paths), 2)
         filenames = sorted([os.path.basename(x) for x in paths])
         self.assertEqual(filenames, sorted(pr_files))
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # last argument is used as target directory,
         # unless it corresponds to a file touched by PR
-        args = [bat_ec_fn, 'target_dir']
+        args = [ec_fn, 'target_dir']
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertEqual(target_path, 'target_dir')
 
-        args = [bat_ec_fn]
+        args = [ec_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 1)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
-        args = [arrow_ec_fn, bat_ec_fn]
+        args = [ec_fn, patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), bat_ec_fn)
-        self.assertTrue(os.path.samefile(target_path, cwd))
-
-        args = [bat_ec_fn, bat_patch_fn]
-        paths, target_path = det_copy_ec_specs(args, from_pr)
-        self.assertEqual(len(paths), 2)
-        self.assertEqual(os.path.basename(paths[0]), bat_ec_fn)
-        self.assertEqual(os.path.basename(paths[1]), bat_patch_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
+        self.assertEqual(os.path.basename(paths[1]), patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
         # also test with combination of local files and files from PR
-        args = [arrow_ec_fn, 'test.eb', 'test.patch', bat_patch_fn]
+        args = [ec_fn, 'test.eb', 'test.patch', patch_fn]
         paths, target_path = det_copy_ec_specs(args, from_pr)
         self.assertEqual(len(paths), 4)
-        self.assertEqual(os.path.basename(paths[0]), arrow_ec_fn)
+        self.assertEqual(os.path.basename(paths[0]), ec_fn)
         self.assertEqual(paths[1], 'test.eb')
         self.assertEqual(paths[2], 'test.patch')
-        self.assertEqual(os.path.basename(paths[3]), bat_patch_fn)
+        self.assertEqual(os.path.basename(paths[3]), patch_fn)
         self.assertTrue(os.path.samefile(target_path, cwd))
 
     def test_recursive_module_unload(self):
@@ -5113,7 +5130,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_exts_ec = EasyConfig(toy_exts)
         self.assertEqual(len(toy_exts_ec['sources']), 1)
         self.assertEqual(len(toy_exts_ec['patches']), 1)
-        self.assertEqual(len(toy_exts_ec['exts_list']), 4)
+        self.assertEqual(len(toy_exts_ec.get_ref('exts_list')), 4)
         self.assertEqual(toy_exts_ec.count_files(), 7)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
