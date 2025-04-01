@@ -214,10 +214,18 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
-    def make_module_extra(self, extra=None):
+    def make_module_extra(self, *args, **kwargs):
         """Add custom entries to module."""
 
-        txt = EasyBlock.make_module_extra(self)
+        # The signature used to be make_module_extra(self, extra) which was wrong but supported
+        extra = kwargs.pop('extra', None)
+        if extra is None and len(args) == 1:
+            extra = args[0]
+            args = ()
+        if extra is not None:
+            self.log.deprecated("Passing the parameter 'extra' to make_module_extra should be "
+                                "replaced by concatenating the result", '6.0')
+        txt = super().make_module_extra(*args, **kwargs)
         if extra is not None:
             txt += extra
         return txt
