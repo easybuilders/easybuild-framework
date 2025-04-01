@@ -158,7 +158,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
 
     def __init__(self, *args, **kwargs):
         """Extend EasyConfigFormat with some more attributes"""
-        super(EasyConfigFormatConfigObj, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.pyheader_localvars = None
         self.configobj = None
 

@@ -60,7 +60,7 @@ class Slurm(JobBackend):
             if path is None:
                 raise EasyBuildError("Required command '%s' not found", cmd)
 
-        super(Slurm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         job_deps_type = build_option('job_deps_type')
         if job_deps_type is None:

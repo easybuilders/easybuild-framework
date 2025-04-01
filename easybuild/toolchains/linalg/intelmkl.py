@@ -86,7 +86,7 @@ class IntelMKL(LinAlg):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.extend(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
-        super(IntelMKL, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
@@ -103,7 +103,7 @@ class IntelMKL(LinAlg):
             elif 'dl' not in self.LIB_EXTRA:
                 self.LIB_EXTRA.append('dl')
 
-        super(IntelMKL, self).set_variables()
+        super().set_variables()
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -161,7 +161,7 @@ class IntelMKL(LinAlg):
 
             self.BLAS_INCLUDE_DIR = [os.path.join(basedir, 'include')]
 
-        super(IntelMKL, self)._set_blas_variables()
+        super()._set_blas_variables()
 
     def _set_blacs_variables(self):
         mpimap = {
@@ -183,7 +183,7 @@ class IntelMKL(LinAlg):
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
-        super(IntelMKL, self)._set_blacs_variables()
+        super()._set_blacs_variables()
 
     def _set_scalapack_variables(self):
         imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
@@ -198,4 +198,4 @@ class IntelMKL(LinAlg):
         self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
         self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
-        super(IntelMKL, self)._set_scalapack_variables()
+        super()._set_scalapack_variables()

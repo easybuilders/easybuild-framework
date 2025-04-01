@@ -70,7 +70,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(FileToolsTest, self).setUp()
+        super().setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
         if ft.HAVE_REQUESTS:
@@ -79,7 +79,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
-        super(FileToolsTest, self).tearDown()
+        super().tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
         ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS

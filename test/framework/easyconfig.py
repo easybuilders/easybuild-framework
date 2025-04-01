@@ -104,7 +104,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up everything for running a unit test."""
-        super(EasyConfigTest, self).setUp()
+        super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
 
         self.cwd = os.getcwd()
@@ -134,7 +134,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
 
-        super(EasyConfigTest, self).tearDown()
+        super().tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 

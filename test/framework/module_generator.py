@@ -55,7 +55,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(ModuleGeneratorTest, self).setUp()
+        super().setUp()
         # find .eb file
         topdir = os.path.dirname(os.path.abspath(__file__))
         eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')

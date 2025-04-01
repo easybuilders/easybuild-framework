@@ -152,7 +152,7 @@ class DockerContainer(ContainerGenerator):
         """Perform validation of specified container configuration."""
         if self.container_config not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
             raise EasyBuildError("Unsupported container config '%s'" % self.container_config)
-        super(DockerContainer, self).validate()
+        super().validate()
 
     def build_image(self, dockerfile):
         ec = self.easyconfigs[-1]['ec']

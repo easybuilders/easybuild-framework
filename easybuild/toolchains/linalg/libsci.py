@@ -80,7 +80,7 @@ class LibSci(LinAlg):
                     env_vars_str = ', '.join('$' + e for e in env_vars)
                     raise EasyBuildError("Failed to determine install prefix for %s via $%s", name, env_vars_str)
         else:
-            root = super(LibSci, self)._get_software_root(name, required=required)
+            root = super()._get_software_root(name, required=required)
 
         return root
 
@@ -98,7 +98,7 @@ class LibSci(LinAlg):
         The cray-libsci module is loaded indirectly (and versionless) via the PrgEnv module,
         and thus is not a direct toolchain component.
         """
-        tc_def = super(LibSci, self).definition()
+        tc_def = super().definition()
         tc_def['BLAS'] = []
         tc_def['LAPACK'] = []
         return tc_def

@@ -67,7 +67,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup """
-        super(EasyBlockTest, self).setUp()
+        super().setUp()
 
         fd, self.eb_file = tempfile.mkstemp(prefix='easyblock_test_file_', suffix='.eb')
         os.close(fd)

@@ -200,9 +200,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
-            super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
-                                                              custom_commands=custom_commands,
-                                                              extension=self.is_extension)
+            super().sanity_check_step(custom_paths=custom_paths,
+                                      custom_commands=custom_commands,
+                                      extension=self.is_extension)
 
         # pass or fail sanity check
         if sanity_check_ok:

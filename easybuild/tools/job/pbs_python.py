@@ -89,7 +89,7 @@ class PbsPython(JobBackend):
         """Constructor."""
         pbs_server = kwargs.pop('pbs_server', None)
 
-        super(PbsPython, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
         self.conn = None

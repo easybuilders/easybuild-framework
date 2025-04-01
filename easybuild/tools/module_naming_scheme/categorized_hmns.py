@@ -68,7 +68,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Core/compiler, Compiler/GCC/4.8.3/mpi, MPI/GCC/4.8.3/OpenMPI/1.6.5/bio
         """
         moduleclass = ec['moduleclass']
-        basedir = super(CategorizedHMNS, self).det_module_subdir(ec)
+        basedir = super().det_module_subdir(ec)
 
         return os.path.join(basedir, moduleclass)
 
@@ -81,7 +81,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Compiler/GCC/4.8.3/<moduleclasses> (for GCC/4.8.3 module),
         MPI/GCC/4.8.3/OpenMPI/1.6.5/<moduleclasses> (for OpenMPI/1.6.5 module)
         """
-        basepaths = super(CategorizedHMNS, self).det_modpath_extensions(ec)
+        basepaths = super().det_modpath_extensions(ec)
 
         return self.categorize_paths(basepaths)
 
@@ -94,7 +94,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Examples: Compiler/GCC/4.8.3 (for GCC/4.8.3 module), MPI/GCC/4.8.3/OpenMPI/1.6.5 (for OpenMPI/1.6.5 module)
         """
         # Use "system" module path extensions of hierarchical MNS (i.e., w/o module class)
-        return super(CategorizedHMNS, self).det_modpath_extensions(ec)
+        return super().det_modpath_extensions(ec)
 
     def det_init_modulepaths(self, ec):
         """
@@ -104,7 +104,7 @@ class CategorizedHMNS(HierarchicalMNS):
         Examples:
         Core/<moduleclasses>
         """
-        basepaths = super(CategorizedHMNS, self).det_init_modulepaths(ec)
+        basepaths = super().det_init_modulepaths(ec)
 
         return self.categorize_paths(basepaths)
 
