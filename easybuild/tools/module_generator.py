@@ -117,7 +117,7 @@ def dependencies_for(mod_name, modtool, depth=None):
     return mods
 
 
-class ModuleGenerator(object):
+class ModuleGenerator:
     """
     Class for generating module files.
     """

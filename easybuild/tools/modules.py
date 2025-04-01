@@ -484,7 +484,7 @@ class ModuleLoadEnvironment:
             raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
-class ModulesTool(object):
+class ModulesTool:
     """An abstract interface to a tool that deals with modules."""
     # name of this modules tool (used in log/warning/error messages)
     NAME = None

@@ -4705,7 +4705,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_resolve_exts_filter_template(self):
         """Test for resolve_exts_filter_template function."""
-        class TestExtension(object):
+        class TestExtension:
             def __init__(self, values):
                 self.name = values['name']
                 self.version = values.get('version')
@@ -5037,7 +5037,7 @@ class EasyConfigTest(EnhancedTestCase):
         # and a local variable with a list of imported modules, to check clean error handling
         test_ec_txt += '\n' + '\n'.join([
             "import logging",
-            "class _TestClass(object):",
+            "class _TestClass:",
             "    def __init__(self):",
             "        self.log = logging.Logger('alogger')",
             "local_test = _TestClass()",

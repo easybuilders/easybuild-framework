@@ -153,7 +153,7 @@ def env_vars_external_module(name, version, metadata):
     return env_vars
 
 
-class Toolchain(object):
+class Toolchain:
     """General toolchain class"""
 
     OPTIONS_CLASS = ToolchainOptions

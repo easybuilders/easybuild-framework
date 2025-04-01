@@ -3852,7 +3852,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class RemoveLockAfter(object):
+        class RemoveLockAfter:
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -3955,7 +3955,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # context manager which stops the function being called with the specified signal
-        class WaitAndSignal(object):
+        class WaitAndSignal:
             def __init__(self, seconds, signum):
                 self.seconds = seconds
                 self.signum = signum

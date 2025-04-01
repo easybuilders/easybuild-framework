@@ -37,7 +37,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.config import build_option
 
 
-class PackageNamingScheme(object):
+class PackageNamingScheme:
     """Abstract class for package naming schemes"""
     __metaclass__ = ABCMeta
 

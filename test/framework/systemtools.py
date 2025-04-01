@@ -580,7 +580,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
 
-        class MicroArch(object):
+        class MicroArch:
             def __init__(self, name):
                 self.name = name
 

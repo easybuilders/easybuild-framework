@@ -130,7 +130,7 @@ class TopNestedDict(NestedDict):
         NestedDict.__init__(self, self, 0)
 
 
-class Squashed(object):
+class Squashed:
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
 
     def __init__(self):
@@ -184,7 +184,7 @@ class Squashed(object):
         return self.result
 
 
-class EBConfigObj(object):
+class EBConfigObj:
     """
     Enhanced ConfigObj, version/toolchain and other easyconfig specific aspects aware
 
@@ -600,7 +600,7 @@ class EBConfigObj(object):
         return res
 
 
-class EasyConfigFormat(object):
+class EasyConfigFormat:
     """EasyConfigFormat class"""
     VERSION = EasyVersion('0.0')  # dummy EasyVersion instance (shouldn't be None)
     USABLE = False  # disable this class as usable format

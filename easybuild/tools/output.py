@@ -84,7 +84,7 @@ def colorize(txt, color):
     return coltxt
 
 
-class DummyRich(object):
+class DummyRich:
     """
     Dummy shim for Rich classes.
     Used in case Rich is not available, or when EasyBuild is not configured to use rich output style.

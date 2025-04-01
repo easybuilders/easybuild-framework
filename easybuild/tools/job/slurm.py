@@ -152,7 +152,7 @@ class Slurm(JobBackend):
         return SlurmJob(script, name, env_vars=env_vars, hours=hours, cores=cores)
 
 
-class SlurmJob(object):
+class SlurmJob:
     """Job class for SLURM jobs."""
 
     def __init__(self, script, name, env_vars=None, hours=None, cores=None):

@@ -864,7 +864,7 @@ class ExtOptionParser(OptionParser):
         return None
 
 
-class GeneralOption(object):
+class GeneralOption:
     """
     'Used-to-be simple' wrapper class for option parsing
 

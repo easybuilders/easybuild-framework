@@ -188,7 +188,7 @@ class PbsPython(JobBackend):
         return PbsJob(self, script, name, env_vars=env_vars, hours=hours, cores=cores, conn=self.conn, ppn=self.ppn)
 
 
-class PbsJob(object):
+class PbsJob:
     """Interaction with TORQUE"""
 
     def __init__(self, server, script, name, env_vars=None,

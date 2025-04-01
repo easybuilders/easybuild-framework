@@ -139,7 +139,7 @@ def pick_default_branch(github_owner):
     return branch
 
 
-class Githubfs(object):
+class Githubfs:
     """This class implements some higher level functionality on top of the Github api"""
 
     def __init__(self, githubuser, reponame, branchname=None, username=None, password=None, token=None):

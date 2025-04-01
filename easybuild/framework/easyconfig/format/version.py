@@ -65,7 +65,7 @@ class EasyVersion(LooseVersion):
         return hash(tuple(self.version))
 
 
-class VersionOperator(object):
+class VersionOperator:
     """
     VersionOperator class represents a version expression that includes an operator.
     """
@@ -614,7 +614,7 @@ class ToolchainVersionOperator(VersionOperator):
             return None
 
 
-class OrderedVersionOperators(object):
+class OrderedVersionOperators:
     """
     Ordered version operators. The ordering is defined such that one can test from left to right,
     and assume that the first matching version operator is the one that is the best match.
