@@ -74,7 +74,7 @@ jobs:
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
-          pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/5.0.x.tar.gz
+          pip install --prefix $PREFIX https://github.com/easybuilders/easybuild-easyblocks/archive/develop.tar.gz
 
     - name: run test
       run: |
@@ -95,7 +95,7 @@ jobs:
           echo '%_dbpath %{_var}/lib/rpm' >> $HOME/.rpmmacros
           # build CentOS 7 container image for bzip2 1.0.8 using EasyBuild;
           # see https://docs.easybuild.io/en/latest/Containers.html
-          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/5.0.x/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
+          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
           export EASYBUILD_CONTAINERPATH=$PWD
           export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/centos-7.9-python3-amd64'
           eb bzip2-1.0.8.eb --containerize --experimental --container-build-image

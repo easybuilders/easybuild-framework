@@ -606,7 +606,7 @@ class GithubTest(EnhancedTestCase):
         self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2024a.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
