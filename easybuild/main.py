@@ -308,6 +308,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     """
     options = eb_go.options
 
+    # Unpack cfg_settings
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
+
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
     if not easyconfigs_pkg_paths:
@@ -320,10 +324,6 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         else:
             eb_file = find_easybuild_easyconfig()
             eb_args.append(eb_file)
-
-    # Unpack cfg_settings
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
