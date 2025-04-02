@@ -5103,7 +5103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
-            r'title: "delete {ec_name}"',
+            rf'title: "delete {ec_name}"',
             r"1 file(s?) changed,( 0 insertions\(\+\),)? [0-9]+ deletions\(-\)",
         ]
         self._assert_regexs(regexs, txt)
