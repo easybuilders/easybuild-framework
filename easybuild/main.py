@@ -240,8 +240,6 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     # keep copy of original environment, so we can restore it for every easystack entry
     init_env = copy.deepcopy(os.environ)
 
-    global _log
-
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
     # for path in orig_paths:
@@ -309,8 +307,6 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     :param do_build: whether or not to actually perform the build
     """
     options = eb_go.options
-
-    global _log
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
@@ -615,7 +611,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
 
     options, orig_paths = eb_go.options, eb_go.args
 
-    global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
 
