@@ -86,7 +86,7 @@ class TestCase(OrigTestCase):
         """Make assertEqual always print useful messages"""
 
         try:
-            super(TestCase, self).assertEqual(a, b)
+            super(TestCase, self).assertEqual(a, b, msg=msg)
         except AssertionError as e:
             if not self._is_diffable(a) or not self._is_diffable(b):
                 raise
