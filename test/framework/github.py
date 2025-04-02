@@ -406,17 +406,16 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
-        # all_ebs_pr1964 = ['lammps.py']
+        all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr3631 = ['root.py']
+        all_ebs_pr3674 = ['llvm.py']
 
         # PR with more than one easyblock
         all_ebs_pr3596 = ['wps.py', 'wrf.py']
 
-        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (3596, all_ebs_pr3596)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
