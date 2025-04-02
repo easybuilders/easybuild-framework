@@ -413,9 +413,9 @@ class GithubTest(EnhancedTestCase):
         all_ebs_pr3674 = ['llvm.py']
 
         # PR with more than one easyblock
-        all_ebs_pr3596 = ['wps.py', 'wrf.py']
+        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (3596, all_ebs_pr3596)]:
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
