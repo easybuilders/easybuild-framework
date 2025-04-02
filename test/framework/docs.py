@@ -44,6 +44,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- bar
 |-- Bundle
+|-- Cargo
 |-- CMakeMake
 |-- CmdCp
 |-- ConfigureMake
@@ -106,6 +107,7 @@ Extension
 LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
 |-- Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+|-- Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
 |-- CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
 |-- CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
 |-- ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
@@ -169,6 +171,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
   * bar
   * Bundle
+  * Cargo
   * CMakeMake
   * CmdCp
   * ConfigureMake
@@ -259,6 +262,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 
   * bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
   * Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+  * Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
   * CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
   * CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
   * ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
@@ -348,6 +352,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
 LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - bar
   - Bundle
+  - Cargo
   - CMakeMake
   - CmdCp
   - ConfigureMake
@@ -410,6 +415,7 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
 LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
   - Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+  - Cargo (easybuild.easyblocks.generic.cargo @ %(topdir)s/generic/cargo.py)
   - CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
   - CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
   - ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
@@ -719,6 +725,7 @@ class DocsTest(EnhancedTestCase):
         expected = [
             'Bundle',
             'CMakeMake',
+            'Cargo',
             'ChildCustomDummyExtension',
             'ChildDeprecatedDummyExtension',
             'CmdCp',
@@ -934,6 +941,7 @@ class DocsTest(EnhancedTestCase):
             'homepage: https://easybuilders.github.io/easybuild',
             '',
             "  * toy v0.0: gompi/2018a, system",
+            "  * toy v0.0 (versionsuffix: '-cargo'): system",
             "  * toy v0.0 (versionsuffix: '-deps'): system",
             "  * toy v0.0 (versionsuffix: '-iter'): system",
             "  * toy v0.0 (versionsuffix: '-multiple'): system",
@@ -956,6 +964,7 @@ class DocsTest(EnhancedTestCase):
             'version    versionsuffix    toolchain',
             '=======    =============    ===========================',
             '``0.0``                     ``gompi/2018a``, ``system``',
+            '``0.0``    ``-cargo``       ``system``',
             '``0.0``    ``-deps``        ``system``',
             '``0.0``    ``-iter``        ``system``',
             '``0.0``    ``-multiple``    ``system``',
