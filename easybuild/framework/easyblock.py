@@ -4041,7 +4041,7 @@ class EasyBlock(object):
                     self.log.warning("CUDA device code sanity check failed!")
                     self.sanity_check_fail_msgs.extend(cuda_fails)
             else:
-                self.log.warning("Skipping CUDA sanity check: cuobjdump not found")
+                raise EasyBuildError("Failed to execute CUDA sanity check: cuobjdump not found")
         else:
             self.log.warning("Skipping CUDA sanity check: CUDA module was not loaded")
 
