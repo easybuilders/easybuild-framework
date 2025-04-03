@@ -3381,7 +3381,7 @@ class EasyBlock(object):
 
             for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
                 if os.path.exists(dirpath):
-                    self.log.debug(f"Sanity checking files for CUDA device code in {dirpath}")
+                    self.log.debug(f"Sanity checking files for CUDA device code under folder {dirpath}")
 
                     for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                         self.log.debug("Sanity checking for CUDA device code in %s", path)
@@ -3412,7 +3412,7 @@ class EasyBlock(object):
                                     fail_msg += "Missing compute capabilities: %s. " % ', '.join(sorted(missing_ccs))
                                     is_failure = True
                                 # We still log the result, but don't fail:
-                                if path in ignore_file_list:
+                                if is_failure and path in ignore_file_list:
                                     fail_msg += f"This failure will be ignored as '{path}' is listed in "
                                     fail_msg += "'ignore_cuda_sanity_failures'."
                                     is_failure = False
