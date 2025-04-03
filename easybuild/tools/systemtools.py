@@ -1021,25 +1021,25 @@ def get_cuda_object_dump_raw(path):
         _log.warning(fail_msg)
 
     # check that the file is an executable or library/object
+    result = None
     if any(x in res.output for x in ['executable', 'object', 'library']):
         cuda_cmd = f"cuobjdump {path}"
-    else:
-        return None
 
-    res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
-    if res.exit_code == EasyBuildExit.SUCCESS:
-        return res.output
-    else:
-        # Check and report for the common case that this is simply not a CUDA binary, i.e. does not
-        # contain CUDA device code
-        no_device_code_match = re.search(r'does not contain device code', res.output)
-        if no_device_code_match is not None:
-            msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
-            _log.debug(msg, path)
+        res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+        if res.exit_code == EasyBuildExit.SUCCESS:
+            result = res.output
         else:
-            msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
-            _log.debug(msg, path, cuda_cmd, res.output)
-        return None
+            # Check and report for the common case that this is simply not a CUDA binary, i.e. does not
+            # contain CUDA device code
+            no_device_code_match = re.search(r'does not contain device code', res.output)
+            if no_device_code_match is not None:
+                msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
+                _log.debug(msg, path)
+            else:
+                msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
+                _log.debug(msg, path, cuda_cmd, res.output)
+    
+    return result
 
 
 def get_cuda_device_code_architectures(path):
