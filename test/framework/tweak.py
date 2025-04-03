@@ -80,7 +80,8 @@ class TweakTest(EnhancedTestCase):
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
 
         ecs = find_matching_easyconfigs('GCC', '*', [test_easyconfigs_path])
-        gccvers = ['10.2.0', '4.6.3', '4.6.4', '4.8.2', '4.8.3', '4.9.2', '4.9.3-2.25', '4.9.3-2.26', '6.4.0-2.28', '7.3.0-2.30']
+        gccvers = ['10.2.0', '4.6.3', '4.6.4', '4.8.2', '4.8.3', '4.9.2', '4.9.3-2.25',
+                   '4.9.3-2.26', '6.4.0-2.28', '7.3.0-2.30']
         self.assertEqual(len(ecs), len(gccvers))
         ecs_basename = [os.path.basename(ec) for ec in ecs]
         for gccver in gccvers:
