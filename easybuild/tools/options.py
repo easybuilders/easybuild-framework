@@ -570,8 +570,8 @@ class EasyBuildOptions(GeneralOption):
                                          "actual device code is present for the requested architecture ",
                                          None, 'store_true', False),
             'accept-missing-cuda-ptx': ("CUDA sanity check also passes if PTX code for the highest requested CUDA "
-                                   "compute capability is not present (but will print a warning)",
-                                   None, 'store_true', False),
+                                        "compute capability is not present (but will print a warning)",
+                                        None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
