@@ -1075,53 +1075,54 @@ def get_cuda_device_code_architectures(path):
     if os.path.islink(path) and os.path.exists(path):
         path = os.path.realpath(path)
 
+    dev_ptx_archs = None
     cuda_raw = get_cuda_object_dump_raw(path)
-    if cuda_raw is None:
-        return None
-
-    # extract unique device code architectures from raw dump
-    device_code_matches = re.findall(device_code_regex, cuda_raw)
-    if device_code_matches is not None:
-        # convert match tuples into unique list of cuda compute capabilities
-        # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
-        device_code_matches = sorted(['.'.join(m) for m in set(device_code_matches)])
-    else:
-        # Try to be clear in the warning... did we not find elf code sections at all? or was the arch missing?
-        device_section_regex = re.compile('Fatbin elf code')
-        device_section_matches = re.findall(device_section_regex, cuda_raw)
-        if device_section_matches is not None:
-            fail_msg = f"Found Fatbin elf code section(s) in cuobjdump output for {path}, "
-            fail_msg += "but failed to extract CUDA architecture"
+    if cuda_raw is not None:
+        # extract unique device code architectures from raw dump
+        device_code_matches = re.findall(device_code_regex, cuda_raw)
+        if device_code_matches is not None:
+            # convert match tuples into unique list of cuda compute capabilities
+            # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+            device_code_matches = sorted(['.'.join(m) for m in set(device_code_matches)])
         else:
-            # In this case, the cuobjdump command _likely_ already returned a non-zero exit
-            # This error message would only be displayed if cuobjdump somehow completely successfully
-            # but still no Fatbin elf code section was found
-            fail_msg = f"Failed to find Fatbin elf code section(s) in cuobjdump output for {path}, "
-            fail_msg += "are you sure this is a CUDA binary?"
-        _log.warning(fail_msg)
-
-    # extract unique ptx code architectures from raw dump
-    ptx_code_matches = re.findall(ptx_code_regex, cuda_raw)
-    if ptx_code_matches is not None:
-        # convert match tuples into unique list of cuda compute capabilities
-        # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
-        ptx_code_matches = sorted(['.'.join(m) for m in set(ptx_code_matches)])
-    else:
-        # Try to be clear in the warning... did we not find ptx code sections at all? or was the arch missing?
-        ptx_section_regex = re.compile('Fatbin ptx code')
-        ptx_section_matches = re.findall(ptx_section_regex, cuda_raw)
-        if ptx_section_matches is not None:
-            fail_msg = f"Found Fatbin ptx code section(s) in cuobjdump output for {path}, "
-            fail_msg += "but failed to extract CUDA architecture"
+            # Try to be clear in the warning... did we not find elf code sections at all? or was the arch missing?
+            device_section_regex = re.compile('Fatbin elf code')
+            device_section_matches = re.findall(device_section_regex, cuda_raw)
+            if device_section_matches is not None:
+                fail_msg = f"Found Fatbin elf code section(s) in cuobjdump output for {path}, "
+                fail_msg += "but failed to extract CUDA architecture"
+            else:
+                # In this case, the cuobjdump command _likely_ already returned a non-zero exit
+                # This error message would only be displayed if cuobjdump somehow completely successfully
+                # but still no Fatbin elf code section was found
+                fail_msg = f"Failed to find Fatbin elf code section(s) in cuobjdump output for {path}, "
+                fail_msg += "are you sure this is a CUDA binary?"
+            _log.warning(fail_msg)
+    
+        # extract unique ptx code architectures from raw dump
+        ptx_code_matches = re.findall(ptx_code_regex, cuda_raw)
+        if ptx_code_matches is not None:
+            # convert match tuples into unique list of cuda compute capabilities
+            # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+            ptx_code_matches = sorted(['.'.join(m) for m in set(ptx_code_matches)])
         else:
-            # In this case, the cuobjdump command _likely_ already returned a non-zero exit
-            # This error message would only be displayed if cuobjdump somehow completely successfully
-            # but still no Fatbin ptx code section was found
-            fail_msg = f"Failed to find Fatbin ptx code section(s) in cuobjdump output for {path}, "
-            fail_msg += "are you sure this is a CUDA binary?"
-        _log.warning(fail_msg)
+            # Try to be clear in the warning... did we not find ptx code sections at all? or was the arch missing?
+            ptx_section_regex = re.compile('Fatbin ptx code')
+            ptx_section_matches = re.findall(ptx_section_regex, cuda_raw)
+            if ptx_section_matches is not None:
+                fail_msg = f"Found Fatbin ptx code section(s) in cuobjdump output for {path}, "
+                fail_msg += "but failed to extract CUDA architecture"
+            else:
+                # In this case, the cuobjdump command _likely_ already returned a non-zero exit
+                # This error message would only be displayed if cuobjdump somehow completely successfully
+                # but still no Fatbin ptx code section was found
+                fail_msg = f"Failed to find Fatbin ptx code section(s) in cuobjdump output for {path}, "
+                fail_msg += "are you sure this is a CUDA binary?"
+            _log.warning(fail_msg)
 
-    return cuda_dev_ptx_archs(ptx_archs=ptx_code_matches, device_code_archs=device_code_matches)
+        dev_ptx_archs = cuda_dev_ptx_archs(ptx_archs=ptx_code_matches, device_code_archs=device_code_matches)
+
+    return dev_ptx_archs
 
 
 def get_linked_libs_raw(path):
