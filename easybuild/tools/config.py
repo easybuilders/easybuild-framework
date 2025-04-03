@@ -342,6 +342,9 @@ BUILD_OPTIONS_CMDLINE = {
         'use_existing_modules',
         'use_f90cache',
         'wait_on_lock_limit',
+        'strict_cuda_sanity_check',
+        'accept_ptx_as_cc_support',
+        'accept_missing_cuda_ptx',
     ],
     True: [
         'cleanup_builddir',
@@ -359,7 +362,6 @@ BUILD_OPTIONS_CMDLINE = {
         'pre_create_installdir',
         'show_progress_bar',
         'strict_rpath_sanity_check',
-        'strict_cuda_sanity_check',
         'trace',
     ],
     EMPTY_LIST: [
