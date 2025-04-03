@@ -398,7 +398,13 @@ class EasyBuildOptions(GeneralOption):
                                    int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
-                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
+                                          "for example: 3.5,5.0,7.2. EasyBuild will compile a fat binaries with "
+                                          "support for (at least) all requested CUDA compute capabilities, and "
+                                          "PTX code for the highest CUDA compute capability (for forwards "
+                                          "compatibility). The check on this behavior may be relaxed using "
+                                          "--accept-ptx-for-cc-support or --accept-missing-ptx, or made more "
+                                          "stringent using --strict-cuda-sanity-check.",
+                                          'strlist', 'extend', None),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
@@ -554,6 +560,18 @@ class EasyBuildOptions(GeneralOption):
                                          "With this setting, the sanity check will also fail if code is present for "
                                          "more compute capabilities than defined in --cuda-compute-capabilities.",
                                          None, 'store_true', False),
+            'accept-ptx-as-cc-support': ("CUDA sanity check also passes if requested device code is not present, as "
+                                         "long as a PTX code is present that can be JIT-compiled into the requestd "
+                                         "device code. E.g. if --cuda-compute-capabilities=8.0 and a binary is found "
+                                         "in the installation that does not have device code for 8.0, but does have "
+                                         "PTX code for 7.0, the sanity check will pass if, and only if, this option "
+                                         "is True. Note that JIT-compiling means the binary will work on the "
+                                         "requested architecture, but is it not necessarily as well optimized as when "
+                                         "actual device code is present for the requested architecture ",
+                                         None, 'store_true', False),
+            'accept-missing-cuda-ptx': ("CUDA sanity check also passes if PTX code for the highest requested CUDA "
+                                   "compute capability is not present (but will print a warning)",
+                                   None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
