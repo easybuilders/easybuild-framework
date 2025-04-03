@@ -108,10 +108,8 @@ DEFAULT_CONFIG = {
                        BUILD],
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
-    'maxparallel': [16, 'Max degree of parallelism', BUILD],
+    'maxparallel': [None, 'Max degree of parallelism', BUILD],
     'module_only': [False, 'Only generate module file', BUILD],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores, active cpuset and restrictions in ulimit)'), BUILD],
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
@@ -161,8 +159,8 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
-    'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
+    'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
+                            'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],
@@ -196,12 +194,9 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'allow_append_abs_path': [False, "Allow specifying absolute paths to append in modextrapaths_append", MODULES],
-    'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
-    'modextrapaths_append': [{}, "Extra paths to be appended in module file", MODULES],
     'modextravars': [{}, "Extra environment variables to be added to module file", MODULES],
     'modloadmsg': [{}, "Message that should be printed when generated module is loaded", MODULES],
     'modunloadmsg': [{}, "Message that should be printed when generated module is unloaded", MODULES],

@@ -132,6 +132,11 @@ class Extension(object):
         self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
                                         self.cfg.template_values,
                                         expect_resolved=False)
+        if 'parallel' in self.options:
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
+            self.options['max_parallel'] = self.options.pop('parallel')
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -148,6 +153,12 @@ class Extension(object):
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
+
+        # If parallelism has been set already take potentially new limitation into account
+        if self.cfg.is_parallel_set:
+            max_par = self.cfg['max_parallel']
+            if max_par is not None and max_par < self.cfg.parallel:
+                self.cfg.parallel = max_par
 
         self.sanity_check_fail_msgs = []
         self.sanity_check_module_loaded = False

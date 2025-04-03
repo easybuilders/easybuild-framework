@@ -212,7 +212,7 @@ def main():
     """)
     parser = argparse.ArgumentParser(
         description='Find dependencies of Python packages by installing it in a temporary virtualenv. ',
-        epilog='\n'.join(examples),
+        epilog=examples,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument('package', metavar='python-pkg-spec',

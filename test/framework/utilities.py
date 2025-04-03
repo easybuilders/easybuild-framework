@@ -213,6 +213,14 @@ class EnhancedTestCase(TestCase):
         eb_build_log.CURRENT_VERSION = self.orig_current_version
 
     @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
+
+    @contextmanager
     def log_to_testlogfile(self):
         """Context manager class to capture log output in self.logfile for the scope used. Clears the file first"""
         open(self.logfile, 'w').close()  # Remove all contents
@@ -432,7 +440,8 @@ class TestLoaderFiltered(unittest.TestLoader):
         retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                if any(filt in test_case_name for filt in filters):
+                full_test_case_name = '%s.%s' % (test_case_class.__name__, test_case_name)
+                if any(filt in full_test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
             retained_tests = ', '.join(retained_test_names)

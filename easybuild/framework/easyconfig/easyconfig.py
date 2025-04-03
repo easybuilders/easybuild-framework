@@ -120,7 +120,18 @@ def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):
     def new_ec_method(self, key, *args, **kwargs):
         """Check whether any replace easyconfig parameters are still used"""
         # map deprecated parameters to their replacements, issue deprecation warning(/error)
-        if key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
+        if key == 'parallel':
+            _log.deprecated("Easyconfig parameter 'parallel' is deprecated, "
+                            "use 'max_parallel' or the parallel property instead.", '6.0')
+            # This hidden parameter allows easyblocks to continue using self.cfg['parallel'] which contains
+            # the computed parallelism after the ready step but the easyconfig parameter before that step.
+
+            # Easyblocks using `max_parallel` always get the value from the easyconfig unmodified.
+            # Easyblocks should use either the parallel property or `max_parallel` such that the semantic is clear.
+            # In particular writes to self.cfg['parallel'] do NOT update the %(parallel)s template.
+            # It can be removed when the deprecation expires.
+            key = '_parallelLegacy'
+        elif key in ALTERNATIVE_EASYCONFIG_PARAMETERS:
             key = ALTERNATIVE_EASYCONFIG_PARAMETERS[key]
         elif key in DEPRECATED_EASYCONFIG_PARAMETERS:
             depr_key = key
@@ -144,7 +155,10 @@ def is_local_var_name(name):
     """
     res = False
     if name.startswith(LOCAL_VAR_PREFIX) or name.startswith('_'):
-        res = True
+        # make exception for '_parallelLegacy' hidden easyconfig parameter,
+        # which is used to deprecate use of 'paralell' easyconfig parameter
+        if name != '_parallelLegacy':
+            res = True
     # __builtins__ is always defined as a 'local' variables
     # single-letter local variable names are allowed (mainly for use in list comprehensions)
     # in Python 2, variables defined in list comprehensions leak to the outside (no longer the case in Python 3)
@@ -428,10 +442,11 @@ class EasyConfig(object):
         :param local_var_naming_check: mode to use when checking if local variables use the recommended naming scheme
         """
         self.template_values = None
-        # a boolean to control templating, can be (temporarily) disabled in easyblocks
-        self.enable_templating = True
-        # boolean to control whether all template values must be resolvable, can be (temporarily) disabled in easyblocks
-        self.expect_resolved_template_values = True
+        # a boolean to control templating, can be (temporarily) disabled via disable_templating context manager
+        self._templating_enabled = True
+        # boolean to control whether all template values must be resolvable on access,
+        # can be (temporarily) disabled via allow_unresolved_templates context manager
+        self._expect_resolved_template_values = True
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
@@ -502,6 +517,12 @@ class EasyConfig(object):
         self.iterate_options = []
         self.iterating = False
 
+        # Storage for parallel property. Mark as unset initially
+        self._parallel = None
+        # introduce hidden '_parallelLegacy' easyconfig parameter,
+        # used to deprecate use of 'parallel' easyconfig parameter
+        self._config['_parallelLegacy'] = [None, '', ('', )]
+
         # parse easyconfig file
         self.build_specs = build_specs
         self.parse()
@@ -545,12 +566,48 @@ class EasyConfig(object):
                 # Do what you want without templating
             # Templating set to previous value
         """
-        old_enable_templating = self.enable_templating
-        self.enable_templating = False
+        old_templating_enabled = self._templating_enabled
+        self._templating_enabled = False
         try:
-            yield old_enable_templating
+            yield old_templating_enabled
         finally:
-            self.enable_templating = old_enable_templating
+            self._templating_enabled = old_templating_enabled
+
+    @property
+    def templating_enabled(self):
+        """Check whether templating is enabled on this EasyConfig"""
+        return self._templating_enabled
+
+    def _enable_templating(self, *_):
+        self.log.nosupport("self.enable_templating is replaced by self.templating_enabled. "
+                           "To disable it use the self.disable_templating context manager", '5.0')
+    enable_templating = property(_enable_templating, _enable_templating)
+
+    @contextmanager
+    def allow_unresolved_templates(self):
+        """Temporarily allow templates to be not (fully) resolved.
+
+        This should only be used when it is intended to use partially resolved templates.
+        Otherwise `ec.get(key, resolve=False)` should be used.
+        See also @ref disable_templating.
+
+        Usage:
+            with ec.allow_unresolved_templates():
+                value = ec.get('key')  # This will not raise an error
+                print(value % {'extra_key': exta_value})
+            # Resolving is enforced again if it was before
+        """
+        old_expect_resolved_template_values = self._expect_resolved_template_values
+        self._expect_resolved_template_values = False
+        try:
+            yield old_expect_resolved_template_values
+        finally:
+            self._expect_resolved_template_values = old_expect_resolved_template_values
+
+    @property
+    def expect_resolved_template_values(self):
+        """Check whether resolving all template values on access is enforced."""
+        return self._expect_resolved_template_values
 
     def __str__(self):
         """Return a string representation of this EasyConfig instance"""
@@ -598,6 +655,7 @@ class EasyConfig(object):
         ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
+        ec._parallel = self._parallel  # Might be already set, e.g. for extensions
         # since rawtxt is defined, self.path may not get inherited, make sure it does
         if self.path:
             ec.path = self.path
@@ -701,6 +759,12 @@ class EasyConfig(object):
         missing_mandatory_keys = [key for key in self.mandatory if key not in ec_vars]
         if missing_mandatory_keys:
             raise EasyBuildError("mandatory parameters not provided in %s: %s", self.path, missing_mandatory_keys)
+
+        if 'parallel' in ec_vars:
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks)
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
+            ec_vars['_parallelLegacy'] = ec_vars.pop('parallel')
 
         # provide suggestions for typos. Local variable names are excluded from this check
         possible_typos = [(key, difflib.get_close_matches(key.lower(), self._config.keys(), 1, 0.85))
@@ -1234,6 +1298,32 @@ class EasyConfig(object):
                 self._all_dependencies.append(self.toolchain.as_dict())
 
         return self._all_dependencies
+
+    @property
+    def is_parallel_set(self):
+        """Return if the desired parallelism has been determined yet"""
+        return self._parallel is not None
+
+    @property
+    def parallel(self):
+        """Degree of parallellism (number of cores) to be used for building, etc."""
+        if not self.is_parallel_set:
+            raise ValueError("Parallelism not set yet, 'set_parallel' method of easyblock must be called first")
+
+        # This gets set when an easyblock changes ec['parallel'].
+        # It also gets set/updated in set_parallel to mirror the old behavior during the deprecation phase
+        parallelLegacy = self._config['_parallelLegacy'][0]
+        if parallelLegacy is not None:
+            return max(1, parallelLegacy)
+        return self._parallel
+
+    @parallel.setter
+    def parallel(self, value):
+        # Update backstorage and template value
+        self._parallel = max(1, value)  # Also handles False
+        self.template_values['parallel'] = self._parallel
+        # Backwards compatibility, only for easyblocks still reading self.cfg['parallel']
+        self._config['_parallelLegacy'][0] = self._parallel
 
     def dump(self, fp, always_overwrite=True, backup=False, explicit_toolchains=False):
         """
@@ -1786,13 +1876,12 @@ class EasyConfig(object):
     @handle_deprecated_or_replaced_easyconfig_parameters
     def __getitem__(self, key):
         """Return value of specified easyconfig parameter (without help text, etc.)"""
-        value = None
-        if key in self._config:
+        try:
             value = self._config[key][0]
-        else:
+        except KeyError:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when getting parameter value", key)
 
-        if self.enable_templating:
+        if self.templating_enabled:
             value = self.resolve_template(value)
 
         return value
@@ -1870,14 +1959,13 @@ class EasyConfig(object):
         Return dict representation of this EasyConfig instance.
         """
         res = {}
-        for key, tup in self._config.items():
-            value = tup[0]
-            if self.enable_templating:
-                if not self.template_values:
-                    self.generate_template_values()
-                # Not all values can be resolved, e.g. %(installdir)s
-                value = resolve_template(value, self.template_values, expect_resolved=False)
-            res[key] = value
+        # Not all values can be resolved, e.g. %(installdir)s
+        with self.allow_unresolved_templates():
+            for key, tup in self._config.items():
+                value = tup[0]
+                if self.templating_enabled:
+                    value = self.resolve_template(value)
+                res[key] = value
         return res
 
     def get_cuda_cc_template_value(self, key):

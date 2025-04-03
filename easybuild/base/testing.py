@@ -55,15 +55,12 @@ def nicediff(txta, txtb, offset=5):
     """
     diff = list(difflib.ndiff(txta.splitlines(1), txtb.splitlines(1)))
     different_idx = [idx for idx, line in enumerate(diff) if not line.startswith(' ')]
-    res_idx = []
+    res_idx = set()
     # very bruteforce
     for didx in different_idx:
-        for idx in range(max(didx - offset, 0), min(didx + offset, len(diff) - 1)):
-            if idx not in res_idx:
-                res_idx.append(idx)
-    res_idx.sort()
+        res_idx.update(range(max(didx - offset, 0), min(didx + offset, len(diff))))
     # insert linenumbers too? what are the linenumbers in ndiff?
-    newdiff = [diff[idx] for idx in res_idx]
+    newdiff = [diff[idx] for idx in sorted(res_idx)]
 
     return newdiff
 
@@ -76,17 +73,28 @@ class TestCase(OrigTestCase):
     ASSERT_MAX_DIFF = 100
     DIFF_OFFSET = 5  # lines of text around changes
 
-    # pylint: disable=arguments-differ
+    def _is_diffable(self, x):
+        """Test if it makes sense to show a diff for x"""
+        if isinstance(x, (int, float, bool, type(None))):
+            return False
+        if isinstance(x, str) and '\n' not in x:
+            return False
+        return True
+
+    # pylint: disable=arguments-differ,arguments-renamed
     def assertEqual(self, a, b, msg=None):
         """Make assertEqual always print useful messages"""
 
         try:
-            super(TestCase, self).assertEqual(a, b)
+            super(TestCase, self).assertEqual(a, b, msg=msg)
         except AssertionError as e:
+            if not self._is_diffable(a) or not self._is_diffable(b):
+                raise
+
             if msg is None:
                 msg = str(e)
             else:
-                msg = "%s: %s" % (msg, e)
+                msg = "%s: %s" % (msg, str(e))
 
             if isinstance(a, str):
                 txta = a
@@ -103,7 +111,7 @@ class TestCase(OrigTestCase):
             else:
                 limit = ''
 
-            raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF])))
+            raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF]))) from None
 
     def assertExists(self, path, msg=None):
         """Assert the given path exists"""
@@ -116,6 +124,11 @@ class TestCase(OrigTestCase):
         if msg is None:
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
+
+    def assertAllExist(self, paths, msg=None):
+        """Assert that all paths in the given list exist"""
+        for path in paths:
+            self.assertExists(path, msg)
 
     def setUp(self):
         """Prepare test case."""

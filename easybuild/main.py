@@ -37,6 +37,7 @@ Authors:
 * Ward Poelmans (Ghent University)
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Maxime Boissonneault (Compute Canada)
+* Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
 """
 import copy
 import os
@@ -239,8 +240,6 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
     # keep copy of original environment, so we can restore it for every easystack entry
     init_env = copy.deepcopy(os.environ)
 
-    global _log
-
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
     # for path in orig_paths:
@@ -310,6 +309,9 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     options = eb_go.options
 
     global _log
+    # Unpack cfg_settings
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
@@ -323,10 +325,6 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         else:
             eb_file = find_easybuild_easyconfig()
             eb_args.append(eb_file)
-
-    # Unpack cfg_settings
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
@@ -430,7 +428,9 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths, return_map=True)
+    else:
+        tweak_map = None
 
     if options.containerize:
         # if --containerize/-C create a container recipe (and optionally container image), and stop
@@ -552,7 +552,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # submit build as job(s), clean up and exit
     if options.job:
-        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing, tweak_map=tweak_map)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now")
             return True
