@@ -128,7 +128,7 @@ class TweakTest(EnhancedTestCase):
         }
         (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
         self.assertFalse(generated)
-        self.assertEqual(os.path.basename(ec_file), 'GCC-7.3.0-2.30.eb')
+        self.assertEqual(os.path.basename(ec_file), 'GCC-10.2.0.eb')
 
         # generate non-existing easyconfig
         change_dir(self.test_prefix)
