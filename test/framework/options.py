@@ -4856,7 +4856,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # modifying an existing easyconfig requires a custom PR title
-        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
+        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
         self.assertExists(gcc_ec)
 
         args = [
