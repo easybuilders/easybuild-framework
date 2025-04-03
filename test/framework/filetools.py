@@ -2693,7 +2693,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 25)
+        self.assertEqual(len(index), 26)
         for fn in expected:
             self.assertIn(fn, index)
 
