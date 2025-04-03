@@ -124,7 +124,7 @@ DEFAULT_CONFIG = {
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
-    'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failurs in "
+    'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failures in "
                                      "the CUDA sanity check step are ignored. Typically used for files where you "
                                      "know the CUDA architectures in those files don't match the "
                                      "--cuda-compute-capabitilities configured for EasyBuild AND where you know "
