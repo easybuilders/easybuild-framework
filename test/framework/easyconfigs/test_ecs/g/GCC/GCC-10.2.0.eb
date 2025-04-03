@@ -10,11 +10,14 @@ description = """The GNU Compiler Collection includes front ends for C, C++, Obj
 
 toolchain = SYSTEM
 
-dependencies = [
-    ('GCCcore', version),
-    # binutils built on top of GCCcore, which was built on top of (dummy-built) binutils
-    ('binutils', '2.35', '', ('GCCcore', version)),
+source_urls = [
+    'http://ftpmirror.gnu.org/%(namelower)s/%(namelower)s-%(version)s',  # GCC auto-resolving HTTP mirror
+    'http://ftpmirror.gnu.org/gmp',  # idem for GMP
+    'http://ftpmirror.gnu.org/mpfr',  # idem for MPFR
+    'http://www.multiprecision.org/mpc/download',  # MPC official
 ]
+sources = [SOURCELOWER_TAR_GZ]
+
 
 # this bundle serves as a compiler-only toolchain, so it should be marked as compiler (important for HMNS)
 moduleclass = 'compiler'
