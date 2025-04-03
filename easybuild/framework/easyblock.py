@@ -3380,6 +3380,20 @@ class EasyBlock(object):
                 self.log.info("Using configured subdirectories for binaries/libraries to verify CUDA device code: %s",
                               cuda_dirs)
 
+            # Tracking some numbers for a summary report:
+            num_cuda_files = 0
+            num_files_missing_cc = 0
+            num_files_surplus_cc = 0
+            num_files_missing_ptx = 0
+            num_files_missing_cc_but_has_ptx = 0
+
+            # Creating lists of files for summary report:
+            files_missing_cc = []
+            files_surplus_cc = []
+            files_missing_ptx = []
+            files_missing_cc_but_has_ptx = []
+
+            # Looping through all files to check CUDA device and PTX code
             for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
                 if os.path.exists(dirpath):
                     self.log.debug(f"Sanity checking files for CUDA device code under folder {dirpath}")
@@ -3393,6 +3407,7 @@ class EasyBlock(object):
                             msg += "so skipping CUDA sanity check."
                             self.log.debug(msg)
                         else:
+                            num_cuda_files += 1
                             # unpack results
                             derived_ccs = res.device_code_archs
                             derived_ptx_ccs = res.ptx_archs
@@ -3406,10 +3421,16 @@ class EasyBlock(object):
                                 is_failure = False
                                 fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                                 if additional_ccs:
+                                    # Count and log for summary report
+                                    files_surplus_cc.append(path)
+                                    num_files_surplus_cc += 1
                                     fail_msg += "Surplus compute capabilities: %s. " % ', '.join(sorted(additional_ccs))
                                     if strict_cc_check:
                                         is_failure = True
                                 if missing_ccs:
+                                    # Count and log for summary report
+                                    files_missing_cc.append(path)
+                                    num_files_missing_cc += 1
                                     fail_msg += "Missing compute capabilities: %s. " % ', '.join(sorted(missing_ccs))
                                     is_failure = True
                                 # We still log the result, but don't fail:
@@ -3418,7 +3439,8 @@ class EasyBlock(object):
                                     fail_msg += "'ignore_cuda_sanity_failures'."
                                     is_failure = False
 
-                                # Log warning or sanity error
+                                # If considered a failure, append to fails so that a sanity error will be thrown
+                                # Otherwise, log a warning
                                 if is_failure:
                                     fails.append(fail_msg)
                                 else:
