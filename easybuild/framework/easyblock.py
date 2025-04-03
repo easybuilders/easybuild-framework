@@ -51,6 +51,7 @@ import json
 import os
 import random
 import re
+import shutil
 import stat
 import sys
 import tempfile
@@ -4034,12 +4035,15 @@ class EasyBlock(object):
             self.log.debug("Skipping RPATH sanity check")
 
         if get_software_root('CUDA'):
-            cuda_fails = self.sanity_check_cuda()
-            if cuda_fails:
-                self.log.warning("CUDA device code sanity check failed!")
-                self.sanity_check_fail_msgs.extend(cuda_fails)
+            if shutil.which('cuobjdump'):
+                cuda_fails = self.sanity_check_cuda()
+                if cuda_fails:
+                    self.log.warning("CUDA device code sanity check failed!")
+                    self.sanity_check_fail_msgs.extend(cuda_fails)
+            else:
+                self.log.warning("Skipping CUDA sanity check: cuobjdump not found")
         else:
-            self.log.debug("Skipping CUDA device code sanity check")
+            self.log.warning("Skipping CUDA sanity check: CUDA module was not loaded")
 
         # pass or fail
         if self.sanity_check_fail_msgs:
