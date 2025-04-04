@@ -2,7 +2,7 @@
    :align: center
    :height: 400px
    
-.. image:: https://github.com/easybuilders/easybuild-framework/workflows/EasyBuild%20framework%20unit%20tests/badge.svg?branch=develop
+.. image:: https://github.com/easybuilders/easybuild-framework/actions/workflows/unit_tests.yml/badge.svg?branch=develop
 
 `EasyBuild <https://easybuild.io>`_ is a software build
 and installation framework that allows you to manage (scientific) software
