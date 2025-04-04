@@ -1,0 +1,23 @@
+# should be EB_GCC, but OK for testing purposes
+easyblock = 'EB_toy'
+
+name = 'GCC'
+version = '10.2.0'
+
+homepage = 'https://gcc.gnu.org/'
+description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...)."""
+
+toolchain = SYSTEM
+
+source_urls = [
+    'http://ftpmirror.gnu.org/%(namelower)s/%(namelower)s-%(version)s',  # GCC auto-resolving HTTP mirror
+    'http://ftpmirror.gnu.org/gmp',  # idem for GMP
+    'http://ftpmirror.gnu.org/mpfr',  # idem for MPFR
+    'http://www.multiprecision.org/mpc/download',  # MPC official
+]
+sources = [SOURCELOWER_TAR_GZ]
+
+
+# this bundle serves as a compiler-only toolchain, so it should be marked as compiler (important for HMNS)
+moduleclass = 'compiler'
