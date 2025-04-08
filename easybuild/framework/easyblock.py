@@ -3360,6 +3360,8 @@ class EasyBlock(object):
         fails = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
         strict_cc_check = build_option('strict_cuda_sanity_check')
+        accept_ptx_as_cc = build_option('accept_ptx_as_cc_support')
+        accept_missing_ptx = build_option('accept_missing_cuda_ptx')
 
         # Construct the list of files to ignore as full paths (cuda_sanity_ignore_files contains the paths
         # to ignore, relative to the installation prefix)
@@ -3407,6 +3409,17 @@ class EasyBlock(object):
                             msg += "so skipping CUDA sanity check."
                             self.log.debug(msg)
                         else:
+                            # Here, we check if CUDA device code is present for all compute capabilities in
+                            # --cuda-compute-capabilities for the file pointed to by 'path'
+                            # We also check for the presence of ptx code for the highest CUDA compute capability
+                            # The following is considered fail/warning/success:
+                            # - Missing device code is considered a failure (unless there is PTX code for
+                            #   a lower CC AND --accept-ptx-for-cc-support is True, in which case it is a warning)
+                            # - Device code for additional compute capabilities is considered a failure if 
+                            #   --strict-cuda-sanity-check is True (otherwise, it's a warning)
+                            # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
+                            #   is considered a failure, unless --accept-missing-cuda-ptx is True (in which case it is
+                            #   a warning)
                             num_cuda_files += 1
                             # unpack results
                             derived_ccs = res.device_code_archs
@@ -3417,23 +3430,41 @@ class EasyBlock(object):
                             missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
 
                             if additional_ccs or missing_ccs:
-                                # Do we log this as warning or produce a sanity failure?
-                                is_failure = False
                                 fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                                 if additional_ccs:
                                     # Count and log for summary report
                                     files_surplus_cc.append(path)
                                     num_files_surplus_cc += 1
-                                    fail_msg += "Surplus compute capabilities: %s. " % ', '.join(sorted(additional_ccs))
-                                    if strict_cc_check:
+                                    surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
+                                    fail_msg += "Surplus compute capabilities: %s. " % surplus_ccs
+                                    if strict_cc_check:  # Surplus compute capabilities not allowed
                                         is_failure = True
+                                    else:
+                                        is_failure = False
                                 if missing_ccs:
                                     # Count and log for summary report
                                     files_missing_cc.append(path)
                                     num_files_missing_cc += 1
-                                    fail_msg += "Missing compute capabilities: %s. " % ', '.join(sorted(missing_ccs))
-                                    is_failure = True
-                                # We still log the result, but don't fail:
+                                    missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
+                                    fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
+                                    # If accept_ptx_as_cc, this might not be a failure _if_ there is suitable PTX
+                                    # code to JIT compile from that supports the CCs in missing_ccs
+                                    if accept_ptx_as_cc:
+                                        # Check that for each item in missing_ccs there is PTX code for lower or equal
+                                        # CUDA compute capability
+                                        comparisons = []
+                                        for cc in missing_ccs:
+                                            has_smaller_equal = any(LooseVersion(derived_ptx_ccs) <= LooseVersion(cc))
+                                            comparisons.append(has_smaller_equal)
+                                        # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
+                                        # failure
+                                        if all(comparisons):
+                                            is_failure = False
+                                        else:
+                                            is_failure = True
+                                    else:
+                                        is_failure = True
+                                # If we have a failure, demote to a warning if path is on the ignore_file_list
                                 if is_failure and path in ignore_file_list:
                                     fail_msg += f"This failure will be ignored as '{path}' is listed in "
                                     fail_msg += "'ignore_cuda_sanity_failures'."
@@ -3451,14 +3482,22 @@ class EasyBlock(object):
                                 self.log.debug(msg)
 
                             # Check whether there is ptx code for the highest CC in cfg_ccs
-                            highest_cc = [sorted(cfg_ccs)[-1]]
+                            # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
+                            highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
                             missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
 
                             if missing_ptx_ccs:
+                                files_missing_ptx.append(path)
+                                num_files_missing_ptx += 1
                                 fail_msg = "Configured highest compute capability was '%s', "
                                 fail_msg += "but no PTX code for this compute capability was found in '%s' "
                                 fail_msg += "(PTX architectures supported in that file: %s)"
-                                self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
+                                if path in ignore_file_list:
+                                    fail_msg = f"This failure will be ignored as '{path}' is listed in"
+                                    fail_msg += "'ignore_cuda_sanity_failures'."
+                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
+                                else:
+                                    fails.append(fail_msg)
                             else:
                                 msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
                                        "least) the highest CUDA compute capability in cuda_compute_capabilities")
