@@ -3388,12 +3388,14 @@ class EasyBlock(object):
             num_files_surplus_cc = 0
             num_files_missing_ptx = 0
             num_files_missing_cc_but_has_ptx = 0
+            num_files_ignored = 0
 
             # Creating lists of files for summary report:
             files_missing_cc = []
             files_surplus_cc = []
             files_missing_ptx = []
             files_missing_cc_but_has_ptx = []
+            files_ignored = []
 
             # Looping through all files to check CUDA device and PTX code
             for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
@@ -3443,8 +3445,6 @@ class EasyBlock(object):
                                         is_failure = False
                                 if missing_ccs:
                                     # Count and log for summary report
-                                    files_missing_cc.append(path)
-                                    num_files_missing_cc += 1
                                     missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
                                     fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
                                     # If accept_ptx_as_cc, this might not be a failure _if_ there is suitable PTX
@@ -3459,13 +3459,22 @@ class EasyBlock(object):
                                         # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
                                         # failure
                                         if all(comparisons):
+                                            files_missing_cc_but_has_ptx.append(path)
+                                            num_files_missing_cc_but_has_ptx += 1
                                             is_failure = False
                                         else:
+                                            files_missing_cc.append(path)
+                                            num_files_missing_cc += 1
                                             is_failure = True
                                     else:
+                                        files_missing_cc.append(path)
+                                        num_files_missing_cc += 1
                                         is_failure = True
+
                                 # If we have a failure, demote to a warning if path is on the ignore_file_list
                                 if is_failure and path in ignore_file_list:
+                                    files_ignored.append(path)
+                                    num_files_ignored += 1
                                     fail_msg += f"This failure will be ignored as '{path}' is listed in "
                                     fail_msg += "'ignore_cuda_sanity_failures'."
                                     is_failure = False
