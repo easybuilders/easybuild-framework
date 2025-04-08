@@ -3564,7 +3564,7 @@ class EasyBlock(object):
             summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
             if strict_cc_check:
                 summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored}, fails: "
-                summary_msg += "{num_files_surplus_cc_fails})\n"
+                summary_msg += f"{num_files_surplus_cc_fails})\n"
             else:
                 summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not "
                 summary_msg += "considered failures)\n"
@@ -3574,7 +3574,7 @@ class EasyBlock(object):
                 summary_msg += "failures)\n"
             else:
                 summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: "
-                summary_msg += "{num_files_missing_ptx_fails})\n"
+                summary_msg += f"{num_files_missing_ptx_fails})\n"
             if not build_option('debug'):
                 summary_msg += "Rerun with --debug to see a detailed list of files.\n"
             # Give some advice
