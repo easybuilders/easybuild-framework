@@ -3385,7 +3385,7 @@ class EasyBlock(object):
             # Tracking some numbers for a summary report:
             num_cuda_files = 0
             num_files_missing_cc = 0
-            num_files_missing_cc_ignored =0
+            num_files_missing_cc_ignored  0
             num_files_surplus_cc = 0
             num_files_surplus_cc_ignored = 0
             num_files_missing_ptx = 0
@@ -3400,7 +3400,6 @@ class EasyBlock(object):
             files_missing_ptx = []
             files_missing_ptx_ignored = []
             files_missing_cc_but_has_ptx = []
-
 
             # Looping through all files to check CUDA device and PTX code
             for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
@@ -3456,7 +3455,7 @@ class EasyBlock(object):
                                     # Turn failure into warning if on ignore list
                                     if is_failure and path in ignore_file_list:
                                         files_surplus_cc_ignored.append(path)
-                                        num_files_suprlus_cc_ignored += 1
+                                        num_files_surplus_cc_ignored += 1
                                         fail_msg += ignore_msg
                                         is_failure = False
 
