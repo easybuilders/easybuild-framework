@@ -3558,8 +3558,8 @@ class EasyBlock(object):
             summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {num_files_missing_cc} "
             summary_msg += f"(ignored: {num_files_missing_cc_ignored}, fails: {num_files_missing_cc_fails})\n"
             if accept_ptx_as_cc:
-                summary_msg += f"Number of files missing one or more CUDA Compute Capabilities, but has suitable "
-                summary_msg += f"PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+                summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
+                summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
                 summary_msg += f"{num_files_missing_cc_but_has_ptx}\n"
             summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
             if strict_cc_check:
@@ -3568,7 +3568,7 @@ class EasyBlock(object):
             else:
                 summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not "
                 summary_msg += "considered failures)\n"
-            summary_msg += f"Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             if accept_missing_ptx:
                 summary_msg += f"{num_files_missing_ptx} (running with --accept-missing-cuda-ptx so not considered "
                 summary_msg += "failures)\n"
@@ -3576,7 +3576,7 @@ class EasyBlock(object):
                 summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: "
                 summary_msg += "{num_files_missing_ptx_fails})\n"
             if not build_option('debug'):
-                summary_msg += f"Rerun with --debug to see a detailed list of files.\n"
+                summary_msg += "Rerun with --debug to see a detailed list of files.\n"
             # Give some advice
             if num_files_missing_cc > 0 and not accept_ptx_as_cc:
                 summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
@@ -3603,13 +3603,13 @@ class EasyBlock(object):
             summary_msg_debug += f"Files missing one or more CUDA compute capabilities: {files_missing_cc}\n"
             summary_msg_debug += f"These failures are ignored for: {files_missing_cc_ignored})\n"
             if accept_ptx_as_cc:
-                summary_msg_debug += f"Files missing one or more CUDA Compute Capabilities, but has suitable PTX "
-                summary_msg_debug += f"code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+                summary_msg_debug += "Files missing one or more CUDA Compute Capabilities, but has suitable PTX "
+                summary_msg_debug += "code that can be JIT compiled for the requested CUDA Compute Capabilities: "
                 summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
-            summary_msg_debug += f"Files with device code for more CUDA Compute Capabilities than requested: "
+            summary_msg_debug += "Files with device code for more CUDA Compute Capabilities than requested: "
             summary_msg_debug += f"{files_surplus_cc}\n"
             summary_msg_debug += f"These failures are ignored for: {files_surplus_cc_ignored})\n"
-            summary_msg_debug += f"Files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg_debug += "Files missing PTX code for the highest configured CUDA Compute Capability: "
             summary_msg_debug += f"{files_missing_ptx}\n"
             summary_msg_debug += f"These failures are ignored for: {files_missing_ptx_ignored})"
             self.log.debug(summary_msg_debug)

@@ -1038,7 +1038,7 @@ def get_cuda_object_dump_raw(path):
             else:
                 msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
                 _log.debug(msg, path, cuda_cmd, res.output)
-    
+ 
     return result
 
 
@@ -1098,7 +1098,7 @@ def get_cuda_device_code_architectures(path):
                 fail_msg = f"Failed to find Fatbin elf code section(s) in cuobjdump output for {path}, "
                 fail_msg += "are you sure this is a CUDA binary?"
             _log.warning(fail_msg)
-    
+
         # extract unique ptx code architectures from raw dump
         ptx_code_matches = re.findall(ptx_code_regex, cuda_raw)
         if ptx_code_matches is not None:
