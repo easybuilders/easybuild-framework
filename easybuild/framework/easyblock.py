@@ -3500,11 +3500,11 @@ class EasyBlock(object):
                                 num_files_missing_ptx += 1
                                 fail_msg = "Configured highest compute capability was '%s', "
                                 fail_msg += "but no PTX code for this compute capability was found in '%s' "
-                                fail_msg += "(PTX architectures supported in that file: %s)"
+                                fail_msg += "(PTX architectures supported in that file: %s). "
                                 if path in ignore_file_list:
-                                    fail_msg = f"This failure will be ignored as '{path}' is listed in"
+                                    fail_msg += "This failure will be ignored as '%s' is listed in"
                                     fail_msg += "'ignore_cuda_sanity_failures'."
-                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
+                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs, path)
                                 elif accept_missing_ptx:
                                     self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                                 else:
@@ -3515,6 +3515,36 @@ class EasyBlock(object):
                                 self.log.debug(msg)
                 else:
                     self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
+
+            # Summary
+            summary_msg = "CUDA sanity check summary report:\n"
+            summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
+            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {num_files_missing_cc}\n"
+            if accept_ptx_as_cc:
+                summary_msg += f"Number of files missing one or more CUDA Compute Capabilities, but has suitable "
+                summary_msg += f"PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+                summary_msg += f"{num_files_missing_cc_but_has_ptx}\n"
+            summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
+            summary_msg += f"{num_files_surplus_cc}\n"
+            summary_msg += f"Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg += f"{num_files_missing_ptx}\n"
+            summary_msg += f"Number of files ignored in the CUDA Sanity Check: {num_files_ignored}\n"
+            if num_files_ignored > 0:
+                summary_msg += "Note: ignored files still count toward the aforementioned summary statistics"
+            self.log.info(summary_msg)
+
+            summary_msg_debug = "Detailed CUDA sanity check summary report:\n"
+            summary_msg_debug += f"Files missing one or more CUDA compute capabilities: {files_missing_cc}\n"
+            if accept_ptx_as_cc:
+                summary_msg_debug += f"Files  missing one or more CUDA Compute Capabilities, but has suitable PTX "
+                summary_msg_debug += f"code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+                summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
+            summary_msg_debug += f"Files with device code for more CUDA Compute Capabilities than requested: "
+            summary_msg_debug += f"{files_surplus_cc}\n"
+            summary_msg_debug += f"Files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg_debug += f"{files_missing_ptx}\n"
+            summary_msg_debug += f"Files ignored in the CUDA Saniyt Check: {files_ignored}\n"
+            self.log.debug(summary_msg_debug)
 
         return fails
 
