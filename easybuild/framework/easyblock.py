@@ -3417,7 +3417,7 @@ class EasyBlock(object):
                             # The following is considered fail/warning/success:
                             # - Missing device code is considered a failure (unless there is PTX code for
                             #   a lower CC AND --accept-ptx-for-cc-support is True, in which case it is a warning)
-                            # - Device code for additional compute capabilities is considered a failure if 
+                            # - Device code for additional compute capabilities is considered a failure if
                             #   --strict-cuda-sanity-check is True (otherwise, it's a warning)
                             # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
                             #   is considered a failure, unless --accept-missing-cuda-ptx is True (in which case it is
@@ -3438,7 +3438,7 @@ class EasyBlock(object):
                                     files_surplus_cc.append(path)
                                     num_files_surplus_cc += 1
                                     surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
-                                    fail_msg += "Surplus compute capabilities: %s. " % surplus_ccs
+                                    fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
                                     if strict_cc_check:  # Surplus compute capabilities not allowed
                                         is_failure = True
                                     else:
@@ -3505,8 +3505,10 @@ class EasyBlock(object):
                                     fail_msg = f"This failure will be ignored as '{path}' is listed in"
                                     fail_msg += "'ignore_cuda_sanity_failures'."
                                     self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
+                                elif accept_missing_ptx:
+                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                                 else:
-                                    fails.append(fail_msg)
+                                    fails.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
                             else:
                                 msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
                                        "least) the highest CUDA compute capability in cuda_compute_capabilities")
