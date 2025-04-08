@@ -3385,7 +3385,7 @@ class EasyBlock(object):
             # Tracking some numbers for a summary report:
             num_cuda_files = 0
             num_files_missing_cc = 0
-            num_files_missing_cc_ignored  0
+            num_files_missing_cc_ignored = 0
             num_files_surplus_cc = 0
             num_files_surplus_cc_ignored = 0
             num_files_missing_ptx = 0
