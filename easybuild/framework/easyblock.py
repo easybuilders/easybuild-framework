@@ -3563,14 +3563,18 @@ class EasyBlock(object):
                 summary_msg += f"{num_files_missing_cc_but_has_ptx}\n"
             summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
             if strict_cc_check:
-                summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored}, fails: {num_files_surplus_cc_fails})\n"
+                summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored}, fails: "
+                summary_msg += "{num_files_surplus_cc_fails})\n"
             else:
-                summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not considered failures)\n"
+                summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not "
+                summary_msg += "considered failures)\n"
             summary_msg += f"Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             if accept_missing_ptx:
-                summary_msg += f"{num_files_missing_ptx} (running with --accept-missing-cuda-ptx so not considered failures)\n"
+                summary_msg += f"{num_files_missing_ptx} (running with --accept-missing-cuda-ptx so not considered "
+                summary_msg += "failures)\n"
             else:
-                summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: {num_files_missing_ptx_fails})\n"
+                summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: "
+                summary_msg += "{num_files_missing_ptx_fails})\n"
             if not build_option('debug'):
                 summary_msg += f"Rerun with --debug to see a detailed list of files.\n"
             # Give some advice
@@ -3588,9 +3592,9 @@ class EasyBlock(object):
                 summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
                 summary_msg += "though this is generally negligible.\n"
             if num_files_missing_ptx > 0 and not accept_missing_ptx:
-                summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that don't "
-                summary_msg += "contain PTX code for the highest CUDA Compute Capability you requested. This breaks "
-                summary_msg += "forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
+                summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that "
+                summary_msg += "don't contain PTX code for the highest CUDA Compute Capability you requested. This "
+                summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
                 summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
                 summary_msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you.\n"
             self.log.info(summary_msg)
