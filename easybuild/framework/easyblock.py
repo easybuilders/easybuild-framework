@@ -3385,19 +3385,25 @@ class EasyBlock(object):
             # Tracking some numbers for a summary report:
             num_cuda_files = 0
             num_files_missing_cc = 0
+            num_files_missing_cc_fails = 0
             num_files_missing_cc_ignored = 0
             num_files_surplus_cc = 0
+            num_files_surplus_cc_fails = 0
             num_files_surplus_cc_ignored = 0
             num_files_missing_ptx = 0
+            num_files_missing_ptx_fails = 0
             num_files_missing_ptx_ignored = 0
             num_files_missing_cc_but_has_ptx = 0
 
             # Creating lists of files for summary report:
             files_missing_cc = []
+            files_missing_cc_fails = []
             files_missing_cc_ignored = []
             files_surplus_cc = []
+            files_surplus_cc_fails = []
             files_surplus_cc_ignored = []
             files_missing_ptx = []
+            files_missing_ptx_fails = []
             files_missing_ptx_ignored = []
             files_missing_cc_but_has_ptx = []
 
@@ -3448,15 +3454,16 @@ class EasyBlock(object):
                                     surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
                                     fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
                                     if strict_cc_check:  # Surplus compute capabilities not allowed
-                                        is_failure = True
+                                        if path in ignore_file_list:
+                                            files_surplus_cc_ignored.append(path)
+                                            num_files_surplus_cc_ignored += 1
+                                            fail_msg += ignore_msg
+                                            is_failure = False
+                                        else:
+                                            files_surplus_cc_fails.append(path)
+                                            num_files_surplus_cc_fails += 1
+                                            is_failure = True
                                     else:
-                                        is_failure = False
-
-                                    # Turn failure into warning if on ignore list
-                                    if is_failure and path in ignore_file_list:
-                                        files_surplus_cc_ignored.append(path)
-                                        num_files_surplus_cc_ignored += 1
-                                        fail_msg += ignore_msg
                                         is_failure = False
 
                                 if missing_ccs:
@@ -3470,7 +3477,9 @@ class EasyBlock(object):
                                         # CUDA compute capability
                                         comparisons = []
                                         for cc in missing_ccs:
-                                            has_smaller_equal = any(LooseVersion(derived_ptx_ccs) <= LooseVersion(cc))
+                                            has_smaller_equal = any(
+                                                LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in derived_ptx_ccs
+                                            )
                                             comparisons.append(has_smaller_equal)
                                         # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
                                         # failure
@@ -3481,18 +3490,27 @@ class EasyBlock(object):
                                         else:
                                             files_missing_cc.append(path)
                                             num_files_missing_cc += 1
-                                            is_failure = True
+                                            if path in ignore_file_list:
+                                                files_missing_cc_ignored.append(path)
+                                                num_files_missing_cc_ignored += 1
+                                                fail_msg += ignore_msg
+                                                is_failure = False
+                                            else:
+                                                files_missing_cc_fails.append(path)
+                                                num_files_missing_cc_fails += 1
+                                                is_failure = True
                                     else:
                                         files_missing_cc.append(path)
                                         num_files_missing_cc += 1
-                                        is_failure = True
-
-                                    # Turn failure into warning if on ignore list
-                                    if is_failure and path in ignore_file_list:
-                                        files_missing_cc_ignored.append(path)
-                                        num_files_missing_cc_ignored += 1
-                                        fail_msg += ignore_msg
-                                        is_failure = False
+                                        if path in ignore_file_list:
+                                            files_missing_cc_ignored.append(path)
+                                            num_files_missing_cc_ignored += 1
+                                            fail_msg += ignore_msg
+                                            is_failure = False
+                                        else:
+                                            files_missing_cc_fails.append(path)
+                                            num_files_missing_cc_fails += 1
+                                            is_failure = True
 
                                 # If considered a failure, append to fails so that a sanity error will be thrown
                                 # Otherwise, log a warning
@@ -3524,6 +3542,8 @@ class EasyBlock(object):
                                 elif accept_missing_ptx:
                                     self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                                 else:
+                                    files_missing_ptx_fails.append(path)
+                                    num_files_missing_ptx_fails += 1
                                     fails.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
                             else:
                                 msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
@@ -3536,15 +3556,43 @@ class EasyBlock(object):
             summary_msg = "CUDA sanity check summary report:\n"
             summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
             summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {num_files_missing_cc} "
-            summary_msg += f"(ignored: {num_files_missing_cc_ignored})\n"
+            summary_msg += f"(ignored: {num_files_missing_cc_ignored}, fails: {num_files_missing_cc_fails})\n"
             if accept_ptx_as_cc:
                 summary_msg += f"Number of files missing one or more CUDA Compute Capabilities, but has suitable "
                 summary_msg += f"PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
                 summary_msg += f"{num_files_missing_cc_but_has_ptx}\n"
             summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
-            summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored})\n"
+            if strict_cc_check:
+                summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored}, fails: {num_files_surplus_cc_fails})\n"
+            else:
+                summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not considered failures)\n"
             summary_msg += f"Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-            summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored})"
+            if accept_missing_ptx:
+                summary_msg += f"{num_files_missing_ptx} (running with --accept-missing-cuda-ptx so not considered failures)\n"
+            else:
+                summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: {num_files_missing_ptx_fails})\n"
+            if not build_option('debug'):
+                summary_msg += f"Rerun with --debug to see a detailed list of files.\n"
+            # Give some advice
+            if num_files_missing_cc > 0 and not accept_ptx_as_cc:
+                summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
+                summary_msg += "don't contain the device code for your requested CUDA Compute Capabilities, but that "
+                summary_msg += "do have PTX code that can be compiled for your requested CUDA Compute "
+                summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
+                summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
+                summary_msg += "all features specific to your hardware architecture.\n"
+            if num_files_surplus_cc > 0 and strict_cc_check:
+                summary_msg += "\nYou may consider running with --disable-strict-cuda-sanity-check. This means you'll "
+                summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
+                summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
+                summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
+                summary_msg += "though this is generally negligible.\n"
+            if num_files_missing_ptx > 0 and not accept_missing_ptx:
+                summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that don't "
+                summary_msg += "contain PTX code for the highest CUDA Compute Capability you requested. This breaks "
+                summary_msg += "forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
+                summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
+                summary_msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you.\n"
             self.log.info(summary_msg)
 
             summary_msg_debug = "Detailed CUDA sanity check summary report:\n"
@@ -3555,10 +3603,10 @@ class EasyBlock(object):
                 summary_msg_debug += f"code that can be JIT compiled for the requested CUDA Compute Capabilities: "
                 summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
             summary_msg_debug += f"Files with device code for more CUDA Compute Capabilities than requested: "
-            summary_msg_debug += f"{files_surplus_cc}"
+            summary_msg_debug += f"{files_surplus_cc}\n"
             summary_msg_debug += f"These failures are ignored for: {files_surplus_cc_ignored})\n"
             summary_msg_debug += f"Files missing PTX code for the highest configured CUDA Compute Capability: "
-            summary_msg_debug += f"{files_missing_ptx}"
+            summary_msg_debug += f"{files_missing_ptx}\n"
             summary_msg_debug += f"These failures are ignored for: {files_missing_ptx_ignored})"
             self.log.debug(summary_msg_debug)
 
