@@ -29,6 +29,7 @@ Authors:
 
 * Kenneth Hoste (Ghent University)
 """
+import os
 import re
 
 from easybuild.base import fancylogger
@@ -162,13 +163,14 @@ class SlurmJob(object):
         self.jobid = None
         self.script = script
         self.name = name
+        self.output_dir = build_option('job_output_dir') or ''
 
         self.job_specs = {
             'job-name': self.name,
             # pattern for output file for submitted job;
             # SLURM replaces %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAH)
             # %x (job name) replacement needs SLURM >= 17.02.1, thus we add name ourselves
-            'output': '%s-%%j.out' % self.name,
+            'output': '%s-%%j.out' % os.path.join(self.output_dir, self.name),
             'wrap': self.script,
         }
 
