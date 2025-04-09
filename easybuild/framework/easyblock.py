@@ -2380,8 +2380,13 @@ class EasyBlock(object):
             # only needs to be done during first iteration, since after that the options won't be lists anymore
             if self.iter_idx == 0:
                 # keep track of list, supply first element as first option to handle
+                iter_cnt = self.det_iter_cnt()
                 for opt in self.cfg.iterate_options:
-                    self.iter_opts[opt] = self.cfg[opt]  # copy
+                    if isinstance(self.cfg[opt], (list, tuple)):
+                        self.iter_opts[opt] = self.cfg[opt]  # copy
+                    elif iter_cnt > 1:
+                        # make iter_cnt copies for every opt since easyblocks can modify them
+                        self.iter_opts[opt] = [self.cfg[opt]] * iter_cnt
                     self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:

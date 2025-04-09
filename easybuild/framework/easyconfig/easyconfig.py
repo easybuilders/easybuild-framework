@@ -1037,14 +1037,8 @@ class EasyConfig(object):
     def start_iterating(self):
         """Start iterative mode."""
 
-        for opt in ITERATE_OPTIONS:
-            # builddpendencies is already handled, see __init__
-            if opt == 'builddependencies':
-                continue
-
-            # list of values indicates that this is a value to iterate over
-            if isinstance(self[opt], (list, tuple)):
-                self.iterate_options.append(opt)
+        # builddependencies is already handled, see __init__
+        self.iterate_options.extend([opt for opt in ITERATE_OPTIONS if opt != 'builddependencies'])
 
         # keep track of when we're iterating (used by builddependencies())
         self.iterating = True
