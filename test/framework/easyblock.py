@@ -44,7 +44,7 @@ import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
@@ -1173,7 +1173,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterate_options, [])
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
-        expected_iter_opts = {'configopts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
+        expected_iter_opts = dict.fromkeys(ITERATE_OPTIONS, "")
+        expected_iter_opts['builddependencies'] = []
+        expected_iter_opts['configopts'] = ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]
 
         # once iteration mode is set, we're still in iteration #0
         self.mock_stdout(True)
