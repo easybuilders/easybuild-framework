@@ -352,6 +352,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cleanup_tmpdir',
         'extended_dry_run_ignore_errors',
         'fixed_installdir_naming_scheme',
+        'ignore_cuda_sanity_failures',
         'lib_lib64_symlink',
         'lib64_fallback_sanity_check',
         'lib64_lib_symlink',

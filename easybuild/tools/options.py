@@ -553,6 +553,9 @@ class EasyBuildOptions(GeneralOption):
             'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involves unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
                                           None, 'store_true', False),
+            'ignore-cuda-sanity-failures': ("The CUDA sanity check will be performed, and a report will be printed, "
+                                            "but any failures in the CUDA sanity check will be ignored",
+                                            None, 'stroe_true', True)
             'strict-cuda-sanity-check': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
                                          "check will fail if the CUDA binaries don't contain code for (at least) "
                                          "all compute capabilities defined in --cude-compute-capabilities, but will "
