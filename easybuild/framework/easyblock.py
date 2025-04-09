@@ -2380,7 +2380,7 @@ class EasyBlock(object):
             # only needs to be done during first iteration, since after that the options won't be lists anymore
             if self.iter_idx == 0 and self.det_iter_cnt() > 1:
                 # keep track of list, supply first element as first option to handle
-                for opt in self.cfg.ITERATE_OPTIONS:
+                for opt in ITERATE_OPTIONS:
                     self.iter_opts[opt] = self.cfg[opt]  # copy
                     self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
