@@ -3359,6 +3359,7 @@ class EasyBlock(object):
 
         fails = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
+        ignore_failures = build_option('ignore_cuda_sanity_failures')
         strict_cc_check = build_option('strict_cuda_sanity_check')
         accept_ptx_as_cc = build_option('accept_ptx_as_cc_support')
         accept_missing_ptx = build_option('accept_missing_cuda_ptx')
@@ -3454,7 +3455,7 @@ class EasyBlock(object):
                                     surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
                                     fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
                                     if strict_cc_check:  # Surplus compute capabilities not allowed
-                                        if path in ignore_file_list:
+                                        if path in ignore_file_list or ignore_failures:
                                             files_surplus_cc_ignored.append(path)
                                             num_files_surplus_cc_ignored += 1
                                             fail_msg += ignore_msg
@@ -3490,7 +3491,7 @@ class EasyBlock(object):
                                         else:
                                             files_missing_cc.append(path)
                                             num_files_missing_cc += 1
-                                            if path in ignore_file_list:
+                                            if path in ignore_file_list or ignore_failures:
                                                 files_missing_cc_ignored.append(path)
                                                 num_files_missing_cc_ignored += 1
                                                 fail_msg += ignore_msg
@@ -3502,7 +3503,7 @@ class EasyBlock(object):
                                     else:
                                         files_missing_cc.append(path)
                                         num_files_missing_cc += 1
-                                        if path in ignore_file_list:
+                                        if path in ignore_file_list or ignore_failures:
                                             files_missing_cc_ignored.append(path)
                                             num_files_missing_cc_ignored += 1
                                             fail_msg += ignore_msg
@@ -3534,7 +3535,7 @@ class EasyBlock(object):
                                 fail_msg = "Configured highest compute capability was '%s', "
                                 fail_msg += "but no PTX code for this compute capability was found in '%s' "
                                 fail_msg += "(PTX architectures supported in that file: %s). "
-                                if path in ignore_file_list:
+                                if path in ignore_file_list or ignore_failures:
                                     files_missing_ptx_ignored.append(path)
                                     num_files_missing_ptx_ignored += 1
                                     fail_msg += ignore_msg
