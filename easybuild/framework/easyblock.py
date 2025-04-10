@@ -3391,9 +3391,9 @@ class EasyBlock(object):
         files_missing_devcode = []
         files_missing_devcode_fails = []
         files_missing_devcode_ignored = []
-        files_additional_cc = []
-        files_additional_cc_fails = []
-        files_additional_cc_ignored = []
+        files_additional_devcode = []
+        files_additional_devcode_fails = []
+        files_additional_devcode_ignored = []
         files_missing_ptx = []
         files_missing_ptx_fails = []
         files_missing_ptx_ignored = []
@@ -3430,26 +3430,26 @@ class EasyBlock(object):
                         derived_ptx_ccs = res.ptx_archs
 
                         # check whether device code architectures match cuda_compute_capabilities
-                        additional_ccs = list(set(derived_ccs) - set(cfg_ccs))
+                        additional_devcodes = list(set(derived_ccs) - set(cfg_ccs))
                         missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
 
                         # Message for when file is on the ignore list:
                         ignore_msg = f"This failure will be ignored as '{path}' is listed in "
                         ignore_msg += "'cuda_sanity_ignore_files'."
 
-                        if additional_ccs:
+                        if additional_devcodes:
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                             # Count and log for summary report
-                            files_additional_cc.append(path)
-                            additional_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
-                            fail_msg += "Surplus compute capabilities: %s. " % additional_cc_str
+                            files_additional_devcode.append(path)
+                            additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
+                            fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
                             if strict_cc_check:  # Surplus compute capabilities not allowed
                                 if path in ignore_file_list or ignore_failrues:
-                                    files_additional_cc_ignored.append(path)
+                                    files_additional_devcode_ignored.append(path)
                                     fail_msg += ignore_msg
                                     is_failure = False
                                 else:
-                                    files_additional_cc_fails.append(path)
+                                    files_additional_devcode_fails.append(path)
                                     is_failure = True
                             else:
                                 is_failure = False
@@ -3538,10 +3538,10 @@ class EasyBlock(object):
             summary_msg_files += f"{len(files_missing_devcode_but_has_ptx)} files missing one or more CUDA Compute "
             summary_msg_files += "Capabilities, but has suitable PTX code that can be JIT compiled for the requested "
             summary_msg_files += f"CUDA Compute Capabilities: {files_missing_devcode_but_has_ptx}\n"
-        summary_msg_files += "{len(files_additional_cc)} files with device code for more CUDA Compute Capabilities "
-        summary_msg_files += f"than requested: {files_additional_cc}\n"
-        summary_msg_files += f"These failures are ignored for {len(files_additional_cc_ignored)} files: "
-        summary_msg_files += f"{files_additional_cc_ignored})\n"
+        summary_msg_files += "{len(files_additional_devcode)} files with device code for more CUDA Compute Capabilities "
+        summary_msg_files += f"than requested: {files_additional_devcode}\n"
+        summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files: "
+        summary_msg_files += f"{files_additional_devcode_ignored})\n"
         summary_msg_files += f"{len(files_missing_ptx} files missing PTX code for the highest configured CUDA Compute "
         summary_msg_files += f"Capability: {files_missing_ptx}\n"
         summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files: "
@@ -3559,10 +3559,10 @@ class EasyBlock(object):
             summary_msg += f"{len(files_missing_devcode_but_has_ptx)}\n"
         summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
         if strict_cc_check:
-            summary_msg += f"{len(files_additional_cc)} (ignored: {len(files_surplus_cc_ignored)}, fails: "
-            summary_msg += f"{len(files_additional_cc_fails)})\n"
+            summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_surplus_cc_ignored)}, fails: "
+            summary_msg += f"{len(files_additional_devcode_fails)})\n"
         else:
-            summary_msg += f"{len(files_additional_cc)} (not running with --cuda-sanity-check-strict, so not "
+            summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-strict, so not "
             summary_msg += "considered failures)\n"
         summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
         if accept_missing_ptx:
@@ -3581,7 +3581,7 @@ class EasyBlock(object):
             summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
             summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
             summary_msg += "all features specific to your hardware architecture.\n"
-        if len(files_additional_cc) > 0 and strict_cc_check:
+        if len(files_additional_devcode) > 0 and strict_cc_check:
             summary_msg += "\nYou may consider running with --disable-cuda-sanity-check-strict. This means you'll "
             summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
             summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
