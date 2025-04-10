@@ -1187,6 +1187,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
+        # mimic easyblock that changes this in-place
+        eb.cfg['preconfigopts'] = "FOO=bar "
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         # when next iteration is start, iteration index gets bumped
@@ -1198,6 +1200,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(stdout, "== starting iteration #1 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        # preconfigopts should have been restored (https://github.com/easybuilders/easybuild-framework/pull/4848)
+        self.assertEqual(eb.cfg['preconfigopts'], "")
         self.assertEqual(eb.cfg['configopts'], "--opt2")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
