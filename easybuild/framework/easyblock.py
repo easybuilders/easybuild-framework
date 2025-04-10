@@ -3618,7 +3618,11 @@ class EasyBlock(object):
             summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
             summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
             summary_msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you.\n"
-        self.log.info(summary_msg)
+        # Give this some extra visibility if we're NOT erroring out on failures
+        if ignore_failures:
+            self.log.warning(summary_msg)
+        else:
+            self.log.info(summary_msg)
 
         return fail_msgs
 
