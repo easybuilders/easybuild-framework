@@ -3370,7 +3370,7 @@ class EasyBlock(object):
 
         # If there are no CUDA compute capabilities defined, return
         if cfg_ccs is None or len(cfg_ccs) == 0:
-            self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities where configured")
+            self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities were configured")
             return fail_msgs
  
         if cuda_dirs is None:
