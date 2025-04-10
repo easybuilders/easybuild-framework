@@ -405,6 +405,33 @@ class EasyBuildOptions(GeneralOption):
                                           "--accept-ptx-for-cc-support or --accept-missing-ptx, or made more "
                                           "stringent using --strict-cuda-sanity-check.",
                                           'strlist', 'extend', None),
+            'cuda-sanity-check-accept-missing-ptx': ("CUDA sanity check also passes if PTX code for the highest "
+                                                     "requested CUDA compute capability is not present (but will "
+                                                     "print a warning)",
+                                                     None, 'store_true', False),
+            'cuda-sanity-check-accept-ptx-as-devcode': ("CUDA sanity check also passes if requested device code is "
+                                                        "not present, as long as PTX code is present that can be "
+                                                        "JIT-compiled for each target in --cuda-compute-capabilities "
+                                                        "E.g. if --cuda-compute-capabilities=8.0 and a binary is "
+                                                        "found in the installation that does not have device code for "
+                                                        "8.0, but it does have PTX code for 7.0, the sanity check "
+                                                        "will pass if, and only if, this option is True. "
+                                                        "Note that JIT-compiling means the binary will work on the "
+                                                        "requested architecture, but is it not necessarily as well "
+                                                        "optimized as when actual device code is present for the "
+                                                        "requested architecture ",
+                                                        None, 'store_true', False),
+            'cuda-sanity-check-error-on-fail': ("If True, failures in the CUDA sanity check will produce an error. "
+                                                "If False, the CUDA sanity check will be performed, and failures will "
+                                                "be reported, but they will not result in an error",
+                                            None, 'store_true', False),
+            'cuda-sanity-check-strict': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
+                                         "check will fail if the CUDA binaries don't contain code for (at least) "
+                                         "all compute capabilities defined in --cude-compute-capabilities, but will "
+                                         "accept if code for additional compute capabilities is present. "
+                                         "With this setting, the sanity check will also fail if code is present for "
+                                         "more compute capabilities than defined in --cuda-compute-capabilities.",
+                                         None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
@@ -553,28 +580,6 @@ class EasyBuildOptions(GeneralOption):
             'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involves unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
                                           None, 'store_true', False),
-            'ignore-cuda-sanity-failures': ("The CUDA sanity check will be performed, and a report will be printed, "
-                                            "but any failures in the CUDA sanity check will be ignored",
-                                            None, 'store_true', True),
-            'strict-cuda-sanity-check': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
-                                         "check will fail if the CUDA binaries don't contain code for (at least) "
-                                         "all compute capabilities defined in --cude-compute-capabilities, but will "
-                                         "accept if code for additional compute capabilities is present. "
-                                         "With this setting, the sanity check will also fail if code is present for "
-                                         "more compute capabilities than defined in --cuda-compute-capabilities.",
-                                         None, 'store_true', False),
-            'accept-ptx-as-cc-support': ("CUDA sanity check also passes if requested device code is not present, as "
-                                         "long as a PTX code is present that can be JIT-compiled into the requestd "
-                                         "device code. E.g. if --cuda-compute-capabilities=8.0 and a binary is found "
-                                         "in the installation that does not have device code for 8.0, but does have "
-                                         "PTX code for 7.0, the sanity check will pass if, and only if, this option "
-                                         "is True. Note that JIT-compiling means the binary will work on the "
-                                         "requested architecture, but is it not necessarily as well optimized as when "
-                                         "actual device code is present for the requested architecture ",
-                                         None, 'store_true', False),
-            'accept-missing-cuda-ptx': ("CUDA sanity check also passes if PTX code for the highest requested CUDA "
-                                        "compute capability is not present (but will print a warning)",
-                                        None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),

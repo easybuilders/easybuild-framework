@@ -3359,10 +3359,10 @@ class EasyBlock(object):
 
         fail_msgs = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
-        ignore_failures = build_option('ignore_cuda_sanity_failures')
-        strict_cc_check = build_option('strict_cuda_sanity_check')
-        accept_ptx_as_cc = build_option('accept_ptx_as_cc_support')
-        accept_missing_ptx = build_option('accept_missing_cuda_ptx')
+        ignore_failures = not build_option('cuda_sanity_check_error_on_fail')
+        strict_cc_check = build_option('cuda_sanity_check_strict')
+        accept_ptx_as_devcode = build_option('cuda_sanity_check_accept_ptx_as_devcode')
+        accept_missing_ptx = build_option('cuda_sanity_check_accept_missing_ptx')
 
         # Construct the list of files to ignore as full paths (cuda_sanity_ignore_files contains the paths
         # to ignore, relative to the installation prefix)
@@ -3420,9 +3420,9 @@ class EasyBlock(object):
                         # - Missing device code is considered a failure (unless there is PTX code for
                         #   a lower CC AND --accept-ptx-for-cc-support is True, in which case it is a warning)
                         # - Device code for additional compute capabilities is considered a failure if
-                        #   --strict-cuda-sanity-check is True (otherwise, it's a warning)
+                        #   --cuda-sanity-check-strict is True (otherwise, it's a warning)
                         # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
-                        #   is considered a failure, unless --accept-missing-cuda-ptx is True (in which case it is
+                        #   is considered a failure, unless --cuda-sanity-check-accept-missing-ptx is True (in which case it is
                         #   a warning)
                         num_cuda_files += 1
                         # unpack results
@@ -3435,7 +3435,7 @@ class EasyBlock(object):
 
                         # Message for when file is on the ignore list:
                         ignore_msg = f"This failure will be ignored as '{path}' is listed in "
-                        ignore_msg += "'ignore_cuda_sanity_failures'."
+                        ignore_msg += "'cuda_sanity_ignore_files'."
 
                         if additional_ccs or missing_ccs:
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
@@ -3445,7 +3445,7 @@ class EasyBlock(object):
                                 surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
                                 fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
                                 if strict_cc_check:  # Surplus compute capabilities not allowed
-                                    if path in ignore_file_list or ignore_failures:
+                                    if path in ignore_file_list or ignore_failrues:
                                         files_surplus_cc_ignored.append(path)
                                         fail_msg += ignore_msg
                                         is_failure = False
@@ -3459,9 +3459,9 @@ class EasyBlock(object):
                                 # Count and log for summary report
                                 missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
                                 fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
-                                # If accept_ptx_as_cc, this might not be a failure _if_ there is suitable PTX
+                                # If accept_ptx_as_devcode, this might not be a failure _if_ there is suitable PTX
                                 # code to JIT compile from that supports the CCs in missing_ccs
-                                if accept_ptx_as_cc:
+                                if accept_ptx_as_devcode:
                                     # Check that for each item in missing_ccs there is PTX code for lower or equal
                                     # CUDA compute capability
                                     comparisons = []
@@ -3536,7 +3536,7 @@ class EasyBlock(object):
         summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
         summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_cc)} "
         summary_msg += f"(ignored: {len(files_missing_cc_ignored)}, fails: {len(files_missing_cc_fails)})\n"
-        if accept_ptx_as_cc:
+        if accept_ptx_as_devcode:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_cc_but_has_ptx)}\n"
@@ -3545,11 +3545,11 @@ class EasyBlock(object):
             summary_msg += f"{len(files_surplus_cc)} (ignored: {len(files_surplus_cc_ignored)}, fails: "
             summary_msg += f"{len(files_surplus_cc_fails)})\n"
         else:
-            summary_msg += f"{len(files_surplus_cc)} (not running with --strict-cuda-sanity-check, so not "
+            summary_msg += f"{len(files_surplus_cc)} (not running with --cuda-sanity-check-strict, so not "
             summary_msg += "considered failures)\n"
         summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
         if accept_missing_ptx:
-            summary_msg += f"{len(files_missing_ptx)} (running with --accept-missing-cuda-ptx so not considered "
+            summary_msg += f"{len(files_missing_ptx)} (running with --cuda-sanity-check-accept-missing-ptx so not considered "
             summary_msg += "failures)\n"
         else:
             summary_msg += f"{len(files_missing_ptx)} (ignored: {len(files_missing_ptx_ignored)}, fails: "
@@ -3557,21 +3557,21 @@ class EasyBlock(object):
         if not build_option('debug'):
             summary_msg += "Rerun with --debug to see a detailed list of files.\n"
         # Give some advice
-        if len(files_missing_cc) > 0 and not accept_ptx_as_cc:
-            summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
+        if len(files_missing_cc) > 0 and not accept_ptx_as_devcode:
+            summary_msg += "\nYou may consider rerunning with --cuda-sanity-check-accept-ptx-as-devcode to accept binaries that "
             summary_msg += "don't contain the device code for your requested CUDA Compute Capabilities, but that "
             summary_msg += "do have PTX code that can be compiled for your requested CUDA Compute "
             summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
             summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
             summary_msg += "all features specific to your hardware architecture.\n"
         if len(files_surplus_cc) > 0 and strict_cc_check:
-            summary_msg += "\nYou may consider running with --disable-strict-cuda-sanity-check. This means you'll "
+            summary_msg += "\nYou may consider running with --disable-cuda-sanity-check-strict. This means you'll "
             summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
             summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
             summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
             summary_msg += "though this is generally negligible.\n"
         if len(files_missing_ptx) > 0 and not accept_missing_ptx:
-            summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that "
+            summary_msg += "\nYou may consider running with --cuda-sanity-check-accept-missing-ptx to accept binaries that "
             summary_msg += "don't contain PTX code for the highest CUDA Compute Capability you requested. This "
             summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
             summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
@@ -3581,7 +3581,7 @@ class EasyBlock(object):
         summary_msg_debug = "Detailed CUDA sanity check summary report:\n"
         summary_msg_debug += f"Files missing one or more CUDA compute capabilities: {files_missing_cc}\n"
         summary_msg_debug += f"These failures are ignored for: {files_missing_cc_ignored})\n"
-        if accept_ptx_as_cc:
+        if accept_ptx_as_devcode:
             summary_msg_debug += "Files missing one or more CUDA Compute Capabilities, but has suitable PTX "
             summary_msg_debug += "code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
