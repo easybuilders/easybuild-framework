@@ -65,6 +65,7 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
@@ -1023,8 +1024,10 @@ def get_cuda_object_dump_raw(path):
     # check that the file is an executable or library/object
     result = None
     if any(x in res.output for x in ['executable', 'object', 'library']):
+        # Make sure we have a cuobjdump command
+        if not shutil.which('cuobjdump'):
+            raise EasyBuildError("Failed to get object dump from CUDA file: cuobjdump command not found")
         cuda_cmd = f"cuobjdump {path}"
-
         res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
         if res.exit_code == EasyBuildExit.SUCCESS:
             result = res.output
@@ -1068,8 +1071,8 @@ def get_cuda_device_code_and_ptx_architectures(path):
     # compile_size = 64bit
 
     # Pattern to extract elf code architectures and ptx code architectures respectively
-    device_code_regex = re.compile('Fatbin elf code:\n=+\narch = sm_([0-9])([0-9]+a{0,1})')
-    ptx_code_regex = re.compile('Fatbin ptx code:\n=+\narch = sm_([0-9])([0-9]+a{0,1})')
+    device_code_regex = re.compile('Fatbin elf code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
+    ptx_code_regex = re.compile('Fatbin ptx code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
 
     # resolve symlinks
     if os.path.islink(path) and os.path.exists(path):
@@ -1080,10 +1083,10 @@ def get_cuda_device_code_and_ptx_architectures(path):
     if cuda_raw is not None:
         # extract unique device code architectures from raw dump
         device_code_matches = re.findall(device_code_regex, cuda_raw)
-        if device_code_matches is not None:
+        if device_code_matches:
             # convert match tuples into unique list of cuda compute capabilities
             # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
-            device_code_matches = sorted(['.'.join(m) for m in set(device_code_matches)])
+            device_code_matches = sorted(['.'.join(m) for m in set(device_code_matches)], key=LooseVersion)
         else:
             # Try to be clear in the warning... did we not find elf code sections at all? or was the arch missing?
             device_section_regex = re.compile('Fatbin elf code')
@@ -1104,12 +1107,12 @@ def get_cuda_device_code_and_ptx_architectures(path):
         if ptx_code_matches is not None:
             # convert match tuples into unique list of cuda compute capabilities
             # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
-            ptx_code_matches = sorted(['.'.join(m) for m in set(ptx_code_matches)])
+            ptx_code_matches = sorted(['.'.join(m) for m in set(ptx_code_matches)], key=LooseVersion)
         else:
             # Try to be clear in the warning... did we not find ptx code sections at all? or was the arch missing?
             ptx_section_regex = re.compile('Fatbin ptx code')
             ptx_section_matches = re.findall(ptx_section_regex, cuda_raw)
-            if ptx_section_matches is not None:
+            if ptx_section_matches:
                 fail_msg = f"Found Fatbin ptx code section(s) in cuobjdump output for {path}, "
                 fail_msg += "but failed to extract CUDA architecture"
             else:
