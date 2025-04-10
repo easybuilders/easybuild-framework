@@ -398,12 +398,13 @@ class EasyBuildOptions(GeneralOption):
                                    int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
-                                          "for example: 3.5,5.0,7.2. EasyBuild will compile a fat binaries with "
-                                          "support for (at least) all requested CUDA compute capabilities, and "
-                                          "PTX code for the highest CUDA compute capability (for forwards "
-                                          "compatibility). The check on this behavior may be relaxed using "
-                                          "--accept-ptx-for-cc-support or --accept-missing-ptx, or made more "
-                                          "stringent using --strict-cuda-sanity-check.",
+                                          "for example: 3.5,5.0,7.2. EasyBuild will (where possible) compile fat "
+                                          "binaries with support for (at least) all requested CUDA compute "
+                                          "capabilities, and PTX code for the highest CUDA compute capability (for "
+                                          "forwards compatibility). The check on this behavior may be relaxed using "
+                                          "--cuda-sanity-check-accept-missing-ptx, "
+                                          "--cuda-sanity-check-accept-ptx-as-devcode, "
+                                          "or made more stringent using --cuda-sanity-check-strict.",
                                           'strlist', 'extend', None),
             'cuda-sanity-check-accept-missing-ptx': ("CUDA sanity check also passes if PTX code for the highest "
                                                      "requested CUDA compute capability is not present (but will "
@@ -424,7 +425,7 @@ class EasyBuildOptions(GeneralOption):
             'cuda-sanity-check-error-on-fail': ("If True, failures in the CUDA sanity check will produce an error. "
                                                 "If False, the CUDA sanity check will be performed, and failures will "
                                                 "be reported, but they will not result in an error",
-                                            None, 'store_true', False),
+                                                None, 'store_true', False),
             'cuda-sanity-check-strict': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
                                          "check will fail if the CUDA binaries don't contain code for (at least) "
                                          "all compute capabilities defined in --cude-compute-capabilities, but will "
