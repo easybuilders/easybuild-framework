@@ -3372,7 +3372,7 @@ class EasyBlock(object):
         if cfg_ccs is None or len(cfg_ccs) == 0:
             self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities were configured")
             return fail_msgs
- 
+
         if cuda_dirs is None:
             cuda_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
 
@@ -3486,7 +3486,6 @@ class EasyBlock(object):
                                             is_failure = True
                                 else:
                                     files_missing_cc.append(path)
-                                    num_files_missing_cc += 1
                                     if path in ignore_file_list or ignore_failures:
                                         files_missing_cc_ignored.append(path)
                                         fail_msg += ignore_msg
@@ -3513,7 +3512,6 @@ class EasyBlock(object):
 
                         if missing_ptx_ccs:
                             files_missing_ptx.append(path)
-                            num_files_missing_ptx += 1
                             fail_msg = "Configured highest compute capability was '%s', "
                             fail_msg += "but no PTX code for this compute capability was found in '%s' "
                             fail_msg += "(PTX architectures supported in that file: %s). "
@@ -3544,7 +3542,7 @@ class EasyBlock(object):
             summary_msg += f"{len(files_missing_cc_but_has_ptx)}\n"
         summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
         if strict_cc_check:
-            summary_msg += f"{len(files_surplus_cc)} (ignored: {len(num_files_surplus_cc_ignored)}, fails: "
+            summary_msg += f"{len(files_surplus_cc)} (ignored: {len(files_surplus_cc_ignored)}, fails: "
             summary_msg += f"{len(files_surplus_cc_fails)})\n"
         else:
             summary_msg += f"{len(files_surplus_cc)} (not running with --strict-cuda-sanity-check, so not "
@@ -3559,20 +3557,20 @@ class EasyBlock(object):
         if not build_option('debug'):
             summary_msg += "Rerun with --debug to see a detailed list of files.\n"
         # Give some advice
-        if num_files_missing_cc > 0 and not accept_ptx_as_cc:
+        if len(files_missing_cc) > 0 and not accept_ptx_as_cc:
             summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
             summary_msg += "don't contain the device code for your requested CUDA Compute Capabilities, but that "
             summary_msg += "do have PTX code that can be compiled for your requested CUDA Compute "
             summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
             summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
             summary_msg += "all features specific to your hardware architecture.\n"
-        if num_files_surplus_cc > 0 and strict_cc_check:
+        if len(files_surplus_cc) > 0 and strict_cc_check:
             summary_msg += "\nYou may consider running with --disable-strict-cuda-sanity-check. This means you'll "
             summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
             summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
             summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
             summary_msg += "though this is generally negligible.\n"
-        if num_files_missing_ptx > 0 and not accept_missing_ptx:
+        if len(files_missing_ptx) > 0 and not accept_missing_ptx:
             summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that "
             summary_msg += "don't contain PTX code for the highest CUDA Compute Capability you requested. This "
             summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
