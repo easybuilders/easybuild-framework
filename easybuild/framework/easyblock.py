@@ -3357,7 +3357,7 @@ class EasyBlock(object):
 
         self.log.info("Checking binaries/libraries for CUDA device code...")
 
-        fails = []
+        fail_msgs = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
         ignore_failures = build_option('ignore_cuda_sanity_failures')
         strict_cc_check = build_option('strict_cuda_sanity_check')
@@ -3371,251 +3371,231 @@ class EasyBlock(object):
         # If there are no CUDA compute capabilities defined, return
         if cfg_ccs is None or len(cfg_ccs) == 0:
             self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities where configured")
+            return fail_msgs
+ 
+        if cuda_dirs is None:
+            cuda_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+
+        if not cuda_dirs:
+            cuda_dirs = DEFAULT_BIN_LIB_SUBDIRS
+            self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
+                          cuda_dirs)
         else:
-            if cuda_dirs is None:
-                cuda_dirs = self.cfg['bin_lib_subdirs'] or self.bin_lib_subdirs()
+            self.log.info("Using configured subdirectories for binaries/libraries to verify CUDA device code: %s",
+                          cuda_dirs)
 
-            if not cuda_dirs:
-                cuda_dirs = DEFAULT_BIN_LIB_SUBDIRS
-                self.log.info("Using default subdirectories for binaries/libraries to verify CUDA device code: %s",
-                              cuda_dirs)
-            else:
-                self.log.info("Using configured subdirectories for binaries/libraries to verify CUDA device code: %s",
-                              cuda_dirs)
+        # Tracking number of CUDA files for a summary report:
+        num_cuda_files = 0
 
-            # Tracking some numbers for a summary report:
-            num_cuda_files = 0
-            num_files_missing_cc = 0
-            num_files_missing_cc_fails = 0
-            num_files_missing_cc_ignored = 0
-            num_files_surplus_cc = 0
-            num_files_surplus_cc_fails = 0
-            num_files_surplus_cc_ignored = 0
-            num_files_missing_ptx = 0
-            num_files_missing_ptx_fails = 0
-            num_files_missing_ptx_ignored = 0
-            num_files_missing_cc_but_has_ptx = 0
+        # Creating lists of files for summary report:
+        files_missing_cc = []
+        files_missing_cc_fails = []
+        files_missing_cc_ignored = []
+        files_surplus_cc = []
+        files_surplus_cc_fails = []
+        files_surplus_cc_ignored = []
+        files_missing_ptx = []
+        files_missing_ptx_fails = []
+        files_missing_ptx_ignored = []
+        files_missing_cc_but_has_ptx = []
 
-            # Creating lists of files for summary report:
-            files_missing_cc = []
-            files_missing_cc_fails = []
-            files_missing_cc_ignored = []
-            files_surplus_cc = []
-            files_surplus_cc_fails = []
-            files_surplus_cc_ignored = []
-            files_missing_ptx = []
-            files_missing_ptx_fails = []
-            files_missing_ptx_ignored = []
-            files_missing_cc_but_has_ptx = []
+        # Looping through all files to check CUDA device and PTX code
+        for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
+            if os.path.exists(dirpath):
+                self.log.debug(f"Sanity checking files for CUDA device code under folder {dirpath}")
 
-            # Looping through all files to check CUDA device and PTX code
-            for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
-                if os.path.exists(dirpath):
-                    self.log.debug(f"Sanity checking files for CUDA device code under folder {dirpath}")
+                for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    self.log.debug("Sanity checking for CUDA device code in %s", path)
 
-                    for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
-                        self.log.debug("Sanity checking for CUDA device code in %s", path)
+                    res = get_cuda_device_code_architectures(path)
+                    if res is None:
+                        msg = f"{path} does not appear to be a CUDA executable (no CUDA device code found), "
+                        msg += "so skipping CUDA sanity check."
+                        self.log.debug(msg)
+                    else:
+                        # Here, we check if CUDA device code is present for all compute capabilities in
+                        # --cuda-compute-capabilities for the file pointed to by 'path'
+                        # We also check for the presence of ptx code for the highest CUDA compute capability
+                        # The following is considered fail/warning/success:
+                        # - Missing device code is considered a failure (unless there is PTX code for
+                        #   a lower CC AND --accept-ptx-for-cc-support is True, in which case it is a warning)
+                        # - Device code for additional compute capabilities is considered a failure if
+                        #   --strict-cuda-sanity-check is True (otherwise, it's a warning)
+                        # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
+                        #   is considered a failure, unless --accept-missing-cuda-ptx is True (in which case it is
+                        #   a warning)
+                        num_cuda_files += 1
+                        # unpack results
+                        derived_ccs = res.device_code_archs
+                        derived_ptx_ccs = res.ptx_archs
 
-                        res = get_cuda_device_code_architectures(path)
-                        if res is None:
-                            msg = f"{path} does not appear to be a CUDA executable (no CUDA device code found), "
-                            msg += "so skipping CUDA sanity check."
-                            self.log.debug(msg)
-                        else:
-                            # Here, we check if CUDA device code is present for all compute capabilities in
-                            # --cuda-compute-capabilities for the file pointed to by 'path'
-                            # We also check for the presence of ptx code for the highest CUDA compute capability
-                            # The following is considered fail/warning/success:
-                            # - Missing device code is considered a failure (unless there is PTX code for
-                            #   a lower CC AND --accept-ptx-for-cc-support is True, in which case it is a warning)
-                            # - Device code for additional compute capabilities is considered a failure if
-                            #   --strict-cuda-sanity-check is True (otherwise, it's a warning)
-                            # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
-                            #   is considered a failure, unless --accept-missing-cuda-ptx is True (in which case it is
-                            #   a warning)
-                            num_cuda_files += 1
-                            # unpack results
-                            derived_ccs = res.device_code_archs
-                            derived_ptx_ccs = res.ptx_archs
+                        # check whether device code architectures match cuda_compute_capabilities
+                        additional_ccs = list(set(derived_ccs) - set(cfg_ccs))
+                        missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
 
-                            # check whether device code architectures match cuda_compute_capabilities
-                            additional_ccs = list(set(derived_ccs) - set(cfg_ccs))
-                            missing_ccs = list(set(cfg_ccs) - set(derived_ccs))
+                        # Message for when file is on the ignore list:
+                        ignore_msg = f"This failure will be ignored as '{path}' is listed in "
+                        ignore_msg += "'ignore_cuda_sanity_failures'."
 
-                            # Message for when file is on the ignore list:
-                            ignore_msg = f"This failure will be ignored as '{path}' is listed in "
-                            ignore_msg += "'ignore_cuda_sanity_failures'."
-
-                            if additional_ccs or missing_ccs:
-                                fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
-                                if additional_ccs:
-                                    # Count and log for summary report
-                                    files_surplus_cc.append(path)
-                                    num_files_surplus_cc += 1
-                                    surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
-                                    fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
-                                    if strict_cc_check:  # Surplus compute capabilities not allowed
-                                        if path in ignore_file_list or ignore_failures:
-                                            files_surplus_cc_ignored.append(path)
-                                            num_files_surplus_cc_ignored += 1
-                                            fail_msg += ignore_msg
-                                            is_failure = False
-                                        else:
-                                            files_surplus_cc_fails.append(path)
-                                            num_files_surplus_cc_fails += 1
-                                            is_failure = True
-                                    else:
+                        if additional_ccs or missing_ccs:
+                            fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                            if additional_ccs:
+                                # Count and log for summary report
+                                files_surplus_cc.append(path)
+                                surplus_cc_str = ', '.join(sorted(additional_ccs, key=LooseVersion))
+                                fail_msg += "Surplus compute capabilities: %s. " % surplus_cc_str
+                                if strict_cc_check:  # Surplus compute capabilities not allowed
+                                    if path in ignore_file_list or ignore_failures:
+                                        files_surplus_cc_ignored.append(path)
+                                        fail_msg += ignore_msg
                                         is_failure = False
+                                    else:
+                                        files_surplus_cc_fails.append(path)
+                                        is_failure = True
+                                else:
+                                    is_failure = False
 
-                                if missing_ccs:
-                                    # Count and log for summary report
-                                    missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
-                                    fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
-                                    # If accept_ptx_as_cc, this might not be a failure _if_ there is suitable PTX
-                                    # code to JIT compile from that supports the CCs in missing_ccs
-                                    if accept_ptx_as_cc:
-                                        # Check that for each item in missing_ccs there is PTX code for lower or equal
-                                        # CUDA compute capability
-                                        comparisons = []
-                                        for cc in missing_ccs:
-                                            has_smaller_equal = any(
-                                                LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in derived_ptx_ccs
-                                            )
-                                            comparisons.append(has_smaller_equal)
-                                        # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
-                                        # failure
-                                        if all(comparisons):
-                                            files_missing_cc_but_has_ptx.append(path)
-                                            num_files_missing_cc_but_has_ptx += 1
-                                            is_failure = False
-                                        else:
-                                            files_missing_cc.append(path)
-                                            num_files_missing_cc += 1
-                                            if path in ignore_file_list or ignore_failures:
-                                                files_missing_cc_ignored.append(path)
-                                                num_files_missing_cc_ignored += 1
-                                                fail_msg += ignore_msg
-                                                is_failure = False
-                                            else:
-                                                files_missing_cc_fails.append(path)
-                                                num_files_missing_cc_fails += 1
-                                                is_failure = True
+                            if missing_ccs:
+                                # Count and log for summary report
+                                missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
+                                fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
+                                # If accept_ptx_as_cc, this might not be a failure _if_ there is suitable PTX
+                                # code to JIT compile from that supports the CCs in missing_ccs
+                                if accept_ptx_as_cc:
+                                    # Check that for each item in missing_ccs there is PTX code for lower or equal
+                                    # CUDA compute capability
+                                    comparisons = []
+                                    for cc in missing_ccs:
+                                        has_smaller_equal = any(
+                                            LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in derived_ptx_ccs
+                                        )
+                                        comparisons.append(has_smaller_equal)
+                                    # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
+                                    # failure
+                                    if all(comparisons):
+                                        files_missing_cc_but_has_ptx.append(path)
+                                        is_failure = False
                                     else:
                                         files_missing_cc.append(path)
-                                        num_files_missing_cc += 1
                                         if path in ignore_file_list or ignore_failures:
                                             files_missing_cc_ignored.append(path)
-                                            num_files_missing_cc_ignored += 1
                                             fail_msg += ignore_msg
                                             is_failure = False
                                         else:
                                             files_missing_cc_fails.append(path)
-                                            num_files_missing_cc_fails += 1
                                             is_failure = True
-
-                                # If considered a failure, append to fails so that a sanity error will be thrown
-                                # Otherwise, log a warning
-                                if is_failure:
-                                    fails.append(fail_msg)
                                 else:
-                                    self.log.warning(fail_msg)
+                                    files_missing_cc.append(path)
+                                    num_files_missing_cc += 1
+                                    if path in ignore_file_list or ignore_failures:
+                                        files_missing_cc_ignored.append(path)
+                                        fail_msg += ignore_msg
+                                        is_failure = False
+                                    else:
+                                        files_missing_cc_fails.append(path)
+                                        is_failure = True
+
+                            # If considered a failure, append to fails so that a sanity error will be thrown
+                            # Otherwise, log a warning
+                            if is_failure:
+                                fail_msgs.append(fail_msg)
                             else:
-                                msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
-                                       "those in cuda_compute_capabilities")
-                                self.log.debug(msg)
+                                self.log.warning(fail_msg)
+                        else:
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
+                                   "those in cuda_compute_capabilities")
+                            self.log.debug(msg)
 
-                            # Check whether there is ptx code for the highest CC in cfg_ccs
-                            # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
-                            highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
-                            missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
+                        # Check whether there is ptx code for the highest CC in cfg_ccs
+                        # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
+                        highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
+                        missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
 
-                            if missing_ptx_ccs:
-                                files_missing_ptx.append(path)
-                                num_files_missing_ptx += 1
-                                fail_msg = "Configured highest compute capability was '%s', "
-                                fail_msg += "but no PTX code for this compute capability was found in '%s' "
-                                fail_msg += "(PTX architectures supported in that file: %s). "
-                                if path in ignore_file_list or ignore_failures:
-                                    files_missing_ptx_ignored.append(path)
-                                    num_files_missing_ptx_ignored += 1
-                                    fail_msg += ignore_msg
-                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
-                                elif accept_missing_ptx:
-                                    self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
-                                else:
-                                    files_missing_ptx_fails.append(path)
-                                    num_files_missing_ptx_fails += 1
-                                    fails.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
+                        if missing_ptx_ccs:
+                            files_missing_ptx.append(path)
+                            num_files_missing_ptx += 1
+                            fail_msg = "Configured highest compute capability was '%s', "
+                            fail_msg += "but no PTX code for this compute capability was found in '%s' "
+                            fail_msg += "(PTX architectures supported in that file: %s). "
+                            if path in ignore_file_list or ignore_failures:
+                                files_missing_ptx_ignored.append(path)
+                                fail_msg += ignore_msg
+                                self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
+                            elif accept_missing_ptx:
+                                self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                             else:
-                                msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
-                                       "least) the highest CUDA compute capability in cuda_compute_capabilities")
-                                self.log.debug(msg)
-                else:
-                    self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
-
-            # Summary
-            summary_msg = "CUDA sanity check summary report:\n"
-            summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
-            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {num_files_missing_cc} "
-            summary_msg += f"(ignored: {num_files_missing_cc_ignored}, fails: {num_files_missing_cc_fails})\n"
-            if accept_ptx_as_cc:
-                summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
-                summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
-                summary_msg += f"{num_files_missing_cc_but_has_ptx}\n"
-            summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
-            if strict_cc_check:
-                summary_msg += f"{num_files_surplus_cc} (ignored: {num_files_surplus_cc_ignored}, fails: "
-                summary_msg += f"{num_files_surplus_cc_fails})\n"
+                                files_missing_ptx_fails.append(path)
+                                fail_msgs.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
+                        else:
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
+                                   "least) the highest CUDA compute capability in cuda_compute_capabilities")
+                            self.log.debug(msg)
             else:
-                summary_msg += f"{num_files_surplus_cc} (not running with --strict-cuda-sanity-check, so not "
-                summary_msg += "considered failures)\n"
-            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-            if accept_missing_ptx:
-                summary_msg += f"{num_files_missing_ptx} (running with --accept-missing-cuda-ptx so not considered "
-                summary_msg += "failures)\n"
-            else:
-                summary_msg += f"{num_files_missing_ptx} (ignored: {num_files_missing_ptx_ignored}, fails: "
-                summary_msg += f"{num_files_missing_ptx_fails})\n"
-            if not build_option('debug'):
-                summary_msg += "Rerun with --debug to see a detailed list of files.\n"
-            # Give some advice
-            if num_files_missing_cc > 0 and not accept_ptx_as_cc:
-                summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
-                summary_msg += "don't contain the device code for your requested CUDA Compute Capabilities, but that "
-                summary_msg += "do have PTX code that can be compiled for your requested CUDA Compute "
-                summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
-                summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
-                summary_msg += "all features specific to your hardware architecture.\n"
-            if num_files_surplus_cc > 0 and strict_cc_check:
-                summary_msg += "\nYou may consider running with --disable-strict-cuda-sanity-check. This means you'll "
-                summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
-                summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
-                summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
-                summary_msg += "though this is generally negligible.\n"
-            if num_files_missing_ptx > 0 and not accept_missing_ptx:
-                summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that "
-                summary_msg += "don't contain PTX code for the highest CUDA Compute Capability you requested. This "
-                summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
-                summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
-                summary_msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you.\n"
-            self.log.info(summary_msg)
+                self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
-            summary_msg_debug = "Detailed CUDA sanity check summary report:\n"
-            summary_msg_debug += f"Files missing one or more CUDA compute capabilities: {files_missing_cc}\n"
-            summary_msg_debug += f"These failures are ignored for: {files_missing_cc_ignored})\n"
-            if accept_ptx_as_cc:
-                summary_msg_debug += "Files missing one or more CUDA Compute Capabilities, but has suitable PTX "
-                summary_msg_debug += "code that can be JIT compiled for the requested CUDA Compute Capabilities: "
-                summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
-            summary_msg_debug += "Files with device code for more CUDA Compute Capabilities than requested: "
-            summary_msg_debug += f"{files_surplus_cc}\n"
-            summary_msg_debug += f"These failures are ignored for: {files_surplus_cc_ignored})\n"
-            summary_msg_debug += "Files missing PTX code for the highest configured CUDA Compute Capability: "
-            summary_msg_debug += f"{files_missing_ptx}\n"
-            summary_msg_debug += f"These failures are ignored for: {files_missing_ptx_ignored})"
-            self.log.debug(summary_msg_debug)
+        # Summary
+        summary_msg = "CUDA sanity check summary report:\n"
+        summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
+        summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_cc)} "
+        summary_msg += f"(ignored: {len(files_missing_cc_ignored)}, fails: {len(files_missing_cc_fails)})\n"
+        if accept_ptx_as_cc:
+            summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
+            summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+            summary_msg += f"{len(files_missing_cc_but_has_ptx)}\n"
+        summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
+        if strict_cc_check:
+            summary_msg += f"{len(files_surplus_cc)} (ignored: {len(num_files_surplus_cc_ignored)}, fails: "
+            summary_msg += f"{len(files_surplus_cc_fails)})\n"
+        else:
+            summary_msg += f"{len(files_surplus_cc)} (not running with --strict-cuda-sanity-check, so not "
+            summary_msg += "considered failures)\n"
+        summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+        if accept_missing_ptx:
+            summary_msg += f"{len(files_missing_ptx)} (running with --accept-missing-cuda-ptx so not considered "
+            summary_msg += "failures)\n"
+        else:
+            summary_msg += f"{len(files_missing_ptx)} (ignored: {len(files_missing_ptx_ignored)}, fails: "
+            summary_msg += f"{len(files_missing_ptx_fails)})\n"
+        if not build_option('debug'):
+            summary_msg += "Rerun with --debug to see a detailed list of files.\n"
+        # Give some advice
+        if num_files_missing_cc > 0 and not accept_ptx_as_cc:
+            summary_msg += "\nYou may consider rerunning with --accept-ptx-as-cc-support to accept binaries that "
+            summary_msg += "don't contain the device code for your requested CUDA Compute Capabilities, but that "
+            summary_msg += "do have PTX code that can be compiled for your requested CUDA Compute "
+            summary_msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
+            summary_msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
+            summary_msg += "all features specific to your hardware architecture.\n"
+        if num_files_surplus_cc > 0 and strict_cc_check:
+            summary_msg += "\nYou may consider running with --disable-strict-cuda-sanity-check. This means you'll "
+            summary_msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
+            summary_msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
+            summary_msg += "cause some startup delay, and code path selection could introduce a small overhead, "
+            summary_msg += "though this is generally negligible.\n"
+        if num_files_missing_ptx > 0 and not accept_missing_ptx:
+            summary_msg += "\nYou may consider running with --accept-missing-cuda-ptx to accept binaries that "
+            summary_msg += "don't contain PTX code for the highest CUDA Compute Capability you requested. This "
+            summary_msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
+            summary_msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
+            summary_msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you.\n"
+        self.log.info(summary_msg)
 
-        return fails
+        summary_msg_debug = "Detailed CUDA sanity check summary report:\n"
+        summary_msg_debug += f"Files missing one or more CUDA compute capabilities: {files_missing_cc}\n"
+        summary_msg_debug += f"These failures are ignored for: {files_missing_cc_ignored})\n"
+        if accept_ptx_as_cc:
+            summary_msg_debug += "Files missing one or more CUDA Compute Capabilities, but has suitable PTX "
+            summary_msg_debug += "code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+            summary_msg_debug += f"{files_missing_cc_but_has_ptx}\n"
+        summary_msg_debug += "Files with device code for more CUDA Compute Capabilities than requested: "
+        summary_msg_debug += f"{files_surplus_cc}\n"
+        summary_msg_debug += f"These failures are ignored for: {files_surplus_cc_ignored})\n"
+        summary_msg_debug += "Files missing PTX code for the highest configured CUDA Compute Capability: "
+        summary_msg_debug += f"{files_missing_ptx}\n"
+        summary_msg_debug += f"These failures are ignored for: {files_missing_ptx_ignored})"
+        self.log.debug(summary_msg_debug)
+
+        return fail_msgs
 
     def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
