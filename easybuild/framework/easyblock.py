@@ -112,8 +112,9 @@ from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYC
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism, get_cuda_device_code_and_ptx_architectures
+from easybuild.tools.systemtools import check_linked_shared_libs, det_parallelism
 from easybuild.tools.systemtools import get_linked_libs_raw, get_shared_lib_ext, pick_system_specific_value, use_group
+from easybuild.tools.systemtools import get_cuda_device_code_and_ptx_architectures
 from easybuild.tools.utilities import INDENT_4SPACES, get_class_for, nub, quote_str
 from easybuild.tools.utilities import remove_unwanted_chars, time2str, trace_msg
 from easybuild.tools.version import this_is_easybuild, VERBOSE_VERSION, VERSION
@@ -3566,7 +3567,7 @@ class EasyBlock(object):
         summary_msg_files += f"Capabilities than requested: {files_additional_devcode}\n"
         summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files: "
         summary_msg_files += f"{files_additional_devcode_ignored})\n"
-        summary_msg_files += f"{len(files_missing_ptx} files missing PTX code for the highest configured CUDA Compute "
+        summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA Compute "
         summary_msg_files += f"Capability: {files_missing_ptx}\n"
         summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files: "
         summary_msg_files += f"{files_missing_ptx_ignored})"

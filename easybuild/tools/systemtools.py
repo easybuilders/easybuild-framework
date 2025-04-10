@@ -42,6 +42,7 @@ import os
 import platform
 import pwd
 import re
+import shutil
 import struct
 import sys
 import termios
@@ -221,7 +222,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
 
 # A named tuple, to be returned by e.g. `get_cuda_device_code_and_ptx_architectures`
 cuda_dev_ptx_archs = namedtuple('cuda_dev_ptx_archs', ('device_code_archs', 'ptx_archs'))
-cuda_dev_ptx_archs.__doc__ = """A namedtuple that represents the result of a call to 
+cuda_dev_ptx_archs.__doc__ = """A namedtuple that represents the result of a call to
 get_cuda_device_code_and_ptx_architectures, with the following fields:
 - device_code_archs: a list of CUDA device compute capabilities for which device code was found
 - ptx_archs: a list of CUDA (virtual) device compute capabilities for which ptx code was found
@@ -1041,7 +1042,7 @@ def get_cuda_object_dump_raw(path):
             else:
                 msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
                 _log.debug(msg, path, cuda_cmd, res.output)
- 
+
     return result
 
 
