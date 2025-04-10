@@ -3440,16 +3440,16 @@ class EasyBlock(object):
                         if additional_devcodes:
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                             # Count and log for summary report
-                            files_additional_devcode.append(path)
+                            files_additional_devcode.append(os.path.relpath(path, self.installdir))
                             additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
                             fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
                             if strict_cc_check:  # Surplus compute capabilities not allowed
                                 if path in ignore_file_list or ignore_failrues:
-                                    files_additional_devcode_ignored.append(path)
+                                    files_additional_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                     fail_msg += ignore_msg
                                     is_failure = False
                                 else:
-                                    files_additional_devcode_fails.append(path)
+                                    files_additional_devcode_fails.append(os.path.relpath(path, self.installdir))
                                     is_failure = True
                             else:
                                 is_failure = False
@@ -3472,25 +3472,25 @@ class EasyBlock(object):
                                 # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
                                 # failure
                                 if all(comparisons):
-                                    files_missing_devcode_but_has_ptx.append(path)
+                                    files_missing_devcode_but_has_ptx.append(os.path.relpath(path, self.installdir))
                                     is_failure = False
                                 else:
-                                    files_missing_devcode.append(path)
+                                    files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                     if path in ignore_file_list or ignore_failures:
-                                        files_missing_devcode_ignored.append(path)
+                                        files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                         fail_msg += ignore_msg
                                         is_failure = False
                                     else:
-                                        files_missing_devcode_fails.append(path)
+                                        files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
                                         is_failure = True
                             else:
-                                files_missing_devcode.append(path)
+                                files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                 if path in ignore_file_list or ignore_failures:
-                                    files_missing_devcode_ignored.append(path)
+                                    files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                     fail_msg += ignore_msg
                                     is_failure = False
                                 else:
-                                    files_missing_devcode_fails.append(path)
+                                    files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
                                     is_failure = True
                         else:
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
@@ -3510,18 +3510,18 @@ class EasyBlock(object):
                         missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
 
                         if missing_ptx_ccs:
-                            files_missing_ptx.append(path)
+                            files_missing_ptx.append(os.path.relpath(path, self.installdir))
                             fail_msg = "Configured highest compute capability was '%s', "
                             fail_msg += "but no PTX code for this compute capability was found in '%s' "
                             fail_msg += "(PTX architectures supported in that file: %s). "
                             if path in ignore_file_list or ignore_failures:
-                                files_missing_ptx_ignored.append(path)
+                                files_missing_ptx_ignored.append(os.path.relpath(path, self.installdir))
                                 fail_msg += ignore_msg
                                 self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                             elif accept_missing_ptx:
                                 self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                             else:
-                                files_missing_ptx_fails.append(path)
+                                files_missing_ptx_fails.append(os.path.relpath(path, self.installdir))
                                 fail_msgs.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
                         else:
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
