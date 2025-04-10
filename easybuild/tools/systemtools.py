@@ -1037,11 +1037,15 @@ def get_cuda_object_dump_raw(path):
             # contain CUDA device code
             no_device_code_match = re.search(r'does not contain device code', res.output)
             if no_device_code_match is not None:
+                # File is a regular executable, object or library, but not a CUDA file
                 msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
                 _log.debug(msg, path)
             else:
+                # This should not happen: there was no string saying this was NOT a CUDA file, yet no device code
+                # was found at all
+
                 msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
-                _log.debug(msg, path, cuda_cmd, res.output)
+                raise EasyBuildError(msg, path, cuda_cmd, res.output)
 
     return result
 
