@@ -3438,27 +3438,34 @@ class EasyBlock(object):
                         ignore_msg += "'cuda_sanity_ignore_files'."
 
                         if additional_devcodes:
+                            # Device code found for more architectures than requested in cuda-compute-capabilities
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                             # Count and log for summary report
                             files_additional_devcode.append(os.path.relpath(path, self.installdir))
                             additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
                             fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
-                            if strict_cc_check:  # Surplus compute capabilities not allowed
-                                if path in ignore_file_list or ignore_failrues:
+                            if strict_cc_check:
+                            # cuda-sanity-check-strict, so no additional compute capabilities allowed
+                                if path in ignore_file_list or ignore_failures:
+                                    # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                    # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
                                     files_additional_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                     fail_msg += ignore_msg
                                     is_failure = False
                                 else:
+                                    # Sanity error
                                     files_additional_devcode_fails.append(os.path.relpath(path, self.installdir))
                                     is_failure = True
                             else:
                                 is_failure = False
                         elif missing_ccs:
+                            # One or more device code architectures requested in cuda-compute-capabilities was
+                            # not found in the binary
                             fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                             # Count and log for summary report
                             missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
                             fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
-                            # If accept_ptx_as_devcode, this might not be a failure _if_ there is suitable PTX
+                            # If accept_ptx_as_devcode, this might not be a failure IF there is suitable PTX
                             # code to JIT compile from that supports the CCs in missing_ccs
                             if accept_ptx_as_devcode:
                                 # Check that for each item in missing_ccs there is PTX code for lower or equal
@@ -3475,24 +3482,35 @@ class EasyBlock(object):
                                     files_missing_devcode_but_has_ptx.append(os.path.relpath(path, self.installdir))
                                     is_failure = False
                                 else:
+                                    # If there are CCs for which there is no suiteable PTX that can be JIT-compiled
+                                    # from, this is considerd a failure
                                     files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                     if path in ignore_file_list or ignore_failures:
+                                        # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                        # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
                                         files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                         fail_msg += ignore_msg
                                         is_failure = False
                                     else:
+                                        # Sanity error
                                         files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
                                         is_failure = True
                             else:
+                                # Device code was missing, and we're not accepting PTX code as alternative
+                                # This is considered a failure
                                 files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                 if path in ignore_file_list or ignore_failures:
+                                    # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                    # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
                                     files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                     fail_msg += ignore_msg
                                     is_failure = False
                                 else:
+                                    # Sanity error
                                     files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
                                     is_failure = True
                         else:
+                            # Device code for all architectures requested in --cuda-compute-capabilities was found
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
                                    "those in cuda_compute_capabilities")
                             self.log.debug(msg)
@@ -3510,17 +3528,22 @@ class EasyBlock(object):
                         missing_ptx_ccs = list(set(highest_cc) - set(derived_ptx_ccs))
 
                         if missing_ptx_ccs:
+                            # There is no PTX code for the highest compute capability in --cuda-compute-capabilities
                             files_missing_ptx.append(os.path.relpath(path, self.installdir))
                             fail_msg = "Configured highest compute capability was '%s', "
                             fail_msg += "but no PTX code for this compute capability was found in '%s' "
                             fail_msg += "(PTX architectures supported in that file: %s). "
                             if path in ignore_file_list or ignore_failures:
+                                # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
                                 files_missing_ptx_ignored.append(os.path.relpath(path, self.installdir))
                                 fail_msg += ignore_msg
                                 self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                             elif accept_missing_ptx:
+                                # No error, because we are running with --cuda-sanity-check-accept-missing-ptx
                                 self.log.warning(fail_msg, highest_cc[0], path, derived_ptx_ccs)
                             else:
+                                # Sanity error
                                 files_missing_ptx_fails.append(os.path.relpath(path, self.installdir))
                                 fail_msgs.append(fail_msg % (highest_cc[0], path, derived_ptx_ccs))
                         else:
@@ -3530,6 +3553,7 @@ class EasyBlock(object):
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
+        # Long report, which prints the files that have potential issues
         summary_msg_files = f"{len(files_missing_devcode}) files missing one or more CUDA compute capabilities: "
         summary_msg_files += f"{files_missing_devcode}\n"
         summary_msg_files += f"These failures are ignored for {len(files_missing_devcode_ignored)} files: "
@@ -3548,7 +3572,7 @@ class EasyBlock(object):
         summary_msg_files += f"{files_missing_ptx_ignored})"
         self.log.info(summary_msg_files)
 
-        # Summary
+        # Short summary
         summary_msg = "CUDA sanity check summary report:\n"
         summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
         summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
