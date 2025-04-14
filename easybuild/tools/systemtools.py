@@ -1069,7 +1069,7 @@ def get_cuda_architectures(path, section_type):
 
     # Pattern to extract elf code architectures and ptx code architectures respectively
     code_regex = re.compile(f'Fatbin {section_type} code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
-    
+
     # resolve symlinks
     if os.path.islink(path) and os.path.exists(path):
         path = os.path.realpath(path)
@@ -1093,9 +1093,9 @@ def get_cuda_architectures(path, section_type):
                 fail_msg += "but failed to extract CUDA architecture"
             else:
                 # In this case, the "Fatbin {section_type} code" section is simply missing from the binary
-                # It is entirely possible for a CUDA binary to have only device code or only ptx code (and thus the 
-                # other section could be missing). However, considering --cuda-compute-capabilities is supposed to 
-                # generate both PTX and device code (at least for the highest CC in that list), it is unexpected 
+                # It is entirely possible for a CUDA binary to have only device code or only ptx code (and thus the
+                # other section could be missing). However, considering --cuda-compute-capabilities is supposed to
+                # generate both PTX and device code (at least for the highest CC in that list), it is unexpected
                 # in an EasyBuild context and thus we print a warning
                 fail_msg = f"Failed to find Fatbin {section_type} code section(s) in cuobjdump output for {path}."
             _log.warning(fail_msg)
