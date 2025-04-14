@@ -3603,14 +3603,20 @@ class EasyBlock(object):
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode_but_has_ptx)}\n"
         summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
-        if strict_cc_check:
-            summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_cc_ignored)}, fails: "
-            summary_msg += f"{len(files_additional_devcode_fails)})\n"
+        if ignore_failures:
+            summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-fail-on-error, "
+            summary_msg += "so not considered failures)\n"
+        elif strict_cc_check:
+            summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
+            summary_msg += f"fails: {len(files_additional_devcode_fails)})\n"
         else:
             summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-strict, so not "
             summary_msg += "considered failures)\n"
         summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-        if accept_missing_ptx:
+        if ignore_failures:
+            summary_msg += f"{len(files_missing_ptx)} (not running with --cuda-sanity-check-fail-on-error so not "
+            summary_msg += "considered failures)\n"
+        elif accept_missing_ptx:
             summary_msg += f"{len(files_missing_ptx)} (running with --cuda-sanity-check-accept-missing-ptx so not "
             summary_msg += "considered failures)\n"
         else:
