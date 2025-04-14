@@ -3599,7 +3599,7 @@ class EasyBlock(object):
         summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
         summary_msg += f"(ignored: {len(files_missing_devcode_ignored)}, fails: {len(files_missing_devcode_fails)})\n"
         if accept_ptx_as_devcode:
-            summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
+            summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but having suitable "
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode_but_has_ptx)}\n"
         summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
