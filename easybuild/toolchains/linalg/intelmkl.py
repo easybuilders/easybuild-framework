@@ -136,7 +136,7 @@ class IntelMKL(LinAlg):
             # ilp64/i8
             self.BLAS_LIB_MAP.update({"lp64": '_ilp64'})
             # CPP / CFLAGS
-            self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
+            self.variables.nappend_el('CFLAGS', '-DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
         root = self.get_software_root(self.BLAS_MODULE_NAME)[0]
