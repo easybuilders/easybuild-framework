@@ -3476,7 +3476,7 @@ class EasyBlock(object):
                                     has_smaller_equal_ptx = any(
                                         LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in derived_ptx_ccs
                                     )
-                                    comparisons.append(has_smaller_equal)
+                                    comparisons.append(has_smaller_equal_ptx)
                                 # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
                                 # failure
                                 if all(comparisons):
@@ -3582,9 +3582,9 @@ class EasyBlock(object):
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but has suitable "
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode_but_has_ptx)}\n"
-        summary_msg += f"Number of files with device code for more CUDA Compute Capabilities than requested: "
+        summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
         if strict_cc_check:
-            summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_surplus_cc_ignored)}, fails: "
+            summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_cc_ignored)}, fails: "
             summary_msg += f"{len(files_additional_devcode_fails)})\n"
         else:
             summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-strict, so not "
