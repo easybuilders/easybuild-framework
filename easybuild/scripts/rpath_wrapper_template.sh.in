@@ -30,6 +30,7 @@
 # before actually calling the original compiler/linker command.
 #
 # author: Kenneth Hoste (HPC-UGent)
+# author: Alexander Grund (TU Dresden)
 
 set -e
 
@@ -37,13 +38,13 @@ set -e
 function log {
     # escape percent signs, since this is a template script
     # that will templated using Python string templating
-    echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> %(rpath_wrapper_log)s
+    echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> '%(rpath_wrapper_log)s'
 }
 
 # command name
-CMD=`basename $0`
+CMD=$(basename $0)
 
-log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: '$(echo \"$@\")'"
+log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: $*)"
 
 # rpath_args.py script spits out statement that defines $CMD_ARGS
 # options for 'python' command (see https://docs.python.org/3/using/cmdline.html#miscellaneous-options)
@@ -52,18 +53,12 @@ log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: '$(echo \"$@\
 # * -s: don’t add the user site-packages directory to sys.path;
 # * -S: disable the import of the module site and the site-dependent manipulations of sys.path that it entails;
 # (once we only support Python 3, we can (also) use -I (isolated mode)
-log "%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $(echo \"$@\")'"
-rpath_args_out=$(%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@")
-
-log "rpath_args_out:
-$rpath_args_out"
-
-# define $CMD_ARGS by evaluating output of rpath_args.py script
-eval $rpath_args_out
+log "%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $*"
+readarray -t CMD_ARGS < <( %(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@" )
 
 # exclude location of this wrapper from $PATH to avoid other potential wrappers calling this wrapper
-export PATH=$(echo $PATH | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')
+export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')
 
 # call original command with modified list of command line arguments
-log "running '%(orig_cmd)s $(echo ${CMD_ARGS[@]})'"
-%(orig_cmd)s "${CMD_ARGS[@]}"
+log "running: %(orig_cmd)s $(echo "${CMD_ARGS[@]}")"
+'%(orig_cmd)s' "${CMD_ARGS[@]}"
