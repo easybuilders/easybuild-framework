@@ -3454,7 +3454,7 @@ class EasyBlock(object):
                             # In case we run with both, we'll just report that we're running with
                             # --disable-cuda-sanity-check-error-on-fail
                             if ignore_failures:
-                                ignore_msg = "Failure for {path} will be ignored since we are running with "
+                                ignore_msg = f"Failure for {path} will be ignored since we are running with "
                                 ignore_msg += "--disable-cuda-sanity-check-error-on-fail"
                             else:
                                 ignore_msg = f"This failure will be ignored as '{path}' is listed in "
