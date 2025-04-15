@@ -3462,11 +3462,10 @@ class EasyBlock(object):
 
                             # Set default failure status and empty message
                             is_failure = False
-                            fail_msg = ""
 
                             if additional_devcodes:
                                 # Device code found for more architectures than requested in cuda-compute-capabilities
-                                fail_msg += f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                                fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                                 # Count and log for summary report
                                 files_additional_devcode.append(os.path.relpath(path, self.installdir))
                                 additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
@@ -3499,7 +3498,7 @@ class EasyBlock(object):
                             if missing_devcodes:
                                 # One or more device code architectures requested in cuda-compute-capabilities was
                                 # not found in the binary
-                                fail_msg += f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                                fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
                                 # Count and log for summary report
                                 missing_devcodes_str = ', '.join(sorted(missing_devcodes, key=LooseVersion))
                                 fail_msg += "Missing compute capabilities: %s. " % missing_devcodes_str
