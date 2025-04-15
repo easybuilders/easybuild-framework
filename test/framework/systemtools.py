@@ -441,6 +441,14 @@ code version = [1,7]
 host = linux
 compile_size = 64bit"""
 
+# Invalid, because it doesn't contain an arch = sm_XX entry
+CUOBJDUMP_INVALID = """
+Fatbin elf code:
+================
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed"""
 
 MACHINE_NAME = None
 
@@ -483,12 +491,14 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "ulimit -u": '40',
         "file mock_cuda_bin": FILE_BIN,
         "file mock_cuda_sharedlib": FILE_SHAREDLIB,
+        "file mock_invalid_cuda_sharedlib": FILE_SHAREDLIB,
         "file mock_non_cuda_sharedlib": FILE_SHAREDLIB,
         "file mock_non_cuda_sharedlib_unexpected": FILE_SHAREDLIB,
         "file mock_cuda_staticlib": "current ar archive",
         "file mock_noncuda_file": "ASCII text",
         "cuobjdump mock_cuda_bin": CUOBJDUMP_FAT,
         "cuobjdump mock_cuda_sharedlib": CUOBJDUMP_PTX_ONLY,
+        "cuobjdump mock_invalid_cuda_sharedlib": CUOBJDUMP_INVALID,
         "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
     }
     known_fail_cmds = {
@@ -1306,6 +1316,7 @@ class SystemToolsTest(EnhancedTestCase):
         # This test modifies environment, make sure we can revert the changes:
         start_env = copy.deepcopy(os.environ)
 
+        # Mock the shell command for certain known commands
         st.run_shell_cmd = mocked_run_shell_cmd
 
         # Test case 1: there's no cuobjdump on the path yet
@@ -1322,7 +1333,6 @@ class SystemToolsTest(EnhancedTestCase):
         adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
 
         # Test case 2: get raw output from mock_cuda_bin, a 'fat' binary
-        # TODO: check output
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_bin'), CUOBJDUMP_FAT)
 
         # Test case 3: call on a file that is NOT an executable, object or archive:
@@ -1330,7 +1340,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 4: call on a file that is an shared lib, but not a CUDA shared lib
         # Check debug message in this case
-        warning_regex = re.compile(r"does not appear to be a CUDA binary: cuobjdump failed to find device code in this file", re.M)
+        debug_regex = re.compile(r"DEBUG .* does not appear to be a CUDA binary: cuobjdump failed to find device code in this file", re.M)
         old_log_level = st._log.getEffectiveLevel()
         st._log.setLevel(logging.DEBUG)
         with self.log_to_testlogfile():
@@ -1338,12 +1348,92 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, logtxt)
-        self.assertTrue(warning_regex.search(logtxt), fail_msg)
+        fail_msg = "Pattern '%s' should be found in: %s" % (debug_regex.pattern, logtxt)
+        self.assertTrue(debug_regex.search(logtxt), fail_msg)
 
         # Test case 5: call on a file where cuobjdump produces really unexpected output
         error_pattern = r"Dumping CUDA binary file information for .* via .* failed!"
         self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_non_cuda_sharedlib_unexpected')
+        
+        # Test case 6: call on CUDA shared lib, which only contains PTX code
+        self.assertEqual(get_cuda_object_dump_raw('mock_cuda_sharedlib'), CUOBJDUMP_PTX_ONLY)
+
+        # Test case 7: call on CUDA static lib, which only contains device code
+        self.assertEqual(get_cuda_object_dump_raw('mock_cuda_staticlib'), CUOBJDUMP_DEVICE_CODE_ONLY)
+
+        # Restore original environment
+        modify_env(os.environ, start_env, verbose=False)
+
+    def test_get_cuda_architectures(self):
+        """Test get_cuda_architectures function"""
+        # This test modifies environment, make sure we can revert the changes:
+        start_env = copy.deepcopy(os.environ)
+
+        # Mock the shell command for certain known commands
+        st.run_shell_cmd = mocked_run_shell_cmd
+
+        # Put a cuobjdump on the path, doesn't matter what. It will be mocked anyway
+        cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
+        mkdir(cuobjdump_dir, parents=True)
+        setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
+        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
+        write_file(cuobjdump_file, "#!/bin/bash\n")
+        write_file(cuobjdump_file, "echo 'Mock script, this should never actually be called\n'")
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+
+        # Test case 1: get raw output from mock_cuda_bin, a 'fat' binary
+        mock_cuda_bin_device_codes = ['6.0', '6.1', '7.0', '7.5', '8.0', '8.6', '8.9', '9.0', '9.0a']
+        mock_cuda_bin_ptx = ['9.0', '9.0a']
+        self.assertEqual(get_cuda_architectures('mock_cuda_bin', 'elf'), mock_cuda_bin_device_codes)
+        self.assertEqual(get_cuda_architectures('mock_cuda_bin', 'ptx'), mock_cuda_bin_ptx)
+
+        # Test case 2: call on a file that is NOT an executable, object or archive:
+        self.assertIsNone(get_cuda_architectures('mock_noncuda_file', 'elf'))
+        self.assertIsNone(get_cuda_architectures('mock_noncuda_file', 'ptx'))
+
+        # Test case 3: call on a file that is an shared lib, but not a CUDA shared lib
+        self.assertIsNone(get_cuda_architectures('mock_non_cuda_sharedlib', 'elf'))
+        self.assertIsNone(get_cuda_architectures('mock_non_cuda_sharedlib', 'ptx'))
+
+        # Test case 4: call on CUDA shared lib, which only contains PTX code
+        warning_regex_elf = re.compile(r"WARNING Failed to find Fatbin elf code section\(s\) in cuobjdump output for mock_cuda_sharedlib", re.M)
+        old_log_level = st._log.getEffectiveLevel()
+        st._log.setLevel(logging.DEBUG)
+        with self.log_to_testlogfile():
+            res_elf = get_cuda_architectures('mock_cuda_sharedlib', 'elf')
+            res_ptx = get_cuda_architectures('mock_cuda_sharedlib', 'ptx')
+        st._log.setLevel(old_log_level)
+        logtxt = read_file(self.logfile)
+        self.assertIsNone(res_elf)
+        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
+        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertEqual(res_ptx, ['9.0', '9.0a'])
+
+        # Test case 5: call on CUDA static lib, which only contains device code
+        warning_regex_ptx = re.compile(r"WARNING Failed to find Fatbin ptx code section\(s\) in cuobjdump output for mock_cuda_staticlib", re.M)
+        old_log_level = st._log.getEffectiveLevel()
+        st._log.setLevel(logging.DEBUG)
+        with self.log_to_testlogfile():
+            res_elf = get_cuda_architectures('mock_cuda_staticlib', 'elf')
+            res_ptx = get_cuda_architectures('mock_cuda_staticlib', 'ptx')
+        st._log.setLevel(old_log_level)
+        logtxt = read_file(self.logfile)
+        self.assertIsNone(res_ptx)
+        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_ptx.pattern, logtxt)
+        self.assertTrue(warning_regex_ptx.search(logtxt), fail_msg)
+        self.assertEqual(res_elf, ['9.0', '9.0a'])
+
+        # Test case 6: call on CUDA shared lib which lacks an arch = sm_XX entry (should never happen)
+        warning_regex_elf = re.compile(r"WARNING Found Fatbin elf code section\(s\) in cuobjdump output for mock_invalid_cuda_sharedlib, but failed to extract CUDA architecture", re.M)
+        old_log_level = st._log.getEffectiveLevel()
+        st._log.setLevel(logging.DEBUG)
+        with self.log_to_testlogfile():
+            res_elf = get_cuda_architectures('mock_invalid_cuda_sharedlib', 'elf')
+        st._log.setLevel(old_log_level)
+        logtxt = read_file(self.logfile)
+        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
+        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertIsNone(res_elf)
 
         # Restore original environment
         modify_env(os.environ, start_env, verbose=False)
