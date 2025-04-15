@@ -302,19 +302,14 @@ DirectMap2M:     2045952 kB
 DirectMap1G:    65011712 kB
 """
 
-FILE_BIN="""
-ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, 
-for GNU/Linux 3.2.0, not stripped, too many notes (256)
-"""
+FILE_BIN = """ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter
+/lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, not stripped, too many notes (256)"""
 
-FILE_SHAREDLIB="""
-ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
-BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped
-"""
+FILE_SHAREDLIB="""ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
+BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped"""
 
 CUOBJDUMP_FAT="""
-
-Fatbin elf code:                                                                                                                               
+Fatbin elf code: 
 ================
 arch = sm_50
 code version = [1,7]
@@ -408,11 +403,9 @@ code version = [8,4]
 host = linux
 compile_size = 64bit
 compressed
-ptxasOptions =
-"""
+ptxasOptions ="""
 
-CUOBJDUMP_PTX_ONLY="""
-
+CUOBJDUMP_PTX_ONLY = """
 Fatbin ptx code:
 ================
 arch = sm_90
@@ -429,11 +422,9 @@ code version = [8,4]
 host = linux
 compile_size = 64bit
 compressed
-ptxasOptions =
-"""
+ptxasOptions ="""
 
-CUOBJDUMP_DEVICE_CODE_ONLY="""
-
+CUOBJDUMP_DEVICE_CODE_ONLY = """
 Fatbin elf code:
 ================
 arch = sm_90
@@ -447,18 +438,10 @@ Fatbin elf code:
 arch = sm_90a
 code version = [1,7]
 host = linux
-compile_size = 64bit
-"""
+compile_size = 64bit"""
 
 
-CUOBJDUMP_NON_CUDA_SHAREDLIB="""
-cuobjdump info    : File '/path/to/my/mock.so' does not contain device code
-"""
-
-CUOBJDUMP_NON_CUDA_UNEXPECTED="""
-cuobjdump info    : Some unexpected output
-"""
-
+CUOBJDUMP_NON_CUDA_SHAREDLIB = "cuobjdump info    : File '/path/to/my/mock.so' does not contain device code"
 
 MACHINE_NAME = None
 
@@ -507,8 +490,8 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "file mock_noncuda_file": "ASCII text",
         "cuobjdump mock_cuda_bin": CUOBJDUMP_FAT,
         "cuobjdump mock_cuda_sharedlib": CUOBJDUMP_PTX_ONLY,
-        "cuobjdump mock_non_cuda_sharedlib": CUOBJDUMP_NON_CUDA_SHAREDLIB,
-        "cuobjdump mock_non_cuda_sharedlib_unexpected": CUOBJDUMP_NON_CUDA_UNEXPECTED,
+        "cuobjdump mock_non_cuda_sharedlib": "cuobjdump info  : File '/path/to/mock.so' does not contain device code",
+        "cuobjdump mock_non_cuda_sharedlib_unexpected": "cuobjdump info    : Some unexpected output",
         "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
     }
     if cmd in known_cmds:
@@ -1335,7 +1318,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 2: get raw output from mock_cuda_bin, a 'fat' binary
         # TODO: check output
-        get_cuda_object_dump_raw('mock_cuda_bin')
+        print(get_cuda_object_dump_raw('mock_cuda_bin'))
 
         # Restore original environment
         modify_env(os.environ, start_env, verbose=False)
