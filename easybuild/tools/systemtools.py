@@ -1086,7 +1086,6 @@ def get_cuda_architectures(path, section_type):
         else:
             # Try to be clear in the warning... did we not find elf/ptx code sections at all? or was the arch missing?
             section_regex = re.compile(f'Fatbin {section_type} code')
-            print(f"Section_regex: {section_regex.pattern}")
             section_matches = re.findall(section_regex, cuda_raw)
             if section_matches:
                 fail_msg = f"Found Fatbin {section_type} code section(s) in cuobjdump output for {path}, "
