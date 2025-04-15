@@ -3469,7 +3469,7 @@ class EasyBlock(object):
                                 # Count and log for summary report
                                 files_additional_devcode.append(os.path.relpath(path, self.installdir))
                                 additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
-                                fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
+                                fail_msg += "Additional compute capabilities: %s. " % additional_devcode_str
                                 if strict_cc_check:
                                     # cuda-sanity-check-strict, so no additional compute capabilities allowed
                                     if path in ignore_file_list or ignore_failures:
