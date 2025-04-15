@@ -30,8 +30,9 @@ Unit tests for systemtools.py
 """
 import copy
 import ctypes
-import re
+import logging
 import os
+import re
 import sys
 import stat
 
@@ -305,10 +306,10 @@ DirectMap1G:    65011712 kB
 FILE_BIN = """ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter
 /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, not stripped, too many notes (256)"""
 
-FILE_SHAREDLIB="""ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
+FILE_SHAREDLIB = """ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
 BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped"""
 
-CUOBJDUMP_FAT="""
+CUOBJDUMP_FAT = """
 Fatbin elf code: 
 ================
 arch = sm_50
@@ -441,8 +442,6 @@ host = linux
 compile_size = 64bit"""
 
 
-CUOBJDUMP_NON_CUDA_SHAREDLIB = "cuobjdump info    : File '/path/to/my/mock.so' does not contain device code"
-
 MACHINE_NAME = None
 
 
@@ -490,13 +489,19 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "file mock_noncuda_file": "ASCII text",
         "cuobjdump mock_cuda_bin": CUOBJDUMP_FAT,
         "cuobjdump mock_cuda_sharedlib": CUOBJDUMP_PTX_ONLY,
-        "cuobjdump mock_non_cuda_sharedlib": "cuobjdump info  : File '/path/to/mock.so' does not contain device code",
-        "cuobjdump mock_non_cuda_sharedlib_unexpected": "cuobjdump info    : Some unexpected output",
         "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
+    }
+    known_fail_cmds = {
+        "cuobjdump mock_non_cuda_sharedlib": ("cuobjdump info  : File '/path/to/mock.so' does not contain device code", 255),
+        "cuobjdump mock_non_cuda_sharedlib_unexpected": ("cuobjdump info    : Some unexpected output", 255),
     }
     if cmd in known_cmds:
         return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
                                  out_file=None, err_file=None, cmd_sh=None, thread_id=None, task_id=None)
+    elif cmd in known_fail_cmds:
+        return RunShellCmdResult(cmd=cmd, exit_code=known_fail_cmds[cmd][1], output=known_fail_cmds[cmd][0],
+                                 stderr=None, work_dir=os.getcwd(), out_file=None, err_file=None, cmd_sh=None,
+                                 thread_id=None, task_id=None)
     else:
         return run_shell_cmd(cmd, **kwargs)
 
@@ -1304,7 +1309,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_shell_cmd = mocked_run_shell_cmd
 
         # Test case 1: there's no cuobjdump on the path yet
-        error_pattern=r"cuobjdump command not found"
+        error_pattern = r"cuobjdump command not found"
         self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_cuda_bin')
 
         # Put a cuobjdump on the path, doesn't matter what. It will be mocked anyway
@@ -1318,7 +1323,27 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 2: get raw output from mock_cuda_bin, a 'fat' binary
         # TODO: check output
-        print(get_cuda_object_dump_raw('mock_cuda_bin'))
+        self.assertEqual(get_cuda_object_dump_raw('mock_cuda_bin'), CUOBJDUMP_FAT)
+
+        # Test case 3: call on a file that is NOT an executable, object or archive:
+        self.assertIsNone(get_cuda_object_dump_raw('mock_noncuda_file'))
+
+        # Test case 4: call on a file that is an shared lib, but not a CUDA shared lib
+        # Check debug message in this case
+        warning_regex = re.compile(r"does not appear to be a CUDA binary: cuobjdump failed to find device code in this file", re.M)
+        old_log_level = st._log.getEffectiveLevel()
+        st._log.setLevel(logging.DEBUG)
+        with self.log_to_testlogfile():
+            res = get_cuda_object_dump_raw('mock_non_cuda_sharedlib')
+        st._log.setLevel(old_log_level)
+        logtxt = read_file(self.logfile)
+        self.assertIsNone(res)
+        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, logtxt)
+        self.assertTrue(warning_regex.search(logtxt), fail_msg)
+
+        # Test case 5: call on a file where cuobjdump produces really unexpected output
+        error_pattern = r"Dumping CUDA binary file information for .* via .* failed!"
+        self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_non_cuda_sharedlib_unexpected')
 
         # Restore original environment
         modify_env(os.environ, start_env, verbose=False)
