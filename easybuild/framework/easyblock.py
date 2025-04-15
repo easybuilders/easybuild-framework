@@ -3439,70 +3439,103 @@ class EasyBlock(object):
 
                         # check whether device code architectures match cuda_compute_capabilities
                         additional_devcodes = list(set(found_dev_code_ccs) - set(cfg_ccs))
-                        missing_ccs = list(set(cfg_ccs) - set(found_dev_code_ccs))
+                        missing_devcodes = list(set(cfg_ccs) - set(found_dev_code_ccs))
 
-                        # There are two reasons for ignoring failures:
-                        # - We are running with --disable-cuda-sanity-check-error-on-fail
-                        # - The specific {path} is on the cuda_sanity_ignore_files in the easyconfig
-                        # In case we run with both, we'll just report that we're running with
-                        # --disable-cuda-sanity-check-error-on-fail
-                        if ignore_failures:
-                            ignore_msg = "Failure for {path} will be ignored since we are running with "
-                            ignore_msg += "--disable-cuda-sanity-check-error-on-fail"
+
+                        if not missing_devcodes and not additional_devcodes:
+                            # Device code for all architectures requested in --cuda-compute-capabilities was found
+                            msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
+                                   "those in cuda_compute_capabilities")
+                            self.log.debug(msg)
                         else:
-                            ignore_msg = f"This failure will be ignored as '{path}' is listed in "
-                            ignore_msg += "'cuda_sanity_ignore_files'."
-
-                        # Set default failure status and empty message
-                        is_failure = False
-                        fail_msg = ""
-                        if additional_devcodes:
-                            # Device code found for more architectures than requested in cuda-compute-capabilities
-                            fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
-                            # Count and log for summary report
-                            files_additional_devcode.append(os.path.relpath(path, self.installdir))
-                            additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
-                            fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
-                            if strict_cc_check:
-                                # cuda-sanity-check-strict, so no additional compute capabilities allowed
-                                if path in ignore_file_list or ignore_failures:
-                                    # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                    # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
-                                    files_additional_devcode_ignored.append(os.path.relpath(path, self.installdir))
-                                    fail_msg += ignore_msg
-                                    is_failure = False
-                                else:
-                                    # Sanity error
-                                    files_additional_devcode_fails.append(os.path.relpath(path, self.installdir))
-                                    is_failure = True
+                            # There are two reasons for ignoring failures:
+                            # - We are running with --disable-cuda-sanity-check-error-on-fail
+                            # - The specific {path} is on the cuda_sanity_ignore_files in the easyconfig
+                            # In case we run with both, we'll just report that we're running with
+                            # --disable-cuda-sanity-check-error-on-fail
+                            if ignore_failures:
+                                ignore_msg = "Failure for {path} will be ignored since we are running with "
+                                ignore_msg += "--disable-cuda-sanity-check-error-on-fail"
                             else:
-                                is_failure = False
-                        elif missing_ccs:
-                            # One or more device code architectures requested in cuda-compute-capabilities was
-                            # not found in the binary
-                            fail_msg = f"Mismatch between cuda_compute_capabilities and device code in {path}. "
-                            # Count and log for summary report
-                            missing_cc_str = ', '.join(sorted(missing_ccs, key=LooseVersion))
-                            fail_msg += "Missing compute capabilities: %s. " % missing_cc_str
-                            # If accept_ptx_as_devcode, this might not be a failure IF there is suitable PTX
-                            # code to JIT compile from that supports the CCs in missing_ccs
-                            if accept_ptx_as_devcode:
-                                # Check that for each item in missing_ccs there is PTX code for lower or equal
-                                # CUDA compute capability
-                                comparisons = []
-                                for cc in missing_ccs:
-                                    has_smaller_equal_ptx = any(
-                                        LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in found_ptx_ccs
-                                    )
-                                    comparisons.append(has_smaller_equal_ptx)
-                                # Only if that's the case for ALL cc's in missing_ccs, this is a warning, not a
-                                # failure
-                                if all(comparisons):
-                                    files_missing_devcode_but_has_ptx.append(os.path.relpath(path, self.installdir))
-                                    is_failure = False
+                                ignore_msg = f"This failure will be ignored as '{path}' is listed in "
+                                ignore_msg += "'cuda_sanity_ignore_files'."
+
+                            # Set default failure status and empty message
+                            is_failure = False
+                            fail_msg = ""
+
+                            if additional_devcodes:
+                                # Device code found for more architectures than requested in cuda-compute-capabilities
+                                fail_msg += f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                                # Count and log for summary report
+                                files_additional_devcode.append(os.path.relpath(path, self.installdir))
+                                additional_devcode_str = ', '.join(sorted(additional_devcodes, key=LooseVersion))
+                                fail_msg += "Surplus compute capabilities: %s. " % additional_devcode_str
+                                if strict_cc_check:
+                                    # cuda-sanity-check-strict, so no additional compute capabilities allowed
+                                    if path in ignore_file_list or ignore_failures:
+                                        # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                        # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                        files_additional_devcode_ignored.append(os.path.relpath(path, self.installdir))
+                                        fail_msg += ignore_msg
+                                        is_failure = False
+                                    else:
+                                        # Sanity error
+                                        files_additional_devcode_fails.append(os.path.relpath(path, self.installdir))
+                                        is_failure = True
                                 else:
-                                    # If there are CCs for which there is no suiteable PTX that can be JIT-compiled
-                                    # from, this is considerd a failure
+                                    is_failure = False
+                                # Do reporting for the additional_devcodes case
+                                # If considered a failure, append to fails so that a sanity error will be thrown
+                                # Otherwise, log a warning
+                                # Note that we report on the additional_devcodes and missing_devices cases separately
+                                # Because one could be a failure, while the other isn't
+                                if is_failure:
+                                    fail_msgs.append(fail_msg)
+                                else:
+                                    self.log.warning(fail_msg)
+
+                            # Both additional_devcodes and missing_devcodes could be try, so use if, not elif
+                            if missing_devcodes:
+                                # One or more device code architectures requested in cuda-compute-capabilities was
+                                # not found in the binary
+                                fail_msg += f"Mismatch between cuda_compute_capabilities and device code in {path}. "
+                                # Count and log for summary report
+                                missing_devcodes_str = ', '.join(sorted(missing_devcodes, key=LooseVersion))
+                                fail_msg += "Missing compute capabilities: %s. " % missing_devcodes_str
+                                # If accept_ptx_as_devcode, this might not be a failure IF there is suitable PTX
+                                # code to JIT compile from that supports the CCs in missing_devcodes
+                                if accept_ptx_as_devcode:
+                                    # Check that for each item in missing_devcodes there is PTX code for lower or equal
+                                    # CUDA compute capability
+                                    comparisons = []
+                                    for cc in missing_devcodes:
+                                        has_smaller_equal_ptx = any(
+                                            LooseVersion(ptx_cc) <= LooseVersion(cc) for ptx_cc in found_ptx_ccs
+                                        )
+                                        comparisons.append(has_smaller_equal_ptx)
+                                    # Only if that's the case for ALL cc's in missing_devcodes, this is a warning, not a
+                                    # failure
+                                    if all(comparisons):
+                                        files_missing_devcode_but_has_ptx.append(os.path.relpath(path, self.installdir))
+                                        is_failure = False
+                                    else:
+                                        # If there are CCs for which there is no suiteable PTX that can be JIT-compiled
+                                        # from, this is considerd a failure
+                                        files_missing_devcode.append(os.path.relpath(path, self.installdir))
+                                        if path in ignore_file_list or ignore_failures:
+                                            # No error, because either path is on the cuda_sanity_ignore_files list in the
+                                            # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                            files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
+                                            fail_msg += ignore_msg
+                                            is_failure = False
+                                        else:
+                                            # Sanity error
+                                            files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
+                                            is_failure = True
+                                else:
+                                    # Device code was missing, and we're not accepting PTX code as alternative
+                                    # This is considered a failure
                                     files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                     if path in ignore_file_list or ignore_failures:
                                         # No error, because either path is on the cuda_sanity_ignore_files list in the
@@ -3514,35 +3547,14 @@ class EasyBlock(object):
                                         # Sanity error
                                         files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
                                         is_failure = True
-                            else:
-                                # Device code was missing, and we're not accepting PTX code as alternative
-                                # This is considered a failure
-                                files_missing_devcode.append(os.path.relpath(path, self.installdir))
-                                if path in ignore_file_list or ignore_failures:
-                                    # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                    # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
-                                    files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
-                                    fail_msg += ignore_msg
-                                    is_failure = False
+                                # Do reporting for the missing_devcodes case
+                                # If considered a failure, append to fails so that a sanity error will be thrown
+                                # Otherwise, log a warning
+                                if is_failure:
+                                    fail_msgs.append(fail_msg)
                                 else:
-                                    # Sanity error
-                                    files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
-                                    is_failure = True
-                        else:
-                            # Device code for all architectures requested in --cuda-compute-capabilities was found
-                            msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
-                                   "those in cuda_compute_capabilities")
-                            self.log.debug(msg)
-
-                        # If there's no failure message, device code architectures match, so don't warn or fail
-                        if fail_msg:
-                            # If considered a failure, append to fails so that a sanity error will be thrown
-                            # Otherwise, log a warning
-                            if is_failure:
-                                fail_msgs.append(fail_msg)
-                            else:
-                                self.log.warning(fail_msg)
-
+                                    self.log.warning(fail_msg)
+ 
                         # Check whether there is ptx code for the highest CC in cfg_ccs
                         # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
                         highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
