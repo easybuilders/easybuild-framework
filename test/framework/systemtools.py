@@ -299,6 +299,164 @@ DirectMap2M:     2045952 kB
 DirectMap1G:    65011712 kB
 """
 
+FILE_BIN="""
+ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, 
+for GNU/Linux 3.2.0, not stripped, too many notes (256)
+"""
+
+FILE_SHAREDLIB="""
+ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
+BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped
+"""
+
+CUOBJDUMP_FAT="""
+
+Fatbin elf code:                                                                                                                               
+================
+arch = sm_50
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_60
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_61
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_70
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_75
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_80
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_86
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_89
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin ptx code:
+================
+arch = sm_90
+code version = [8,1]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_90
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_90a
+code version = [1,7]
+host = linux
+compile_size = 64bit
+
+Fatbin ptx code:
+================
+arch = sm_90a
+code version = [8,4]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions =
+"""
+
+CUOBJDUMP_PTX_ONLY="""
+
+Fatbin ptx code:
+================
+arch = sm_90
+code version = [8,4]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions =
+
+Fatbin ptx code:
+================
+arch = sm_90a
+code version = [8,4]
+host = linux
+compile_size = 64bit
+compressed
+ptxasOptions =
+"""
+
+CUOBJDUMP_DEVICE_CODE_ONLY="""
+
+Fatbin elf code:
+================
+arch = sm_90
+code version = [1,7]
+host = linux
+compile_size = 64bit
+compressed
+
+Fatbin elf code:
+================
+arch = sm_90a
+code version = [1,7]
+host = linux
+compile_size = 64bit
+"""
+
+
+CUOBJDUMP_NON_CUDA_SHAREDLIB="""
+cuobjdump info    : File '/path/to/my/mock.so' does not contain device code
+"""
+
+CUOBJDUMP_NON_CUDA_UNEXPECTED==="""
+cuobjdump info    : Some unexpected output
+"""
+
+
 MACHINE_NAME = None
 
 
@@ -338,6 +496,17 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "sysctl -n machdep.cpu.leaf7_features": "SMEP ERMS RDWRFSGS TSC_THREAD_OFFSET BMI1 AVX2 BMI2 INVPCID FPU_CSDS",
         "sysctl -n machdep.cpu.vendor": 'GenuineIntel',
         "ulimit -u": '40',
+        "file mock_cuda_bin": FILE_BIN,
+        "file mock_cuda_sharedlib": FILE_SHAREDLIB,
+        "file mock_non_cuda_sharedlib": FILE_SHAREDLIB,
+        "file mock_non_cuda_sharedlib_unexpected": FILE_SHAREDLIB,
+        "file mock_cuda_staticlib": "current ar archive",
+        "file mock_noncuda_file": "ASCII text",
+        "cuobjdump mock_cuda_bin": CUOBJDUMP_FAT,
+        "cuobjdump mock_cuda_sharedlib": CUOBJDUMP_PTX_ONLY,
+        "cuobjdump mock_non_cuda_sharedlib": CUOBJDUMP_NON_CUDA_SHAREDLIB,
+        "cuobjdump mock_non_cuda_sharedlib_unexpected": CUOBJDUMP_NON_CUDA_UNEXPECTED,
+        "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
     }
     if cmd in known_cmds:
         return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
@@ -1140,6 +1309,11 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(os.path.basename(lib_path), libname)
             if os_type != DARWIN:
                 self.assertExists(lib_path)
+
+    def test_get_cuda_object_dump_raw(self):
+        """Test get_cuda_object_dump_raw function"""
+        st.run_shell_cmd = mocked_run_shell_cmd
+        st.get_cuda_object_dump_raw('')
 
 
 def suite():
