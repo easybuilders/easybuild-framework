@@ -52,7 +52,7 @@ class BuildLogTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup after test."""
-        super(BuildLogTest, self).tearDown()
+        super().tearDown()
         # restore default logging format
         setLogFormat(LOGGING_FORMAT)
 

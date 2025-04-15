@@ -85,7 +85,7 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        super(EnhancedTestCase, self).setUp()
+        super().setUp()
 
         # make sure option parser doesn't pick up any cmdline arguments/options
         while len(sys.argv) > 1:
@@ -232,7 +232,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
-        super(EnhancedTestCase, self).tearDown()
+        super().tearDown()
 
         self.log.info("Cleaning up for test %s", self.id())
 

@@ -129,7 +129,7 @@ REPROD = 'reprod'
 _log = fancylogger.getLogger('easyblock')
 
 
-class EasyBlock(object):
+class EasyBlock:
     """Generic support for building and installing software, base class for actual easyblocks."""
 
     # static class method for extra easyconfig parameter definitions
@@ -3253,7 +3253,7 @@ class EasyBlock(object):
         - run post install commands if any were specified
         """
         # even though post_install_step is deprecated in easyblocks we need to keep this here until it is
-        # removed in 6.0 for easyblocks calling super(EB_xxx, self).post_install_step()
+        # removed in 6.0 for easyblocks calling super().post_install_step()
         # The deprecation warning for those is below, in post_processing_step().
 
         lib_dir = os.path.join(self.installdir, 'lib')

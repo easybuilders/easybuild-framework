@@ -864,7 +864,7 @@ class ExtOptionParser(OptionParser):
         return None
 
 
-class GeneralOption(object):
+class GeneralOption:
     """
     'Used-to-be simple' wrapper class for option parsing
 
@@ -1745,7 +1745,7 @@ class SimpleOption(GeneralOption):
         if config_files is not None:
             kwargs['go_configfiles'] = config_files
 
-        super(SimpleOption, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def main_options(self):
         if self.go_dict is not None:

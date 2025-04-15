@@ -263,7 +263,7 @@ class EasyBuildOptions(GeneralOption):
             constants = {name: value for name, (value, _) in constants.items()}
             go_cfg_initenv.setdefault(section, {}).update(constants)
 
-        super(EasyBuildOptions, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def basic_options(self):
         """basic runtime options"""

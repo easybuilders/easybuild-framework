@@ -66,7 +66,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up toolchain test."""
-        super(ToolchainTest, self).setUp()
+        super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
         self.orig_get_cpu_family = st.get_cpu_family
         self.orig_get_cpu_model = st.get_cpu_model
@@ -80,7 +80,7 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_family = self.orig_get_cpu_family
         st.get_cpu_model = self.orig_get_cpu_model
         st.get_cpu_vendor = self.orig_get_cpu_vendor
-        super(ToolchainTest, self).tearDown()
+        super().tearDown()
 
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""

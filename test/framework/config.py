@@ -56,7 +56,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
     def setUp(self):
         """Prepare for running a config test."""
         reload(eboptions)
-        super(EasyBuildConfigTest, self).setUp()
+        super().setUp()
         self.tmpdir = tempfile.mkdtemp()
 
     def purge_environment(self):
@@ -68,7 +68,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up after a config test."""
-        super(EasyBuildConfigTest, self).tearDown()
+        super().tearDown()
 
         try:
             shutil.rmtree(self.tmpdir)

@@ -484,7 +484,7 @@ class ModuleLoadEnvironment:
             raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
-class ModulesTool(object):
+class ModulesTool:
     """An abstract interface to a tool that deals with modules."""
     # name of this modules tool (used in log/warning/error messages)
     NAME = None
@@ -1561,7 +1561,7 @@ class EnvironmentModulesC(ModulesTool):
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
-        return super(EnvironmentModulesC, self).run_module(*args, **kwargs)
+        return super().run_module(*args, **kwargs)
 
     def update(self):
         """Update after new modules were added."""
@@ -1604,7 +1604,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def set_path_env_var(self, key, paths):
         """Set environment variable with given name to the given list of paths."""
-        super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
+        super().set_path_env_var(key, paths)
         # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
@@ -1630,7 +1630,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
-        return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
+        return super().run_module(*args, **kwargs)
 
     def available(self, mod_name=None, extra_args=None):
         """
@@ -1639,7 +1639,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         :param mod_name: a (partial) module name for filtering (default: None)
         """
-        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name, extra_args=extra_args)
+        mods = super().available(mod_name=mod_name, extra_args=extra_args)
         # strip off slash at beginning, if it's there
         # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
@@ -1702,7 +1702,7 @@ class EnvironmentModules(ModulesTool):
         # ensure only module names are returned on list (MODULES_LIST_TERSE_OUTPUT added in v4.7)
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
 
-        super(EnvironmentModules, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
@@ -1732,7 +1732,7 @@ class EnvironmentModules(ModulesTool):
         else:
             self.log.debug("Pattern '%s' not found in '_module_raw' function, falling back to 'module' function",
                            mod_cmd_re.pattern)
-            super(EnvironmentModules, self).check_module_function(allow_mismatch, regex)
+            super().check_module_function(allow_mismatch, regex)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1754,7 +1754,7 @@ class EnvironmentModules(ModulesTool):
         if LooseVersion(self.version) >= LooseVersion('4.6.0'):
             extra_args.append(self.SHOW_HIDDEN_OPTION)
 
-        return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
+        return super().available(mod_name=mod_name, extra_args=extra_args)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
@@ -1834,7 +1834,7 @@ class Lmod(ModulesTool):
         # (introduced in Lmod 8.8, see also https://github.com/TACC/Lmod/issues/690)
         setvar('LMOD_TERSE_DECORATIONS', 'no', verbose=False)
 
-        super(Lmod, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
 
         self.supports_depends_on = True
@@ -1848,7 +1848,7 @@ class Lmod(ModulesTool):
         """Check whether selected module tool matches 'module' function definition."""
         if 'regex' not in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
-        super(Lmod, self).check_module_function(*args, **kwargs)
+        super().check_module_function(*args, **kwargs)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1876,7 +1876,7 @@ class Lmod(ModulesTool):
             opts.append((0, self.SHOW_HIDDEN_OPTION))
             args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
 
-        return super(Lmod, self).compose_cmd_list(args, opts=opts)
+        return super().compose_cmd_list(args, opts=opts)
 
     def available(self, mod_name=None):
         """
@@ -1888,7 +1888,7 @@ class Lmod(ModulesTool):
         # make hidden modules visible (requires Lmod 5.7.5)
         extra_args = [self.SHOW_HIDDEN_OPTION]
 
-        mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
+        mods = super().available(mod_name=mod_name, extra_args=extra_args)
 
         # only retain actual modules, exclude module directories (which end with a '/')
         real_mods = [mod for mod in mods if not mod.endswith('/')]
@@ -1997,12 +1997,12 @@ class Lmod(ModulesTool):
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
         mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
-        res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
-                                                      mod_wrapper_regex_template=mod_wrapper_regex_template)
+        res = super().module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                            mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
         if res is None:
-            res = super(Lmod, self).module_wrapper_exists(mod_name)
+            res = super().module_wrapper_exists(mod_name)
 
         return res
 

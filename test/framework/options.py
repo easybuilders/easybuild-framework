@@ -105,7 +105,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(CommandLineOptionsTest, self).setUp()
+        super().setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
@@ -118,7 +118,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
 
-        super(CommandLineOptionsTest, self).tearDown()
+        super().tearDown()
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -3758,21 +3758,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             from easybuild.framework.easyblock import EasyBlock
             class EB_afoo(EasyBlock):
                 def __init__(self, *args, **kwargs):
-                    super(EB_afoo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'afoo.py'), afoo_txt)
         foo_txt = textwrap.dedent("""
             from easybuild.easyblocks.zfoo import EB_zfoo
             class EB_foo(EB_zfoo):
                 def __init__(self, *args, **kwargs):
-                    super(EB_foo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
         zfoo_txt = textwrap.dedent("""
             from easybuild.easyblocks.afoo import EB_afoo
             class EB_zfoo(EB_afoo):
                 def __init__(self, *args, **kwargs):
-                    super(EB_zfoo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'zfoo.py'), zfoo_txt)
 
@@ -6843,7 +6843,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertNotIn('self.build_in_installdir = True', toy_eb_txt)
 
-        regex = re.compile(r'^(\s+)(super\(EB_toy, self\).__init__.*)\n', re.M)
+        regex = re.compile(r'^(\s+)(super\(\).__init__.*)\n', re.M)
         toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
         self.assertIn('self.build_in_installdir = True', toy_eb_txt)
 

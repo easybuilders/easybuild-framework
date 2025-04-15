@@ -86,7 +86,7 @@ class TestCase(OrigTestCase):
         """Make assertEqual always print useful messages"""
 
         try:
-            super(TestCase, self).assertEqual(a, b, msg=msg)
+            super().assertEqual(a, b, msg=msg)
         except AssertionError as e:
             if not self._is_diffable(a) or not self._is_diffable(b):
                 raise
@@ -132,7 +132,7 @@ class TestCase(OrigTestCase):
 
     def setUp(self):
         """Prepare test case."""
-        super(TestCase, self).setUp()
+        super().setUp()
 
         self.maxDiff = None
         self.longMessage = True
@@ -225,4 +225,4 @@ class TestCase(OrigTestCase):
         """Cleanup after running a test."""
         self.mock_stdout(False)
         self.mock_stderr(False)
-        super(TestCase, self).tearDown()
+        super().tearDown()

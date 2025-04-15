@@ -422,7 +422,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
-class EasyConfig(object):
+class EasyConfig:
     """
     Class which handles loading, reading, validation of easyconfigs
     """

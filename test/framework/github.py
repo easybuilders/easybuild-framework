@@ -97,7 +97,7 @@ class GithubTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(GithubTest, self).setUp()
+        super().setUp()
 
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
 
@@ -116,7 +116,7 @@ class GithubTest(EnhancedTestCase):
         """Cleanup after running test."""
         easybuild.tools.testing.create_gist = self.orig_testing_create_gist
 
-        super(GithubTest, self).tearDown()
+        super().tearDown()
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""

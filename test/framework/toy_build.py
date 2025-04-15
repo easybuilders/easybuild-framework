@@ -70,7 +70,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(ToyBuildTest, self).setUp()
+        super().setUp()
 
         fd, self.dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
@@ -106,7 +106,7 @@ class ToyBuildTest(EnhancedTestCase):
         # reset cached hooks
         easybuild.tools.hooks._cached_hooks.clear()
 
-        super(ToyBuildTest, self).tearDown()
+        super().tearDown()
 
         # remove logs
         if os.path.exists(self.dummylogfn):
@@ -2645,7 +2645,7 @@ class ToyBuildTest(EnhancedTestCase):
             "            'dirs': [],",
             "        }",
             "        cmds = ['toy']",
-            "        return super(EB_toy, self).sanity_check_step(custom_paths=paths, custom_commands=cmds)",
+            "        return super().sanity_check_step(custom_paths=paths, custom_commands=cmds)",
         ])
         test_toy_easyblock = os.path.join(self.test_prefix, 'toy.py')
         write_file(test_toy_easyblock, toy_easyblock_txt + toy_custom_sanity_check_step)
@@ -2810,7 +2810,7 @@ class ToyBuildTest(EnhancedTestCase):
                         'dirs': ['lib/py-%(pyshortver)s'],
                     }
                     cmds = ['python%(pyshortver)s']
-                    return super(EB_toy, self).sanity_check_step(custom_paths=paths, custom_commands=cmds)
+                    return super().sanity_check_step(custom_paths=paths, custom_commands=cmds)
         """)
         test_toy_easyblock = os.path.join(self.test_prefix, 'toy.py')
         write_file(test_toy_easyblock, toy_easyblock_txt + toy_custom_sanity_check_step)
@@ -3852,7 +3852,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # define a context manager that remove a lock after a while, so we can check the use of --wait-for-lock
-        class RemoveLockAfter(object):
+        class RemoveLockAfter:
             def __init__(self, seconds, lock_fp):
                 self.seconds = seconds
                 self.lock_fp = lock_fp
@@ -3955,7 +3955,7 @@ class ToyBuildTest(EnhancedTestCase):
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         # context manager which stops the function being called with the specified signal
-        class WaitAndSignal(object):
+        class WaitAndSignal:
             def __init__(self, seconds, signum):
                 self.seconds = seconds
                 self.signum = signum

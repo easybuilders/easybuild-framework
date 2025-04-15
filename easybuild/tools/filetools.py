@@ -189,7 +189,7 @@ ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
 global_lock_names = set()
 
 
-class ZlibChecksum(object):
+class ZlibChecksum:
     """
     wrapper class for adler32 and crc32 checksums to
     match the interface of the hashlib module

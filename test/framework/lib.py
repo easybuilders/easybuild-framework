@@ -51,7 +51,7 @@ class EasyBuildLibTest(TestCase):
 
     def setUp(self):
         """Prepare for running test."""
-        super(EasyBuildLibTest, self).setUp()
+        super().setUp()
 
         # make sure BuildOptions instance is re-created
         if BuildOptions in BuildOptions._instances:
@@ -61,7 +61,7 @@ class EasyBuildLibTest(TestCase):
 
     def tearDown(self):
         """Cleanup after running test."""
-        super(EasyBuildLibTest, self).tearDown()
+        super().tearDown()
 
         shutil.rmtree(self.tmpdir)
 
