@@ -1385,7 +1385,7 @@ class SystemToolsTest(EnhancedTestCase):
         adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
 
         # Test case 1: get raw output from mock_cuda_bin, a 'fat' binary
-        mock_cuda_bin_device_codes = ['6.0', '6.1', '7.0', '7.5', '8.0', '8.6', '8.9', '9.0', '9.0a']
+        mock_cuda_bin_device_codes = ['5.0', '6.0', '6.1', '7.0', '7.5', '8.0', '8.6', '8.9', '9.0', '9.0a']
         mock_cuda_bin_ptx = ['9.0', '9.0a']
         self.assertEqual(get_cuda_architectures('mock_cuda_bin', 'elf'), mock_cuda_bin_device_codes)
         self.assertEqual(get_cuda_architectures('mock_cuda_bin', 'ptx'), mock_cuda_bin_ptx)
