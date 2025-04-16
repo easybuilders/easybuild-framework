@@ -3612,7 +3612,7 @@ class EasyBlock(object):
         elif ignore_failures:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode)} "
-            summary_msg += f"(not running with --cuda-sanity-check-fail-on-error, so not considered failures)\n"
+            summary_msg += "(not running with --cuda-sanity-check-fail-on-error, so not considered failures)\n"
         else:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode)} (ignored: {len(files_missing_devcode_ignored)}, "
