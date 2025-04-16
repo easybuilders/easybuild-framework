@@ -3589,12 +3589,12 @@ class EasyBlock(object):
         summary_msg_files = f"{len(files_missing_devcode)} files missing one or more CUDA compute capabilities: "
         summary_msg_files += f"{files_missing_devcode}\n"
         summary_msg_files += f"These failures are ignored for {len(files_missing_devcode_ignored)} files: "
-        summary_msg_files += "{files_missing_devcode_ignored})\n"
+        summary_msg_files += f"{files_missing_devcode_ignored})\n"
         if accept_ptx_as_devcode:
             summary_msg_files += f"{len(files_missing_devcode_but_has_ptx)} files missing one or more CUDA Compute "
             summary_msg_files += "Capabilities, but has suitable PTX code that can be JIT compiled for the requested "
             summary_msg_files += f"CUDA Compute Capabilities: {files_missing_devcode_but_has_ptx}\n"
-        summary_msg_files += "{len(files_additional_devcode)} files with device code for more CUDA Compute "
+        summary_msg_files += f"{len(files_additional_devcode)} files with device code for more CUDA Compute "
         summary_msg_files += f"Capabilities than requested: {files_additional_devcode}\n"
         summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files: "
         summary_msg_files += f"{files_additional_devcode_ignored})\n"
@@ -3607,30 +3607,44 @@ class EasyBlock(object):
         # Short summary
         summary_msg = "CUDA sanity check summary report:\n"
         summary_msg += f"Number of CUDA files checked: {num_cuda_files}\n"
-        summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
-        summary_msg += f"(ignored: {len(files_missing_devcode_ignored)}, fails: {len(files_missing_devcode_fails)})\n"
+        if len(files_missing_devcode) == 0:
+            summary_msg += "Number of files missing one or more CUDA Compute Capabilities: 0\n"
+        elif ignore_failures:
+            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
+            summary_msg += f"(not running with --cuda-sanity-check-fail-on-error, so not considered failures)\n"
+        else:
+            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
+            summary_msg += f"(ignored: {len(files_missing_devcode_ignored)}, fails: {len(files_missing_devcode_fails)})\n"
         if accept_ptx_as_devcode:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but having suitable "
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
             summary_msg += f"{len(files_missing_devcode_but_has_ptx)}\n"
-        summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
-        if ignore_failures:
+        if len(files_additional_devcode) == 0:
+            summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: 0\n"
+        elif ignore_failures:
+            summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
             summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-fail-on-error, "
             summary_msg += "so not considered failures)\n"
         elif strict_cc_check:
+            summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
             summary_msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
             summary_msg += f"fails: {len(files_additional_devcode_fails)})\n"
         else:
+            summary_msg += "Number of files with device code for more CUDA Compute Capabilities than requested: "
             summary_msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-strict, so not "
             summary_msg += "considered failures)\n"
-        summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-        if ignore_failures:
-            summary_msg += f"{len(files_missing_ptx)} (not running with --cuda-sanity-check-fail-on-error so not "
+        if len(files_missing_ptx) == 0:
+            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: 0\n"
+        elif ignore_failures:
+            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg += f"{len(files_missing_ptx)} (not running with --cuda-sanity-check-fail-on-error, so not "
             summary_msg += "considered failures)\n"
         elif accept_missing_ptx:
-            summary_msg += f"{len(files_missing_ptx)} (running with --cuda-sanity-check-accept-missing-ptx so not "
+            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            summary_msg += f"{len(files_missing_ptx)} (running with --cuda-sanity-check-accept-missing-ptx, so not "
             summary_msg += "considered failures)\n"
         else:
+            summary_msg += "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             summary_msg += f"{len(files_missing_ptx)} (ignored: {len(files_missing_ptx_ignored)}, fails: "
             summary_msg += f"{len(files_missing_ptx_fails)})\n"
         if not build_option('debug'):
