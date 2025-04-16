@@ -3261,7 +3261,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 1 "
         expected_summary += r"\(ignored: 0, fails: 1\)$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
-        expected_summary += r"\(not running with --cuda-sanity-check-strict, so not considered failures\)$\n" 
+        expected_summary += r"\(not running with --cuda-sanity-check-strict, so not considered failures\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 0"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
@@ -3281,7 +3281,7 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
         self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
         expected_summary = r"Number of files missing one or more CUDA Compute Capabilities, but having suitable PTX "
-        expected_summary += r"code that can be JIT compiled for the requested CUDA Compute Capabilities: 1" 
+        expected_summary += r"code that can be JIT compiled for the requested CUDA Compute Capabilities: 1"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)

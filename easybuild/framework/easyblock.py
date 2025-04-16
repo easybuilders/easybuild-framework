@@ -3523,7 +3523,7 @@ class EasyBlock(object):
                                         files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                         if path in ignore_file_list or ignore_failures:
                                             # No error, because either path is on the cuda_sanity_ignore_files list in
-                                            # the easyconfig, or we are running with 
+                                            # the easyconfig, or we are running with
                                             # --disable-cuda-sanity-check-error-on-fail
                                             files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                             fail_msg += ignore_msg
