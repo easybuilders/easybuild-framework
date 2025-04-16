@@ -3138,17 +3138,6 @@ class ToyBuildTest(EnhancedTestCase):
             "echo ''\n"
         ])
 
-        # Section for cuobjdump printing output for sm_80 architecture
-        cuobjdump_txt_sm80 = '\n'.join([
-            "echo 'Fatbin elf code:'",
-            "echo '================'",
-            "echo 'arch = sm_80'",
-            "echo 'code version = [1,7]'",
-            "echo 'host = linux'",
-            "echo 'compile_size = 64bit'",
-            "echo ''\n"
-        ])
-
         # Section for cuobjdump printing output for sm_90 architecture
         cuobjdump_txt_sm90 = '\n'.join([
             "echo 'Fatbin elf code:'",
@@ -3183,18 +3172,6 @@ class ToyBuildTest(EnhancedTestCase):
             "echo ''\n"
         ])
 
-        # Section for cuobjdump printing output for sm_90 PTX code
-        cuobjdump_txt_sm90_ptx = '\n'.join([
-            "echo 'Fatbin ptx code:'",
-            "echo '================'",
-            "echo 'arch = sm_90'",
-            "echo 'code version = [8,1]'",
-            "echo 'host = linux'",
-            "echo 'compile_size = 64bit'",
-            "echo 'compressed'",
-            "echo ''\n"
-        ])
-
         # Section for cuobjdump printing output for sm_90a PTX code
         cuobjdump_txt_sm90a_ptx = '\n'.join([
             "echo 'Fatbin ptx code:'",
@@ -3218,14 +3195,6 @@ class ToyBuildTest(EnhancedTestCase):
         device_missing_80_code_regex_pattern = r"Missing compute capabilities: 8.0."
         device_missing_80_code_regex = re.compile(device_missing_80_code_regex_pattern, re.M)
 
-        device_missing_80_code_ignored_regex_pattern = r"Missing compute capabilities: 8.0. This failure will be "
-        device_missing_80_code_ignored_regex_pattern += "ignored as '.*/bin/toy' is listed in "
-        device_missing_80_code_ignored_regex_pattern += "'ignore_cuda_sanity_failures'."
-        device_missing_80_code_ignored_regex = re.compile(device_missing_80_code_ignored_regex_pattern, re.M)
-
-        device_missing_90_code_regex_pattern = r"Missing compute capabilities: 9.0."
-        device_missing_90_code_regex = re.compile(device_missing_90_code_regex_pattern, re.M)
-
         device_additional_70_code_regex_pattern = r"Additional compute capabilities: 7.0."
         device_additional_70_code_regex = re.compile(device_additional_70_code_regex_pattern, re.M)
         device_additional_70_90_code_regex_pattern = r"Additional compute capabilities: 7.0, 9.0."
@@ -3235,16 +3204,6 @@ class ToyBuildTest(EnhancedTestCase):
         ptx_code_regex_success_pattern += r"present for \(at least\) the highest CUDA compute capability in "
         ptx_code_regex_success_pattern += "cuda_compute_capabilities"
         ptx_code_regex_success = re.compile(ptx_code_regex_success_pattern, re.M)
-
-        ptx_code_missing_80_regex_pattern = r"Configured highest compute capability was '8.0', but no PTX code "
-        ptx_code_missing_80_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
-        ptx_code_missing_80_regex_pattern += r"\(PTX architectures supported in that file: \[\]\)"
-        ptx_code_missing_80_regex = re.compile(ptx_code_missing_80_regex_pattern, re.M)
-
-        ptx_code_missing_90_regex_pattern = r"Configured highest compute capability was '9.0', but no PTX code "
-        ptx_code_missing_90_regex_pattern += "for this compute capability was found in '.*/bin/toy' "
-        ptx_code_missing_90_regex_pattern += r"\(PTX architectures supported in that file: \[\]\)"
-        ptx_code_missing_90_regex = re.compile(ptx_code_missing_90_regex_pattern, re.M)
 
         # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
         cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
@@ -3279,7 +3238,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 1 "
         expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
-        expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n" 
+        expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 0"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
@@ -3289,8 +3248,8 @@ class ToyBuildTest(EnhancedTestCase):
         # This is expected to fail since there is missing device code for CC80
         args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-fail']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += ".*/bin/toy. Missing compute capabilities: 8.0."
+        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += r".*/bin/toy. Missing compute capabilities: 8.0."
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3300,7 +3259,7 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
         self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 1 "
-        expected_summary += "\(ignored: 0, fails: 1\)$\n"
+        expected_summary += r"\(ignored: 0, fails: 1\)$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
         expected_summary += r"\(not running with --cuda-sanity-check-strict, so not considered failures\)$\n" 
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 0"
@@ -3321,8 +3280,8 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_additional_70_90_code_regex.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
         self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
-        expected_summary = "Number of files missing one or more CUDA Compute Capabilities, but having suitable PTX "
-        expected_summary += "code that can be JIT compiled for the requested CUDA Compute Capabilities: 1" 
+        expected_summary = r"Number of files missing one or more CUDA Compute Capabilities, but having suitable PTX "
+        expected_summary += r"code that can be JIT compiled for the requested CUDA Compute Capabilities: 1" 
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
@@ -3340,9 +3299,9 @@ class ToyBuildTest(EnhancedTestCase):
         # This is expected to fail: device code is present, but PTX code for the highest CC (9.0) is missing
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = "Sanity check failed: Configured highest compute capability was '9\.0', "
-        error_pattern += "but no PTX code for this compute capability was found in '.*/bin/toy' "
-        error_pattern += "\(PTX architectures supported in that file: \['8\.0'\]\)"
+        error_pattern = r"Sanity check failed: Configured highest compute capability was '9\.0', "
+        error_pattern += r"but no PTX code for this compute capability was found in '.*/bin/toy' "
+        error_pattern += r"\(PTX architectures supported in that file: \['8\.0'\]\)"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3353,7 +3312,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
         expected_summary += r"\(not running with --cuda-sanity-check-strict, so not considered failures\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1 "
-        expected_summary += "\(ignored: 0, fails: 1\)"
+        expected_summary += r"\(ignored: 0, fails: 1\)"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
@@ -3363,9 +3322,9 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx']
         # We expect this to pass, so no need to check errors
-        warning_pattern = "Configured highest compute capability was '9\.0', "
-        warning_pattern += "but no PTX code for this compute capability was found in '.*/bin/toy' "
-        warning_pattern += "\(PTX architectures supported in that file: \['8\.0'\]\)"
+        warning_pattern = r"Configured highest compute capability was '9\.0', "
+        warning_pattern += r"but no PTX code for this compute capability was found in '.*/bin/toy' "
+        warning_pattern += r"\(PTX architectures supported in that file: \['8\.0'\]\)"
         warning_pattern_regex = re.compile(warning_pattern, re.M)
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
@@ -3377,7 +3336,7 @@ class ToyBuildTest(EnhancedTestCase):
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
         expected_summary += r"\(not running with --cuda-sanity-check-strict, so not considered failures\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1 "
-        expected_summary += "\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
+        expected_summary += r"\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
@@ -3388,8 +3347,8 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += ".*/bin/toy\. Additional compute capabilities: 7\.0"
+        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += r".*/bin/toy. Additional compute capabilities: 7\.0"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3398,13 +3357,13 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 0$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
-        expected_summary += "\(ignored: 0, fails: 1\)$\n"
+        expected_summary += r"\(ignored: 0, fails: 1\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1 "
-        expected_summary += "\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
+        expected_summary += r"\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
-        
+
         # Test case 7: same as Test case 6, but add the failing file to the cuda_sanity_ignore_files
         # This is expected to succeed: the individual file which _would_ cause the sanity check to fail is
         # now on the ignore list
@@ -3417,17 +3376,17 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to succeed, so check output for expected patterns
-        error_pattern = "Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += ".*/bin/toy\. Additional compute capabilities: 7\.0"
+        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
+        error_pattern += r".*/bin/toy\. Additional compute capabilities: 7\.0"
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_whitelist_ec, extra_args=args, raise_error=True, verify=False)
         msg = "Pattern %s not found in full build log: %s" % (device_additional_70_code_regex.pattern, outtxt)
         self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 0$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
-        expected_summary += "\(ignored: 1, fails: 0\)$\n"
+        expected_summary += r"\(ignored: 1, fails: 0\)$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1 "
-        expected_summary += "\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
+        expected_summary += r"\(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures\)"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
@@ -3448,11 +3407,13 @@ class ToyBuildTest(EnhancedTestCase):
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
         msg = "Pattern %s not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
         self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 0$\n"
         expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 0$\n"
-        expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 0$\n"
+        expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 0$"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)

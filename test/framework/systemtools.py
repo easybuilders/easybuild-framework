@@ -303,14 +303,14 @@ DirectMap2M:     2045952 kB
 DirectMap1G:    65011712 kB
 """
 
-FILE_BIN = """ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter
-/lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, not stripped, too many notes (256)"""
+FILE_BIN = "ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter "
+FILE_BIN += "/lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, not stripped, too many notes (256)"
 
-FILE_SHAREDLIB = """ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, 
-BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped"""
+FILE_SHAREDLIB = "ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, "
+FILE_SHAREDLIB += "BuildID[sha1]=5535086d3380568f8eaecfa2e73f456f1edd94ec, stripped"
 
 CUOBJDUMP_FAT = """
-Fatbin elf code: 
+Fatbin elf code:
 ================
 arch = sm_50
 code version = [1,7]
@@ -502,7 +502,8 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
     }
     known_fail_cmds = {
-        "cuobjdump mock_non_cuda_sharedlib": ("cuobjdump info  : File '/path/to/mock.so' does not contain device code", 255),
+        "cuobjdump mock_non_cuda_sharedlib": ("cuobjdump info  : File '/path/to/mock.so' does not contain device code",
+                                              255),
         "cuobjdump mock_non_cuda_sharedlib_unexpected": ("cuobjdump info    : Some unexpected output", 255),
     }
     if cmd in known_cmds:
@@ -1340,7 +1341,8 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 4: call on a file that is an shared lib, but not a CUDA shared lib
         # Check debug message in this case
-        debug_regex = re.compile(r"DEBUG .* does not appear to be a CUDA binary: cuobjdump failed to find device code in this file", re.M)
+        debug_regex = re.compile(r"DEBUG .* does not appear to be a CUDA binary: cuobjdump failed to find device code "
+                                 "in this file", re.M)
         old_log_level = st._log.getEffectiveLevel()
         st._log.setLevel(logging.DEBUG)
         with self.log_to_testlogfile():
@@ -1353,8 +1355,9 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 5: call on a file where cuobjdump produces really unexpected output
         error_pattern = r"Dumping CUDA binary file information for .* via .* failed!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_non_cuda_sharedlib_unexpected')
-        
+        self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw,
+                              path='mock_non_cuda_sharedlib_unexpected')
+
         # Test case 6: call on CUDA shared lib, which only contains PTX code
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_sharedlib'), CUOBJDUMP_PTX_ONLY)
 
@@ -1396,7 +1399,8 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertIsNone(get_cuda_architectures('mock_non_cuda_sharedlib', 'ptx'))
 
         # Test case 4: call on CUDA shared lib, which only contains PTX code
-        warning_regex_elf = re.compile(r"WARNING Failed to find Fatbin elf code section\(s\) in cuobjdump output for mock_cuda_sharedlib", re.M)
+        warning_regex_elf = re.compile(r"WARNING Failed to find Fatbin elf code section\(s\) in cuobjdump output for "
+                                       "mock_cuda_sharedlib", re.M)
         old_log_level = st._log.getEffectiveLevel()
         st._log.setLevel(logging.DEBUG)
         with self.log_to_testlogfile():
@@ -1410,7 +1414,8 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(res_ptx, ['9.0', '9.0a'])
 
         # Test case 5: call on CUDA static lib, which only contains device code
-        warning_regex_ptx = re.compile(r"WARNING Failed to find Fatbin ptx code section\(s\) in cuobjdump output for mock_cuda_staticlib", re.M)
+        warning_regex_ptx = re.compile(r"WARNING Failed to find Fatbin ptx code section\(s\) in cuobjdump output for "
+                                       "mock_cuda_staticlib", re.M)
         old_log_level = st._log.getEffectiveLevel()
         st._log.setLevel(logging.DEBUG)
         with self.log_to_testlogfile():
@@ -1424,7 +1429,8 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(res_elf, ['9.0', '9.0a'])
 
         # Test case 6: call on CUDA shared lib which lacks an arch = sm_XX entry (should never happen)
-        warning_regex_elf = re.compile(r"WARNING Found Fatbin elf code section\(s\) in cuobjdump output for mock_invalid_cuda_sharedlib, but failed to extract CUDA architecture", re.M)
+        warning_regex_elf = re.compile(r"WARNING Found Fatbin elf code section\(s\) in cuobjdump output for "
+                                       "mock_invalid_cuda_sharedlib, but failed to extract CUDA architecture", re.M)
         old_log_level = st._log.getEffectiveLevel()
         st._log.setLevel(logging.DEBUG)
         with self.log_to_testlogfile():

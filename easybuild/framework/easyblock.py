@@ -3441,7 +3441,6 @@ class EasyBlock(object):
                         additional_devcodes = list(set(found_dev_code_ccs) - set(cfg_ccs))
                         missing_devcodes = list(set(cfg_ccs) - set(found_dev_code_ccs))
 
-
                         if not missing_devcodes and not additional_devcodes:
                             # Device code for all architectures requested in --cuda-compute-capabilities was found
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
@@ -3523,8 +3522,9 @@ class EasyBlock(object):
                                         # from, this is considerd a failure
                                         files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                         if path in ignore_file_list or ignore_failures:
-                                            # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                            # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                            # No error, because either path is on the cuda_sanity_ignore_files list in
+                                            # the easyconfig, or we are running with 
+                                            # --disable-cuda-sanity-check-error-on-fail
                                             files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                             fail_msg += ignore_msg
                                             is_failure = False
@@ -3553,7 +3553,7 @@ class EasyBlock(object):
                                     fail_msgs.append(fail_msg)
                                 else:
                                     self.log.warning(fail_msg)
- 
+
                         # Check whether there is ptx code for the highest CC in cfg_ccs
                         # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
                         highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
@@ -3598,8 +3598,8 @@ class EasyBlock(object):
         summary_msg_files += f"Capabilities than requested: {files_additional_devcode}\n"
         summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files: "
         summary_msg_files += f"{files_additional_devcode_ignored})\n"
-        summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA Compute "
-        summary_msg_files += f"Capability: {files_missing_ptx}\n"
+        summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA Compute"
+        summary_msg_files += f" Capability: {files_missing_ptx}\n"
         summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files: "
         summary_msg_files += f"{files_missing_ptx_ignored})"
         self.log.info(summary_msg_files)
@@ -3610,11 +3610,13 @@ class EasyBlock(object):
         if len(files_missing_devcode) == 0:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities: 0\n"
         elif ignore_failures:
-            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
+            summary_msg += "Number of files missing one or more CUDA Compute Capabilities: "
+            summary_msg += f"{len(files_missing_devcode)} "
             summary_msg += f"(not running with --cuda-sanity-check-fail-on-error, so not considered failures)\n"
         else:
-            summary_msg += f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)} "
-            summary_msg += f"(ignored: {len(files_missing_devcode_ignored)}, fails: {len(files_missing_devcode_fails)})\n"
+            summary_msg += "Number of files missing one or more CUDA Compute Capabilities: "
+            summary_msg += f"{len(files_missing_devcode)} (ignored: {len(files_missing_devcode_ignored)}, "
+            summary_msg += f"fails: {len(files_missing_devcode_fails)})\n"
         if accept_ptx_as_devcode:
             summary_msg += "Number of files missing one or more CUDA Compute Capabilities, but having suitable "
             summary_msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
