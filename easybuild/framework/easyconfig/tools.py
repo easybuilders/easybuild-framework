@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -54,11 +54,11 @@ from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_inf
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import find_easyconfigs, get_cwd, is_patch_file, locate_files
-from easybuild.tools.filetools import read_file, resolve_path, which, write_file
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
+from easybuild.tools.filetools import locate_files, read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
@@ -218,10 +218,12 @@ def dep_graph(filename, specs):
             if dep in spec['ec'].build_dependencies:
                 dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
 
-    _dep_graph_dump(dgr, filename)
-
-    if not build_option('silent'):
-        print("Wrote dependency graph for %d easyconfigs to %s" % (len(specs), filename))
+    what = "dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+    silent = build_option('silent')
+    if _dep_graph_dump(dgr, filename):
+        print_msg("Wrote " + what, silent=silent)
+    else:
+        print_error("Failed writing " + what, silent=silent)
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
@@ -231,9 +233,15 @@ def _dep_graph_dump(dgr, filename):
     dottxt = dot.write(dgr)
     if os.path.splitext(filename)[-1] == '.dot':
         # create .dot file
-        write_file(filename, dottxt)
+        try:
+            write_file(filename, dottxt)
+        except EasyBuildError as e:
+            print(str(e))
+            return False
+        else:
+            return True
     else:
-        _dep_graph_gv(dottxt, filename)
+        return _dep_graph_gv(dottxt, filename)
 
 
 @only_if_module_is_available('gv', pkgname='graphviz-python')
@@ -241,8 +249,8 @@ def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
     gvv = gv.readstring(dottxt)
-    gv.layout(gvv, 'dot')
-    gv.render(gvv, os.path.splitext(filename)[-1], filename)
+    if gv.layout(gvv, 'dot') is not False:
+        return gv.render(gvv, os.path.splitext(filename)[-1], filename)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
@@ -395,13 +403,19 @@ def parse_easyconfigs(paths, validate=True):
     """
     easyconfigs = []
     generated_ecs = False
+    parsed_paths = []
 
     for (path, generated) in paths:
+        if not os.path.exists(path):
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
+        # Avoid processing the same file multiple times
         path = os.path.abspath(path)
+        if any(os.path.samefile(path, p) for p in parsed_paths):
+            continue
+        parsed_paths.append(path)
+
         # keep track of whether any files were generated
         generated_ecs |= generated
-        if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:
@@ -743,7 +757,7 @@ def avail_easyblocks():
     """Return a list of all available easyblocks."""
 
     module_regexp = re.compile(r"^([^_].*)\.py$")
-    class_regex = re.compile(r"^class ([^(]*)\(", re.M)
+    class_regex = re.compile(r"^class ([^(:]*)\(", re.M)
 
     # finish initialisation of the toolchain module (ie set the TC_CONSTANT constants)
     search_toolchain('')
@@ -753,33 +767,43 @@ def avail_easyblocks():
         __import__(pkg)
 
         # determine paths for this package
-        paths = sys.modules[pkg].__path__
+        paths = [path for path in sys.modules[pkg].__path__ if os.path.exists(path)]
 
         # import all modules in these paths
         for path in paths:
-            if os.path.exists(path):
-                for fn in os.listdir(path):
-                    res = module_regexp.match(fn)
-                    if res:
-                        easyblock_mod_name = '%s.%s' % (pkg, res.group(1))
+            for fn in os.listdir(path):
+                res = module_regexp.match(fn)
+                if not res:
+                    continue
+                easyblock_mod_name = res.group(1)
+                easyblock_full_mod_name = '%s.%s' % (pkg, easyblock_mod_name)
 
-                        if easyblock_mod_name not in easyblocks:
-                            __import__(easyblock_mod_name)
-                            easyblock_loc = os.path.join(path, fn)
+                if easyblock_full_mod_name in easyblocks:
+                    _log.debug("%s already imported from %s, ignoring %s",
+                               easyblock_full_mod_name, easyblocks[easyblock_full_mod_name]['loc'], path)
+                else:
+                    __import__(easyblock_full_mod_name)
+                    easyblock_loc = os.path.join(path, fn)
 
-                            class_names = class_regex.findall(read_file(easyblock_loc))
-                            if len(class_names) == 1:
-                                easyblock_class = class_names[0]
-                            elif class_names:
-                                raise EasyBuildError("Found multiple class names for easyblock %s: %s",
-                                                     easyblock_loc, class_names)
-                            else:
-                                raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
-
-                            easyblocks[easyblock_mod_name] = {'class': easyblock_class, 'loc': easyblock_loc}
+                    class_names = class_regex.findall(read_file(easyblock_loc))
+                    if len(class_names) > 1:
+                        if pkg.endswith('.generic'):
+                            # In generic easyblocks we have e.g. ConfigureMake in configuremake.py
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.lower() == easyblock_mod_name.lower()]
                         else:
-                            _log.debug("%s already imported from %s, ignoring %s",
-                                       easyblock_mod_name, easyblocks[easyblock_mod_name]['loc'], path)
+                            # If there is exactly one software specific easyblock we use that
+                            sw_specific_class_names = [name for name in class_names
+                                                       if name.startswith(EASYBLOCK_CLASS_PREFIX)]
+                        if len(sw_specific_class_names) == 1:
+                            class_names = sw_specific_class_names
+                    if len(class_names) == 1:
+                        easyblocks[easyblock_full_mod_name] = {'class': class_names[0], 'loc': easyblock_loc}
+                    elif class_names:
+                        raise EasyBuildError("Found multiple class names for easyblock %s: %s",
+                                             easyblock_loc, class_names)
+                    else:
+                        raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
 
     return easyblocks
 

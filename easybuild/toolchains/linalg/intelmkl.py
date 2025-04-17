@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -136,9 +136,10 @@ class IntelMKL(LinAlg):
             # ilp64/i8
             self.BLAS_LIB_MAP.update({"lp64": '_ilp64'})
             # CPP / CFLAGS
-            self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
+            self.variables.nappend_el('CFLAGS', '-DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
+        root = self.get_software_root(self.BLAS_MODULE_NAME)[0]
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         ver = LooseVersion(found_version)
         if ver < LooseVersion('10.3'):
@@ -146,6 +147,8 @@ class IntelMKL(LinAlg):
             self.BLAS_INCLUDE_DIR = ['include']
         else:
             if ver >= LooseVersion('2021'):
+                if os.path.islink(os.path.join(root, 'mkl', 'latest')):
+                    found_version = os.readlink(os.path.join(root, 'mkl', 'latest'))
                 basedir = os.path.join('mkl', found_version)
             else:
                 basedir = 'mkl'

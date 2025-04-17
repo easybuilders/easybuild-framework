@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2024 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -448,7 +448,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # $XDG_CONFIG_HOME not set, multiple directories listed in $XDG_CONFIG_DIRS
         del os.environ['XDG_CONFIG_HOME']  # unset, so should become default
-        os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join([dir1, dir2, dir3])
+        os.environ['XDG_CONFIG_DIRS'] = os.pathsep.join([dir3, dir2, dir1])
         cfg_files = [
             os.path.join(dir1, 'easybuild.d', 'bar.cfg'),
             os.path.join(dir1, 'easybuild.d', 'foo.cfg'),

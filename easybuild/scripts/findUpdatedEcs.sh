@@ -8,7 +8,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m'
 
 function printError {
-    echo -e "${RED}$@${NC}"
+    echo -e "${RED}$*${NC}"
 }
 
 verbose=0
@@ -23,11 +23,11 @@ function checkModule {
     moduleStr="$moduleName/$moduleVersion"
     printVerbose "Processing $moduleStr"
     ec_glob=( "$moduleFolder/easybuild/"*.eb )
-    if [[ ! -e "${ec_glob[@]}" ]]; then
+    if [[ ! -e "${ec_glob[0]}" ]]; then
         printError "=== Did not find installed EC for $moduleStr"
         return
     fi
-    ec_installed="$ec_glob"
+    ec_installed="${ec_glob[0]}"
     ec_filename=$(basename "$ec_installed")
     # Try with most likely location first for speed
     first_letter=${ec_filename:0:1}
@@ -67,15 +67,15 @@ if path=$(which eb 2>/dev/null); then
 fi
 
 function usage {
-    echo "Usage: $(basename "$0") [--verbose] [--diff] --loaded|--modules INSTALLPATH --easyconfigs EC-FOLDER"
+    echo "Usage: $(basename "$0") [--verbose] [--short] [--diff] --loaded|--modules INSTALLPATH --easyconfigs EC-FOLDER"
     echo
     echo "Check installed modules against the source EasyConfig (EC) files to determine which have changed."
     echo "Can either check the currently loaded modules or all modules installed in a specific location"
     echo
     echo "--verbose                Verbose status output while checking"
-    echo "--loaded                 Check only currently loaded modules"
     echo "--short                  Only show filename of changed ECs"
     echo "--diff                   Show diff of changed module files"
+    echo "--loaded                 Check only currently loaded modules"
     echo "--modules INSTALLPATH    Check all modules in the specified (software) installpath, i.e. the root of module-binaries"
     echo "--easyconfigs EC-FOLDER  Path to the folder containg the current/updated EasyConfigs. ${ecDefaultFolder:+Defaults to $ecDefaultFolder}"
     exit 0
@@ -115,6 +115,7 @@ done
 if [ -z "$easyconfigFolder" ]; then
     printError "Folder to easyconfigs not given!" && exit 1
 fi
+
 if [ -z "$modulesFolder" ]; then
     if (( checkLoadedModules == 0 )); then
         printError "Need either --modules or --loaded to specify what to check!" && exit 1
@@ -123,13 +124,18 @@ elif (( checkLoadedModules == 1 )); then
     printError "Cannot specify --modules and --loaded!" && exit 1
 fi
 
+if (( showDiff == 1 && short == 1 )); then
+    printError "Cannot specify --diff and --short" && exit 1
+fi
+
 if [ -d "$easyconfigFolder/easybuild/easyconfigs" ]; then
     easyconfigFolder="$easyconfigFolder/easybuild/easyconfigs"
 fi
 
 if (( checkLoadedModules == 1 )); then
-    for varname in $(compgen -A variable | grep '^EBROOT'); do
-        checkModule "${!varname}"
+    IFS=$'\n' read -r -d '' -a unique_module_paths <<< "$(for varname in $(compgen -A variable | grep '^EBROOT'); do echo "${!varname}"; done | sort -u )" || true
+    for module in "${unique_module_paths[@]}"; do
+        checkModule "$module"
     done
 else
     for module in "$modulesFolder"/*/*/easybuild; do

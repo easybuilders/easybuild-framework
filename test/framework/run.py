@@ -1,6 +1,6 @@
 # #
 # -*- coding: utf-8 -*-
-# Copyright 2012-2024 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -24,7 +24,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 # #
 """
-Unit tests for filetools.py
+Unit tests for run.py
 
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
@@ -44,14 +44,15 @@ import textwrap
 import time
 from concurrent.futures import ThreadPoolExecutor
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 from easybuild.base.fancylogger import setLogLevelDebug
 
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
 from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
 from easybuild.tools.config import update_build_option
-from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
+from easybuild.tools.modules import EnvironmentModules, Lmod
 from easybuild.tools.run import RunShellCmdResult, RunShellCmdError, check_async_cmd, check_log_for_errors
 from easybuild.tools.run import complete_cmd, fileprefix_from_cmd, get_output_from_process, parse_log_for_error
 from easybuild.tools.run import run_cmd, run_cmd_qa, run_shell_cmd, subprocess_terminate
@@ -179,6 +180,10 @@ class RunTest(EnhancedTestCase):
     def test_run_shell_cmd_basic(self):
         """Basic test for run_shell_cmd function."""
 
+        os.environ['FOOBAR'] = 'foobar'
+
+        cwd = change_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("echo hello")
         self.assertEqual(res.output, "hello\n")
@@ -188,6 +193,60 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(isinstance(res.output, str))
         self.assertEqual(res.stderr, None)
         self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+        change_dir(cwd)
+        del os.environ['FOOBAR']
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        # check on env.sh script that can be used to set up environment in which command was run
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertIn("export FOOBAR=foobar", env_script_txt)
+        self.assertIn("history -s 'echo hello'", env_script_txt)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"source {env_script}; echo $USER; echo $FOOBAR; history")
+        self.assertEqual(res.exit_code, 0)
+        user = os.getenv('USER')
+        self.assertTrue(res.output.startswith(f'{user}\nfoobar\n'))
+        self.assertTrue(res.output.endswith("echo hello\n"))
+
+        # check on cmd.sh script that can be used to create interactive shell environment for command
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        cmd = f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR; echo $EB_CMD_OUT_FILE; cat $EB_CMD_OUT_FILE'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        regex = re.compile("pwd: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+
+        # check whether working directory is what's expected
+        regex = re.compile('^pwd: .*', re.M)
+        res = regex.findall(res.output)
+        self.assertEqual(len(res), 1)
+        pwd = res[0].strip()[5:]
+        self.assertTrue(os.path.samefile(pwd, self.test_prefix))
+
+        cmd = f"{cmd_script} -c 'module --version'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+
+        if isinstance(self.modtool, Lmod):
+            regex = re.compile("^Modules based on Lua: Version [0-9]", re.M)
+        elif isinstance(self.modtool, EnvironmentModules):
+            regex = re.compile("^Modules Release [0-9]", re.M)
+        else:
+            self.fail("Unknown modules tool used!")
+
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -206,6 +265,108 @@ class RunTest(EnhancedTestCase):
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
+
+    def test_run_shell_cmd_perl(self):
+        """
+        Test running of Perl script via run_shell_cmd that detects type of shell
+        """
+        perl_script = os.path.join(self.test_prefix, 'test.pl')
+        perl_script_txt = """#!/usr/bin/perl
+
+        # wait for input, see what happens (should not hang)
+        print STDOUT "foo:\n";
+        STDOUT->autoflush(1);
+        my $stdin = <STDIN>;
+        print "stdin: $stdin\n";
+
+        # conditional print statements below should *not* be triggered
+        print "stdin+stdout are terminals\n" if -t STDIN && -t STDOUT;
+        print "stdin is terminal\n" if -t STDIN;
+        print "stdout is terminal\n" if -t STDOUT;
+        my $ISA_TTY = -t STDIN && (-t STDOUT || !(-f STDOUT || -c STDOUT)) ;
+        print "ISA_TTY" if $ISA_TTY;
+
+        print "PS1 is set\n" if $ENV{PS1};
+
+        print "tty -s returns 0\n" if system("tty -s") == 0;
+
+        # check if parent process is a shell
+        my $ppid = getppid();
+        my $parent_cmd = `ps -p $ppid -o comm=`;
+        print "parent process is bash\n" if ($parent_cmd =~ '/bash$');
+        """
+        write_file(perl_script, perl_script_txt)
+        adjust_permissions(perl_script, stat.S_IXUSR)
+
+        def handler(signum, _):
+            raise RuntimeError(f"Test for running Perl script via run_shell_cmd took too long, signal {signum}")
+
+        orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
+
+        try:
+            # set the signal handler and a 3-second alarm
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(3)
+
+            res = run_shell_cmd(perl_script, hidden=True)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: \n')
+
+            res = run_shell_cmd(perl_script, hidden=True, stdin="test")
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: test\n')
+
+            res = run_shell_cmd(perl_script, hidden=True, qa_patterns=[('foo:', 'bar')], qa_timeout=1)
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'foo:\nstdin: bar\n\n')
+
+            error_pattern = "No matching questions found for current command output"
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, perl_script,
+                                  hidden=True, qa_patterns=[('bleh', 'blah')], qa_timeout=1)
+        finally:
+            # cleanup: disable the alarm + reset signal handler for SIGALRM
+            signal.signal(signal.SIGALRM, orig_sigalrm_handler)
+            signal.alarm(0)
+
+    def test_run_shell_cmd_env(self):
+        """Test env option in run_shell_cmd."""
+
+        # use 'env' to define environment in which command should be run;
+        # with a few exceptions (like $_, $PWD) no other environment variables will be defined,
+        # so $HOME and $USER will not be set
+        cmd = "env | sort"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, env={'FOOBAR': 'foobar', 'PATH': os.getenv('PATH')})
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertIn("FOOBAR=foobar\n", res.output)
+        self.assertTrue(re.search("^_=.*/env$", res.output, re.M))
+        for var in ('HOME', 'USER'):
+            self.assertFalse(re.search('^' + var + '=.*', res.output, re.M))
+
+        # check on helper scripts that were generated for this command
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'env-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+
+        # set environment variable in current environment,
+        # this should not be set in shell environment produced by scripts
+        os.environ['TEST123'] = 'test123'
+
+        env_script = os.path.join(cmd_tmpdir, 'env.sh')
+        self.assertExists(env_script)
+        env_script_txt = read_file(env_script)
+        self.assertIn('unset "$var"', env_script_txt)
+        self.assertIn('unset -f "$func"', env_script_txt)
+        self.assertIn('\nexport FOOBAR=foobar\nexport PATH', env_script_txt)
+
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{cmd_script} -c 'echo $FOOBAR; echo TEST123:$TEST123'", fail_on_error=False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertTrue(res.output.endswith('\nfoobar\nTEST123:\n'))
 
     def test_fileprefix_from_cmd(self):
         """test simplifications from fileprefix_from_cmd."""
@@ -393,12 +554,14 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s* ->  kill -9 \$\$",
-                    r"^\s+exit code\s* ->  -9",
-                    r"^\s+working directory\s* ->  " + work_dir,
-                    r"^\s+called from\s* ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout \+ stderr\)\s* ->  .*/run-shell-cmd-output/kill-.*/out.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s* ->  kill -9 \$\$",
+                    r"\s+exit code\s* ->  -9",
+                    r"\s+working directory\s* ->  " + work_dir,
+                    r"\s+called from\s* ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout \+ stderr\)\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -428,13 +591,15 @@ class RunTest(EnhancedTestCase):
                 # check error reporting output
                 stderr = stderr.getvalue()
                 patterns = [
-                    r"^ERROR: Shell command failed!",
-                    r"^\s+full command\s+ ->  kill -9 \$\$",
-                    r"^\s+exit code\s+ ->  -9",
-                    r"^\s+working directory\s+ ->  " + work_dir,
-                    r"^\s+called from\s+ ->  'test_run_shell_cmd_fail' function in .*/test/.*/run.py \(line [0-9]+\)",
-                    r"^\s+output \(stdout\)\s+ -> .*/run-shell-cmd-output/kill-.*/out.txt",
-                    r"^\s+error/warnings \(stderr\)\s+ -> .*/run-shell-cmd-output/kill-.*/err.txt",
+                    r"ERROR: Shell command failed!",
+                    r"\s+full command\s+ ->  kill -9 \$\$",
+                    r"\s+exit code\s+ ->  -9",
+                    r"\s+working directory\s+ ->  " + work_dir,
+                    r"\s+called from\s+ ->  'test_run_shell_cmd_fail' function in "
+                    r"(.|\n)*/test/(.|\n)*/run.py \(line [0-9]+\)",
+                    r"\s+output \(stdout\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
+                    r"\s+error/warnings \(stderr\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/err.txt",
+                    r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
                 for pattern in patterns:
                     regex = re.compile(pattern, re.M)
@@ -500,22 +665,38 @@ class RunTest(EnhancedTestCase):
         """
         Test running shell command in specific directory with run_shell_cmd function.
         """
+        test_dir = os.path.join(self.test_prefix, 'test')
+        test_workdir = os.path.join(self.test_prefix, 'test', 'workdir')
+        for fn in ('foo.txt', 'bar.txt'):
+            write_file(os.path.join(test_workdir, fn), 'test')
+
+        os.chdir(test_dir)
         orig_wd = os.getcwd()
         self.assertFalse(os.path.samefile(orig_wd, self.test_prefix))
 
-        test_dir = os.path.join(self.test_prefix, 'test')
-        for fn in ('foo.txt', 'bar.txt'):
-            write_file(os.path.join(test_dir, fn), 'test')
-
         cmd = "ls | sort"
+
+        # working directory is not explicitly defined
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd(cmd, work_dir=test_dir)
+            res = run_shell_cmd(cmd)
+
+        self.assertEqual(res.cmd, cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'workdir\n')
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, orig_wd)
+
+        self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
+
+        # working directory is explicitly defined
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, work_dir=test_workdir)
 
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'bar.txt\nfoo.txt\n')
         self.assertEqual(res.stderr, None)
-        self.assertEqual(res.work_dir, test_dir)
+        self.assertEqual(res.work_dir, test_workdir)
 
         self.assertTrue(os.path.samefile(orig_wd, os.getcwd()))
 
@@ -571,11 +752,35 @@ class RunTest(EnhancedTestCase):
         self.assertTrue("warning" in output_lines)
         self.assertEqual(res.stderr, None)
 
+        # cleanup of artifacts in between calls to run_shell_cmd
+        remove_dir(self.test_prefix)
+
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, split_stderr=True)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.stderr, "warning\n")
         self.assertEqual(res.output, "ok\n")
+
+        # check whether environment variables that point to stdout/stderr output files
+        # are set in environment defined by cmd.sh script
+        paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'echo-*'))
+        self.assertEqual(len(paths), 1)
+        cmd_tmpdir = paths[0]
+        cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
+        self.assertExists(cmd_script)
+
+        cmd_cmd = '; '.join([
+            "echo $EB_CMD_OUT_FILE",
+            "cat $EB_CMD_OUT_FILE",
+            "echo $EB_CMD_ERR_FILE",
+            "cat $EB_CMD_ERR_FILE",
+        ])
+        cmd = f"{cmd_script} -c '{cmd_cmd}'"
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
+
+        regex = re.compile(".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
+        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
@@ -676,7 +881,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: .*\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -736,7 +941,7 @@ class RunTest(EnhancedTestCase):
             r"\techo hello",
             r"\t\[started at: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]\]",
             r"\t\[working dir: .*\]",
-            r"\t\[output saved to .*\]",
+            r"\t\[output and state saved to .*\]",
             r"  >> command completed: exit 0, ran in .*",
         ]
 
@@ -946,6 +1151,28 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, "please\nanswer\n42\n")
 
+        # test interactive command that takes a while before producing more output that includes second question
+        cmd = ';'.join([
+            "echo question1",
+            "read answer1",
+            "sleep 2",
+            "echo question2",
+            "read answer2",
+            # note: delaying additional output (except the actual questions) is important
+            # to verify that this is working as intended
+            "echo $answer1",
+            "echo $answer2",
+        ])
+        qa = [
+            (r'question1', 'answer1'),
+            (r'question2', 'answer2'),
+        ]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, qa_patterns=qa)
+
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "question1\nquestion2\nanswer1\nanswer2\n")
+
     def test_run_cmd_qa_buffering(self):
         """Test whether run_cmd_qa uses unbuffered output."""
 
@@ -1092,7 +1319,7 @@ class RunTest(EnhancedTestCase):
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += r"\t\[started at: .*\]\n"
         pattern += r"\t\[working dir: .*\]\n"
-        pattern += r"\t\[output saved to .*\]\n"
+        pattern += r"\t\[output and state saved to .*\]\n"
         pattern += r'  >> command completed: exit 0, ran in .*'
         self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
 
@@ -1223,7 +1450,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="123456", exit_code=123, stderr=None,
                                            work_dir='/test_ulimit', out_file='/tmp/foo.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, None): cached_res})
             res = run_shell_cmd(cmd)
         self.assertEqual(res.cmd, cmd)
@@ -1243,7 +1470,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             cached_res = RunShellCmdResult(cmd=cmd, output="bar", exit_code=123, stderr=None,
                                            work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
-                                           thread_id=None, task_id=None)
+                                           cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
             run_shell_cmd.update_cache({(cmd, 'foo'): cached_res})
             res = run_shell_cmd(cmd, stdin='foo')
         self.assertEqual(res.cmd, cmd)
@@ -1476,9 +1703,28 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, expected_output)
 
         self.assertEqual(stderr, '')
-        expected = ("== (streaming) output for command 'echo hello" + '\n' + expected_output).split('\n')
+        expected = ("running shell command:\n\techo hello" + '\n' + expected_output).split('\n')
         for line in expected:
             self.assertIn(line, stdout)
+
+    def test_run_shell_cmd_eof_stdin(self):
+        """Test use of run_shell_cmd with streaming output and blocking stdin read."""
+        cmd = 'timeout 1 cat -'
+
+        inp = 'hello\nworld\n'
+        # test with streaming output
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stream_output=True, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
+
+        # test with non-streaming output (proc.communicate() is used)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, stdin=inp, fail_on_error=False)
+
+        self.assertEqual(res.exit_code, 0, "Non-streaming output: Command timed out")
+        self.assertEqual(res.output, inp)
 
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
@@ -1848,11 +2094,135 @@ class RunTest(EnhancedTestCase):
             stdout = self.get_stdout()
 
         expected_stdout = '\n'.join([
-            "pre-run hook 'make' in %s" % cwd,
+            f"pre-run hook 'make' in {cwd}",
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
+
+        # also check in dry run mode, to verify that pre-run_shell_cmd hook is triggered sufficiently early
+        update_build_option('extended_dry_run', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        expected_stdout = '\n'.join([
+            "pre-run hook 'make' in %s" % cwd,
+            '  running shell command "echo make"',
+            '  (in %s)' % cwd,
+            '',
+        ])
+        self.assertEqual(stdout, expected_stdout)
+
+        # also check with trace output enabled
+        update_build_option('extended_dry_run', False)
+        update_build_option('trace', True)
+
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("make")
+            stdout = self.get_stdout()
+
+        regex = re.compile('>> running shell command:\n\techo make', re.M)
+        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+    def test_run_shell_cmd_delete_cwd(self):
+        """
+        Test commands that destroy directories inside initial working directory
+        """
+        workdir = os.path.join(self.test_prefix, 'workdir')
+        sub_workdir = os.path.join(workdir, 'subworkdir')
+
+        # 1. test destruction of CWD which is a subdirectory inside original working directory
+        cmd_subworkdir_rm = (
+            "echo 'Command that jumps to subdir and removes it' && "
+            f"cd {sub_workdir} && pwd && rm -rf {sub_workdir} && "
+            "echo 'Working sub-directory removed.'"
+        )
+
+        # 1.a. in a robust system
+        expected_output = (
+            "Command that jumps to subdir and removes it\n"
+            f"{sub_workdir}\n"
+            "Working sub-directory removed.\n"
+        )
+
+        mkdir(sub_workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd_subworkdir_rm, work_dir=workdir)
+
+        self.assertEqual(res.cmd, cmd_subworkdir_rm)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, expected_output)
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, workdir)
+
+        # 1.b. in a flaky system that ends up in an unknown CWD after execution
+        mkdir(sub_workdir, parents=True)
+        fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
+        os.close(fd)
+
+        with self.mocked_stdout_stderr():
+            with mock.patch('os.getcwd') as mock_getcwd:
+                mock_getcwd.side_effect = [
+                    workdir,
+                    FileNotFoundError(),
+                ]
+                init_logging(logfile, silent=True)
+                res = run_shell_cmd(cmd_subworkdir_rm, work_dir=workdir)
+                stop_logging(logfile)
+
+        self.assertEqual(res.cmd, cmd_subworkdir_rm)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, expected_output)
+        self.assertEqual(res.stderr, None)
+        self.assertEqual(res.work_dir, workdir)
+
+        expected_warning = f"Changing back to initial working directory: {workdir}\n"
+        logtxt = read_file(logfile)
+        self.assertTrue(logtxt.endswith(expected_warning))
+
+        # 2. test destruction of CWD which is main working directory passed to run_shell_cmd
+        cmd_workdir_rm = (
+            "echo 'Command that removes working directory' && pwd && "
+            f"rm -rf {workdir} && echo 'Working directory removed.'"
+        )
+
+        error_pattern = rf"Failed to return to .*/{os.path.basename(self.test_prefix)}/workdir after executing command"
+
+        mkdir(workdir, parents=True)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+
+    def test_run_cmd_sysroot(self):
+        """Test with_sysroot option of run_cmd function."""
+
+        # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
+        self.allow_deprecated_behaviour()
+
+        # put fake /bin/bash in place that will be picked up when using run_cmd with with_sysroot=True
+        bin_bash = os.path.join(self.test_prefix, 'bin', 'bash')
+        bin_bash_txt = '\n'.join([
+            "#!/bin/bash",
+            "echo 'Hi there I am a fake /bin/bash in %s'" % self.test_prefix,
+            '/bin/bash "$@"',
+        ])
+        write_file(bin_bash, bin_bash_txt)
+        adjust_permissions(bin_bash, stat.S_IXUSR)
+
+        update_build_option('sysroot', self.test_prefix)
+
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
+        self.assertEqual(ec, 0)
+        self.assertTrue(out.startswith("Hi there I am a fake /bin/bash in"))
+        self.assertTrue(out.endswith("\nhello\n"))
+
+        # picking up on alternate sysroot is enabled by default, but can be disabled via with_sysroot=False
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello", with_sysroot=False)
+        self.assertEqual(ec, 0)
+        self.assertEqual(out, "hello\n")
 
 
 def suite():

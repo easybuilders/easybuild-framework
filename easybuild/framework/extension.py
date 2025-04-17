@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ import os
 
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, raise_nosupport
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 
@@ -116,7 +116,7 @@ class Extension(object):
 
         # Add install/builddir templates with values from master.
         for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:
-            self.cfg.template_values[key[0]] = str(getattr(self.master, key[0], None))
+            self.cfg.template_values[key] = str(getattr(self.master, key, None))
 
         # We can't inherit the 'start_dir' value from the parent (which will be set, and will most likely be wrong).
         # It should be specified for the extension specifically, or be empty (so it is auto-derived).
@@ -128,7 +128,15 @@ class Extension(object):
         self.src = resolve_template(self.ext.get('src', []), self.cfg.template_values)
         self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
-        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})), self.cfg.template_values)
+        # Some options may not be resolvable yet
+        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
+                                        self.cfg.template_values,
+                                        expect_resolved=False)
+        if 'parallel' in self.options:
+            # Replace value and issue better warning for easyconfig parameters,
+            # as opposed to warnings meant for easyblocks
+            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
+            self.options['max_parallel'] = self.options.pop('parallel')
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -145,6 +153,12 @@ class Extension(object):
             else:
                 self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
+
+        # If parallelism has been set already take potentially new limitation into account
+        if self.cfg.is_parallel_set:
+            max_par = self.cfg['max_parallel']
+            if max_par is not None and max_par < self.cfg.parallel:
+                self.cfg.parallel = max_par
 
         self.sanity_check_fail_msgs = []
         self.sanity_check_module_loaded = False
@@ -302,7 +316,7 @@ class Extension(object):
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
             cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin)
 
-            if cmd_res.exit_code:
+            if cmd_res.exit_code != EasyBuildExit.SUCCESS:
                 if stdin:
                     fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
                 else:

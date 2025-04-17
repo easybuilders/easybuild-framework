@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2024 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ Authors:
 * Ward Poelmans (Ghent University)
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Maxime Boissonneault (Compute Canada)
+* Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
 """
 import copy
 import os
@@ -82,6 +83,8 @@ from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, UNKNOWN_EASYBLOCKS_VERSION
+from easybuild.tools.version import different_major_versions
 
 
 _log = None
@@ -131,10 +134,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err_msg, err_code) = build_and_install_one(ec, init_env)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
-                ec_res['err'] = EasyBuildError(err)
+                ec_res['err'] = EasyBuildError(err_msg, exit_code=err_code)
         except Exception as err:
             # purposely catch all exceptions
             ec_res['success'] = False
@@ -172,7 +175,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
             if not isinstance(ec_res['err'], EasyBuildError):
                 raise ec_res['err']
             else:
-                raise EasyBuildError(test_msg)
+                raise EasyBuildError(test_msg, exit_code=err_code)
 
         res.append((ec, ec_res))
 
@@ -236,8 +239,6 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
 
     # keep copy of original environment, so we can restore it for every easystack entry
     init_env = copy.deepcopy(os.environ)
-
-    global _log
 
     # TODO: insert fast loop that validates if all command line options are valid. If there are errors in options,
     # we want to know early on, and this loop potentially builds a lot of packages and could take very long
@@ -308,6 +309,9 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     options = eb_go.options
 
     global _log
+    # Unpack cfg_settings
+    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # determine easybuild-easyconfigs package install path
     easyconfigs_pkg_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR)
@@ -321,10 +325,6 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         else:
             eb_file = find_easybuild_easyconfig()
             eb_args.append(eb_file)
-
-    # Unpack cfg_settings
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     if options.copy_ec:
         # figure out list of files to copy + target location (taking into account --from-pr)
@@ -428,7 +428,9 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     # don't try and tweak anything if easyconfigs were generated, since building a full dep graph will fail
     # if easyconfig files for the dependencies are not available
     if try_to_generate and build_specs and not generated_ecs:
-        easyconfigs = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, build_specs, modtool, targetdirs=tweaked_ecs_paths, return_map=True)
+    else:
+        tweak_map = None
 
     if options.containerize:
         # if --containerize/-C create a container recipe (and optionally container image), and stop
@@ -550,7 +552,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # submit build as job(s), clean up and exit
     if options.job:
-        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing)
+        submit_jobs(ordered_ecs, eb_go.generate_cmd_line(), testing=testing, tweak_map=tweak_map)
         if not testing:
             print_msg("Submitted parallel build jobs, exiting now")
             return True
@@ -613,6 +615,15 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     global _log
     (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
+
+    # compare running Framework and EasyBlocks versions
+    if EASYBLOCKS_VERSION == UNKNOWN_EASYBLOCKS_VERSION:
+        # most likely reason is running framework unit tests with no easyblocks installation
+        # so log a warning, to avoid test related issues
+        _log.warning("Unable to determine EasyBlocks version, so we'll assume it is not different from Framework")
+    elif different_major_versions(FRAMEWORK_VERSION, EASYBLOCKS_VERSION):
+        raise EasyBuildError("Framework (%s) and EasyBlock (%s) major versions are different." % (FRAMEWORK_VERSION,
+                                                                                                  EASYBLOCKS_VERSION))
 
     # load hook implementations (if any)
     hooks = load_hooks(options.hooks)
@@ -712,9 +723,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         if options.ignore_test_failure:
             raise EasyBuildError("Found both ignore-test-failure and skip-test-step enabled. "
                                  "Please use only one of them.")
-        else:
-            print_warning("Will not run the test step as requested via skip-test-step. "
-                          "Consider using ignore-test-failure instead and verify the results afterwards")
+        print_warning("Will not run the test step as requested via skip-test-step. "
+                      "Consider using ignore-test-failure instead and verify the results afterwards")
+    if options.skip_sanity_check and options.sanity_check_only:
+        raise EasyBuildError("Found both skip-sanity-check and sanity-check-only enabled. "
+                             "Please use only one of them.")
 
     # if EasyStack file is provided, parse it, and loop over the items in the EasyStack file
     if options.easystack:
@@ -766,7 +779,7 @@ def main_with_hooks(args=None):
     try:
         init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     except EasyBuildError as err:
-        print_error(err.msg)
+        print_error(err.msg, exit_code=err.exit_code)
 
     hooks = load_hooks(eb_go.options.hooks)
 
@@ -774,7 +787,7 @@ def main_with_hooks(args=None):
         main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
-        print_error(err.msg, exit_on_error=True, exit_code=1)
+        print_error(err.msg, exit_on_error=True, exit_code=err.exit_code)
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
         print_error("Cancelled by user: %s" % err)
