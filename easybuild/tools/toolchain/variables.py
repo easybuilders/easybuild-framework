@@ -46,6 +46,11 @@ class LinkLibraryPaths(AbsPathList):
     PREFIX = '-L'
 
 
+class SearchPaths(AbsPathList):
+    """Colon-separated list of absolute paths"""
+    SEPARATOR = ':'
+
+
 class FlagList(StrList):
     """Flag list"""
     PREFIX = "-"
@@ -185,4 +190,4 @@ class LinkerFlagList(StrList):
             self.log.devel("sanitize: PACKED_LINKER_OPTIONS IS_BEGIN %s PREFIX %s BEGIN %s",
                            self.IS_BEGIN, self.PREFIX, self.BEGIN)
 
-        super(LinkerFlagList, self).sanitize()
+        super().sanitize()

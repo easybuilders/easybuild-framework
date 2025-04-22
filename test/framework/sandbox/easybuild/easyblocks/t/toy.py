@@ -38,7 +38,7 @@ from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.modules import get_software_root, get_software_version
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 def compose_toy_build_cmd(cfg, name, prebuildopts, buildopts):
@@ -69,9 +69,13 @@ class EB_toy(ExtensionEasyBlock):
 
     def __init__(self, *args, **kwargs):
         """Constructor"""
-        super(EB_toy, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
+
+        # extra paths for environment variables to consider
+        if self.name == 'toy':
+            self.module_load_environment.CPATH.append('toy-headers')
 
     def prepare_for_extensions(self):
         """
@@ -89,7 +93,7 @@ class EB_toy(ExtensionEasyBlock):
             # inject list of values for prebuildopts, same length as buildopts
             self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
 
-        return super(EB_toy, self).run_all_steps(*args, **kwargs)
+        return super().run_all_steps(*args, **kwargs)
 
     def configure_step(self, name=None, cfg=None):
         """Configure build of toy."""
@@ -108,7 +112,7 @@ class EB_toy(ExtensionEasyBlock):
             'echo "Configured"',
             cfg['configopts']
         ])
-        run_cmd(cmd)
+        run_shell_cmd(cmd)
 
         if os.path.exists("%s.source" % name):
             os.rename('%s.source' % name, '%s.c' % name)
@@ -124,8 +128,8 @@ class EB_toy(ExtensionEasyBlock):
         cmd = compose_toy_build_cmd(self.cfg, name, cfg['prebuildopts'], cfg['buildopts'])
         # purposely run build command without checking exit code;
         # we rely on this in test_toy_build_hooks
-        (out, ec) = run_cmd(cmd, log_ok=False, log_all=False)
-        if ec:
+        res = run_shell_cmd(cmd, fail_on_error=False)
+        if res.exit_code:
             print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
 
     def install_step(self, name=None):
@@ -142,6 +146,12 @@ class EB_toy(ExtensionEasyBlock):
         mkdir(libdir, parents=True)
         write_file(os.path.join(libdir, 'lib%s.a' % name), name.upper())
 
+    def post_processing_step(self):
+        """Any postprocessing for toy"""
+        libdir = os.path.join(self.installdir, 'lib')
+        write_file(os.path.join(libdir, 'lib%s_post.a' % self.name), self.name.upper())
+        super().post_processing_step()
+
     @property
     def required_deps(self):
         """Return list of required dependencies for this extension."""
@@ -150,27 +160,29 @@ class EB_toy(ExtensionEasyBlock):
         else:
             raise EasyBuildError("Dependencies for %s are unknown!", self.name)
 
-    def prerun(self):
+    def pre_install_extension(self):
         """
         Prepare installation of toy as extension.
         """
-        super(EB_toy, self).run(unpack_src=True)
+        super().install_extension(unpack_src=True)
         self.configure_step()
 
-    def run(self):
+    def install_extension(self):
         """
         Install toy as extension.
         """
         self.build_step()
 
-    def run_async(self):
+    def install_extension_async(self, thread_pool):
         """
         Asynchronous installation of toy as extension.
         """
         cmd = compose_toy_build_cmd(self.cfg, self.name, self.cfg['prebuildopts'], self.cfg['buildopts'])
-        self.async_cmd_start(cmd)
+        task_id = f'ext_{self.name}_{self.version}'
+        return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
+                                  fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
-    def postrun(self):
+    def post_install_extension(self):
         """
         Wrap up installation of toy as extension.
         """
@@ -179,7 +191,7 @@ class EB_toy(ExtensionEasyBlock):
     def make_module_step(self, fake=False):
         """Generate module file."""
         if self.cfg.get('make_module', True) or fake:
-            modpath = super(EB_toy, self).make_module_step(fake=fake)
+            modpath = super().make_module_step(fake=fake)
         else:
             modpath = self.module_generator.get_modules_path(fake=fake)
 
@@ -187,6 +199,6 @@ class EB_toy(ExtensionEasyBlock):
 
     def make_module_extra(self):
         """Extra stuff for toy module"""
-        txt = super(EB_toy, self).make_module_extra()
+        txt = super().make_module_extra()
         txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
         return txt

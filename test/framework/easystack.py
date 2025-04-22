@@ -48,7 +48,7 @@ class EasyStackTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(EasyStackTest, self).setUp()
+        super().setUp()
         self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         # easystack files are an experimental feature
         easybuild.tools.build_log.EXPERIMENTAL = True
@@ -56,7 +56,7 @@ class EasyStackTest(EnhancedTestCase):
     def tearDown(self):
         """Clean up after test."""
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
-        super(EasyStackTest, self).tearDown()
+        super().tearDown()
 
     def test_easystack_basic(self):
         """Test for basic easystack files."""
@@ -155,7 +155,10 @@ class EasyStackTest(EnhancedTestCase):
             '--easystack',
             test_es_path
         ]
+        self.mock_stdout(True)
+        stdout = self.eb_main(args, do_build=True, raise_error=True)
         stdout = self.eb_main(args, do_build=True, raise_error=True, reset_env=False, redo_init_config=False)
+        self.mock_stdout(False)
         regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
         self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
 

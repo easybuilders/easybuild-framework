@@ -45,7 +45,7 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('4.9.5.dev0')
+VERSION = LooseVersion('5.0.1.dev0')
 UNKNOWN = 'UNKNOWN'
 UNKNOWN_EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'
 
@@ -93,8 +93,7 @@ except Exception:
 
 def this_is_easybuild():
     """Standard starting message"""
-    top_version = max(FRAMEWORK_VERSION, EASYBLOCKS_VERSION)
-    # !!! bootstrap_eb.py script checks hard on the string below, so adjust with sufficient care !!!
+    top_version = max(FRAMEWORK_VERSION, LooseVersion(EASYBLOCKS_VERSION))
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
     msg = msg % (top_version, FRAMEWORK_VERSION, EASYBLOCKS_VERSION, gethostname())
 

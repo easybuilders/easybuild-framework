@@ -77,4 +77,4 @@ class Mpich(Mpi):
         for var, _ in COMPILER_VARIABLES:
             self.variables.nappend('MPICH_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
-        super(Mpich, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

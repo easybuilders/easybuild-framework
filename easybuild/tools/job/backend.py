@@ -32,13 +32,14 @@ Authors:
 """
 
 from abc import ABCMeta, abstractmethod
+from types import SimpleNamespace
 
 from easybuild.base import fancylogger
 from easybuild.tools.config import get_job_backend
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
-class JobBackend(object):
+class JobBackend:
     __metaclass__ = ABCMeta
 
     def __init__(self):
@@ -69,7 +70,7 @@ class JobBackend(object):
         See the `Job`:class: constructor for an explanation of what
         the arguments are.
         """
-        pass
+        return SimpleNamespace()
 
     @abstractmethod
     def queue(self, job, dependencies=frozenset()):

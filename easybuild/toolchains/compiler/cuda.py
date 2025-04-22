@@ -60,8 +60,8 @@ class Cuda(Compiler):
 
     # always C++ compiler command, even for C!
     COMPILER_CUDA_UNIQUE_OPTION_MAP = {
-        '_opt_CUDA_CC': 'ccbin="%(CXX_base)s"',
-        '_opt_CUDA_CXX': 'ccbin="%(CXX_base)s"',
+        '_opt_CUDA_CC': '-ccbin="%(CXX_base)s"',
+        '_opt_CUDA_CXX': '-ccbin="%(CXX_base)s"',
     }
 
     COMPILER_CUDA_CC = 'nvcc'
@@ -70,7 +70,7 @@ class Cuda(Compiler):
 
     def __init__(self, *args, **kwargs):
         """Constructor, with settings custom to CUDA."""
-        super(Cuda, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # append CUDA prefix to list of compiler prefixes
         self.prefixes.append(TC_CONSTANT_CUDA)
 
@@ -79,25 +79,25 @@ class Cuda(Compiler):
         # append lib dir paths to LDFLAGS (only if the paths are actually there)
         root = self.get_software_root('CUDA')[0]
         self.variables.append_subdirs("LDFLAGS", root, subdirs=["lib64", "lib"])
-        super(Cuda, self)._set_compiler_vars()
+        super()._set_compiler_vars()
 
     def _set_compiler_flags(self):
         """Collect flags to set, and add them as variables."""
 
-        super(Cuda, self)._set_compiler_flags()
+        super()._set_compiler_flags()
 
         # always C++ compiler flags, even for C!
         # note: using $LIBS will yield the use of -lcudart in Xlinker, which is silly, but fine
 
         cuda_flags = [
-            'Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
-            'Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
+            '-Xcompiler="%s"' % str(self.variables['CXXFLAGS']),
+            '-Xlinker="%s %s"' % (str(self.variables['LDFLAGS']), str(self.variables['LIBS'])),
         ]
         self.variables.nextend('CUDA_CFLAGS', cuda_flags)
         self.variables.nextend('CUDA_CXXFLAGS', cuda_flags)
 
         # add gencode compiler flags to list of flags for compiler variables
         for gencode_val in self.options.get('cuda_gencode', []):
-            gencode_option = 'gencode %s' % gencode_val
+            gencode_option = '-gencode %s' % gencode_val
             self.variables.nappend('CUDA_CFLAGS', gencode_option)
             self.variables.nappend('CUDA_CXXFLAGS', gencode_option)

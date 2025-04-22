@@ -43,100 +43,191 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 
 LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- bar
+|-- Bundle
+|-- CMakeMake
+|-- CmdCp
 |-- ConfigureMake
 |   |-- MakeCp
+|-- EB_binutils
+|-- EB_bzip2
+|-- EB_CMake
 |-- EB_EasyBuildMeta
 |-- EB_FFTW
+|-- EB_FFTW_period_MPI
+|-- EB_flex
 |-- EB_foo
 |   |-- EB_foofoo
+|-- EB_freetype
 |-- EB_GCC
 |-- EB_HPL
 |-- EB_libtoy
+|-- EB_libxml2
+|-- EB_LLVM
+|-- EB_Mesa
 |-- EB_OpenBLAS
 |-- EB_OpenMPI
+|-- EB_OpenSSL_wrapper
+|-- EB_Perl
+|-- EB_Python
 |-- EB_ScaLAPACK
 |-- EB_toy_buggy
+|-- EB_XCrySDen
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
+|   |   |-- EB_toy_deprecated
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
 |   |-- Toy_Extension
+|-- MesonNinja
 |-- ModuleRC
+|-- PerlBundle
 |-- PythonBundle
+|-- PythonPackage
+|-- Tarball
 |-- Toolchain
 Extension
 |-- ExtensionEasyBlock
 |   |-- DummyExtension
+|   |   |-- CustomDummyExtension
+|   |   |   |-- ChildCustomDummyExtension
+|   |   |-- DeprecatedDummyExtension
+|   |   |   |-- ChildDeprecatedDummyExtension
 |   |-- EB_toy
+|   |   |-- EB_toy_deprecated
 |   |   |-- EB_toy_eula
 |   |   |-- EB_toytoy
-|   |-- Toy_Extension"""
+|   |-- Toy_Extension"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+|-- Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+|-- CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
+|-- CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
 |-- ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
 |   |-- MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
+|-- EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+|-- EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
+|-- EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
 |-- EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
 |-- EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+|-- EB_FFTW_period_MPI (easybuild.easyblocks.fftwmpi @ %(topdir)s/f/fftwmpi.py)
+|-- EB_flex (easybuild.easyblocks.flex @ %(topdir)s/f/flex.py)
 |-- EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
 |   |-- EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
+|-- EB_freetype (easybuild.easyblocks.freetype @ %(topdir)s/f/freetype.py)
 |-- EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
 |-- EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
 |-- EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+|-- EB_libxml2 (easybuild.easyblocks.libxml2 @ %(topdir)s/l/libxml2.py)
+|-- EB_LLVM (easybuild.easyblocks.llvm @ %(topdir)s/l/llvm.py)
+|-- EB_Mesa (easybuild.easyblocks.mesa @ %(topdir)s/m/mesa.py)
 |-- EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
 |-- EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+|-- EB_OpenSSL_wrapper (easybuild.easyblocks.openssl_wrapper @ %(topdir)s/o/openssl_wrapper.py)
+|-- EB_Perl (easybuild.easyblocks.perl @ %(topdir)s/p/perl.py)
+|-- EB_Python (easybuild.easyblocks.python @ %(topdir)s/p/python.py)
 |-- EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
 |-- EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+|-- EB_XCrySDen (easybuild.easyblocks.xcrysden @ %(topdir)s/x/xcrysden.py)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 |   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+|-- MesonNinja (easybuild.easyblocks.generic.mesonninja @ %(topdir)s/generic/mesonninja.py)
 |-- ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+|-- PerlBundle (easybuild.easyblocks.generic.perlbundle @ %(topdir)s/generic/perlbundle.py)
 |-- PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+|-- PythonPackage (easybuild.easyblocks.generic.pythonpackage @ %(topdir)s/generic/pythonpackage.py)
+|-- Tarball (easybuild.easyblocks.generic.tarball @ %(topdir)s/generic/tarball.py)
 |-- Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
 Extension (easybuild.framework.extension)
 |-- ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 |   |-- DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+|   |   |-- CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+|   |   |   |-- ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+|   |   |-- DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+|   |   |   |-- ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
 |   |-- EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+|   |   |-- EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
 |   |   |-- EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
 |   |   |-- EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
-|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
+|   |-- Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
 
 LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
 
   * bar
+  * Bundle
+  * CMakeMake
+  * CmdCp
   * ConfigureMake
 
     * MakeCp
 
+  * EB_binutils
+  * EB_bzip2
+  * EB_CMake
   * EB_EasyBuildMeta
   * EB_FFTW
+  * EB_FFTW_period_MPI
+  * EB_flex
   * EB_foo
 
     * EB_foofoo
 
+  * EB_freetype
   * EB_GCC
   * EB_HPL
   * EB_libtoy
+  * EB_libxml2
+  * EB_LLVM
+  * EB_Mesa
   * EB_OpenBLAS
   * EB_OpenMPI
+  * EB_OpenSSL_wrapper
+  * EB_Perl
+  * EB_Python
   * EB_ScaLAPACK
   * EB_toy_buggy
+  * EB_XCrySDen
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
+      * EB_toy_deprecated
       * EB_toy_eula
       * EB_toytoy
 
     * Toy_Extension
 
+  * MesonNinja
   * ModuleRC
+  * PerlBundle
   * PythonBundle
+  * PythonPackage
+  * Tarball
   * Toolchain
 
 * **Extension**
@@ -144,47 +235,89 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
   * ExtensionEasyBlock
 
     * DummyExtension
+
+      * CustomDummyExtension
+
+        * ChildCustomDummyExtension
+
+      * DeprecatedDummyExtension
+
+        * ChildDeprecatedDummyExtension
+
+
     * EB_toy
 
+      * EB_toy_deprecated
       * EB_toy_eula
       * EB_toytoy
 
     * Toy_Extension
 
-"""
+"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock)
 
   * bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  * Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+  * CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
+  * CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
   * ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
 
     * MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
 
+  * EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+  * EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
+  * EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
   * EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
   * EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+  * EB_FFTW_period_MPI (easybuild.easyblocks.fftwmpi @ %(topdir)s/f/fftwmpi.py)
+  * EB_flex (easybuild.easyblocks.flex @ %(topdir)s/f/flex.py)
   * EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
 
     * EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
 
+  * EB_freetype (easybuild.easyblocks.freetype @ %(topdir)s/f/freetype.py)
   * EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
   * EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
   * EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+  * EB_libxml2 (easybuild.easyblocks.libxml2 @ %(topdir)s/l/libxml2.py)
+  * EB_LLVM (easybuild.easyblocks.llvm @ %(topdir)s/l/llvm.py)
+  * EB_Mesa (easybuild.easyblocks.mesa @ %(topdir)s/m/mesa.py)
   * EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
   * EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+  * EB_OpenSSL_wrapper (easybuild.easyblocks.openssl_wrapper @ %(topdir)s/o/openssl_wrapper.py)
+  * EB_Perl (easybuild.easyblocks.perl @ %(topdir)s/p/perl.py)
+  * EB_Python (easybuild.easyblocks.python @ %(topdir)s/p/python.py)
   * EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
   * EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+  * EB_XCrySDen (easybuild.easyblocks.xcrysden @ %(topdir)s/x/xcrysden.py)
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
+      * EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 
     * Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
 
+  * MesonNinja (easybuild.easyblocks.generic.mesonninja @ %(topdir)s/generic/mesonninja.py)
   * ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+  * PerlBundle (easybuild.easyblocks.generic.perlbundle @ %(topdir)s/generic/perlbundle.py)
   * PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+  * PythonPackage (easybuild.easyblocks.generic.pythonpackage @ %(topdir)s/generic/pythonpackage.py)
+  * Tarball (easybuild.easyblocks.generic.tarball @ %(topdir)s/generic/tarball.py)
   * Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
 
 * **Extension** (easybuild.framework.extension)
@@ -192,82 +325,153 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
   * ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
 
     * DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+
+      * CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+
+        * ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+
+      * DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+
+        * ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
+
+
     * EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
 
+      * EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       * EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       * EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
 
     * Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
 
-"""
+"""  # noqa
 
 LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - bar
+  - Bundle
+  - CMakeMake
+  - CmdCp
   - ConfigureMake
     - MakeCp
+  - EB_binutils
+  - EB_bzip2
+  - EB_CMake
   - EB_EasyBuildMeta
   - EB_FFTW
+  - EB_FFTW_period_MPI
+  - EB_flex
   - EB_foo
     - EB_foofoo
+  - EB_freetype
   - EB_GCC
   - EB_HPL
   - EB_libtoy
+  - EB_libxml2
+  - EB_LLVM
+  - EB_Mesa
   - EB_OpenBLAS
   - EB_OpenMPI
+  - EB_OpenSSL_wrapper
+  - EB_Perl
+  - EB_Python
   - EB_ScaLAPACK
   - EB_toy_buggy
+  - EB_XCrySDen
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
+      - EB_toy_deprecated
       - EB_toy_eula
       - EB_toytoy
     - Toy_Extension
+  - MesonNinja
   - ModuleRC
+  - PerlBundle
   - PythonBundle
+  - PythonPackage
+  - Tarball
   - Toolchain
 - **Extension**
   - ExtensionEasyBlock
     - DummyExtension
+      - CustomDummyExtension
+        - ChildCustomDummyExtension
+      - DeprecatedDummyExtension
+        - ChildDeprecatedDummyExtension
     - EB_toy
+      - EB_toy_deprecated
       - EB_toy_eula
       - EB_toytoy
-    - Toy_Extension"""
+    - Toy_Extension"""  # noqa
 
 LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - bar (easybuild.easyblocks.generic.bar @ %(topdir)s/generic/bar.py)
+  - Bundle (easybuild.easyblocks.generic.bundle @ %(topdir)s/generic/bundle.py)
+  - CMakeMake (easybuild.easyblocks.generic.cmakemake @ %(topdir)s/generic/cmakemake.py)
+  - CmdCp (easybuild.easyblocks.generic.cmdcp @ %(topdir)s/generic/cmdcp.py)
   - ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
     - MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
+  - EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+  - EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
+  - EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
   - EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
   - EB_FFTW (easybuild.easyblocks.fftw @ %(topdir)s/f/fftw.py)
+  - EB_FFTW_period_MPI (easybuild.easyblocks.fftwmpi @ %(topdir)s/f/fftwmpi.py)
+  - EB_flex (easybuild.easyblocks.flex @ %(topdir)s/f/flex.py)
   - EB_foo (easybuild.easyblocks.foo @ %(topdir)s/f/foo.py)
     - EB_foofoo (easybuild.easyblocks.foofoo @ %(topdir)s/f/foofoo.py)
+  - EB_freetype (easybuild.easyblocks.freetype @ %(topdir)s/f/freetype.py)
   - EB_GCC (easybuild.easyblocks.gcc @ %(topdir)s/g/gcc.py)
   - EB_HPL (easybuild.easyblocks.hpl @ %(topdir)s/h/hpl.py)
   - EB_libtoy (easybuild.easyblocks.libtoy @ %(topdir)s/l/libtoy.py)
+  - EB_libxml2 (easybuild.easyblocks.libxml2 @ %(topdir)s/l/libxml2.py)
+  - EB_LLVM (easybuild.easyblocks.llvm @ %(topdir)s/l/llvm.py)
+  - EB_Mesa (easybuild.easyblocks.mesa @ %(topdir)s/m/mesa.py)
   - EB_OpenBLAS (easybuild.easyblocks.openblas @ %(topdir)s/o/openblas.py)
   - EB_OpenMPI (easybuild.easyblocks.openmpi @ %(topdir)s/o/openmpi.py)
+  - EB_OpenSSL_wrapper (easybuild.easyblocks.openssl_wrapper @ %(topdir)s/o/openssl_wrapper.py)
+  - EB_Perl (easybuild.easyblocks.perl @ %(topdir)s/p/perl.py)
+  - EB_Python (easybuild.easyblocks.python @ %(topdir)s/p/python.py)
   - EB_ScaLAPACK (easybuild.easyblocks.scalapack @ %(topdir)s/s/scalapack.py)
   - EB_toy_buggy (easybuild.easyblocks.toy_buggy @ %(topdir)s/t/toy_buggy.py)
+  - EB_XCrySDen (easybuild.easyblocks.xcrysden @ %(topdir)s/x/xcrysden.py)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
     - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)
+  - MesonNinja (easybuild.easyblocks.generic.mesonninja @ %(topdir)s/generic/mesonninja.py)
   - ModuleRC (easybuild.easyblocks.generic.modulerc @ %(topdir)s/generic/modulerc.py)
+  - PerlBundle (easybuild.easyblocks.generic.perlbundle @ %(topdir)s/generic/perlbundle.py)
   - PythonBundle (easybuild.easyblocks.generic.pythonbundle @ %(topdir)s/generic/pythonbundle.py)
+  - PythonPackage (easybuild.easyblocks.generic.pythonpackage @ %(topdir)s/generic/pythonpackage.py)
+  - Tarball (easybuild.easyblocks.generic.tarball @ %(topdir)s/generic/tarball.py)
   - Toolchain (easybuild.easyblocks.generic.toolchain @ %(topdir)s/generic/toolchain.py)
 - **Extension** (easybuild.framework.extension)
   - ExtensionEasyBlock (easybuild.framework.extensioneasyblock )
     - DummyExtension (easybuild.easyblocks.generic.dummyextension @ %(topdir)s/generic/dummyextension.py)
+      - CustomDummyExtension (easybuild.easyblocks.generic.customdummyextension @ %(topdir)s/generic/customdummyextension.py)
+        - ChildCustomDummyExtension (easybuild.easyblocks.generic.childcustomdummyextension @ %(topdir)s/generic/childcustomdummyextension.py)
+      - DeprecatedDummyExtension (easybuild.easyblocks.generic.deprecateddummyextension @ %(topdir)s/generic/deprecateddummyextension.py)
+        - ChildDeprecatedDummyExtension (easybuild.easyblocks.generic.childdeprecateddummyextension @ %(topdir)s/generic/childdeprecateddummyextension.py)
     - EB_toy (easybuild.easyblocks.toy @ %(topdir)s/t/toy.py)
+      - EB_toy_deprecated (easybuild.easyblocks.toy_deprecated @ %(topdir)s/t/toy_deprecated.py)
       - EB_toy_eula (easybuild.easyblocks.toy_eula @ %(topdir)s/t/toy_eula.py)
       - EB_toytoy (easybuild.easyblocks.toytoy @ %(topdir)s/t/toytoy.py)
-    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""
+    - Toy_Extension (easybuild.easyblocks.generic.toy_extension @ %(topdir)s/generic/toy_extension.py)"""  # noqa
 
 LIST_SOFTWARE_SIMPLE_TXT = """
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 GCC_DESCR = "The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada, "
 GCC_DESCR += "as well as libraries for these languages (libstdc++, libgcj,...)."
@@ -290,7 +494,7 @@ homepage: http://www.gzip.org/
 
   * gzip v1.4: GCC/4.6.3, system
   * gzip v1.5: foss/2018a, intel/2018a
-""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_RST = """List of supported software
 ==========================
@@ -306,7 +510,7 @@ EasyBuild |version| supports 2 different software packages (incl. toolchains, bu
 ---
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_RST = """List of supported software
 ==========================
@@ -356,7 +560,7 @@ version    toolchain
 ``1.4``    ``GCC/4.6.3``, ``system``
 ``1.5``    ``foss/2018a``, ``intel/2018a``
 =======    ===============================
-""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
 
@@ -368,7 +572,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 ## G
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
@@ -402,7 +606,7 @@ version  |toolchain
 version|toolchain
 -------|-------------------------------
 ``1.4``|``GCC/4.6.3``, ``system``
-``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_MD = """# List of supported software
 
@@ -414,7 +618,7 @@ EasyBuild supports 2 different software packages (incl. toolchains, bundles):
 ## G
 
 * GCC
-* gzip"""
+* gzip"""  # noqa
 
 LIST_SOFTWARE_DETAILED_MD = """# List of supported software
 
@@ -448,7 +652,7 @@ version  |toolchain
 version|toolchain
 -------|-------------------------------
 ``1.4``|``GCC/4.6.3``, ``system``
-``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+``1.5``|``foss/2018a``, ``intel/2018a``""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 LIST_SOFTWARE_SIMPLE_JSON = """[
 {
@@ -457,7 +661,7 @@ LIST_SOFTWARE_SIMPLE_JSON = """[
 {
     "name": "gzip"
 }
-]"""
+]"""  # noqa
 
 LIST_SOFTWARE_DETAILED_JSON = """[
 {
@@ -500,7 +704,7 @@ LIST_SOFTWARE_DETAILED_JSON = """[
     "version": "1.5",
     "versionsuffix": ""
 }
-]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}
+]""" % {'gcc_descr': GCC_DESCR, 'gzip_descr': GZIP_DESCR}  # noqa
 
 
 class DocsTest(EnhancedTestCase):
@@ -512,8 +716,27 @@ class DocsTest(EnhancedTestCase):
         # result should correspond with test easyblocks in test/framework/sandbox/easybuild/easyblocks/generic
         eb_classes = get_easyblock_classes('easybuild.easyblocks.generic')
         eb_names = [x.__name__ for x in eb_classes]
-        expected = ['ConfigureMake', 'DummyExtension', 'MakeCp', 'ModuleRC',
-                    'PythonBundle', 'Toolchain', 'Toy_Extension', 'bar']
+        expected = [
+            'Bundle',
+            'CMakeMake',
+            'ChildCustomDummyExtension',
+            'ChildDeprecatedDummyExtension',
+            'CmdCp',
+            'ConfigureMake',
+            'CustomDummyExtension',
+            'DeprecatedDummyExtension',
+            'DummyExtension',
+            'MakeCp',
+            'MesonNinja',
+            'ModuleRC',
+            'PerlBundle',
+            'PythonBundle',
+            'PythonPackage',
+            'Tarball',
+            'Toolchain',
+            'Toy_Extension',
+            'bar',
+        ]
         self.assertEqual(sorted(eb_names), expected)
 
     def test_gen_easyblocks_overview(self):

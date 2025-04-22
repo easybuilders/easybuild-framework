@@ -1,20 +1,10 @@
 # keyring is required to provide GitHub token to EasyBuild;
 # for recent versions of keyring, keyrings.alt must be installed too
-# 19.0 dropped Python 2 support
-keyring<19.0; python_version < '3.0'
-keyring; python_version >= '3.0'
+keyring
 keyrings.alt
 
-# GitPython 3.1.15 deprecates Python 3.5
-GitPython<3.1.15; python_version >= '3.0' and python_version < '3.6'
-GitPython; python_version >= '3.6' or python_version <= '3.0'
-
-# autopep8
-# stick to older autopep8 with Python 2.7, since autopep8 1.7.0 requires pycodestyle>=2.9.1 (which is Python 3 only)
-autopep8<1.7.0; python_version < '3.0'
-autopep8; python_version >= '3.0'
-
-# PyYAML
+GitPython
+autopep8
 PyYAML
 
 # optional Python packages for EasyBuild
@@ -22,18 +12,11 @@ PyYAML
 # flake8 is a superset of pycodestyle
 flake8
 
-# 2.6.7 uses invalid Python 2 syntax
-GC3Pie!=2.6.7; python_version < '3.0'
-GC3Pie; python_version >= '3.0' and python_version < '3.11'
+GC3Pie; python_version < '3.11'
 python-graph-dot
 python-hglib
 requests
 
 archspec
 
-# cryptography 3.4.0 no longer supports Python 2.7
-cryptography==3.3.2; python_version == '2.7'
-cryptography; python_version >= '3.5' and python_version < '3.11'
-
-# rich is only supported for Python 3.6+
-rich; python_version >= '3.6'
+rich

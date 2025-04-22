@@ -56,4 +56,4 @@ class Blis(LinAlg):
         if LooseVersion(found_version) > LooseVersion('2.1'):
             self.BLAS_LIB_MT = ['blis-mt']
 
-        super(Blis, self)._set_blas_variables()
+        super()._set_blas_variables()

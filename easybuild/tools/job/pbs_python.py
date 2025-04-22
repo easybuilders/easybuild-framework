@@ -39,6 +39,7 @@ import tempfile
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -88,7 +89,7 @@ class PbsPython(JobBackend):
         """Constructor."""
         pbs_server = kwargs.pop('pbs_server', None)
 
-        super(PbsPython, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
         self.conn = None
@@ -187,7 +188,7 @@ class PbsPython(JobBackend):
         return PbsJob(self, script, name, env_vars=env_vars, hours=hours, cores=cores, conn=self.conn, ppn=self.ppn)
 
 
-class PbsJob(object):
+class PbsJob:
     """Interaction with TORQUE"""
 
     def __init__(self, server, script, name, env_vars=None,
@@ -320,8 +321,8 @@ class PbsJob(object):
         self.log.debug("Job hold attributes: %s" % hold_attributes[0].value)
 
         # add a bunch of variables (added by qsub)
-        # also set PBS_O_WORKDIR to os.getcwd()
-        os.environ.setdefault('WORKDIR', os.getcwd())
+        # also set PBS_O_WORKDIR to current working dir
+        os.environ.setdefault('WORKDIR', get_cwd())
 
         defvars = ['MAIL', 'HOME', 'PATH', 'SHELL', 'WORKDIR']
         pbsvars = ["PBS_O_%s=%s" % (x, os.environ.get(x, 'NOTFOUND_%s' % x)) for x in defvars]

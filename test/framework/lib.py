@@ -43,7 +43,7 @@ from easybuild.tools.config import BuildOptions
 from easybuild.tools.options import set_up_configuration
 from easybuild.tools.filetools import mkdir
 from easybuild.tools.modules import modules_tool
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd, run_cmd
 
 
 class EasyBuildLibTest(TestCase):
@@ -51,7 +51,7 @@ class EasyBuildLibTest(TestCase):
 
     def setUp(self):
         """Prepare for running test."""
-        super(EasyBuildLibTest, self).setUp()
+        super().setUp()
 
         # make sure BuildOptions instance is re-created
         if BuildOptions in BuildOptions._instances:
@@ -61,37 +61,48 @@ class EasyBuildLibTest(TestCase):
 
     def tearDown(self):
         """Cleanup after running test."""
-        super(EasyBuildLibTest, self).tearDown()
+        super().tearDown()
 
         shutil.rmtree(self.tmpdir)
 
     def configure(self):
         """Utility function to set up EasyBuild configuration."""
-
-        # wipe BuildOption singleton instance, so it gets re-created when set_up_configuration is called
-        if BuildOptions in BuildOptions._instances:
-            del BuildOptions._instances[BuildOptions]
-
-        self.assertNotIn(BuildOptions, BuildOptions._instances)
-        set_up_configuration(silent=True)
-        self.assertIn(BuildOptions, BuildOptions._instances)
+        set_up_configuration(silent=True, reconfigure=True)
 
     def test_run_cmd(self):
         """Test use of run_cmd function in the context of using EasyBuild framework as a library."""
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
 
         self.configure()
 
         # run_cmd works fine if set_up_configuration was called first
-        (out, ec) = run_cmd("echo hello")
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
         self.assertEqual(ec, 0)
         self.assertEqual(out, 'hello\n')
 
+    def test_run_shell_cmd(self):
+        """Test use of run_shell_cmd function in the context of using EasyBuild framework as a library."""
+
+        error_pattern = r"Undefined build option: .*"
+        error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
+        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
+
+        self.configure()
+
+        # runworks fine if set_up_configuration was called first
+        self.mock_stdout(True)
+        res = run_shell_cmd("echo hello")
+        self.mock_stdout(False)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+
     def test_mkdir(self):
-        """Test use of run_cmd function in the context of using EasyBuild framework as a library."""
+        """Test use of mkdir function in the context of using EasyBuild framework as a library."""
 
         test_dir = os.path.join(self.tmpdir, 'test123')
 

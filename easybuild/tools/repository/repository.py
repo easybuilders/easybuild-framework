@@ -38,13 +38,12 @@ Authors:
 """
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)
 
 
-class Repository(object):
+class Repository:
     """
     Interface for repositories
     """
@@ -159,10 +158,10 @@ def init_repository(repository, repository_path):
     inited_repo = None
     if isinstance(repository, Repository):
         inited_repo = repository
-    elif isinstance(repository, string_type):
+    elif isinstance(repository, str):
         repo = avail_repositories().get(repository)
         try:
-            if isinstance(repository_path, string_type):
+            if isinstance(repository_path, str):
                 inited_repo = repo(repository_path)
             elif isinstance(repository_path, (tuple, list)) and len(repository_path) <= 2:
                 inited_repo = repo(*repository_path)

@@ -46,7 +46,7 @@ import time
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import remove_dir
+from easybuild.tools.filetools import get_cwd, remove_dir
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available
 
@@ -145,7 +145,7 @@ class SvnRepository(FileRepository):
         """
         if self.client and not self.client.status(path)[0].is_versioned:
             # add it to version control
-            self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (path, self.wc, os.getcwd()))
+            self.log.debug("Going to add %s (working copy: %s, cwd %s)" % (path, self.wc, get_cwd()))
             self.client.add(path)
 
     def add_easyconfig(self, cfg, name, version, stats, previous_stats):
@@ -159,7 +159,7 @@ class SvnRepository(FileRepository):
         :param previous_stats: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(SvnRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super().add_easyconfig(cfg, name, version, stats, previous_stats)
         self.stage_file(path)
         return path
 
@@ -171,7 +171,7 @@ class SvnRepository(FileRepository):
         :param name: software name
         :return: location of archived patch
         """
-        path = super(SvnRepository, self).add_patch(patch, name)
+        path = super().add_patch(patch, name)
         self.stage_file(path)
         return path
 

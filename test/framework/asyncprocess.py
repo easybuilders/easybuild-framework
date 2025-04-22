@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
-from easybuild.tools.py2vs3 import subprocess_terminate
+from easybuild.tools.run import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):
@@ -43,7 +43,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup a basic shell """
-        super(AsyncProcessTest, self).setUp()
+        super().setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
 
     def test_echo_between_process(self):
@@ -64,7 +64,7 @@ class AsyncProcessTest(EnhancedTestCase):
     def tearDown(self):
         """cleanup"""
         subprocess_terminate(self.shell, timeout=1)
-        super(AsyncProcessTest, self).tearDown()
+        super().tearDown()
 
 
 def suite():

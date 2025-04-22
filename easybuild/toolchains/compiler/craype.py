@@ -65,7 +65,7 @@ class CrayPECompiler(Compiler):
 
     COMPILER_UNIQUE_OPTS = {
         'dynamic': (True, "Generate dynamically linked executable"),
-        'mpich-mt': (False, "Directs the driver to link in an alternate version of the Cray-MPICH library which \
+        'mpich-mt': (False, "Directs the driver to link in an alternative version of the Cray-MPICH library which \
                              provides fine-grained multi-threading support to applications that perform \
                              MPI operations within threaded regions."),
         'optarch': (False, "Enable architecture optimizations"),
@@ -76,8 +76,8 @@ class CrayPECompiler(Compiler):
         # handle shared and dynamic always via $CRAYPE_LINK_TYPE environment variable, don't pass flags to wrapper
         'shared': '',
         'dynamic': '',
-        'verbose': 'craype-verbose',
-        'mpich-mt': 'craympich-mt',
+        'verbose': '-craype-verbose',
+        'mpich-mt': '-craympich-mt',
     }
 
     COMPILER_CC = 'cc'
@@ -96,9 +96,9 @@ class CrayPECompiler(Compiler):
 
     def __init__(self, *args, **kwargs):
         """Constructor."""
-        super(CrayPECompiler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # 'register'  additional toolchain options that correspond to a compiler flag
-        self.COMPILER_FLAGS.extend(['dynamic', 'mpich-mt'])
+        self.COMPILER_OPTIONS.extend(['dynamic', 'mpich-mt'])
 
         # use name of PrgEnv module as name of module that provides compiler
         self.COMPILER_MODULE_NAME = ['PrgEnv-%s' % self.PRGENV_MODULE_NAME_SUFFIX]
@@ -124,7 +124,7 @@ class CrayPECompiler(Compiler):
 
     def prepare(self, *args, **kwargs):
         """Prepare to use this toolchain; define $CRAYPE_LINK_TYPE if 'dynamic' toolchain option is enabled."""
-        super(CrayPECompiler, self).prepare(*args, **kwargs)
+        super().prepare(*args, **kwargs)
 
         if self.options['dynamic'] or self.options['shared']:
             self.log.debug("Enabling building of shared libs/dynamically linked executables via $CRAYPE_LINK_TYPE")
@@ -138,8 +138,8 @@ class CrayPEGCC(CrayPECompiler):
 
     def __init__(self, *args, **kwargs):
         """CrayPEGCC constructor."""
-        super(CrayPEGCC, self).__init__(*args, **kwargs)
-        for precflag in self.COMPILER_PREC_FLAGS:
+        super().__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Gcc.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -150,8 +150,8 @@ class CrayPEIntel(CrayPECompiler):
 
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
-        super(CrayPEIntel, self).__init__(*args, **kwargs)
-        for precflag in self.COMPILER_PREC_FLAGS:
+        super().__init__(*args, **kwargs)
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = IntelIccIfort.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -162,9 +162,9 @@ class CrayPEPGI(CrayPECompiler):
 
     def __init__(self, *args, **kwargs):
         """CrayPEPGI constructor."""
-        super(CrayPEPGI, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'mp'
-        for precflag in self.COMPILER_PREC_FLAGS:
+        super().__init__(*args, **kwargs)
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-mp'
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = Pgi.COMPILER_UNIQUE_OPTION_MAP[precflag]
 
 
@@ -175,7 +175,7 @@ class CrayPECray(CrayPECompiler):
 
     def __init__(self, *args, **kwargs):
         """CrayPEIntel constructor."""
-        super(CrayPECray, self).__init__(*args, **kwargs)
-        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = 'homp'
-        for precflag in self.COMPILER_PREC_FLAGS:
+        super().__init__(*args, **kwargs)
+        self.COMPILER_UNIQUE_OPTION_MAP['openmp'] = '-homp'
+        for precflag in self.COMPILER_PREC_OPTIONS:
             self.COMPILER_UNIQUE_OPTION_MAP[precflag] = []

@@ -34,7 +34,7 @@ import re
 
 from easybuild.tools.toolchain.linalg import LinAlg
 
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
@@ -48,11 +48,11 @@ def det_flexiblas_backend_libs():
     # System-wide (config directory):
     #  OPENBLAS
     #    library = libflexiblas_openblas.so
-    out, _ = run_cmd("flexiblas list", simple=False, trace=False)
+    res = run_shell_cmd("flexiblas list", hidden=True)
 
     shlib_ext = get_shared_lib_ext()
     flexiblas_lib_regex = re.compile(r'library = (?P<lib>lib.*\.%s)' % shlib_ext, re.M)
-    flexiblas_libs = flexiblas_lib_regex.findall(out)
+    flexiblas_libs = flexiblas_lib_regex.findall(res.output)
 
     backend_libs = []
     for flexiblas_lib in flexiblas_libs:
@@ -84,7 +84,7 @@ class FlexiBLAS(LinAlg):
         List of shared libraries (names, file names, paths) which are
         not allowed to be linked in any installed binary/library.
         """
-        banned_libs = super(FlexiBLAS, self).banned_linked_shared_libs()
+        banned_libs = super().banned_linked_shared_libs()
 
         # register backends are banned shared libraries,
         # to avoid that anything links to them directly (rather than to libflexiblas.so)
