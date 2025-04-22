@@ -172,10 +172,10 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
         if not ec_res['success'] and exit_on_failure:
-            if not isinstance(ec_res['err'], EasyBuildError):
-                raise ec_res['err']
-            else:
-                raise EasyBuildError(test_msg, exit_code=err_code)
+            error = ec_res['err']
+            if isinstance(error, EasyBuildError):
+                error = EasyBuildError(test_msg, exit_code=error.exit_code)
+            raise error
 
         res.append((ec, ec_res))
 
