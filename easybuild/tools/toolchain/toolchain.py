@@ -999,6 +999,8 @@ class Toolchain(object):
         # only enable logging by RPATH wrapper scripts in debug mode
         enable_wrapper_log = build_option('debug')
 
+        copy_rpath_args_py = False
+
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
         # (since CUDA 11.something the stubs are in $EBROOTCUDA/stubs/lib64)
@@ -1008,27 +1010,33 @@ class Toolchain(object):
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
         # directory where all RPATH wrapper script will be placed;
-        # note: it's important to honor RPATH_WRAPPERS_SUBDIR, see is_rpath_wrapper method
         if rpath_wrappers_dir is None:
-            wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+            wrappers_dir = tempfile.mkdtemp()
         else:
-            wrappers_dir = os.path.join(rpath_wrappers_dir, RPATH_WRAPPERS_SUBDIR)
+            wrappers_dir = rpath_wrappers_dir
             # disable logging in RPATH wrapper scripts when they may be exported for use outside of EasyBuild
             enable_wrapper_log = False
+            # copy rpath_args.py script to sit alongside RPATH wrapper scripts
+            copy_rpath_args_py = True
+
+        # it's important to honor RPATH_WRAPPERS_SUBDIR, see is_rpath_wrapper method
+        wrappers_dir = os.path.join(wrappers_dir, RPATH_WRAPPERS_SUBDIR)
+        mkdir(wrappers_dir, parents=True)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
-        # copy rpath_args.py script along RPATH wrappers
-        # and use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
-        # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
-        # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild
         rpath_args_py = find_eb_script('rpath_args.py')
-        mkdir(wrappers_dir, parents=True)
-        copy_file(rpath_args_py, wrappers_dir)
-        # here we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
-        # ${TOPDIR} is defined in template RPATH wrapper script, refers to parent dir in which wrapper script is located
-        rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
+
+        # copy rpath_args.py script along RPATH wrappers, if desired
+        if copy_rpath_args_py:
+            copy_file(rpath_args_py, wrappers_dir)
+            # use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
+            # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
+            # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild;
+            # here we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
+            # ${TOPDIR} is defined in template RPATH wrapper script, refers to parent dir in which wrapper script is located
+            rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
 
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
