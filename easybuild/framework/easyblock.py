@@ -402,25 +402,6 @@ class EasyBlock(object):
             self.log.debug("Cannot get checksum without a file name")
             return None
 
-        if chksum_input_git is not None:
-            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
-            # tarballs made for git repos are not reproducible when created with Python < 3.9
-            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
-                self.log.deprecated(
-                    "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
-                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
-                    '6.0'
-                )
-                return None
-            # not all archives formats of git repos are reproducible
-            # warn users that checksum might fail for non-reproducible archives
-            _, file_ext = os.path.splitext(chksum_input)
-            if file_ext not in ['', '.tar', '.txz', '.xz']:
-                print_warning(
-                    f"Checksum verification may fail! Archive file '{chksum_input}' contains sources of a git repo "
-                    "in a non-reproducible format. Please re-create that archive with XZ compression instead."
-                )
-
         checksum = None
         # if checksums are provided as a dict, lookup by source filename as key
         if isinstance(checksums, dict):
@@ -439,7 +420,26 @@ class EasyBlock(object):
 
         if checksum is None or build_option("checksum_priority") == CHECKSUM_PRIORITY_JSON:
             json_checksums = self.get_checksums_from_json()
-            return json_checksums.get(chksum_input, None)
+            checksum = json_checksums.get(chksum_input, None)
+
+        if checksum and chksum_input_git is not None:
+            # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
+            # tarballs made for git repos are not reproducible when created with Python < 3.9
+            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+                self.log.deprecated(
+                    "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
+                    '6.0'
+                )
+                return None
+            # not all archives formats of git repos are reproducible
+            # warn users that checksum might fail for non-reproducible archives
+            _, file_ext = os.path.splitext(chksum_input)
+            if file_ext not in ['', '.tar', '.txz', '.xz']:
+                print_warning(
+                    f"Checksum verification may fail! Archive file '{chksum_input}' contains sources of a git repo "
+                    "in a non-reproducible format. Please re-create that archive with XZ compression instead."
+                )
 
         return checksum
 
@@ -1639,7 +1639,7 @@ class EasyBlock(object):
 
         return txt
 
-    def make_module_req(self):
+    def make_module_req(self, fake=False):
         """
         Generate the environment-variables required to run the module.
         """
@@ -1680,10 +1680,11 @@ class EasyBlock(object):
             mod_lines.append(self.module_generator.comment(note))
 
         for env_var, search_paths in env_var_requirements.items():
-            if self.dry_run:
+            if self.dry_run or fake:
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
-                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+                if self.dry_run:
+                    self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
                 mod_req_paths = [
                     expanded_path for unexpanded_path in search_paths
@@ -2442,18 +2443,33 @@ class EasyBlock(object):
         # set level of parallelism for build
         par = build_option('parallel')
         if par is not None:
-            self.log.debug("Desired parallelism specified via 'parallel' build option: %s", par)
+            self.log.debug(f"Desired parallelism specified via 'parallel' build option: {par}")
 
         # Transitional only in case some easyblocks still set/change cfg['parallel']
         # Use _parallelLegacy to avoid deprecation warnings
-        cfg_par = self.cfg['_parallelLegacy']
-        if cfg_par is not None:
+        par_ec = self.cfg['_parallelLegacy']
+        if par_ec is not None:
             if par is None:
-                par = cfg_par
+                par = par_ec
             else:
-                par = min(int(par), int(cfg_par))
+                par = min(int(par), int(par_ec))
 
-        par = det_parallelism(par=par, maxpar=self.cfg['max_parallel'])
+        # --max-parallel specifies global maximum for parallelism
+        max_par_global = int(build_option('max_parallel'))
+        # note: 'max_parallel' and 'maxparallel; are the same easyconfig parameter,
+        # since 'max_parallel' is an alternative name for 'maxparallel'
+        max_par_ec = self.cfg['max_parallel']
+        # take into account that False is a valid value for max_parallel
+        if max_par_ec is False:
+            max_par_ec = 1
+        # if max_parallel is not specified in easyconfig, we take the global value
+        if max_par_ec is None:
+            max_par = max_par_global
+        # take minimum value if both are specified
+        else:
+            max_par = min(int(max_par_ec), max_par_global)
+
+        par = det_parallelism(par=par, maxpar=max_par)
         self.log.info(f"Setting parallelism: {par}")
         self.cfg.parallel = par
 
@@ -2766,7 +2782,7 @@ class EasyBlock(object):
         checksum_issues.extend(self.check_checksums_for(self.cfg))
 
         # also check checksums for extensions
-        for ext in self.cfg['exts_list']:
+        for ext in self.cfg.get_ref('exts_list'):
             # just skip extensions for which only a name is specified
             # those are just there to check for things that are in the "standard library"
             if not isinstance(ext, str):
@@ -4030,7 +4046,7 @@ class EasyBlock(object):
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req()
+            txt += self.make_module_req(fake=fake)
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 

@@ -499,7 +499,6 @@ class ToolchainVersionOperator(VersionOperator):
         Initialise each search_toolchain request, save in module constant TOOLCHAIN_NAMES.
         :param search_string: passed to search_toolchain function.
         """
-        global TOOLCHAIN_NAMES
         if search_string not in TOOLCHAIN_NAMES:
             _, all_tcs = search_toolchain(search_string)
             self.log.debug('Found all toolchains for "%s" to %s' % (search_string, all_tcs))

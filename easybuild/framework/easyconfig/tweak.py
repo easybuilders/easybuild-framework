@@ -1001,10 +1001,10 @@ def map_easyconfig_to_target_tc_hierarchy(ec_spec, toolchain_mapping, targetdir=
         if 'version' in update_build_specs:
 
             # take into account that version in exts_list may have to be updated as well
-            if 'exts_list' in parsed_ec and parsed_ec['exts_list']:
+            if 'exts_list' in parsed_ec and parsed_ec.get_ref('exts_list'):
                 _log.warning("Found 'exts_list' in %s, will only update extension version of %s (if applicable)",
                              ec_spec, parsed_ec['name'])
-                for idx, extension in enumerate(parsed_ec['exts_list']):
+                for idx, extension in enumerate(parsed_ec.get_ref('exts_list')):
                     if isinstance(extension, tuple) and extension[0] == parsed_ec['name']:
                         ext_as_list = list(extension)
                         # in the extension tuple the version is the second element

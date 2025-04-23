@@ -252,25 +252,21 @@ class GithubTest(EnhancedTestCase):
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
         init_config(build_options=build_options)
 
-        # PR #11262 includes easyconfigs that use 'dummy' toolchain,
-        # so we need to allow triggering deprecated behaviour
-        self.allow_deprecated_behaviour()
-
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(11262)
+        gh.add_pr_labels(22380)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #11262", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(8006)  # closed, unmerged, unlabeled PR
+        gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("PR #8006 should be labelled 'update'", stdout)
+        self.assertIn("Could not determine any missing labels for PR #22088", stdout)
 
     def test_github_fetch_pr_data(self):
         """Test fetch_pr_data function."""
@@ -410,16 +406,17 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
+        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
-        all_ebs_pr1964 = ['lammps.py']
+        # all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr1967 = ['siesta.py']
+        all_ebs_pr3631 = ['root.py']
 
         # PR with more than one easyblock
-        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
+        all_ebs_pr3596 = ['wps.py', 'wrf.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (1967, all_ebs_pr1967), (1949, all_ebs_pr1949)]:
+        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
@@ -438,40 +435,26 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # PR for rename of arrow to Arrow,
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/8007/files
-        all_ecs_pr8007 = [
-            'Arrow-0.7.1-intel-2017b-Python-3.6.3.eb',
-            'bat-0.3.3-fix-pyspark.patch',
-            'bat-0.3.3-intel-2017b-Python-3.6.3.eb',
+        # PR for XCrySDen,
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227/files
+        all_ecs_pr22227 = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
-        # PR where also files are patched in test/
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/6587/files
-        all_ecs_pr6587 = [
-            'WIEN2k-18.1-foss-2018a.eb',
-            'WIEN2k-18.1-gimkl-2017a.eb',
-            'WIEN2k-18.1-intel-2018a.eb',
-            'libxc-4.2.3-foss-2018a.eb',
-            'libxc-4.2.3-gimkl-2017a.eb',
-            'libxc-4.2.3-intel-2018a.eb',
+        # PR where only files are patched in test/
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22061/files
+        all_ecs_pr22061 = [
         ]
-        # PR where files are renamed
-        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/7159/files
-        all_ecs_pr7159 = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        # PR where files are unarchived
+        # see https://github.com/easybuilders/easybuild-easyconfigs/pull/19834/files
+        all_ecs_pr19834 = [
+            'Gblocks-0.91b.eb',
         ]
 
-        for pr, all_ecs in [(8007, all_ecs_pr8007), (6587, all_ecs_pr6587), (7159, all_ecs_pr7159)]:
+        for pr, all_ecs in [(22227, all_ecs_pr22227), (22061, all_ecs_pr22061), (19834, all_ecs_pr19834)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
@@ -494,36 +477,30 @@ class GithubTest(EnhancedTestCase):
         gh.fetch_files_from_pr.clear_cache()
         self.assertFalse(gh.fetch_files_from_pr._cache)
 
-        pr7159_filenames = [
-            'DOLFIN-2018.1.0.post1-foss-2018a-Python-3.6.4.eb',
-            'OpenFOAM-5.0-20180108-foss-2018a.eb',
-            'OpenFOAM-5.0-20180108-intel-2018a.eb',
-            'OpenFOAM-6-foss-2018b.eb',
-            'OpenFOAM-6-intel-2018a.eb',
-            'OpenFOAM-v1806-foss-2018b.eb',
-            'PETSc-3.9.3-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018a.eb',
-            'SCOTCH-6.0.6-foss-2018b.eb',
-            'SCOTCH-6.0.6-intel-2018a.eb',
-            'Trilinos-12.12.1-foss-2018a-Python-3.6.4.eb'
+        pr22227_filenames = [
+            'bwidget-1.10.1-GCCcore-13.3.0.eb',
+            'quarto-1.5.57-x64.eb',
+            'Sabre-2013-09-28-GCC-13.3.0.eb',
+            'Togl-2.0-GCCcore-13.3.0.eb',
+            'XCrySDen-1.6.2-foss-2024a.eb',
         ]
         with self.mocked_stdout_stderr():
-            pr7159_files = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(sorted(pr7159_filenames), sorted(os.path.basename(f) for f in pr7159_files))
+            pr22227_files = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(sorted(pr22227_filenames), sorted(os.path.basename(f) for f in pr22227_files))
 
-        # check that cache has been populated for PR 7159
+        # check that cache has been populated for PR 22227
         self.assertEqual(len(gh.fetch_files_from_pr._cache.keys()), 1)
 
         # github_account value is None (results in using default 'easybuilders')
-        cache_key = (7159, None, 'easybuild-easyconfigs', self.test_prefix)
+        cache_key = (22227, None, 'easybuild-easyconfigs', self.test_prefix)
         self.assertIn(cache_key, gh.fetch_files_from_pr._cache.keys())
 
         cache_entry = gh.fetch_files_from_pr._cache[cache_key]
-        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr7159_filenames))
+        self.assertEqual(sorted([os.path.basename(f) for f in cache_entry]), sorted(pr22227_filenames))
 
         # same query should return result from cache entry
-        res = gh.fetch_easyconfigs_from_pr(7159, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
-        self.assertEqual(res, pr7159_files)
+        res = gh.fetch_easyconfigs_from_pr(22227, path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        self.assertEqual(res, pr22227_files)
 
         # inject entry in cache and check result of matching query
         pr_id = 12345
@@ -629,7 +606,7 @@ class GithubTest(EnhancedTestCase):
         self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
-        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2019b.eb'))
+        self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2024a.eb'))
 
         # current directory should not have changed after calling download_repo
         self.assertTrue(os.path.samefile(cwd, os.getcwd()))
