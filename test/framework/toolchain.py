@@ -3153,7 +3153,8 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('gompi', version='2018a')
         tc.set_options({'rpath': True})
         # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
-        tc.prepare(rpath_wrappers_dir=target_wrapper_dir)
+        with self.mocked_stdout_stderr():
+            tc.prepare(rpath_wrappers_dir=target_wrapper_dir)
 
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
