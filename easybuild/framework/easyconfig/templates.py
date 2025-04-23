@@ -92,6 +92,7 @@ TEMPLATE_NAMES_DYNAMIC = {
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
     'cuda_cc_cmake': 'List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
+    'cuda_cc_nvhpc': 'List of CUDA compute capabilities suitable for use with -gpu option in NVHPC compilers',
     'cuda_cc_space_sep': 'Space-separated list of CUDA compute capabilities',
     'cuda_cc_space_sep_no_period':
     "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90').",
@@ -470,6 +471,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         template_values['cuda_cc_space_sep_no_period'] = ' '.join(cc.replace('.', '') for cc in cuda_cc)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_cc)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_cc)
+        template_values['cuda_cc_nvhpc'] = ','.join(f"cc{cc.replace('.', '')}" for cc in cuda_cc)
         int_values = [cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_int_comma_sep'] = ','.join(int_values)
         template_values['cuda_int_space_sep'] = ' '.join(int_values)
