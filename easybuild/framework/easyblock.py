@@ -3397,9 +3397,10 @@ class EasyBlock:
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
                     # skip the check for any symlinks that resolve to outside the installation directory
                     if not is_parent_path(self.installdir, path):
-                        msg = (f"Skipping RPATH sanity check for {path}, since its absolute path resolves to outside "
-                               "the installation directory")
-                        self.log.debug(msg)
+                        realpath = os.path.realpath(path)
+                        msg = (f"Skipping RPATH sanity check for {path}, since its absolute path {realpath} resolves to"
+                               f" outside the installation directory {self.installdir}")
+                        self.log.info(msg)
                         continue
 
                     self.log.debug(f"Sanity checking RPATH for {path}")
