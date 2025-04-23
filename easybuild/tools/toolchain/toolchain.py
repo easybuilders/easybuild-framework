@@ -1055,12 +1055,6 @@ class Toolchain(object):
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
                     raise EasyBuildError("Refusing to create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
-                # it may be the case that the wrapper already exists if the user provides a fixed location to store
-                # the RPATH wrappers, in this case the wrappers will be overwritten as they do not yet appear in the
-                # PATH (`which(cmd)` does not "see" them). Warn that they will be overwritten.
-                if os.path.exists(cmd_wrapper):
-                    _log.warning(f"Overwriting existing RPATH wrapper {cmd_wrapper}")
-
                 # enable debug mode in wrapper script by specifying location for log file
                 if build_option('debug') and not disable_wrapper_log:
                     rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
@@ -1077,7 +1071,15 @@ class Toolchain(object):
                     'rpath_wrapper_log': rpath_wrapper_log,
                     'wrapper_dir': wrapper_dir,
                 }
-                write_file(cmd_wrapper, cmd_wrapper_txt)
+
+                # it may be the case that the wrapper already exists if the user provides a fixed location to store
+                # the RPATH wrappers, in this case the wrappers will be overwritten as they do not yet appear in the
+                # PATH (`which(cmd)` does not "see" them). Warn that they will be overwritten.
+                if os.path.exists(cmd_wrapper):
+                    _log.warning(f"Overwriting existing RPATH wrapper {cmd_wrapper}")
+                    write_file(cmd_wrapper, cmd_wrapper_txt, always_overwrite=True)
+                else:
+                    write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
 
                 # prepend location to this wrapper to $PATH
