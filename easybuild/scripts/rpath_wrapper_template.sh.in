@@ -42,6 +42,7 @@ function log {
 
 # command name
 CMD=`basename $0`
+TOPDIR=`dirname $0`
 
 log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: '$(echo \"$@\")'"
 

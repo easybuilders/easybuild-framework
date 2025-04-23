@@ -1019,13 +1019,16 @@ class Toolchain(object):
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
-        # copy rpath_args.py script along RPATH wrappers,
-        # to avoid that they rely on an script that's located elsewhere;
+        # copy rpath_args.py script along RPATH wrappers
+        # and use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
+        # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
         # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild
         rpath_args_py = find_eb_script('rpath_args.py')
         mkdir(wrappers_dir, parents=True)
         copy_file(rpath_args_py, wrappers_dir)
-        rpath_args_py = os.path.join(wrappers_dir, os.path.basename(rpath_args_py))
+        # here we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
+        # ${TOPDIR} is defined in template RPATH wrapper script, refers to parent dir in which wrapper script is located
+        rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
 
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
