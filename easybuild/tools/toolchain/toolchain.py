@@ -1053,7 +1053,13 @@ class Toolchain(object):
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
-                    raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+                    raise EasyBuildError("Refusing to create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+
+                # it may be the case that the wrapper already exists if the user provides a fixed location to store
+                # the RPATH wrappers, in this case the wrappers will be overwritten as they do not yet appear in the
+                # PATH (`which(cmd)` does not "see" them). Warn that they will be overwritten.
+                if os.path.exists(cmd_wrapper):
+                    _log.warning(f"Overwriting existing RPATH wrapper {cmd_wrapper}")
 
                 # enable debug mode in wrapper script by specifying location for log file
                 if build_option('debug') and not disable_wrapper_log:
