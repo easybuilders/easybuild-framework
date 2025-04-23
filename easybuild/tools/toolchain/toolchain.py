@@ -1013,7 +1013,6 @@ class Toolchain(object):
             wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
         else:
             wrappers_dir = os.path.join(rpath_wrappers_dir, RPATH_WRAPPERS_SUBDIR)
-            mkdir(wrappers_dir, parents=True)
             # disable logging in RPATH wrapper scripts when they may be exported for use outside of EasyBuild
             enable_wrapper_log = False
 
@@ -1024,6 +1023,7 @@ class Toolchain(object):
         # to avoid that they rely on an script that's located elsewhere;
         # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild
         rpath_args_py = find_eb_script('rpath_args.py')
+        mkdir(wrappers_dir, parents=True)
         copy_file(rpath_args_py, wrappers_dir)
         rpath_args_py = os.path.join(wrappers_dir, os.path.basename(rpath_args_py))
 
