@@ -3398,7 +3398,7 @@ class EasyBlock:
                     # skip the check for any symlinks that resolve to outside the installation directory
                     if not is_parent_path(self.installdir, path):
                         msg = (f"Skipping RPATH sanity check for {path}, since its absolute path resolves to outside "
-                                "the installation directory")
+                               "the installation directory")
                         self.log.debug(msg)
                         continue
 
