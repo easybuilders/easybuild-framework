@@ -2902,13 +2902,12 @@ class EasyBlock(object):
         ])
 
         # Location to store RPATH wrappers
-        self.rpath_wrappers_dir = build_option('rpath_wrappers_dir')
         if self.rpath_wrappers_dir is not None:
             # Verify the path given is absolute
             if os.path.isabs(self.rpath_wrappers_dir):
-                _log.debug("Using %s to store/use RPATH wrappers" % self.rpath_wrappers_dir)
+                _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
             else:
-                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s", path)
+                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
@@ -2925,9 +2924,11 @@ class EasyBlock(object):
                 self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
-                               loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
-                               rpath_include_dirs=self.rpath_include_dirs, rpath_wrappers_dir=self.rpath_wrappers_dir)
+        self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                               silent=self.silent, loadmod=load_tc_deps_modules,
+                               rpath_filter_dirs=self.rpath_filter_dirs,
+                               rpath_include_dirs=self.rpath_include_dirs,
+                               rpath_wrappers_dir=self.rpath_wrappers_dir)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...

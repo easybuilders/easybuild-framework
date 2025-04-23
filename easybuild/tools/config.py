@@ -277,7 +277,6 @@ BUILD_OPTIONS_CMDLINE = {
         'regtest_output_dir',
         'rpath_filter',
         'rpath_override_dirs',
-        'rpath_wrappers_dir',
         'required_linked_shared_libs',
         'search_path_cpp_headers',
         'search_path_linker',
