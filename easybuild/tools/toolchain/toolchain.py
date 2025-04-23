@@ -1034,8 +1034,8 @@ class Toolchain(object):
             # use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
             # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
             # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild;
-            # here we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
-            # ${TOPDIR} is defined in template RPATH wrapper script, refers to parent dir in which wrapper script is located
+            # we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
+            # ${TOPDIR} is defined in template for RPATH wrapper scripts, refers to parent dir of RPATH wrapper script
             rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
 
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
