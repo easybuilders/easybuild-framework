@@ -2783,7 +2783,8 @@ class EasyBlock:
                 # take into account that extension may be a 2-tuple with just name/version
                 ext_opts = ext[2] if len(ext) == 3 else {}
                 # only a single source per extension is supported (see source_tmpl)
-                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
+                source_cnt = 1 if not ext_opts.get('nosource') else 0
+                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=source_cnt)
                 checksum_issues.extend(res)
 
         return checksum_issues
