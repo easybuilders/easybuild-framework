@@ -52,7 +52,6 @@ from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_fil
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
-
 _log = fancylogger.getLogger('module_generator', fname=False)
 
 
@@ -1152,7 +1151,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
-    PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
+    PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'  # TODO: remove after 6.0, replaced by _path_join_cmd()
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
     UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
 
@@ -1166,6 +1165,19 @@ class ModuleGeneratorLua(ModuleGenerator):
         if self.modules_tool:
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
+
+    @staticmethod
+    def _path_join_cmd(path):
+        "Return 'pathJoin' command for given path string"
+        path_components = [quote_str(p) for p in path.split(os.path.sep) if p]
+
+        path_root = quote_str(os.path.sep) if os.path.isabs(path) else 'root'
+        path_components.insert(0, path_root)
+
+        if len(path_components) > 1:
+            return f'pathJoin({", ".join(path_components)})'
+        # no need for a pathJoin for single component paths
+        return os.path.join(*path_components)
 
     def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
         """
@@ -1448,7 +1460,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # use pathJoin for (non-empty) relative paths
                 if path:
                     if expand_relpaths:
-                        abspaths.append(self.PATH_JOIN_TEMPLATE % path)
+                        abspaths.append(self._path_join_cmd(path))
                     else:
                         abspaths.append(quote_str(path))
                 else:
