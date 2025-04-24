@@ -132,6 +132,11 @@ class ModuleGenerator:
     # a single level of indentation
     INDENTATION = ' ' * 4
 
+    # shell environment variable name: ${__}VAR_NAME_00_SUFFIX
+    REGEX_SHELL_VAR_PATTERN = r'[A-Z_]+[A-Z0-9_]+'
+    REGEX_SHELL_VAR = re.compile(rf'\$({REGEX_SHELL_VAR_PATTERN})')
+    REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -1055,19 +1060,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv = self.unpack_setenv_value(key, value)
+
+        if relpath:
+            set_value = os.path.join('$root', set_value) if set_value else '$root'
+
+        set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        if relpath:
-            if value:
-                val = quote_str(os.path.join('$root', value), tcl=True)
-            else:
-                val = '"$root"'
-        else:
-            val = quote_str(value, tcl=True)
+        set_value = quote_str(set_value, tcl=True)
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-        return '%s\t%s\t\t%s\n' % (env_setter, key, val)
+        return f'{env_setter}\t{key}\t\t{set_value}\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
@@ -1525,19 +1529,22 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv = self.unpack_setenv_value(key, value)
 
         if relpath:
-            if value:
-                val = self.PATH_JOIN_TEMPLATE % value
-            else:
-                val = 'root'
+            set_value = self._path_join_cmd(set_value)
+            set_value = self.REGEX_QUOTE_SHELL_VAR.sub(r'os.getenv("\1")', set_value)
         else:
-            val = quote_str(value)
+            lua_concat = ' .. '
+            set_value = self.REGEX_SHELL_VAR.sub(rf'{lua_concat}os.getenv("\1"){lua_concat}', set_value)
+            set_value = lua_concat.join([
+                # quote any substrings that are not lua commands
+                quote_str(x) if not x.startswith('os.') else x
+                for x in set_value.strip(lua_concat).split(lua_concat)
+            ])
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-
-        return '%s("%s", %s)\n' % (env_setter, key, val)
+        return f'{env_setter}("{key}", {set_value})\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
