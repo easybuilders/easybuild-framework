@@ -1616,7 +1616,7 @@ class EasyBlockTest(EnhancedTestCase):
                     if val == '':
                         full_val = 'root'
                     else:
-                        full_val = fr'pathJoin\(root, "{val.replace("/",".*")}"\)'
+                        full_val = fr'pathJoin\(root, "{val.replace("/", ".*")}"\)'
                     regex = re.compile(fr'^{placement}_path\("{key}", {full_val}{delim_lua}\)$', re.M)
                 else:
                     self.fail(f"Unknown module syntax: {get_module_syntax()}")
