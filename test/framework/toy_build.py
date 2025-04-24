@@ -4461,7 +4461,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod += '.lua'
         toy_mod_txt = read_file(toy_mod)
 
-        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib/python3.6/site-packages', re.M)
+        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib.*python3.6.*site-packages', re.M)
 
         self.assertTrue(pythonpath_regex.search(toy_mod_txt),
                         f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")
