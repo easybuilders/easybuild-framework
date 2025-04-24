@@ -1770,6 +1770,12 @@ class EasyBlock:
               - PATH_WITH_FILES: must contain at least one file in them (default)
               - PATH_WITH_TOP_FILES: increase stricness to require files in top level directory
         """
+        populated_path_types = (
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+            ModEnvVarType.STRICT_PATH_WITH_FILES,
+        )
+
         if os.path.isabs(search_path):
             abs_glob = search_path
         else:
@@ -1780,10 +1786,17 @@ class EasyBlock:
 
         retained_search_paths = []
         for abs_path in exp_search_paths:
-            check_dir_files = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.PATH_WITH_TOP_FILES)
-            if os.path.isdir(abs_path) and check_dir_files:
+            # avoid going through symlink for strict path types
+            if path_type is ModEnvVarType.STRICT_PATH_WITH_FILES and abs_path != os.path.realpath(abs_path):
+                self.log.debug(
+                    f"Discarded strict search path '{search_path} of type '{path_type}' that does not correspond "
+                    f"to its real path: {abs_path}"
+                )
+                continue
+
+            if os.path.isdir(abs_path) and path_type in populated_path_types:
                 # only retain paths to directories that contain at least one file
-                recursive = path_type == ModEnvVarType.PATH_WITH_FILES
+                recursive = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.STRICT_PATH_WITH_FILES)
                 if not dir_contains_files(abs_path, recursive=recursive):
                     self.log.debug("Discarded search path to empty directory: %s", abs_path)
                     continue

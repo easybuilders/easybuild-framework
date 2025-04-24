@@ -144,8 +144,10 @@ class ModEnvVarType(Enum):
       one or more files
     - PATH_WITH_TOP_FILES: (list of) of paths to existing directories
       containing one or more files in its top directory
+    - STRICT_PATH_WITH_FILES: (list of) of paths to existing directories
+      containing one or more files, given paths must correspond to real paths
     - """
-    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
+    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES, STRICT_PATH_WITH_FILES = range(0, 5)
 
 
 class ModuleEnvironmentVariable:
@@ -239,6 +241,7 @@ class ModuleEnvironmentVariable:
             ModEnvVarType.PATH,
             ModEnvVarType.PATH_WITH_FILES,
             ModEnvVarType.PATH_WITH_TOP_FILES,
+            ModEnvVarType.STRICT_PATH_WITH_FILES,
         ]
         return self.type in path_like_types
 
@@ -286,7 +289,8 @@ class ModuleLoadEnvironment:
         self._env_vars = {}
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
-        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
+        # CMAKE_LIBRARY_PATH only needed for installations outside of 'lib'
+        self.CMAKE_LIBRARY_PATH = {'contents': ['lib64'], 'var_type': "STRICT_PATH_WITH_FILES"}
         self.CMAKE_PREFIX_PATH = ['']
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
         self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
@@ -374,7 +378,7 @@ class ModuleLoadEnvironment:
         if not self.regex['env_var_name'].match(name):
             raise EasyBuildError(
                 "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules, "
-                f"it must only have upper-case letters and underscores: '{name}'"
+                f"it must only have upper-case letters, numbers and underscores: '{name}'"
             )
 
         if not isinstance(value, dict):
