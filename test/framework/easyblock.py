@@ -870,12 +870,12 @@ class EasyBlockTest(EnhancedTestCase):
             expected_default = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", root\)',
                 r'setenv\("EBVERSIONPI", "3.14"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild", "pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
                 r'setenv\("EBVERSIONPI", "6.28"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild", "pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
