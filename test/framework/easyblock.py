@@ -54,7 +54,7 @@ from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
 from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import EnvironmentModules, Lmod, ModEnvVarType, reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
 
