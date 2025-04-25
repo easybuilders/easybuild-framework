@@ -88,11 +88,10 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
 from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import dir_contains_files, download_file, encode_class_name, extract_file
-from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
-from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
-from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
-from easybuild.tools.filetools import weld_paths, write_file
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
+from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url, is_binary, is_parent_path
+from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
+from easybuild.tools.filetools import remove_file, remove_lock, symlink, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
     MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
@@ -1683,10 +1682,7 @@ class EasyBlock:
                 if self.dry_run:
                     self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
-                mod_req_paths = [
-                    expanded_path for unexpanded_path in search_paths
-                    for expanded_path in self.expand_module_search_path(unexpanded_path, path_type=search_paths.type)
-                ]
+                mod_req_paths = search_paths.expand_paths(self.installdir)
 
             if mod_req_paths:
                 mod_req_paths = nub(mod_req_paths)  # remove duplicates
@@ -1757,67 +1753,6 @@ class EasyBlock:
                 msg += f"delimiter='{env_var.delimiter}', prepend='{env_var.prepend}', type='{env_var.type}' "
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
-
-    def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
-        """
-        Expand given path glob and return list of suitable paths to be used as search paths:
-            - Paths must point to existing files/directories
-            - Relative paths are relative to installation prefix root and are kept relative after expansion
-            - Absolute paths are kept as absolute paths after expansion
-            - Follow symlinks and resolve their paths (avoids duplicate paths through symlinks)
-            - :path_type: ModEnvVarType that controls requirements for population of directories
-              - PATH: no requirements, can be empty
-              - PATH_WITH_FILES: must contain at least one file in them (default)
-              - PATH_WITH_TOP_FILES: increase stricness to require files in top level directory
-        """
-        populated_path_types = (
-            ModEnvVarType.PATH_WITH_FILES,
-            ModEnvVarType.PATH_WITH_TOP_FILES,
-            ModEnvVarType.STRICT_PATH_WITH_FILES,
-        )
-
-        if os.path.isabs(search_path):
-            abs_glob = search_path
-        else:
-            real_installdir = os.path.realpath(self.installdir)
-            abs_glob = os.path.join(real_installdir, search_path)
-
-        exp_search_paths = glob.glob(abs_glob, recursive=True)
-
-        retained_search_paths = []
-        for abs_path in exp_search_paths:
-            # avoid going through symlink for strict path types
-            if path_type is ModEnvVarType.STRICT_PATH_WITH_FILES and abs_path != os.path.realpath(abs_path):
-                self.log.debug(
-                    f"Discarded strict search path '{search_path} of type '{path_type}' that does not correspond "
-                    f"to its real path: {abs_path}"
-                )
-                continue
-
-            if os.path.isdir(abs_path) and path_type in populated_path_types:
-                # only retain paths to directories that contain at least one file
-                recursive = path_type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.STRICT_PATH_WITH_FILES)
-                if not dir_contains_files(abs_path, recursive=recursive):
-                    self.log.debug("Discarded search path to empty directory: %s", abs_path)
-                    continue
-
-            if os.path.isabs(search_path):
-                retain_path = abs_path
-            else:
-                # recover relative path
-                retain_path = os.path.relpath(os.path.realpath(abs_path), start=real_installdir)
-                if retain_path == '.':
-                    retain_path = ''  # use empty string to represent root of install dir
-
-            if retain_path.startswith('..' + os.path.sep):
-                raise EasyBuildError(
-                    f"Expansion of search path glob pattern '{search_path}' resulted in a relative path "
-                    f"pointing outside of install directory: {retain_path}"
-                )
-
-            retained_search_paths.append(retain_path)
-
-        return retained_search_paths
 
     def make_module_req_guess(self):
         """
