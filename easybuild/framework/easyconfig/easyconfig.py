@@ -1992,6 +1992,25 @@ class EasyConfig:
             error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
             raise EasyBuildError(error_msg, key)
 
+    def get_amdgcn_cc_template_value(self, key):
+        """
+        Get template value based on --amdgcn-compute-capabilities EasyBuild configuration option
+        and amdgcn_compute_capabilities easyconfig parameter.
+        Returns user-friendly error message in case neither are defined,
+        or if an unknown key is used.
+        """
+        if key.startswith('amdgcn_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
+                return self.template_values[key]
+            except KeyError:
+                error_msg = "Template value '%s' is not defined!\n"
+                error_msg += "Make sure that either the --amdgcn-compute-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the amdgcn_compute_capabilities easyconfig parameter is defined."
+                raise EasyBuildError(error_msg, key)
+        else:
+            error_msg = "%s is not a template value based on --amdgcn-compute-capabilities/amdgcn_compute_capabilities"
+            raise EasyBuildError(error_msg, key)
+
 
 def det_installversion(version, toolchain_name, toolchain_version, prefix, suffix):
     """Deprecated 'det_installversion' function, to determine exact install version, based on supplied parameters."""
