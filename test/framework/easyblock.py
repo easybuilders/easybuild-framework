@@ -682,7 +682,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.module_load_environment.PATH = ['bin']
 
         with eb.module_generator.start_module_creation():
-            err_regex = "Expansion of search path glob.*pointing outside of install directory.*"
+            err_regex = "Expansion of search path glob.*pointing outside of parent directory.*"
             self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
 
         # Test modextrapaths: with absolute + empty paths, appending and custom delimiters
@@ -3491,134 +3491,6 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
 
         os.remove(eb.logfile)
-
-    def test_expand_module_search_path(self):
-        """Testcase for expand_module_search_path"""
-        top_dir = os.path.abspath(os.path.dirname(__file__))
-        toy_ec = os.path.join(top_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        eb = EasyBlock(EasyConfig(toy_ec))
-        eb.installdir = config.install_path()
-        test_emsp = eb.expand_module_search_path  # shortcut
-
-        # create test directories and files
-        os.makedirs(eb.installdir)
-        test_directories = (
-            'empty_dir',
-            'dir_empty_subdir',
-            ('dir_empty_subdir', 'empty_subdir'),
-            'dir_with_file',
-            'dir_full_subdirs',
-            ('dir_full_subdirs', 'subdir1'),
-            ('dir_full_subdirs', 'subdir2'),
-        )
-        for path in test_directories:
-            path_components = (path, ) if isinstance(path, str) else path
-            os.mkdir(os.path.join(eb.installdir, *path_components))
-
-        write_file(os.path.join(eb.installdir, 'dir_with_file', 'file.txt'), 'test file')
-        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file11.txt'), 'test file 1.1')
-        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
-        write_file(os.path.join(eb.installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
-
-        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH), [])
-        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("nonexistent", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH), ["empty_dir"])
-        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("empty_dir", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH), ["dir_empty_subdir"])
-        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("dir_empty_subdir", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH), ["dir_with_file"])
-        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH_WITH_FILES), ["dir_with_file"])
-        self.assertEqual(test_emsp("dir_with_file", ModEnvVarType.PATH_WITH_TOP_FILES), ["dir_with_file"])
-        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH), ["dir_full_subdirs"])
-        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH_WITH_FILES), ["dir_full_subdirs"])
-        self.assertEqual(test_emsp("dir_full_subdirs", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-
-        # test globs
-        ref_expanded_paths = ["dir_empty_subdir/empty_subdir"]
-        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH), ref_expanded_paths)
-        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("dir_empty_subdir/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        ref_expanded_paths = ["dir_full_subdirs/subdir1", "dir_full_subdirs/subdir2"]
-        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH)), ref_expanded_paths)
-        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH_WITH_FILES)), ref_expanded_paths)
-        self.assertEqual(sorted(test_emsp("dir_full_subdirs/*", ModEnvVarType.PATH_WITH_TOP_FILES)), ref_expanded_paths)
-        ref_expanded_paths = ["dir_full_subdirs/subdir2/file21.txt"]
-        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH), ref_expanded_paths)
-        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH_WITH_FILES), ref_expanded_paths)
-        self.assertEqual(test_emsp("dir_full_subdirs/subdir2/*", ModEnvVarType.PATH_WITH_TOP_FILES), ref_expanded_paths)
-        self.assertEqual(test_emsp("nonexistent/*", True), [])
-        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH), [])
-        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("nonexistent/*", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-
-        # test just one lib directory
-        os.mkdir(os.path.join(eb.installdir, "lib"))
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), [])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), [])
-        write_file(os.path.join(eb.installdir, "lib", "libtest.so"), "not actually a lib")
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-
-        # test both lib and lib64 directories
-        os.mkdir(os.path.join(eb.installdir, "lib64"))
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["lib", "lib64"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["lib", "lib64"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["lib", "lib64"])
-
-        # test lib64 symlinked to lib
-        remove_dir(os.path.join(eb.installdir, "lib64"))
-        os.symlink("lib", os.path.join(eb.installdir, "lib64"))
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib", "lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib", "lib"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib", "lib"])
-
-        # test lib symlinked to lib64
-        remove_dir(os.path.join(eb.installdir, "lib"))
-        remove_file(os.path.join(eb.installdir, "lib64"))
-        os.mkdir(os.path.join(eb.installdir, "lib64"))
-        write_file(os.path.join(eb.installdir, "lib64", "libtest.so"), "not actually a lib")
-        os.symlink("lib64", os.path.join(eb.installdir, "lib"))
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["lib64"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["lib64"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH), ["lib64", "lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES), ["lib64", "lib64"])
-        self.assertEqual(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES), ["lib64", "lib64"])
-
-        # test both lib and lib64 symlinked to some other folder
-        remove_dir(os.path.join(eb.installdir, "lib64"))
-        remove_file(os.path.join(eb.installdir, "lib"))
-        os.mkdir(os.path.join(eb.installdir, "some_dir"))
-        write_file(os.path.join(eb.installdir, "some_dir", "libtest.so"), "not actually a lib")
-        os.symlink("some_dir", os.path.join(eb.installdir, "lib"))
-        os.symlink("some_dir", os.path.join(eb.installdir, "lib64"))
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH), ["some_dir"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
-        self.assertEqual(test_emsp("lib", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH), ["some_dir"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_FILES), ["some_dir"])
-        self.assertEqual(test_emsp("lib64", ModEnvVarType.PATH_WITH_TOP_FILES), ["some_dir"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH)), ["some_dir", "some_dir"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_FILES)), ["some_dir", "some_dir"])
-        self.assertEqual(sorted(test_emsp("lib*", ModEnvVarType.PATH_WITH_TOP_FILES)), ["some_dir", "some_dir"])
 
 
 def suite():
