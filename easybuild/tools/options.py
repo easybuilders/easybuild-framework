@@ -273,6 +273,7 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
+            'developer': ("This is a test option", None, 'store_or_None', '.'),
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
