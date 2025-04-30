@@ -1381,7 +1381,8 @@ class GithubTest(EnhancedTestCase):
         self.assertFalse(is_patch_for('pi.patch', ec))
         self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
-        ec['patches'] = []
+        ec['patches'] = [{'name': '%(name)s-%(version)s.patch'}]
+        self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
         for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
             ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
@@ -1391,8 +1392,14 @@ class GithubTest(EnhancedTestCase):
         ec['components'] = None
         self.assertFalse(is_patch_for('pi.patch', ec))
 
-        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        ec['components'] = [('foo', '1.2.3',
+                             {'patches': [
+                                 'pi.patch',
+                                 {'name': 'ext_%(name)s-%(version)s.patch'},
+                                 ],
+                              })]
         self.assertTrue(is_patch_for('pi.patch', ec))
+        self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
 def suite():
