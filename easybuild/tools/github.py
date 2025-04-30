@@ -1396,7 +1396,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     soft_name = ec['ec']['name']
                     break
         except EasyBuildError as err:
-            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+            _log.warning("Ignoring easyconfig %s that fails to parse: %s", path, err)
         sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 
