@@ -1318,7 +1318,6 @@ class EasyBlockTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'exts_defaultclass = "DummyExtension"',
-            'exts_list = ["ext1"]',
             'exts_list = [',
             '    "dummy_ext",',
             '    ("custom_ext", "0.0", {"easyblock": "CustomDummyExtension"}),',
@@ -1410,7 +1409,7 @@ class EasyBlockTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "exts_list = [",
             "    ('bar', '0.0', {",
-            "         'source_tmpl': [SOURCE_TAR_GZ],",
+            "        'source_tmpl': [SOURCE_TAR_GZ],",
             "    }),",
             "]",
         ])
@@ -1483,6 +1482,46 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_extension_fake_modules(self):
+        """
+        Test that extensions relying on installation files from previous extensions work
+        Search paths of fake module should update for each extension and resolve any globs
+        """
+        self.contents = cleandoc("""
+            easyblock = 'ConfigureMake'
+            name = 'toy'
+            version = '0.0'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            exts_list = [
+                ('bar', '0.0', {
+                   'postinstallcmds': [
+                       'mkdir -p %(installdir)s/custom_bin',
+                       'touch %(installdir)s/custom_bin/bar.sh',
+                       'chmod +x %(installdir)s/custom_bin/bar.sh',
+                    ],
+                }),
+                ('barbar', '0.0', {
+                   'postinstallcmds': ['bar.sh'],
+                }),
+            ]
+            exts_defaultclass = "DummyExtension"
+            modextrapaths = {'PATH': 'custom*'}
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
+
+        self.mock_stdout(True)
+        eb.extensions_step(fetch=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern = r">> running shell command:\n\s+bar.sh(\n\s+\[.*\]){3}\n\s+>> command completed: exit 0"
+        self.assertTrue(re.search(pattern, stdout, re.M))
 
     def test_make_module_step(self):
         """Test the make_module_step"""
