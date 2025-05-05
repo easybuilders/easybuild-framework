@@ -56,6 +56,7 @@ import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
@@ -2293,6 +2294,24 @@ class EasyBlock:
     def start_dir(self):
         """Start directory in build directory"""
         return self.cfg['start_dir']
+
+    @contextmanager
+    def fake_module_environment(self):
+        """
+        Load/Unload fake module
+        """
+        # load fake module
+        fake_mod_data = None
+        if not self.dry_run:
+            # load modules for build dependencies as extra modules
+            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+
+        yield
+
+        # cleanup (unload fake module, remove fake module dir)
+        if fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
 
     def guess_start_dir(self):
         """
