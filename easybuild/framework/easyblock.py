@@ -1637,7 +1637,7 @@ class EasyBlock:
 
         return txt
 
-    def make_module_req(self, fake=False):
+    def make_module_req(self):
         """
         Generate the environment-variables required to run the module.
         """
@@ -1678,11 +1678,10 @@ class EasyBlock:
             mod_lines.append(self.module_generator.comment(note))
 
         for env_var, search_paths in env_var_requirements.items():
-            if self.dry_run or fake:
+            if self.dry_run:
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
-                if self.dry_run:
-                    self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
                 mod_req_paths = [
                     expanded_path for unexpanded_path in search_paths
@@ -4037,7 +4036,7 @@ class EasyBlock:
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req(fake=fake)
+            txt += self.make_module_req()
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 
