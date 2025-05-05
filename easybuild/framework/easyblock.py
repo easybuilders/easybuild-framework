@@ -1259,9 +1259,6 @@ class EasyBlock:
 
         self.log.info("Making devel module...")
 
-        # load fake module
-        fake_mod_data = self.load_fake_module(purge=True)
-
         header = self.module_generator.MODULE_SHEBANG
         if header:
             header += '\n'
@@ -1304,9 +1301,6 @@ class EasyBlock:
 
         txt = ''.join([header] + load_lines + env_lines)
         write_file(filename, txt)
-
-        # cleanup: unload fake module, remove fake module dir
-        self.clean_up_fake_module(fake_mod_data)
 
     def make_module_deppaths(self):
         """
@@ -2106,8 +2100,8 @@ class EasyBlock:
                                       rpath_filter_dirs=self.rpath_filter_dirs)
 
             # actual installation of the extension
-            if install:
-                with self.fake_module_environment():
+            if install and not self.dry_run:
+                with self.fake_module_environment(with_build_deps=True):
                     try:
                         ext.install_extension_substep("pre_install_extension")
                         with self.module_generator.start_module_creation():
@@ -2116,12 +2110,11 @@ class EasyBlock:
                             self.module_extra_extensions += txt
                         ext.install_extension_substep("post_install_extension")
                     finally:
-                        if not self.dry_run:
-                            ext_duration = datetime.now() - start_time
-                            if ext_duration.total_seconds() >= 1:
-                                print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
-                            elif self.logdebug or build_option('trace'):
-                                print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+                        ext_duration = datetime.now() - start_time
+                        if ext_duration.total_seconds() >= 1:
+                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                        elif self.logdebug or build_option('trace'):
+                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
             self.update_exts_progress_bar(progress_info, progress_size=1)
 
@@ -2267,8 +2260,8 @@ class EasyBlock:
                     # the (fake) module for the parent software gets loaded before installing extensions
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
-                    if install:
-                        with self.fake_module_environment():
+                    if install and not self.dry_run:
+                        with self.fake_module_environment(with_build_deps=True):
                             ext.install_extension_substep("pre_install_extension")
                             ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
                             running_exts.append(ext)
@@ -2297,16 +2290,17 @@ class EasyBlock:
         return self.cfg['start_dir']
 
     @contextmanager
-    def fake_module_environment(self):
+    def fake_module_environment(self, extra_modules=None, with_build_deps=False):
         """
         Load/Unload fake module
         """
-        # load fake module
         fake_mod_data = None
-        if not self.dry_run:
+
+        if with_build_deps:
             # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+            extra_modules = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+        fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 
         yield
 
@@ -4080,13 +4074,14 @@ class EasyBlock:
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                try:
-                    self.make_devel_module()
-                except EasyBuildError as error:
-                    if build_option('module_only') or self.cfg['module_only']:
-                        self.log.info("Using --module-only so can recover from error: %s", error)
-                    else:
-                        raise error
+                with self.fake_module_environment():
+                    try:
+                        self.make_devel_module()
+                    except EasyBuildError as error:
+                        if build_option('module_only') or self.cfg['module_only']:
+                            self.log.info("Using --module-only so can recover from error: %s", error)
+                        else:
+                            raise error
             else:
                 self.log.info("Skipping devel module...")
 
