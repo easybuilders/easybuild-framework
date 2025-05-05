@@ -2108,20 +2108,21 @@ class EasyBlock:
 
             # actual installation of the extension
             if install:
-                try:
-                    ext.install_extension_substep("pre_install_extension")
-                    with self.module_generator.start_module_creation():
-                        txt = ext.install_extension_substep("install_extension")
-                    if txt:
-                        self.module_extra_extensions += txt
-                    ext.install_extension_substep("post_install_extension")
-                finally:
-                    if not self.dry_run:
-                        ext_duration = datetime.now() - start_time
-                        if ext_duration.total_seconds() >= 1:
-                            print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
-                        elif self.logdebug or build_option('trace'):
-                            print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
+                with self.fake_module_environment():
+                    try:
+                        ext.install_extension_substep("pre_install_extension")
+                        with self.module_generator.start_module_creation():
+                            txt = ext.install_extension_substep("install_extension")
+                        if txt:
+                            self.module_extra_extensions += txt
+                        ext.install_extension_substep("post_install_extension")
+                    finally:
+                        if not self.dry_run:
+                            ext_duration = datetime.now() - start_time
+                            if ext_duration.total_seconds() >= 1:
+                                print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
+                            elif self.logdebug or build_option('trace'):
+                                print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
             self.update_exts_progress_bar(progress_info, progress_size=1)
 
@@ -2268,10 +2269,11 @@ class EasyBlock:
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs)
                     if install:
-                        ext.install_extension_substep("pre_install_extension")
-                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
-                        running_exts.append(ext)
-                        self.log.info(f"Started installation of extension {ext.name} in the background...")
+                        with self.fake_module_environment():
+                            ext.install_extension_substep("pre_install_extension")
+                            ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
+                            running_exts.append(ext)
+                            self.log.info(f"Started installation of extension {ext.name} in the background...")
                         update_exts_progress_bar_helper(running_exts, 0)
 
             # print progress info after every iteration (unless that info is already shown via progress bar)
@@ -3109,14 +3111,9 @@ class EasyBlock:
             self.log.debug("No extensions in exts_list")
             return
 
-        # load fake module
-        fake_mod_data = None
-        if install and not self.dry_run:
-
-            # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and install:
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
@@ -3132,21 +3129,12 @@ class EasyBlock:
         if install:
             self.log.info("Installing extensions")
 
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
-
         self.init_ext_instances()
 
         if self.skip:
             self.skip_extensions()
 
         self.install_all_extensions(install=install)
-
-        # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
 
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
