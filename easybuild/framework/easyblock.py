@@ -1875,7 +1875,6 @@ class EasyBlock:
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
         self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
-
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
@@ -2090,23 +2089,19 @@ class EasyBlock:
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
-            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-
-            # prepare toolchain build environment, but only when not doing a dry run
-            # since in that case the build environment is the same as for the parent
             if self.dry_run:
                 self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
-            else:
-                # don't reload modules for toolchain, there is no need since they will be loaded already;
-                # the (fake) module for the parent software gets loaded before installing extensions
-                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs,
-                                      rpath_include_dirs=self.rpath_include_dirs,
-                                      rpath_wrappers_dir=self.rpath_wrappers_dir)
 
             # actual installation of the extension
             if install and not self.dry_run:
                 with self.fake_module_environment(with_build_deps=True):
+                    self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+                    # don't reload modules for toolchain, there is no need
+                    # since they will be loaded already by the fake module
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     try:
                         ext.install_extension_substep("pre_install_extension")
                         with self.module_generator.start_module_creation():
@@ -2261,14 +2256,14 @@ class EasyBlock:
                     tup = (ext.name, ext.version or '')
                     print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
 
-                    # don't reload modules for toolchain, there is no need since they will be loaded already;
-                    # the (fake) module for the parent software gets loaded before installing extensions
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs,
-                                          rpath_include_dirs=self.rpath_include_dirs,
-                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     if install and not self.dry_run:
                         with self.fake_module_environment(with_build_deps=True):
+                            # don't reload modules for toolchain, there is no
+                            # need since they will be loaded by the fake module
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                                  rpath_filter_dirs=self.rpath_filter_dirs,
+                                                  rpath_include_dirs=self.rpath_include_dirs,
+                                                  rpath_wrappers_dir=self.rpath_wrappers_dir)
                             ext.install_extension_substep("pre_install_extension")
                             ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
                             running_exts.append(ext)
