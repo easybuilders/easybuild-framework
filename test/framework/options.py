@@ -6731,6 +6731,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec_txt += '\n' + '\n'.join([
             "sanity_check_commands = ['barbar', 'toy']",
             "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
+            "exts_defaultclass = 'DummyExtension'",
             "exts_list = [",
             "    ('barbar', '0.0', {",
             "        'start_dir': 'src',",
