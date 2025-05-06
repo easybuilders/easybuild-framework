@@ -1958,10 +1958,11 @@ class EasyBlock:
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
-        if build_option('parallel_extensions_install'):
-            self.skip_extensions_parallel(exts_filter)
-        else:
-            self.skip_extensions_sequential(exts_filter)
+        with self.fake_module_environment():
+            if build_option('parallel_extensions_install'):
+                self.skip_extensions_parallel(exts_filter)
+            else:
+                self.skip_extensions_sequential(exts_filter)
 
     def skip_extensions_sequential(self, exts_filter):
         """
