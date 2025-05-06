@@ -3488,6 +3488,7 @@ class ToyBuildTest(EnhancedTestCase):
                 loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
                 self.assertNotIn('toy/0.0', loaded_mod_names)
                 self.assertIn('GCC/7.3.0-2.30', loaded_mod_names)
+                self.modtool.unload(['GCC/7.3.0-2.30'])
             else:
                 # just undo
                 self.modtool.unload(['toy/0.0', 'GCC/7.3.0-2.30'])
