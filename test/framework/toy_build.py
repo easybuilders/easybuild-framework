@@ -1224,7 +1224,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_libs_path = os.path.join(toy_installdir, 'toy_libs_path.txt')
         self.assertTrue(os.path.exists(toy_libs_path))
         txt = read_file(toy_libs_path)
-        regex = re.compile('^TOY_EXAMPLES=.*/examples$')
+        regex = re.compile('^TOY_EXAMPLES=examples$')
         self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' should match in: {txt}")
 
     def test_toy_advanced_filter_deps(self):
