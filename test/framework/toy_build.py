@@ -3342,14 +3342,15 @@ class ToyBuildTest(EnhancedTestCase):
             ' gcc toy.c -o toy  && copy_toy_file toy copy_of_toy' command failed (exit code 127), but I fixed it!
             in post-install hook for toy v0.0
             bin, lib
+            toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
             in module-write hook hook for {mod_name}
-            toy 0.0
-            ['%(name)s-%(version)s.tar.gz']
-            echo toy
-            toy 0.0
-            ['%(name)s-%(version)s.tar.gz']
-            echo toy
             installing of extension bar is done!
+            in module-write hook hook for {mod_name}
             pre_run_shell_cmd_hook triggered for ' gcc toy.c -o toy '
             ' gcc toy.c -o toy  && copy_toy_file toy copy_of_toy' command failed (exit code 127), but I fixed it!
             installing of extension toy is done!
