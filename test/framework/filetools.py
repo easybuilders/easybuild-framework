@@ -567,7 +567,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(len(downloads), 0)
 
         with self.mocked_stdout_stderr():
-            res = ft.download_file(fn, source_url, target_location, max_attempts=3)
+            res = ft.download_file(fn, source_url, target_location, max_attempts=3, initial_wait_time=5)
         self.assertEqual(res, target_location, "'download' of local file works")
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)

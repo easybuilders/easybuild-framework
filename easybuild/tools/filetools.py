@@ -777,7 +777,7 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False, trace=True, max_attempts=3):
+def download_file(filename, url, path, forced=False, trace=True, max_attempts=3, initial_wait_time=1):
     """
     Download a file from the given URL, to the specified path.
 
@@ -786,7 +786,8 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=3)
     :param path: path to download file to
     :param forced: boolean to indicate whether force should be used to write the file
     :param trace: boolean to indicate whether trace output should be printed
-    :param max_attempts: max. number of attempts to try downloading
+    :param max_attempts: max. number of attempts to download file from specified URL
+    :param initial_wait_time: wait time (in seconds) after first attempt (doubled at each attempt)
     """
 
     insecure = build_option('insecure_download')
@@ -831,7 +832,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=3)
     used_urllib = std_urllib
     switch_to_requests = False
 
-    wait_time_secs = 1
+    wait_time = initial_wait_time
 
     while not downloaded and attempt_cnt < max_attempts:
         attempt_cnt += 1
@@ -900,9 +901,9 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=3)
                 used_urllib = requests
 
             # exponential backoff
-            wait_time_secs *= 2
-            _log.info(f"Waiting for {wait_time_secs} seconds before trying download of {url} again...")
-            time.sleep(wait_time_secs)
+            wait_time *= 2
+            _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
+            time.sleep(wait_time)
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
