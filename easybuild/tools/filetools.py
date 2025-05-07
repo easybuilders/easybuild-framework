@@ -777,8 +777,17 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False, trace=True):
-    """Download a file from the given URL, to the specified path."""
+def download_file(filename, url, path, forced=False, trace=True, max_attempts=3):
+    """
+    Download a file from the given URL, to the specified path.
+
+    :param filename: name of file to download
+    :param url: URL of file to download
+    :param path: path to download file to
+    :param forced: boolean to indicate whether force should be used to write the file
+    :param trace: boolean to indicate whether trace output should be printed
+    :param max_attempts: max. number of attempts to try downloading
+    """
 
     insecure = build_option('insecure_download')
 
@@ -802,7 +811,6 @@ def download_file(filename, url, path, forced=False, trace=True):
 
     # try downloading, three times max.
     downloaded = False
-    max_attempts = 3
     attempt_cnt = 0
 
     # use custom HTTP header
@@ -822,6 +830,8 @@ def download_file(filename, url, path, forced=False, trace=True):
     url_req = std_urllib.Request(url, headers=headers)
     used_urllib = std_urllib
     switch_to_requests = False
+
+    wait_time_secs = 1
 
     while not downloaded and attempt_cnt < max_attempts:
         attempt_cnt += 1
@@ -861,6 +871,8 @@ def download_file(filename, url, path, forced=False, trace=True):
                 status_code = err.code
             if status_code == 403 and attempt_cnt == 1:
                 switch_to_requests = True
+            elif status_code == 429:  # too many requests
+                _log.warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)")
             elif 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
@@ -886,6 +898,11 @@ def download_file(filename, url, path, forced=False, trace=True):
                                          "install the python-requests and pyOpenSSL RPM packages and try again.")
                 _log.info("Downloading using requests package instead of urllib2")
                 used_urllib = requests
+
+            # exponential backoff
+            wait_time_secs *= 2
+            _log.info(f"Waiting for {wait_time_secs} seconds before trying download of {url} again...")
+            time.sleep(wait_time_secs)
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
