@@ -115,7 +115,9 @@ class EnhancedTestCase(TestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
+        self.test_sourcepath_data = os.path.join(testdir, 'sandbox', 'data_sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath

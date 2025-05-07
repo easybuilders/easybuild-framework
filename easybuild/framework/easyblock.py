@@ -82,7 +82,8 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
 from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
+from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -167,12 +168,13 @@ class EasyBlock:
         # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
+        self.data_src = []
         self.checksums = []
         self.json_checksums = None
 
         # build/install directories
         self.builddir = None
-        self.installdir = None  # software
+        self.installdir = None  # software or data
         self.installdir_mod = None  # module file
 
         # extensions
@@ -522,11 +524,11 @@ class EasyBlock:
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
 
-        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param sources: list of sources to fetch (if None, use 'sources' or 'data_sources' easyconfig parameter)
         :param checksums: list of checksums for sources
         """
         if sources is None:
-            sources = self.cfg['sources']
+            sources = self.cfg['sources'] or self.cfg['data_sources']
         if checksums is None:
             checksums = self.cfg['checksums']
 
@@ -804,7 +806,10 @@ class EasyBlock:
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths = source_paths()
+        if self.cfg['data_sources']:
+            srcpaths = source_paths_data()
+        else:
+            srcpaths = source_paths()
 
         # We don't account for the checksums file in the progress bar
         if filename != 'checksum.json':
@@ -1169,7 +1174,10 @@ class EasyBlock:
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path()
+        if self.cfg['data_sources']:
+            basepath = install_path(DATA)
+        else:
+            basepath = install_path(SOFTWARE)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
@@ -2598,8 +2606,10 @@ class EasyBlock:
         # fetch sources
         if self.cfg['sources']:
             self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
+        elif self.cfg['data_sources']:
+            self.fetch_sources(self.cfg['data_sources'], checksums=self.cfg['checksums'])
         else:
-            self.log.info('no sources provided')
+            self.log.info('no sources or data_sources provided')
 
         if self.dry_run:
             # actual list of patches is printed via _obtain_file_dry_run method
@@ -5108,8 +5118,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, patches
-            keys = ['patches', 'source_urls', 'sources']
+            # grab raw lines for source_urls, sources, data_sources, patches
+            keys = ['data_sources', 'patches', 'source_urls', 'sources']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5123,10 +5133,12 @@ def inject_checksums(ecs, checksum_type):
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
             sources_raw = raw.get('sources', '')
+            data_sources_raw = raw.get('data_sources', '')
             source_urls_raw = raw.get('source_urls', '')
             patches_raw = raw.get('patches', '')
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + patches_raw + checksums_txt + '\n', ectxt, count=1)
+            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
+                              ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)
