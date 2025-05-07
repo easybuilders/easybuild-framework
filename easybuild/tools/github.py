@@ -546,9 +546,14 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
                                        github_user=github_user)
 
     # determine list of changed files via diff
-    diff_fn = os.path.basename(pr_data['diff_url'])
+    diff_url = pr_data['diff_url']
+    diff_fn = os.path.basename(diff_url)
     diff_filepath = os.path.join(path, diff_fn)
-    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True, trace=False)
+    # max. 8 attempts -> max. 2^8 = 128 secs of waiting time in download_file
+    max_attempts = 8
+    download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False, max_attempts=max_attempts)
+    if not os.path.exists(diff_filepath):
+        raise EasyBuildError(f"Failed to download {diff_url}, even after {max_attempts} attempts and being patient...")
     diff_txt = read_file(diff_filepath)
     _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
 
