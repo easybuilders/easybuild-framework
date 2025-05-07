@@ -519,9 +519,9 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'failed_install_build_dirs_path',
         'failed_install_logs_path',
         'installpath',
+        'installpath_data',
         'installpath_modules',
         'installpath_software',
-        'installpath_data',
         'job_backend',
         'logfile_format',
         'moduleclasses',
@@ -535,9 +535,9 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'repositorypath',
         'sourcepath',
         'sourcepath_data',
+        'subdir_data',
         'subdir_modules',
         'subdir_software',
-        'subdir_data',
         'tmp_logdir',
     ]
     KNOWN_KEYS = REQUIRED  # KNOWN_KEYS must be defined for FrozenDictKnownKeys functionality
