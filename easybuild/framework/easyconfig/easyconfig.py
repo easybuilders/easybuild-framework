@@ -835,7 +835,7 @@ class EasyConfig:
 
         # No need to resolve templates as we only need a count not the names
         with self.disable_templating():
-            cnt = len(self['sources']) + len(self['patches'])
+            cnt = len(self['sources']) + len(self['data_sources']) + len(self['patches'])
             exts = self['exts_list']
 
         for ext in exts:
