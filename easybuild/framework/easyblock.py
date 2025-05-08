@@ -1132,8 +1132,8 @@ class EasyBlock:
                 raise EasyBuildError("self.builddir not set, make sure gen_builddir() is called first!")
             self.log.debug("Creating the build directory %s (cleanup: %s)", self.builddir, self.cfg['cleanupoldbuild'])
         else:
-            self.log.info("Overriding 'cleanupoldinstall' (to False), 'cleanupoldbuild' (to True) "
-                          "and 'keeppreviousinstall' because we're building in the installation directory.")
+            self.log.info("Overriding 'cleanupoldinstall' (to False) and 'cleanupoldbuild' (to True) "
+                          "because we're building in the installation directory.")
             # force cleanup before installation
             if build_option('module_only') or self.cfg['module_only']:
                 self.log.debug("Disabling cleanupoldbuild because we run as module-only")
@@ -1141,7 +1141,10 @@ class EasyBlock:
             else:
                 self.cfg['cleanupoldbuild'] = True
 
-            self.cfg['keeppreviousinstall'] = False
+            if self.cfg['keeppreviousinstall']:
+                self.log.warning("Both keepppreviousinstall and buildininstalldir are set to True before creating the "
+                                 "build directory, hopefully you know what you are doing!")
+
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
 
