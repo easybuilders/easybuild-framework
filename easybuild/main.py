@@ -122,7 +122,7 @@ def summary(ecs_with_res):
     """
     summary_fmt = "   * [{}] {}"
     success_map = {True: 'S', False: 'F', None: '-'}
-    lines = ["Summary:"]
+    lines = ["Summary ([-]: skipped, [F]: failed, [S]: success):"]
     lines.extend([
         summary_fmt.format(success_map[ec_res.get('success', False)], ec['full_mod_name'])
         for ec, ec_res in ecs_with_res
