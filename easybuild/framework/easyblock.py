@@ -2705,19 +2705,25 @@ class EasyBlock:
         # this is better for error reporting that includes names of source files
         try:
             sources = ent.get('sources', [])
+            data_sources = ent.get('data_sources', [])
             patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
                 sources = ent.get_ref('sources')
+                data_sources = ent.get_ref('data_sources')
                 patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
                 checksums = ent.get_ref('checksums')
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
+        if isinstance(data_sources, dict):
+            data_sources = [data_sources]
         if isinstance(checksums, str):
             checksums = [checksums]
+
+        sources = sources + data_sources
 
         if not checksums:
             checksums_from_json = self.get_checksums_from_json()
