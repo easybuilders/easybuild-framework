@@ -2704,12 +2704,12 @@ class EasyBlock:
         # try to get value with templates resolved, but fall back to not resolving templates;
         # this is better for error reporting that includes names of source files
         try:
-            sources = ent.get('sources', [])
+            sources = ent.get('sources', []) + ent.get('data_sources', [])
             patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
-                sources = ent.get_ref('sources')
+                sources = ent.get_ref('sources') + ent.get_ref('data_sources')
                 patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
                 checksums = ent.get_ref('checksums')
 
