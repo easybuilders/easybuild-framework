@@ -4807,7 +4807,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
-    def test_amdgcn_compute_capabilities(self):
+    def test_amdgcn_capabilities(self):
         self.contents = textwrap.dedent("""
             easyblock = 'ConfigureMake'
             name = 'test'
@@ -4815,10 +4815,10 @@ class EasyConfigTest(EnhancedTestCase):
             homepage = 'https://example.com'
             description = 'test'
             toolchain = SYSTEM
-            amdgcn_compute_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
-            buildopts = ('comma="%(amdgcn_compute_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
+            amdgcn_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
+            buildopts = ('comma="%(amdgcn_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
                          'semi="%(amdgcn_cc_semicolon_sep)s"')
-            installopts = '%(amdgcn_compute_capabilities)s'
+            installopts = '%(amdgcn_capabilities)s'
         """)
         self.prep()
 
@@ -4829,7 +4829,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['installopts'], 'gfx90a,gfx1101,gfx11-generic,gfx10-3-generic')
 
         # build options overwrite it
-        init_config(build_options={'amdgcn_compute_capabilities': ['gfx90a', 'gfx1101']})
+        init_config(build_options={'amdgcn_capabilities': ['gfx90a', 'gfx1101']})
         ec = EasyConfig(self.eb_file)
         self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101" '
                                           'space="gfx90a gfx1101" '
@@ -5142,7 +5142,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_get_amgcn_cc_template_value(self):
         """
-        Test getting template value based on --amdgcn-compute-capabilities / amdgcn_compute_capabilities.
+        Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
         """
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
@@ -5156,33 +5156,33 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
 
         error_pattern = ("foobar is not a template value based on "
-                         "--amdgcn-compute-capabilities/amdgcn_compute_capabilities")
+                         "--amdgcn-capabilities/amdgcn_capabilities")
         self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
 
         error_pattern = r"Template value '%s' is not defined!\n"
-        error_pattern += r"Make sure that either the --amdgcn-compute-capabilities EasyBuild configuration "
-        error_pattern += "option is set, or that the amdgcn_compute_capabilities easyconfig parameter is defined."
+        error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
         amdgcn_template_values = {
-            'amdgcn_compute_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
+            'amdgcn_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
             'amdgcn_cc_space_sep': 'gfx90a gfx1100 gfx10-3-generic',
             'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
         }
         for key in amdgcn_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
 
-        update_build_option('amdgcn_compute_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
+        update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
         ec = EasyConfig(self.eb_file)
 
         for key, expected in amdgcn_template_values.items():
             self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
 
-        update_build_option('amdgcn_compute_capabilities', None)
+        update_build_option('amdgcn_capabilities', None)
         ec = EasyConfig(self.eb_file)
 
         for key in amdgcn_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
 
-        self.contents += "\namdgcn_compute_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
+        self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
         self.prep()
         ec = EasyConfig(self.eb_file)
 
