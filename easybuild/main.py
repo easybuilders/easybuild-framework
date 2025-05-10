@@ -114,14 +114,18 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
 def summary(ecs_with_res):
     """
     Compose summary of the build:
-    * [S] for a successful build
-    * [F] for a failed build
-    * [-] for a build that didn’t run
+    * [SUCCESS] for a successful build
+    * [FAILED] for a failed build
+    * [SKIPPED] for a build that didn’t run
 
     :param ecs_with_res: list of tuples (ec, ec_res), ec is an EasyConfig object, and ec_res is a dict of the result
     """
-    summary_fmt = "   * [{}] {}"
-    success_map = {True: 'S', False: 'F', None: '-'}
+    summary_fmt = "   * {} {}"
+    success_map = {
+        True: f'{"[SUCCESS]":<9}',
+        False: f'{"[FAILED]":<9}',
+        None: f'{"[SKIPPED]":<9}',
+    }
     lines = ["Summary:"]
     lines.extend([
         summary_fmt.format(success_map[ec_res.get('success', False)], ec['full_mod_name'])
