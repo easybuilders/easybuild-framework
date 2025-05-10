@@ -88,11 +88,11 @@ TEMPLATE_SOFTWARE_VERSIONS = {
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
-    'amdgcn_compute_capabilities': "Comma-separated list of AMDGCN compute capabilities, as specified via "
-                                   "--amdgcn-compute-capabilities configuration option or "
-                                   "via amdgcn_compute_capabilities easyconfig parameter",
-    'amdgcn_cc_space_sep': "Space-separated list of AMDGCN compute capabilities",
-    'amdgcn_cc_semicolon_sep': "Semicolon-separated list of AMDGCN compute capabilities",
+    'amdgcn_capabilities': "Comma-separated list of AMDGCN capabilities, as specified via "
+                           "--amdgcn-capabilities configuration option or "
+                           "via amdgcn_capabilities easyconfig parameter",
+    'amdgcn_cc_space_sep': "Space-separated list of AMDGCN capabilities",
+    'amdgcn_cc_semicolon_sep': "Semicolon-separated list of AMDGCN capabilities",
     'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
@@ -483,11 +483,11 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
 
-    # step 7. AMDGCN compute capabilities
+    # step 7. AMDGCN capabilities
     #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
-    amdgcn_cc = build_option('amdgcn_compute_capabilities') or config.get('amdgcn_compute_capabilities')
+    amdgcn_cc = build_option('amdgcn_capabilities') or config.get('amdgcn_capabilities')
     if amdgcn_cc:
-        template_values['amdgcn_compute_capabilities'] = ','.join(amdgcn_cc)
+        template_values['amdgcn_capabilities'] = ','.join(amdgcn_cc)
         template_values['amdgcn_cc_space_sep'] = ' '.join(amdgcn_cc)
         template_values['amdgcn_cc_semicolon_sep'] = ';'.join(amdgcn_cc)
 
