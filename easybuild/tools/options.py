@@ -370,9 +370,9 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
-            'amdgcn-compute-capabilities': ("List of AMDGCN compute capabilities to use when building GPU software; "
-                                            "values should be specified as gfx[xyz], as defined by the LLVM targets, "
-                                            "for example: gfx1101,gfx90a,gfx1030", 'strlist', 'extend', None),
+            'amdgcn-capabilities': ("List of AMDGCN capabilities to use when building GPU software; "
+                                    "values should be specified as gfx[xyz], as defined by the LLVM targets, "
+                                    "for example: gfx1101,gfx90a,gfx1030", 'strlist', 'extend', None),
             'backup-modules': ("Back up an existing module file, if any. "
                                "Auto-enabled when using --module-only or --skip",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
@@ -999,16 +999,16 @@ class EasyBuildOptions(GeneralOption):
         # Support accelerators using the gfx[...] naming scheme.
         # This applies to all AMD GPUs since Southern Islands (2013)
         # For more information: https://llvm.org/docs/AMDGPUUsage.html#processors
-        if self.options.amdgcn_compute_capabilities:
+        if self.options.amdgcn_capabilities:
             # General accelerator naming convention
             amdgcn_cc_regex = re.compile(r'gfx[0-9]+[a-z]?$')
             # Generic convention.
             # Regex is not perfect, as it doesn't catch gfx[...]--generic
             amdgcn_generic_regex = re.compile(r'gfx[0-9]+[-]?[0-9]?-generic$')
-            faulty_amdgcn_ccs = [x for x in self.options.amdgcn_compute_capabilities
+            faulty_amdgcn_ccs = [x for x in self.options.amdgcn_capabilities
                                  if not amdgcn_cc_regex.match(x) and not amdgcn_generic_regex.match(x)]
             if faulty_amdgcn_ccs:
-                error_msg = "Incorrect values in --amdgcn-compute-capabilities (expected pattern: '%s'): %s"
+                error_msg = "Incorrect values in --amdgcn-capabilities (expected pattern: '%s'): %s"
                 error_msgs.append(error_msg % (amdgcn_cc_regex.pattern, ', '.join(faulty_amdgcn_ccs)))
 
         if error_msgs:

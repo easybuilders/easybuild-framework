@@ -228,7 +228,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
-        'amdgcn_compute_capabilities',
+        'amdgcn_capabilities',
         'backup_modules',
         'banned_linked_shared_libs',
         'checksum_priority',

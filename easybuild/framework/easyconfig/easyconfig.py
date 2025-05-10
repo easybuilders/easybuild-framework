@@ -1994,8 +1994,8 @@ class EasyConfig:
 
     def get_amdgcn_cc_template_value(self, key):
         """
-        Get template value based on --amdgcn-compute-capabilities EasyBuild configuration option
-        and amdgcn_compute_capabilities easyconfig parameter.
+        Get template value based on --amdgcn-capabilities EasyBuild configuration option
+        and amdgcn_capabilities easyconfig parameter.
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
         """
@@ -2004,11 +2004,11 @@ class EasyConfig:
                 return self.template_values[key]
             except KeyError:
                 error_msg = "Template value '%s' is not defined!\n"
-                error_msg += "Make sure that either the --amdgcn-compute-capabilities EasyBuild configuration "
-                error_msg += "option is set, or that the amdgcn_compute_capabilities easyconfig parameter is defined."
+                error_msg += "Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
                 raise EasyBuildError(error_msg, key)
         else:
-            error_msg = "%s is not a template value based on --amdgcn-compute-capabilities/amdgcn_compute_capabilities"
+            error_msg = "%s is not a template value based on --amdgcn-capabilities/amdgcn_capabilities"
             raise EasyBuildError(error_msg, key)
 
 
