@@ -1155,7 +1155,7 @@ class EasyBlock:
         if not (self.build_in_installdir and self.iter_idx > 0):
             # make sure we no longer sit in the build directory before cleaning it.
             change_dir(self.orig_workdir)
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+            self.make_dir(self.builddir, self.cfg['keeppreviousinstall'], self.cfg['cleanupoldbuild'])
 
         trace_msg("build dir: %s" % self.builddir)
 
@@ -1199,17 +1199,17 @@ class EasyBlock:
         self.log.debug("Creating the installation directory %s (cleanup: %s)" % (self.installdir,
                                                                                  self.cfg['cleanupoldinstall']))
         if self.build_in_installdir:
-            self.cfg['keeppreviousinstall'] = True
+            keep = True
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
-        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
+        self.make_dir(self.installdir, keep, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
 
-    def make_dir(self, dir_name, clean, dontcreateinstalldir=False):
+    def make_dir(self, dir_name, keep, clean, dontcreateinstalldir=False):
         """
         Create the directory.
         """
         if os.path.exists(dir_name):
             self.log.info("Found old directory %s" % dir_name)
-            if self.cfg['keeppreviousinstall']:
+            if keep:
                 self.log.info("Keeping old directory %s (hopefully you know what you are doing)", dir_name)
                 return
             elif build_option('module_only') or self.cfg['module_only']:
