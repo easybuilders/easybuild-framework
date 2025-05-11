@@ -1198,6 +1198,7 @@ class EasyBlock:
         """
         self.log.debug("Creating the installation directory %s (cleanup: %s)" % (self.installdir,
                                                                                  self.cfg['cleanupoldinstall']))
+        keep = self.cfg['keeppreviousinstall']
         if self.build_in_installdir:
             keep = True
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
