@@ -3218,8 +3218,36 @@ class ToyBuildTest(EnhancedTestCase):
         # Filepath to cuobjdump
         cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
 
-        # Test case 1: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
-        # 7.0 and 9.0 device code and 8.0 PTX code
+        # Test case 1a: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
+        # 7.0 device code
+        # This should succeed (since the default for --cuda-sanity-check-error-on-fail is False)
+        # as to not break backwards compatibility
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm70, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
+        msg = "Pattern %s not found in full build log: %s" % (device_additional_70_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_90_code_regex.search(outtxt), msg)
+        msg = "Pattern %s not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
+        expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 1 "
+        expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n"
+        expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 1 "
+        expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n"
+        expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1"
+        expected_summary_regex = re.compile(expected_summary, re.M)
+        msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
+        self.assertTrue(expected_summary_regex.search(outtxt), msg)
+
+
+        # Test case 1b: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
+        # 7.0 and 9.0 device code and 8.0 PTX code.
+        # Note that the difference with 1a is the presense of PTX code and addditional device code
+        # It should not matter for the result, but triggers slightly different code paths in easyblock.py
         # This should succeed (since the default for --cuda-sanity-check-error-on-fail is False)
         # as to not break backwards compatibility
         write_file(cuobjdump_file, cuobjdump_txt_shebang),
