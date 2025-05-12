@@ -3241,13 +3241,11 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
         expected_summary = r"^Number of files missing one or more CUDA Compute Capabilities: 0$\n"
-        expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 0 "
-        expected_summary += r"\(not running with --cuda-sanity-check-fail-on-error, so not considered failures\)$\n"
+        expected_summary += r"^Number of files with device code for more CUDA Compute Capabilities than requested: 0$\n"
         expected_summary += r"^Number of files missing PTX code for the highest configured CUDA Compute Capability: 1"
         expected_summary_regex = re.compile(expected_summary, re.M)
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
-        print(outtxt)
 
         # Test case 1b: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
         # 7.0 and 9.0 device code and 8.0 PTX code.
