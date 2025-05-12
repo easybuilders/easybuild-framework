@@ -3243,7 +3243,6 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern %s not found in full build log: %s" % (expected_summary, outtxt)
         self.assertTrue(expected_summary_regex.search(outtxt), msg)
 
-
         # Test case 1b: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
         # 7.0 and 9.0 device code and 8.0 PTX code.
         # Note that the difference with 1a is the presense of PTX code and addditional device code
