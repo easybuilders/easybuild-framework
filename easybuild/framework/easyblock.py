@@ -3441,24 +3441,24 @@ class EasyBlock(object):
                         additional_devcodes = list(set(found_dev_code_ccs) - set(cfg_ccs))
                         missing_devcodes = list(set(cfg_ccs) - set(found_dev_code_ccs))
 
+                        # There are two reasons for ignoring failures:
+                        # - We are running with --disable-cuda-sanity-check-error-on-fail
+                        # - The specific {path} is on the cuda_sanity_ignore_files in the easyconfig
+                        # In case we run with both, we'll just report that we're running with
+                        # --disable-cuda-sanity-check-error-on-fail
+                        if ignore_failures:
+                            ignore_msg = f"Failure for {path} will be ignored since we are not running with "
+                            ignore_msg += "--cuda-sanity-check-error-on-fail"
+                        else:
+                            ignore_msg = f"This failure will be ignored as '{path}' is listed in "
+                            ignore_msg += "'cuda_sanity_ignore_files'."
+
                         if not missing_devcodes and not additional_devcodes:
                             # Device code for all architectures requested in --cuda-compute-capabilities was found
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
                                    "those in cuda_compute_capabilities")
                             self.log.debug(msg)
                         else:
-                            # There are two reasons for ignoring failures:
-                            # - We are running with --disable-cuda-sanity-check-error-on-fail
-                            # - The specific {path} is on the cuda_sanity_ignore_files in the easyconfig
-                            # In case we run with both, we'll just report that we're running with
-                            # --disable-cuda-sanity-check-error-on-fail
-                            if ignore_failures:
-                                ignore_msg = f"Failure for {path} will be ignored since we are running with "
-                                ignore_msg += "--disable-cuda-sanity-check-error-on-fail"
-                            else:
-                                ignore_msg = f"This failure will be ignored as '{path}' is listed in "
-                                ignore_msg += "'cuda_sanity_ignore_files'."
-
                             # Set default failure status and empty message
                             is_failure = False
 
