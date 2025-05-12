@@ -3353,7 +3353,7 @@ class EasyBlock(object):
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
-    def sanity_check_cuda(self, cuda_dirs=None, check_cuobjdump=True):
+    def sanity_check_cuda(self, cuda_dirs=None):
         """Sanity check that binaries/libraries contain device code for the correct architecture targets."""
 
         self.log.info("Checking binaries/libraries for CUDA device code...")
