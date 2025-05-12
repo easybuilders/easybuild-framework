@@ -3400,6 +3400,10 @@ class EasyBlock(object):
         files_missing_ptx_ignored = []
         files_missing_devcode_but_has_ptx = []
 
+        # A local function to create nicely formatted file lists for the files_* lists
+        def format_file_list(files_list):
+            return "\n" + "\n".join(f"  {f}" for f in files_list)
+
         # Looping through all files to check CUDA device and PTX code
         for dirpath in [os.path.join(self.installdir, d) for d in cuda_dirs]:
             if os.path.exists(dirpath):
@@ -3586,22 +3590,22 @@ class EasyBlock(object):
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
         # Long report, which prints the files that have potential issues
-        summary_msg_files = f"{len(files_missing_devcode)} files missing one or more CUDA compute capabilities: "
-        summary_msg_files += f"{files_missing_devcode}\n"
-        summary_msg_files += f"These failures are ignored for {len(files_missing_devcode_ignored)} files: "
-        summary_msg_files += f"{files_missing_devcode_ignored})\n"
+        summary_msg_files = f"{len(files_missing_devcode)} files missing one or more CUDA compute capabilities:"
+        summary_msg_files += f"{format_file_list(files_missing_devcode)}\n"
+        summary_msg_files += f"These failures are ignored for {len(files_missing_devcode_ignored)} files:"
+        summary_msg_files += f"{format_file_list(files_missing_devcode_ignored)})\n"
         if accept_ptx_as_devcode:
             summary_msg_files += f"{len(files_missing_devcode_but_has_ptx)} files missing one or more CUDA Compute "
             summary_msg_files += "Capabilities, but has suitable PTX code that can be JIT compiled for the requested "
-            summary_msg_files += f"CUDA Compute Capabilities: {files_missing_devcode_but_has_ptx}\n"
+            summary_msg_files += f"CUDA Compute Capabilities:{format_file_list(files_missing_devcode_but_has_ptx)}\n"
         summary_msg_files += f"{len(files_additional_devcode)} files with device code for more CUDA Compute "
-        summary_msg_files += f"Capabilities than requested: {files_additional_devcode}\n"
-        summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files: "
-        summary_msg_files += f"{files_additional_devcode_ignored})\n"
+        summary_msg_files += f"Capabilities than requested:{format_file_list(files_additional_devcode)}\n"
+        summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files:"
+        summary_msg_files += f"{format_file_list(files_additional_devcode_ignored)})\n"
         summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA Compute"
-        summary_msg_files += f" Capability: {files_missing_ptx}\n"
-        summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files: "
-        summary_msg_files += f"{files_missing_ptx_ignored})"
+        summary_msg_files += f" Capability:{format_file_list(files_missing_ptx)}\n"
+        summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files:"
+        summary_msg_files += f"{format_file_list(files_missing_ptx_ignored)})"
         self.log.info(summary_msg_files)
 
         # Short summary
