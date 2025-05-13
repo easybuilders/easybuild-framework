@@ -3232,7 +3232,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Predefine a function that takes a pattern, creates a regex, searches if it's found in the log
         # Also, check if it's found in stdout, if defined
         # If either of these fail their assert, print an informative, standardized message
-        def assert_regex(pattern, log, stdout = None):
+        def assert_regex(pattern, log, stdout=None):
             regex = re.compile(pattern, re.M)
             msg = "Pattern %s not found in full build log: %s" % (pattern, log)
             self.assertTrue(regex.search(log), msg)
@@ -3240,8 +3240,8 @@ class ToyBuildTest(EnhancedTestCase):
                 msg2 = "Pattern %s not found in standard output: %s" % (pattern, stdout)
                 self.assertTrue(regex.search(stdout), msg2)
 
-        def assert_cuda_report(missing_cc, additional_cc, missing_ptx, log, stdout = None, missing_cc_but_ptx = None,
-                               num_checked = None):
+        def assert_cuda_report(missing_cc, additional_cc, missing_ptx, log, stdout=None, missing_cc_but_ptx=None,
+                               num_checked=None):
             if num_checked is not None:
                 num_checked_str = r"Number of CUDA files checked: %s" % num_checked
                 assert_regex(num_checked_str, outtxt, stdout)
