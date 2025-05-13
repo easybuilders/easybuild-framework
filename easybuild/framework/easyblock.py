@@ -3681,11 +3681,11 @@ class EasyBlock(object):
             self.log.info(msg)
         if (
             build_option('debug') and
-            (len(files_missing_devcode) > 0 or len(files_additional_devcode) > or len(files_missing_ptx) > 0)
+            (len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0 or len(files_missing_ptx) > 0)
         ):
             trace_and_log("See build log for detailed lists of files not passing the CUDA Sanity Check")
         elif (
-            len(files_missing_devcode) > 0 or len(files_additional_devcode) > or len(files_missing_ptx) > 0
+            len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0 or len(files_missing_ptx) > 0
         ):
             msg = "To get a detailed list of files not passing the CUDA Sanity Check in the build log, "
             msg += "rerun with --debug."
