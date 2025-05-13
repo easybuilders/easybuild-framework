@@ -3604,7 +3604,7 @@ class EasyBlock(object):
             trace_and_log(msg)
             trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
         else:
-            msg = "Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
+            msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
             msg += f" (ignored: {len(files_missing_devcode_ignored)}, "
             msg += f"fails: {len(files_missing_devcode_fails)})"
             trace_and_log(msg)
