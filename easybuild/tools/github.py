@@ -32,7 +32,6 @@ Authors:
 * Toon Willems (Ghent University)
 """
 import base64
-import copy
 import getpass
 import glob
 import functools
@@ -1280,9 +1279,19 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
 
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
-    res = False
+    # Extract name from patch entry
+    def get_name(patch):
+        if isinstance(patch, (tuple, list)):
+            patch = patch[0]
+        elif isinstance(patch, dict):
+            try:
+                patch = patch['name']
+            except KeyError:
+                raise EasyBuildError(f"Invalid patch spec in {ec.path}: Missing 'name' key",
+                                     exit_code=EasyBuildExit.VALUE_ERROR)
+        return patch
 
-    patches = copy.copy(ec['patches'])
+    patches = [get_name(p) for p in ec['patches']]
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
@@ -1294,17 +1303,9 @@ def is_patch_for(patch_name, ec):
                     'version': entry[1],
                 }
                 options = entry[2]
-                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
-                               for p in options.get('patches', []))
+                patches.extend(get_name(p) % templates for p in options.get('patches', []))
 
-    for patch in patches:
-        if isinstance(patch, (tuple, list)):
-            patch = patch[0]
-        if patch == patch_name:
-            res = True
-            break
-
-    return res
+    return patch_name in patches
 
 
 def det_patch_specs(patch_paths, file_info, ec_dirs):
@@ -1395,7 +1396,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     soft_name = ec['ec']['name']
                     break
         except EasyBuildError as err:
-            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+            _log.warning("Ignoring easyconfig %s that fails to parse: %s", path, err)
         sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 
