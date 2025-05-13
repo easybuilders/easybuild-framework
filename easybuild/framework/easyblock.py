@@ -3589,6 +3589,105 @@ class EasyBlock(object):
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
 
+        # Send to trace and log
+        def trace_and_log(msg):
+            self.log.info(msg)
+            trace_msg(msg)
+
+
+        # Short summary
+        trace_and_log("CUDA sanity check summary report:")
+        trace_and_log(f"Number of CUDA files checked: {num_cuda_files}")
+        if len(files_missing_devcode) == 0:
+            trace_and_log("Number of files missing one or more CUDA Compute Capabilities: 0")
+        elif ignore_failures:
+            msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
+            trace_and_log(msg)
+            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+        else:
+            msg = "Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
+            msg += f" (ignored: {len(files_missing_devcode_ignored)}, "
+            msg += f"fails: {len(files_missing_devcode_fails)})"
+            trace_and_log(msg)
+        if accept_ptx_as_devcode:
+            msg = "Number of files missing one or more CUDA Compute Capabilities, but having suitable "
+            msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
+            msg += f"{len(files_missing_devcode_but_has_ptx)}"
+            trace_and_log(msg)
+        if len(files_additional_devcode) == 0:
+            trace_and_log("Number of files with device code for more CUDA Compute Capabilities than requested: 0")
+        elif ignore_failures:
+            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
+            msg += f"{len(files_additional_devcode)}"
+            trace_and_log(msg)
+            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+        elif strict_cc_check:
+            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
+            msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
+            msg += f"fails: {len(files_additional_devcode_fails)})"
+            trace_and_log(msg)
+        else:
+            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
+            msg += f"{len(files_additional_devcode)}"
+            trace_and_log(msg)
+            trace_and_log("(not running with --cuda-sanity-check-strict, so not considered failures)")
+        if len(files_missing_ptx) == 0:
+            trace_and_log("Number of files missing PTX code for the highest configured CUDA Compute Capability: 0")
+        elif ignore_failures:
+            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            msg += f"{len(files_missing_ptx)}"
+            trace_and_log(msg)
+            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+        elif accept_missing_ptx:
+            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            msg += f"{len(files_missing_ptx)}"
+            trace_and_log(msg)
+            trace_and_log("(running with --cuda-sanity-check-accept-missing-ptx, so not considered failures)")
+        else:
+            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            msg += f"{len(files_missing_ptx)} (ignored: {len(files_missing_ptx_ignored)}, fails: "
+            msg += f"{len(files_missing_ptx_fails)})"
+            trace_and_log(msg)
+        # Give some advice
+        if len(files_missing_devcode) > 0 and not accept_ptx_as_devcode:
+            short_msg = "You may consider rerunning with --cuda-sanity-check-accept-ptx-as-devcode to accept "
+            short_msg += "suitable PTX code instead of device code."
+            trace_msg(short_msg)
+            msg = "You may consider rerunning with --cuda-sanity-check-accept-ptx-as-devcode to accept "
+            msg += "binaries that don't contain the device code for your requested CUDA Compute Capabilities, "
+            msg += "but that do have PTX code that can be compiled for your requested CUDA Compute "
+            msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
+            msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
+            msg += "all features specific to your hardware architecture."
+            self.log.info(msg)
+        if len(files_additional_devcode) > 0 and strict_cc_check:
+            short_msg = "You may consider running with --disable-cuda-sanity-check-strict to accept binaries "
+            short_msg += "containing device code for more architectures than requested."
+            trace_msg(short_msg)
+            msg = "You may consider running with --disable-cuda-sanity-check-strict. This means you'll "
+            msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
+            msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
+            msg += "cause some startup delay, and code path selection could introduce a small overhead, "
+            msg += "though this is generally negligible."
+            self.log.info(msg)
+        if len(files_missing_ptx) > 0 and not accept_missing_ptx:
+            short_msg = "You may consider running with --cuda-sanity-check-accept-missing-ptx to accept binaries "
+            short_msg += "missing PTX code for the highest configured CUDA Compute Capability."
+            trace_msg(short_msg)
+            msg = "You may consider running with --cuda-sanity-check-accept-missing-ptx to accept binaries "
+            msg += "that don't contain PTX code for the highest CUDA Compute Capability you requested. This "
+            msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
+            msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
+            msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you."
+            self.log.info(msg)
+        if build_option('debug') and (len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0
+            or len(files_missing_ptx) > 0):
+            trace_and_log("See build log for detailed lists of files not passing the CUDA Sanity Check")
+        else:
+            msg = "To get a detailed list of files not passing the CUDA Sanity Check in the build log, "
+            msg += "rerun with --debug."
+            trace_and_log(msg)
+
         # Long report, which prints the files that have potential issues
         summary_msg_files = f"{len(files_missing_devcode)} files missing one or more CUDA compute capabilities:"
         summary_msg_files += f"{format_file_list(files_missing_devcode)}\n"
@@ -3607,97 +3706,6 @@ class EasyBlock(object):
         summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files:"
         summary_msg_files += f"{format_file_list(files_missing_ptx_ignored)})"
         self.log.info(summary_msg_files)
-
-        # Short summary
-        trace_msg("CUDA sanity check summary report:")
-        trace_msg(f"Number of CUDA files checked: {num_cuda_files}")
-        if len(files_missing_devcode) == 0:
-            trace_msg("Number of files missing one or more CUDA Compute Capabilities: 0")
-        elif ignore_failures:
-            msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
-            msg += "\n(not running with --cuda-sanity-check-fail-on-error, so not considered failures)"
-            trace_msg(msg)
-        else:
-            msg = "Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
-            msg += f" (ignored: {len(files_missing_devcode_ignored)}, "
-            msg += f"fails: {len(files_missing_devcode_fails)})"
-            trace_msg(msg)
-        if accept_ptx_as_devcode:
-            msg = "Number of files missing one or more CUDA Compute Capabilities, but having suitable "
-            msg += "PTX code that can be JIT compiled for the requested CUDA Compute Capabilities: "
-            msg += f"{len(files_missing_devcode_but_has_ptx)}"
-            trace_msg(msg)
-        if len(files_additional_devcode) == 0:
-            trace_msg("Number of files with device code for more CUDA Compute Capabilities than requested: 0")
-        elif ignore_failures:
-            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
-            msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-fail-on-error, "
-            msg += "so not considered failures)"
-            trace_msg(msg)
-        elif strict_cc_check:
-            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
-            msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
-            msg += f"fails: {len(files_additional_devcode_fails)})"
-            trace_msg(msg)
-        else:
-            msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
-            msg += f"{len(files_additional_devcode)} (not running with --cuda-sanity-check-strict, so not "
-            msg += "considered failures)"
-            trace_msg(msg)
-        if len(files_missing_ptx) == 0:
-            trace_msg("Number of files missing PTX code for the highest configured CUDA Compute Capability: 0")
-        elif ignore_failures:
-            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-            msg += f"{len(files_missing_ptx)} (not running with --cuda-sanity-check-fail-on-error, so not "
-            msg += "considered failures)"
-            trace_msg(msg)
-        elif accept_missing_ptx:
-            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-            msg += f"{len(files_missing_ptx)} (running with --cuda-sanity-check-accept-missing-ptx, so not "
-            msg += "considered failures)"
-            trace_msg(msg)
-        else:
-            msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
-            msg += f"{len(files_missing_ptx)} (ignored: {len(files_missing_ptx_ignored)}, fails: "
-            msg += f"{len(files_missing_ptx_fails)})"
-            trace_msg(msg)
-        if build_option('debug') and (len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0
-            or len(files_missing_ptx) > 0):
-            trace_msg("See build log for detail lists of not passing the CUDA Sanity Check")
-        else:
-            msg = "To get a detailed list of files not passing the CUDA Sanity Check in the build log, "
-            msg += "rerun with --debug."
-            trace_msg(msg)
-        # Give some advice
-        if len(files_missing_devcode) > 0 and not accept_ptx_as_devcode:
-            msg = "You may consider rerunning with --cuda-sanity-check-accept-ptx-as-devcode to accept "
-            msg += "binaries that don't contain the device code for your requested CUDA Compute Capabilities, "
-            msg += "but that do have PTX code that can be compiled for your requested CUDA Compute "
-            msg += "Capabilities. Note that this may increase startup delay due to JIT compilation "
-            msg += "and may also lead to suboptimal runtime performance, as the PTX code may not exploit "
-            msg += "all features specific to your hardware architecture."
-            trace_msg(msg)
-        if len(files_additional_devcode) > 0 and strict_cc_check:
-            msg = "You may consider running with --disable-cuda-sanity-check-strict. This means you'll "
-            msg += "accept that some binaries may have CUDA Device Code for more architectures than you "
-            msg += "requested, i.e. the binary is 'fatter' than you need. Bigger binaries may generally "
-            msg += "cause some startup delay, and code path selection could introduce a small overhead, "
-            msg += "though this is generally negligible."
-            trace_msg(msg)
-        if len(files_missing_ptx) > 0 and not accept_missing_ptx:
-            msg = "You may consider running with --cuda-sanity-check-accept-missing-ptx to accept binaries "
-            msg += "that don't contain PTX code for the highest CUDA Compute Capability you requested. This "
-            msg += "breaks forwards compatibility for newer CUDA Compute Capabilities (i.e. your compiled "
-            msg += "binaries will not run on cards with higher CUDA Compute Capabilities than what "
-            msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you."
-            trace_msg(msg)
-# Now that we write everything to the trace output... should we still _also_ log everything to the logfile?
-# Otherwise, we have no record of it in the installation directory...
-#         # Give this some extra visibility if we're NOT erroring out on failures
-#         if ignore_failures:
-#             self.log.warning(summary_msg)
-#         else:
-#            self.log.info(summary_msg)
 
         return fail_msgs
 
