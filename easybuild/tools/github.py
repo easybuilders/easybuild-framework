@@ -553,7 +553,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     # see also https://github.com/easybuilders/easybuild-framework/issues/4869
     max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
     download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False,
-                  max_attempts=DEFAULT_DOWNLOAD_MAX_ATTEMPTS)
+                  max_attempts=max_attempts)
     if not os.path.exists(diff_filepath):
         raise EasyBuildError(f"Failed to download {diff_url}, even after {max_attempts} attempts and being patient...")
     diff_txt = read_file(diff_filepath)
@@ -711,7 +711,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         # see also https://github.com/easybuilders/easybuild-framework/issues/4869
         max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
         download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False,
-                      max_attempts=DEFAULT_DOWNLOAD_MAX_ATTEMPTS)
+                      max_attempts=max_attempts)
         if os.path.exists(diff_filepath):
             diff_txt = read_file(diff_filepath)
             _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
