@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg, print_warning
-from easybuild.tools.config import build_option
+from easybuild.tools.config import DEFAULT_DOWNLOAD_MAX_ATTEMPTS, build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_file, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file
 from easybuild.tools.filetools import get_easyblock_class_name, mkdir, read_file, symlink, which, write_file
@@ -551,9 +551,9 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     diff_filepath = os.path.join(path, diff_fn)
     # max. 6 attempts + initial wait time of 10sec -> max. 10 * (2^6) = 640sec (~10min) before giving up on download
     # see also https://github.com/easybuilders/easybuild-framework/issues/4869
-    max_attempts = 6
+    max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
     download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False,
-                  max_attempts=max_attempts, initial_wait_time=10)
+                  max_attempts=DEFAULT_DOWNLOAD_MAX_ATTEMPTS)
     if not os.path.exists(diff_filepath):
         raise EasyBuildError(f"Failed to download {diff_url}, even after {max_attempts} attempts and being patient...")
     diff_txt = read_file(diff_filepath)
@@ -709,9 +709,9 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
         diff_filepath = os.path.join(path, diff_fn)
         # max. 6 attempts + initial wait time of 10sec -> max. 10 * (2^6) = 640sec (~10min) before giving up on download
         # see also https://github.com/easybuilders/easybuild-framework/issues/4869
-        max_attempts = 6
+        max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
         download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False,
-                      max_attempts=max_attempts, initial_wait_time=10)
+                      max_attempts=DEFAULT_DOWNLOAD_MAX_ATTEMPTS)
         if os.path.exists(diff_filepath):
             diff_txt = read_file(diff_filepath)
             _log.debug("Diff for commit %s:\n%s", commit, diff_txt)

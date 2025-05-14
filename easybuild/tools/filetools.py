@@ -69,6 +69,7 @@ from easybuild.tools import LooseVersion
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
 from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME, DEFAULT_DOWNLOAD_MAX_ATTEMPTS
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -777,7 +778,7 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False, trace=True, max_attempts=3, initial_wait_time=1):
+def download_file(filename, url, path, forced=False, trace=True, max_attempts=None, initial_wait_time=None):
     """
     Download a file from the given URL, to the specified path.
 
@@ -789,6 +790,11 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=3,
     :param max_attempts: max. number of attempts to download file from specified URL
     :param initial_wait_time: wait time (in seconds) after first attempt (doubled at each attempt)
     """
+
+    if max_attempts is None:
+        max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
+    if initial_wait_time is None:
+        initial_wait_time = DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME
 
     insecure = build_option('insecure_download')
 
