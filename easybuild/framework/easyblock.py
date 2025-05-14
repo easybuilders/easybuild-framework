@@ -3429,7 +3429,7 @@ class EasyBlock(object):
                         #   --cuda-sanity-check-strict is True (otherwise, it's a warning)
                         # - Missing PTX code for the highest CUDA compute capability in --cuda-compute-capabilities
                         #   is considered a failure, unless --cuda-sanity-check-accept-missing-ptx is True (in which
-                        # case it is a warning)
+                        #   case it is a warning)
 
                         # If found_dev_code_ccs is None, but found_ptx_ccs isn't, or vice versa, it IS a CUDA file
                         # but there was simply no device/ptx code, respectively. So, make that an empty list
@@ -3497,7 +3497,7 @@ class EasyBlock(object):
                                 else:
                                     self.log.warning(fail_msg)
 
-                            # Both additional_devcodes and missing_devcodes could be try, so use if, not elif
+                            # Both additional_devcodes and missing_devcodes could exist, so use if, not elif
                             if missing_devcodes:
                                 # One or more device code architectures requested in cuda-compute-capabilities was
                                 # not found in the binary
