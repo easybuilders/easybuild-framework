@@ -557,6 +557,21 @@ class FileToolsTest(EnhancedTestCase):
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)
 
+        ft.remove_file(target_location)
+
+        # with max attempts set to 0, nothing gets downloaded
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=0)
+        self.assertEqual(res, None)
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 0)
+
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=3, initial_wait_time=5)
+        self.assertEqual(res, target_location, "'download' of local file works")
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 1)
+
         # non-existing files result in None return value
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)

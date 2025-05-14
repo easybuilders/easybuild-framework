@@ -69,6 +69,7 @@ from easybuild.tools import LooseVersion
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
 from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
+from easybuild.tools.config import DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME, DEFAULT_DOWNLOAD_MAX_ATTEMPTS
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.hooks import load_source
@@ -777,8 +778,23 @@ def det_file_size(http_header):
     return res
 
 
-def download_file(filename, url, path, forced=False, trace=True):
-    """Download a file from the given URL, to the specified path."""
+def download_file(filename, url, path, forced=False, trace=True, max_attempts=None, initial_wait_time=None):
+    """
+    Download a file from the given URL, to the specified path.
+
+    :param filename: name of file to download
+    :param url: URL of file to download
+    :param path: path to download file to
+    :param forced: boolean to indicate whether force should be used to write the file
+    :param trace: boolean to indicate whether trace output should be printed
+    :param max_attempts: max. number of attempts to download file from specified URL
+    :param initial_wait_time: wait time (in seconds) after first attempt (doubled at each attempt)
+    """
+
+    if max_attempts is None:
+        max_attempts = DEFAULT_DOWNLOAD_MAX_ATTEMPTS
+    if initial_wait_time is None:
+        initial_wait_time = DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME
 
     insecure = build_option('insecure_download')
 
@@ -802,7 +818,6 @@ def download_file(filename, url, path, forced=False, trace=True):
 
     # try downloading, three times max.
     downloaded = False
-    max_attempts = 3
     attempt_cnt = 0
 
     # use custom HTTP header
@@ -822,6 +837,8 @@ def download_file(filename, url, path, forced=False, trace=True):
     url_req = std_urllib.Request(url, headers=headers)
     used_urllib = std_urllib
     switch_to_requests = False
+
+    wait_time = initial_wait_time
 
     while not downloaded and attempt_cnt < max_attempts:
         attempt_cnt += 1
@@ -861,6 +878,8 @@ def download_file(filename, url, path, forced=False, trace=True):
                 status_code = err.code
             if status_code == 403 and attempt_cnt == 1:
                 switch_to_requests = True
+            elif status_code == 429:  # too many requests
+                _log.warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)")
             elif 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
@@ -886,6 +905,11 @@ def download_file(filename, url, path, forced=False, trace=True):
                                          "install the python-requests and pyOpenSSL RPM packages and try again.")
                 _log.info("Downloading using requests package instead of urllib2")
                 used_urllib = requests
+
+            # exponential backoff
+            wait_time *= 2
+            _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
+            time.sleep(wait_time)
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
