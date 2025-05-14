@@ -141,12 +141,14 @@ def session_state():
         'system_info': get_system_info(),
     }
 
+
 def exclude_env_from_report_add(key):
     """
     Exclude key from test report if an environment variables contains key.
     :param key: environment variable to exclude
     """
     _exclude_env_from_report.append(key.upper())
+
 
 def exclude_env_from_report_clear():
     """
