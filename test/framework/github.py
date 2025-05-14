@@ -55,6 +55,7 @@ from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
+from easybuild.tools.testing import exclude_env_from_report_add, exclude_env_from_report_clear
 import easybuild.tools.github as gh
 
 try:
@@ -1317,13 +1318,22 @@ class GithubTest(EnhancedTestCase):
                 'log_file': logfile,
             }),
         ]
+        test_remove_name = 'REMOVEME'
+        test_remove_val = 'test-abc'
         init_session_state = {
             'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
-            'environment': {'USER': 'test'},
+            'environment': {
+                'USER': 'test',
+                test_remove_name: test_remove_val,
+            },
             'module_list': [{'mod_name': 'test'}],
             'system_info': {'name': 'test'},
             'time': gmtime(0),
         }
+
+        # Test exclude_env_from_report_add/clear
+        exclude_env_from_report_add(test_remove_name.lower())  # Also check that the name is uppercased in the check
+
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
@@ -1331,6 +1341,14 @@ class GithubTest(EnhancedTestCase):
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
         ]
+        for pattern in patterns:
+            self.assertIn(pattern, res['full'])
+        self.assertNotIn(test_remove_name, res['full'])
+
+        exclude_env_from_report_clear()
+
+        res = create_test_report("just a test", ecs_with_res, init_session_state)
+        pattern.append(f"{test_remove_name} = {test_remove_val}")
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 

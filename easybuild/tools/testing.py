@@ -58,6 +58,8 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 _log = fancylogger.getLogger('testing', fname=False)
 
+_exclude_env_from_report = []
+
 
 def regtest(easyconfig_paths, modtool, build_specs=None):
     """
@@ -138,6 +140,19 @@ def session_state():
         'environment': copy.deepcopy(os.environ),
         'system_info': get_system_info(),
     }
+
+def exclude_env_from_report_add(key):
+    """
+    Exclude key from test report if an environment variables contains key.
+    :param key: environment variable to exclude
+    """
+    _exclude_env_from_report.append(key.upper())
+
+def exclude_env_from_report_clear():
+    """
+    Clear list of environment variables to exclude from test report.
+    """
+    _exclude_env_from_report.clear()
 
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_log=False, easyblock_pr_nrs=None,
@@ -267,6 +282,11 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
             continue
         else:
             environment += ["%s = %s" % (key, environ_dump[key])]
+
+    environment = list(filter(
+        lambda x: not any(y in x.upper() for y in _exclude_env_from_report),
+        environment
+    ))
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
