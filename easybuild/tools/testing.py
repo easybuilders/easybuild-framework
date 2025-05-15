@@ -60,7 +60,7 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 _log = fancylogger.getLogger('testing', fname=False)
 
 _exclude_env_from_report = []
-DEFAULT_EXCLUDE_FROM_REPORT= [
+DEFAULT_EXCLUDE_FROM_REPORT = [
     'KEY',
     'SECRET',
     'TOKEN',
