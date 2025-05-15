@@ -3457,9 +3457,6 @@ class EasyBlock(object):
                             ignore_msg = f"This failure will be ignored as '{path}' is listed in "
                             ignore_msg += "'cuda_sanity_ignore_files'."
 
-                        # Boolean to track if check has failed
-                        is_failure = False
-
                         if not missing_devcodes and not additional_devcodes:
                             # Device code for all architectures requested in --cuda-compute-capabilities was found
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; device code architectures match "
@@ -3483,7 +3480,6 @@ class EasyBlock(object):
                                     else:
                                         # Sanity error
                                         files_additional_devcode_fails.append(os.path.relpath(path, self.installdir))
-                                        is_failure = True
                                 # Do reporting for the additional_devcodes case
                                 self.log.warning(fail_msg)
 
@@ -3523,7 +3519,6 @@ class EasyBlock(object):
                                         else:
                                             # Sanity error
                                             files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
-                                            is_failure = True
                                 else:
                                     # Device code was missing, and we're not accepting PTX code as alternative
                                     # This is considered a failure
@@ -3536,7 +3531,6 @@ class EasyBlock(object):
                                     else:
                                         # Sanity error
                                         files_missing_devcode_fails.append(os.path.relpath(path, self.installdir))
-                                        is_failure = True
                                 # Do reporting for the missing_devcodes case
                                 self.log.warning(fail_msg)
 
@@ -3564,7 +3558,6 @@ class EasyBlock(object):
                                 # Sanity error
                                 files_missing_ptx_fails.append(os.path.relpath(path, self.installdir))
                                 self.log.warning(fail_msg % (highest_cc[0], path, found_ptx_ccs))
-                                is_failure = True
                         else:
                             msg = (f"Output of 'cuobjdump' checked for '{path}'; ptx code was present for (at "
                                    "least) the highest CUDA compute capability in cuda_compute_capabilities")
@@ -3696,7 +3689,12 @@ class EasyBlock(object):
             msg += summary_msg_files
             self.log.info(msg)
 
-        if is_failure:
+        # If any failure happened, compose a message to be raised as error
+        if (
+            len(files_missing_devcode_fails) > 0 or
+            len(files_additional_devcode_fails) > 0 or
+            len(files_missing_ptx_fails) > 0
+        ):
             fail_msgs = ['']
             if len(files_missing_devcode_fails) > 0:
                 fail_msgs.append(f"Files missing CUDA device code: {len(files_missing_devcode_fails)}.")
