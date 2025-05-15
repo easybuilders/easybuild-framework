@@ -1034,7 +1034,6 @@ def get_cuda_object_dump_raw(path):
             else:
                 # This should not happen: there was no string saying this was NOT a CUDA file, yet no device code
                 # was found at all
-
                 msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
                 raise EasyBuildError(msg, path, cuda_cmd, res.output)
 
