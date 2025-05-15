@@ -1348,7 +1348,7 @@ class GithubTest(EnhancedTestCase):
         exclude_env_from_report_clear()
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
-        pattern.append(f"{test_remove_name} = {test_remove_val}")
+        patterns.append(f"{test_remove_name} = {test_remove_val}")
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 
