@@ -4293,16 +4293,18 @@ class EasyBlock(object):
         else:
             self.log.debug("Skipping RPATH sanity check")
 
-        if get_software_root('CUDA'):
+        if 'CUDA' in [dep['name'] for dep in self.cfg.dependencies()]:
             if shutil.which('cuobjdump'):
                 cuda_fails = self.sanity_check_cuda()
                 if cuda_fails:
                     self.log.warning("CUDA device code sanity check failed!")
                     self.sanity_check_fail_msgs.extend(cuda_fails)
             else:
-                raise EasyBuildError("Failed to execute CUDA sanity check: cuobjdump not found")
+                msg = "Failed to execute CUDA sanity check: cuobjdump not found\n"
+                msg += "CUDA module must be loaded for sanity check (or cuobjdump available in PATH)"
+                raise EasyBuildError(msg)
         else:
-            self.log.debug("Skipping CUDA sanity check: CUDA module was not loaded")
+            self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
 
         # pass or fail
         if self.sanity_check_fail_msgs:
