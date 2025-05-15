@@ -3686,8 +3686,8 @@ class EasyBlock(object):
             summary_msg_files += f"These failures are ignored for {len(files_additional_devcode_ignored)} files:"
             summary_msg_files += f"{format_file_list(files_additional_devcode_ignored)}\n"
         if len(files_missing_ptx) > 0:
-            summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA Compute"
-            summary_msg_files += f" Capability:{format_file_list(files_missing_ptx)}\n"
+            summary_msg_files += f"{len(files_missing_ptx)} files missing PTX code for the highest configured CUDA"
+            summary_msg_files += f" Compute Capability:{format_file_list(files_missing_ptx)}\n"
         if len(files_missing_ptx_ignored) > 0:
             summary_msg_files += f"These failures are ignored for {len(files_missing_ptx_ignored)} files:"
             summary_msg_files += f"{format_file_list(files_missing_ptx_ignored)}"
@@ -3696,18 +3696,19 @@ class EasyBlock(object):
             msg += summary_msg_files
             self.log.info(msg)
 
-        fail_msg = ['']
-        if len(files_missing_devcode_fails) > 0:
-            fail_msg.append(f"Files missing CUDA device code: {len(files_missing_devcode_fails)}.")
-        if len(files_additional_devcode_fails) > 0:
-            fail_msg.append(f"Files with additional CUDA device code: {len(files_additional_devcode_fails)}.")
-        if len(files_missing_ptx_fails) > 0:
-            fail_msg.append(f"Files missing CUDA PTX code: {len(files_missing_ptx_fails)}.")
-        msg = "Check the build log for the 'CUDA sanity check detailed report' for a full list of files that failed "
-        msg += "to pass the sanity check."
-        fail_msg.append(msg)
+        if is_failure:
+            fail_msgs = ['']
+            if len(files_missing_devcode_fails) > 0:
+                fail_msgs.append(f"Files missing CUDA device code: {len(files_missing_devcode_fails)}.")
+            if len(files_additional_devcode_fails) > 0:
+                fail_msgs.append(f"Files with additional CUDA device code: {len(files_additional_devcode_fails)}.")
+            if len(files_missing_ptx_fails) > 0:
+                fail_msgs.append(f"Files missing CUDA PTX code: {len(files_missing_ptx_fails)}.")
+            msg = "Check the build log for the 'CUDA sanity check detailed report' for a full list of files that failed "
+            msg += "to pass the sanity check."
+            fail_msgs.append(msg)
 
-        return fail_msg
+        return fail_msgs
 
     def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
