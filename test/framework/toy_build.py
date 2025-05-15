@@ -3235,9 +3235,6 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(cuda_mod_file, "-- Fake module content for CUDA")
         setvar('MODULEPATH', module_dir)
 
-        # Pretend we have CUDA loaded, or the sanity check won't run
-        setvar('EBROOTCUDA', '/foo/bar')
-
         # Filepath to cuobjdump
         cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
 
