@@ -3702,8 +3702,8 @@ class EasyBlock(object):
                 fail_msgs.append(f"Files with additional CUDA device code: {len(files_additional_devcode_fails)}.")
             if len(files_missing_ptx_fails) > 0:
                 fail_msgs.append(f"Files missing CUDA PTX code: {len(files_missing_ptx_fails)}.")
-            msg = "Check the build log for the 'CUDA sanity check detailed report' for a full list of files that failed "
-            msg += "to pass the sanity check."
+            msg = "Check the build log for the 'CUDA sanity check detailed report' for a full list of files that "
+            msg += "failed to pass the sanity check."
             fail_msgs.append(msg)
 
         return fail_msgs
