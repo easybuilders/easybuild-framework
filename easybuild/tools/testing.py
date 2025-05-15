@@ -67,7 +67,7 @@ DEFAULT_EXCLUDE_FROM_REPORT = [
     'PASSWORD',
     'API',
     'AUTH',
-    'CREDENTIALS',
+    'CREDENTIAL',
     'PRIVATE',
     'LICENSE',
     'LICENCE',
