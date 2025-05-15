@@ -3523,7 +3523,7 @@ class EasyBlock(object):
                                         is_failure = False
                                     else:
                                         # If there are CCs for which there is no suiteable PTX that can be JIT-compiled
-                                        # from, this is considerd a failure
+                                        # from, this is considered a failure
                                         files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                         if path in ignore_file_list or ignore_failures:
                                             # No error, because either path is on the cuda_sanity_ignore_files list in
