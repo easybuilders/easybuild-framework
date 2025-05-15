@@ -3602,7 +3602,7 @@ class EasyBlock(object):
         elif ignore_failures:
             msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
         else:
             msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
             msg += f" (ignored: {len(files_missing_devcode_ignored)}, "
@@ -3619,7 +3619,7 @@ class EasyBlock(object):
             msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
             msg += f"{len(files_additional_devcode)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
         elif strict_cc_check:
             msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
             msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
@@ -3636,7 +3636,7 @@ class EasyBlock(object):
             msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             msg += f"{len(files_missing_ptx)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-fail-on-error, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
         elif accept_missing_ptx:
             msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             msg += f"{len(files_missing_ptx)}"
