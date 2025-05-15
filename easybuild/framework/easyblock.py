@@ -3680,16 +3680,9 @@ class EasyBlock(object):
             msg += "you requested in --cuda-compute-capabilities), but that may be acceptable to you."
             self.log.info(msg)
         if (
-            build_option('debug') and
-            (len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0 or len(files_missing_ptx) > 0)
-        ):
-            trace_and_log("See build log for detailed lists of files not passing the CUDA Sanity Check")
-        elif (
             len(files_missing_devcode) > 0 or len(files_additional_devcode) > 0 or len(files_missing_ptx) > 0
         ):
-            msg = "To get a detailed list of files not passing the CUDA Sanity Check in the build log, "
-            msg += "rerun with --debug."
-            trace_and_log(msg)
+            trace_and_log("See build log for detailed lists of files not passing the CUDA Sanity Check")
 
         # Long report, which prints the files that have potential issues
         summary_msg_files = f"{len(files_missing_devcode)} files missing one or more CUDA compute capabilities:"
