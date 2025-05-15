@@ -1318,21 +1318,33 @@ class GithubTest(EnhancedTestCase):
                 'log_file': logfile,
             }),
         ]
-        test_remove_name = 'REMOVEME'
-        test_remove_val = 'test-abc'
+        environ = {
+            'USER': 'test',
+            'DONT_REMOVE_ME': 'test-123',
+        }
+        JWT_HDR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+        JWT_PLD = 'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzA4MzQ1MTIzLCJleHAiOjE3MDgzNTUxMjN9'
+        JWT_SIG = 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+        secret_environ = {
+            'REMOVEME': 'test-abc',
+            'ReMoVeMe2': 'TeSt-xyz',
+
+            'AWS_ACCESS_KEY': 'AKIAIOSFODNN7EXAMPLE',
+            'AWS_SECRET_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            'JWT': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),
+            'GH_TOKEN': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',
+            'SLACK_TOKEN': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',
+        }
         init_session_state = {
             'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
-            'environment': {
-                'USER': 'test',
-                test_remove_name: test_remove_val,
-            },
+            'environment': {**environ, **secret_environ},
             'module_list': [{'mod_name': 'test'}],
             'system_info': {'name': 'test'},
             'time': gmtime(0),
         }
 
         # Test exclude_env_from_report_add/clear
-        exclude_env_from_report_add(test_remove_name.lower())  # Also check that the name is uppercased in the check
+        exclude_env_from_report_add('REMOVEME'.lower())  # Also check that the name is uppercased in the check
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
@@ -1340,20 +1352,41 @@ class GithubTest(EnhancedTestCase):
             "**FAIL (build issue)** _fail.eb_",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
+            "DONT_REMOVE_ME = test-123",
         ]
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
-        self.assertNotIn(test_remove_name, res['full'])
+
+        # Test that excluded patterns works by matching also partial strings
+        exclude_patterns1 = [
+            'REMOVEME',
+            'ReMoVeMe2',
+        ]
+        # Test that known token regexes for ENV vars are excluded by default
+        exclude_patterns2 = [
+            'AWS_ACCESS_KEY',
+            'AWS_SECRET_KEY',
+            'JWT',
+            'GH_TOKEN',
+            'SLACK_TOKEN',
+        ]
+        for pattern in exclude_patterns1 + exclude_patterns2:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
 
         exclude_env_from_report_clear()
+        patterns += exclude_patterns1
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
-        patterns.append(f"{test_remove_name} = {test_remove_val}")
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:2]:
-            self.assertIn(pattern, res['full'])
+            self.assertIn(pattern, res['overview'])
+
+        for pattern in exclude_patterns2:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
@@ -1371,7 +1404,7 @@ class GithubTest(EnhancedTestCase):
             self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertIn(pattern, res['full'])
+            self.assertIn(pattern, res['overview'])
 
         self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
