@@ -1334,6 +1334,16 @@ class GithubTest(EnhancedTestCase):
             'JWT': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),
             'GH_TOKEN': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',
             'SLACK_TOKEN': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',
+
+            'API_SOMETHING': '1234567890',
+            'MY_PASSWORD': '1234567890',
+            'ABC_TOKEN': '1234567890',
+            'AUTH_XXX': '1234567890',
+            'LICENSE': '1234567890',
+            'WORLD_KEY': '1234567890',
+            'PRIVATE_INFO': '1234567890',
+            'SECRET_SECRET': '1234567890',
+            'INFO_CREDENTIALS': '1234567890',
         }
         init_session_state = {
             'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
@@ -1369,6 +1379,16 @@ class GithubTest(EnhancedTestCase):
             'JWT',
             'GH_TOKEN',
             'SLACK_TOKEN',
+
+            'API_SOMETHING',
+            'MY_PASSWORD',
+            'ABC_TOKEN',
+            'AUTH_XXX',
+            'LICENSE',
+            'WORLD_KEY',
+            'PRIVATE_INFO',
+            'SECRET_SECRET',
+            'INFO_CREDENTIALS',
         ]
         for pattern in exclude_patterns1 + exclude_patterns2:
             # .lower() test that variable name is not case sensitive for excluding

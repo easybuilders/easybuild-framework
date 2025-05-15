@@ -60,6 +60,18 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 _log = fancylogger.getLogger('testing', fname=False)
 
 _exclude_env_from_report = []
+DEFAULT_EXCLUDE_FROM_REPORT= [
+    'KEY',
+    'SECRET',
+    'TOKEN',
+    'PASSWORD',
+    'API',
+    'AUTH',
+    'CREDENTIALS',
+    'PRIVATE',
+    'LICENSE',
+    'LICENCE',
+]
 DEFAULT_EXCLUDE_FROM_REPORT_RGX = [
     # From PR comments https://github.com/easybuilders/easybuild-framework/pull/4877
     r'AKIA[0-9A-Z]{16}',  # AWS access key
@@ -317,7 +329,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
         environment += ["%s = %s" % (key, value)]
 
     environment = list(filter(
-        lambda x: not any(y in x.upper() for y in _exclude_env_from_report),
+        lambda x: not any(y in x.upper() for y in DEFAULT_EXCLUDE_FROM_REPORT + _exclude_env_from_report),
         environment
     ))
 
