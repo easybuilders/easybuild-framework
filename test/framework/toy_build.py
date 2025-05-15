@@ -3121,6 +3121,10 @@ class ToyBuildTest(EnhancedTestCase):
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
+        toy_ec_cuda = os.path.join(self.test_prefix, 'toy-0.0-cuda.eb')
+        write_file(toy_ec_cuda, read_file(toy_ec) + "\ndependencies = [('CUDA', '5.5.22', '', SYSTEM)]")
+        toy_ec = toy_ec_cuda
+
         # Create mock cuobjdump
         # First, lets define sections of echo's for cuobjdump for various scenarios
 
@@ -3222,6 +3226,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Add cuobjdump_dir to the path
         setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
+
+        # Pretend the CUDA dep is already installed
+        module_dir = os.path.join(self.test_prefix, 'modules', 'all')
+        mkdir(module_dir, parents=True)
+        cuda_mod_dir = os.path.join(module_dir, 'CUDA')
+        cuda_mod_file = os.path.join(cuda_mod_dir, '5.5.22.lua')
+        write_file(cuda_mod_file, "-- Fake module content for CUDA")
+        setvar('MODULEPATH', module_dir)
 
         # Pretend we have CUDA loaded, or the sanity check won't run
         setvar('EBROOTCUDA', '/foo/bar')
@@ -3384,11 +3396,8 @@ class ToyBuildTest(EnhancedTestCase):
         # Test case 7: same as Test case 6, but add the failing file to the cuda_sanity_ignore_files
         # This is expected to succeed: the individual file which _would_ cause the sanity check to fail is
         # now on the ignore list
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         toy_whitelist_ec = os.path.join(self.test_prefix, 'toy-0.0-cuda-whitelist.eb')
-        write_file(toy_whitelist_ec, read_file(toy_ec_file) + '\ncuda_sanity_ignore_files = ["bin/toy"]')
+        write_file(toy_whitelist_ec, read_file(toy_ec) + '\ncuda_sanity_ignore_files = ["bin/toy"]')
 
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
