@@ -3309,8 +3309,7 @@ class ToyBuildTest(EnhancedTestCase):
         # This is expected to fail since there is missing device code for CC80
         args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-fail']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += r".*/bin/toy. Missing compute capabilities: 8.0."
+        error_pattern = r"Files missing CUDA device code: 1."
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3343,9 +3342,7 @@ class ToyBuildTest(EnhancedTestCase):
         # This is expected to fail: device code is present, but PTX code for the highest CC (9.0) is missing
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = r"Sanity check failed: Configured highest compute capability was '9\.0', "
-        error_pattern += r"but no PTX code for this compute capability was found in '.*/bin/toy' "
-        error_pattern += r"\(PTX architectures supported in that file: \['8\.0'\]\)"
+        error_pattern = r"Files missing CUDA PTX code: 1"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3379,8 +3376,7 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to fail, so first check error, then run again to check output
-        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += r".*/bin/toy. Additional compute capabilities: 7\.0"
+        error_pattern = r"Files with additional CUDA device code: 1"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, raise_error=True)
@@ -3399,8 +3395,6 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to succeed, so check output for expected patterns
-        error_pattern = r"Sanity check failed: Mismatch between cuda_compute_capabilities and device code in "
-        error_pattern += r".*/bin/toy\. Additional compute capabilities: 7\.0"
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_whitelist_ec, extra_args=args, raise_error=True, verify=False)
             stdout = self.get_stdout()
