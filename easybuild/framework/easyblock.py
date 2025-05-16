@@ -44,6 +44,7 @@ Authors:
 """
 import concurrent
 import copy
+import functools
 import glob
 import inspect
 import json
@@ -128,6 +129,21 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 REPROD = 'reprod'
 
 _log = fancylogger.getLogger('easyblock')
+
+
+def update_progress_bar_on_return(func):
+    """Decorator for obtain_file() to update the progress bar upon return"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        filename = args[1]
+
+        # We don't account for the checksums file in the progress bar
+        if filename != 'checksums.json':
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        return result
+    return wrapper
 
 
 class EasyBlock:
@@ -788,6 +804,7 @@ class EasyBlock:
 
         return exts_sources
 
+    @update_progress_bar_on_return
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
                     git_config=None, no_download=False, download_instructions=None, alt_location=None,
                     warning_only=False):
@@ -812,7 +829,7 @@ class EasyBlock:
 
         # We don't account for the checksums file in the progress bar
         if filename != 'checksums.json':
-            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, progress_size=0, label=filename)
 
         if alt_location is None:
             location = self.name
