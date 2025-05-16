@@ -42,7 +42,7 @@ class TestEBConfigObj(EnhancedTestCase):
 
     def setUp(self):
         """Set some convenience attributes"""
-        super(TestEBConfigObj, self).setUp()
+        super().setUp()
 
         _, tcs = search_toolchain('')
         self.tc_names = [x.NAME for x in tcs]

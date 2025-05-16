@@ -37,4 +37,4 @@ class EB_toy_deprecated(EB_toy):
     def post_install_step(self):
         """Any postprocessing for toy (deprecated)"""
         print("This step is deprecated.")
-        super(EB_toy, self).post_install_step()
+        super().post_install_step()

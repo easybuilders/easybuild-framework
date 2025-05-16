@@ -39,7 +39,7 @@ from easybuild.tools.config import get_job_backend
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
-class JobBackend(object):
+class JobBackend:
     __metaclass__ = ABCMeta
 
     def __init__(self):

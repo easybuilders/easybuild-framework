@@ -69,7 +69,7 @@ class Acml(LinAlg):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
-        super(Acml, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -90,4 +90,4 @@ class Acml(LinAlg):
             self.BLAS_LIB.insert(0, "acml_mv")
             self.BLAS_LIB_MT.insert(0, "acml_mv")
 
-        super(Acml, self)._set_blas_variables()
+        super()._set_blas_variables()

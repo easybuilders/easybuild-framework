@@ -36,7 +36,7 @@ class DummyExtension(ExtensionEasyBlock):
 
     def __init__(self, *args, **kwargs):
 
-        super(DummyExtension, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # use lowercase name as default value for expected module name, and replace '-' with '_'
         if 'modulename' not in self.options:

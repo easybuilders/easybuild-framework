@@ -66,7 +66,7 @@ def check_value(value, context):
         raise EasyBuildError(error_msg % format_info)
 
 
-class EasyStack(object):
+class EasyStack:
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
 
     def __init__(self):
@@ -90,7 +90,7 @@ class EasyStack(object):
         return general_options
 
 
-class SoftwareSpecs(object):
+class SoftwareSpecs:
     """Contains information about every software that should be installed"""
 
     def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name):
@@ -101,7 +101,7 @@ class SoftwareSpecs(object):
         self.versionsuffix = versionsuffix
 
 
-class EasyStackParser(object):
+class EasyStackParser:
     """Parser for easystack files (in YAML syntax)."""
 
     @staticmethod

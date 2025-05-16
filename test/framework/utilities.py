@@ -85,7 +85,7 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        super(EnhancedTestCase, self).setUp()
+        super().setUp()
 
         # make sure option parser doesn't pick up any cmdline arguments/options
         while len(sys.argv) > 1:
@@ -115,7 +115,9 @@ class EnhancedTestCase(TestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
+        self.test_sourcepath_data = os.path.join(testdir, 'sandbox', 'data_sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
@@ -232,7 +234,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
-        super(EnhancedTestCase, self).tearDown()
+        super().tearDown()
 
         self.log.info("Cleaning up for test %s", self.id())
 

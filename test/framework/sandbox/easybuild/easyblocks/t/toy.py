@@ -69,7 +69,7 @@ class EB_toy(ExtensionEasyBlock):
 
     def __init__(self, *args, **kwargs):
         """Constructor"""
-        super(EB_toy, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         setvar('TOY', '%s-%s' % (self.name, self.version))
 
@@ -93,7 +93,7 @@ class EB_toy(ExtensionEasyBlock):
             # inject list of values for prebuildopts, same length as buildopts
             self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
 
-        return super(EB_toy, self).run_all_steps(*args, **kwargs)
+        return super().run_all_steps(*args, **kwargs)
 
     def configure_step(self, name=None, cfg=None):
         """Configure build of toy."""
@@ -150,7 +150,7 @@ class EB_toy(ExtensionEasyBlock):
         """Any postprocessing for toy"""
         libdir = os.path.join(self.installdir, 'lib')
         write_file(os.path.join(libdir, 'lib%s_post.a' % self.name), self.name.upper())
-        super(EB_toy, self).post_processing_step()
+        super().post_processing_step()
 
     @property
     def required_deps(self):
@@ -164,7 +164,7 @@ class EB_toy(ExtensionEasyBlock):
         """
         Prepare installation of toy as extension.
         """
-        super(EB_toy, self).install_extension(unpack_src=True)
+        super().install_extension(unpack_src=True)
         self.configure_step()
 
     def install_extension(self):
@@ -191,7 +191,7 @@ class EB_toy(ExtensionEasyBlock):
     def make_module_step(self, fake=False):
         """Generate module file."""
         if self.cfg.get('make_module', True) or fake:
-            modpath = super(EB_toy, self).make_module_step(fake=fake)
+            modpath = super().make_module_step(fake=fake)
         else:
             modpath = self.module_generator.get_modules_path(fake=fake)
 
@@ -199,6 +199,6 @@ class EB_toy(ExtensionEasyBlock):
 
     def make_module_extra(self):
         """Extra stuff for toy module"""
-        txt = super(EB_toy, self).make_module_extra()
+        txt = super().make_module_extra()
         txt += self.module_generator.set_environment('TOY', os.getenv('TOY', '<TOY_env_var_not_defined>'))
         return txt

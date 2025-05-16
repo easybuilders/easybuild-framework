@@ -85,7 +85,7 @@ class LinAlg(Toolchain):
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
-        super(LinAlg, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
@@ -98,7 +98,7 @@ class LinAlg(Toolchain):
 
         self.log.devel('set_variables: LinAlg variables %s', self.variables)
 
-        super(LinAlg, self).set_variables()
+        super().set_variables()
 
     def _set_blas_variables(self):
         """Set BLAS related variables"""

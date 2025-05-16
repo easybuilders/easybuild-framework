@@ -118,7 +118,7 @@ class RunShellCmdError(BaseException):
         self.caller_info = caller_info
 
         msg = f"Shell command '{self.cmd_name}' failed!"
-        super(RunShellCmdError, self).__init__(msg, *args, **kwargs)
+        super().__init__(msg, *args, **kwargs)
 
     def print(self):
         """

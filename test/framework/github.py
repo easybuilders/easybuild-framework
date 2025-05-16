@@ -97,7 +97,7 @@ class GithubTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(GithubTest, self).setUp()
+        super().setUp()
 
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
 
@@ -116,7 +116,7 @@ class GithubTest(EnhancedTestCase):
         """Cleanup after running test."""
         easybuild.tools.testing.create_gist = self.orig_testing_create_gist
 
-        super(GithubTest, self).tearDown()
+        super().tearDown()
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""
@@ -413,9 +413,9 @@ class GithubTest(EnhancedTestCase):
         all_ebs_pr3674 = ['llvm.py']
 
         # PR with more than one easyblock
-        all_ebs_pr3596 = ['wps.py', 'wrf.py']
+        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
 
-        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (3596, all_ebs_pr3596)]:
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
@@ -1381,7 +1381,8 @@ class GithubTest(EnhancedTestCase):
         self.assertFalse(is_patch_for('pi.patch', ec))
         self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
-        ec['patches'] = []
+        ec['patches'] = [{'name': '%(name)s-%(version)s.patch'}]
+        self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
         for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
             ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
@@ -1391,8 +1392,14 @@ class GithubTest(EnhancedTestCase):
         ec['components'] = None
         self.assertFalse(is_patch_for('pi.patch', ec))
 
-        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        ec['components'] = [('foo', '1.2.3',
+                             {'patches': [
+                                 'pi.patch',
+                                 {'name': 'ext_%(name)s-%(version)s.patch'},
+                                 ],
+                              })]
         self.assertTrue(is_patch_for('pi.patch', ec))
+        self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
 def suite():

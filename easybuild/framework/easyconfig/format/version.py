@@ -65,7 +65,7 @@ class EasyVersion(LooseVersion):
         return hash(tuple(self.version))
 
 
-class VersionOperator(object):
+class VersionOperator:
     """
     VersionOperator class represents a version expression that includes an operator.
     """
@@ -219,7 +219,7 @@ class VersionOperator(object):
         """
         # construct escaped operator symbols, e.g. '\<\='
         operators = []
-        for operator in self.OPERATOR_MAP.keys():
+        for operator in self.OPERATOR_MAP:
             operators.append(re.sub(r'(.)', r'\\\1', operator))
 
         # regex to parse version expression
@@ -477,7 +477,7 @@ class ToolchainVersionOperator(VersionOperator):
         Initialise VersionOperator instance.
         :param tcversop_str: intialise with toolchain version operator string
         """
-        super(ToolchainVersionOperator, self).__init__()
+        super().__init__()
 
         self.tc_name = None
         self.tcversop_str = None  # the full string
@@ -487,7 +487,7 @@ class ToolchainVersionOperator(VersionOperator):
 
     def __str__(self):
         """Return string representation of this instance"""
-        version_str = super(ToolchainVersionOperator, self).__str__()
+        version_str = super().__str__()
         return ''.join(map(str, [self.tc_name, self.SEPARATOR, version_str]))
 
     def __hash__(self):
@@ -511,7 +511,7 @@ class ToolchainVersionOperator(VersionOperator):
         """Check if this is a valid ToolchainVersionOperator"""
         tc_names = self._get_all_toolchain_names()
         known_tc_name = self.tc_name in tc_names
-        return known_tc_name and super(ToolchainVersionOperator, self).is_valid()
+        return known_tc_name and super().is_valid()
 
     def set(self, tcversop_str):
         """
@@ -535,7 +535,7 @@ class ToolchainVersionOperator(VersionOperator):
         tc_names = self._get_all_toolchain_names()
         self.log.debug("found toolchain names %s" % tc_names)
 
-        versop_regex = super(ToolchainVersionOperator, self).versop_regex(begin_end=False)
+        versop_regex = super().versop_regex(begin_end=False)
         versop_pattern = r'(?P<versop_str>%s)' % versop_regex.pattern
         tc_names_regex = r'(?P<tc_name>(?:%s))' % '|'.join(tc_names)
         tc_regex = re.compile(r'^%s(?:%s%s)?$' % (tc_names_regex, self.SEPARATOR, versop_pattern))
@@ -556,7 +556,7 @@ class ToolchainVersionOperator(VersionOperator):
         tcversop_dict = res.groupdict()
         tcversop_dict['tcversop_str'] = tcversop_str  # the total string
 
-        tcversop_dict = super(ToolchainVersionOperator, self).parse_versop_str(None, versop_dict=tcversop_dict)
+        tcversop_dict = super().parse_versop_str(None, versop_dict=tcversop_dict)
 
         if tcversop_dict.get('version_str', None) is not None and tcversop_dict.get('operator_str', None) is None:
             raise EasyBuildError("Toolchain version found, but no operator (use ' == '?).")
@@ -586,7 +586,7 @@ class ToolchainVersionOperator(VersionOperator):
         tc_name_res = name == self.tc_name
         if not tc_name_res:
             self.log.debug('Toolchain name %s different from test toolchain name %s' % (self.tc_name, name))
-        version_res = super(ToolchainVersionOperator, self).test(version)
+        version_res = super().test(version)
         res = tc_name_res and version_res
         self.log.debug("result of testing expression tc_name_res %s version_res %s: %s", tc_name_res, version_res, res)
 
@@ -614,7 +614,7 @@ class ToolchainVersionOperator(VersionOperator):
             return None
 
 
-class OrderedVersionOperators(object):
+class OrderedVersionOperators:
     """
     Ordered version operators. The ordering is defined such that one can test from left to right,
     and assume that the first matching version operator is the one that is the best match.

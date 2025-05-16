@@ -105,7 +105,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(CommandLineOptionsTest, self).setUp()
+        super().setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
@@ -118,7 +118,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         easybuild.tools.options.terminal_supports_colors = self.orig_terminal_supports_colors
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
 
-        super(CommandLineOptionsTest, self).tearDown()
+        super().tearDown()
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -3758,21 +3758,21 @@ class CommandLineOptionsTest(EnhancedTestCase):
             from easybuild.framework.easyblock import EasyBlock
             class EB_afoo(EasyBlock):
                 def __init__(self, *args, **kwargs):
-                    super(EB_afoo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'afoo.py'), afoo_txt)
         foo_txt = textwrap.dedent("""
             from easybuild.easyblocks.zfoo import EB_zfoo
             class EB_foo(EB_zfoo):
                 def __init__(self, *args, **kwargs):
-                    super(EB_foo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'foo.py'), foo_txt)
         zfoo_txt = textwrap.dedent("""
             from easybuild.easyblocks.afoo import EB_afoo
             class EB_zfoo(EB_afoo):
                 def __init__(self, *args, **kwargs):
-                    super(EB_zfoo, self).__init__(*args, **kwargs)
+                    super().__init__(*args, **kwargs)
         """)
         write_file(os.path.join(self.test_prefix, 'zfoo.py'), zfoo_txt)
 
@@ -3933,7 +3933,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,  # this shouldn't interfere
-            '--include-easyblocks-from-pr=3399',  # a PR for CMakeMake easyblock
+            '--include-easyblocks-from-pr=3677',  # a PR for CMakeMake easyblock
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3947,7 +3947,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3677\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -3977,7 +3977,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # including the same easyblock twice should work and give priority to the one from the PR
         args = [
             '--include-easyblocks=%s/*.py' % self.test_prefix,
-            '--include-easyblocks-from-pr=3399',
+            '--include-easyblocks-from-pr=3677',
             '--list-easyblocks=detailed',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -3991,9 +3991,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         expected = "WARNING: One or more easyblocks included from multiple locations: "
-        expected += "cmakemake.py (the one(s) from PR #3399 will be used)"
+        expected += "cmakemake.py (the one(s) from PR #3677 will be used)"
         self.assertEqual(stderr.strip(), expected)
-        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3399\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3677\n")
 
         # easyblock included from pr is found
         path_pattern = os.path.join(self.test_prefix, '.*', 'included-easyblocks-.*', 'easybuild', 'easyblocks')
@@ -4027,8 +4027,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(self.logfile, '')
 
         args = [
-            '--from-pr=22227',  # PR for Togl easyconfig
-            '--include-easyblocks-from-pr=3563,3634',  # PRs for ConfigureMake and GROMACS easyblock
+            '--from-pr=22589',  # PR for DIAMOND easyconfig
+            '--include-easyblocks-from-pr=3677,3674',  # PRs for CMakeMake and LLVM easyblock
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             '--extended-dry-run',
@@ -4042,27 +4042,27 @@ class CommandLineOptionsTest(EnhancedTestCase):
         logtxt = read_file(self.logfile)
 
         self.assertFalse(stderr)
-        self.assertEqual(stdout, "== easyblock configuremake.py included from PR #3563\n" +
-                         "== easyblock gromacs.py included from PR #3634\n")
+        self.assertEqual(stdout, "== easyblock cmakemake.py included from PR #3677\n" +
+                         "== easyblock llvm.py included from PR #3674\n")
 
         # easyconfig from pr is found
-        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22227', 't', 'Togl',
-                                  'Togl-2.0-GCCcore-13.3.0.eb')
+        ec_pattern = os.path.join(self.test_prefix, '.*', 'files_pr22589', 'd', 'DIAMOND',
+                                  'DIAMOND-2.1.11-GCC-13.3.0.eb')
         ec_regex = re.compile(r"Parsing easyconfig file %s" % ec_pattern, re.M)
         self.assertTrue(ec_regex.search(logtxt), "Pattern '%s' found in: %s" % (ec_regex.pattern, logtxt))
 
         # easyblock included from pr is found
         eb_regex = re.compile(
-            r"Derived full easyblock module path for ConfigureMake: easybuild.easyblocks.generic.configuremake", re.M)
+            r"Derived full easyblock module path for CMakeMake: easybuild.easyblocks.generic.cmakemake", re.M)
         self.assertTrue(eb_regex.search(logtxt), "Pattern '%s' found in: %s" % (eb_regex.pattern, logtxt))
 
         # easyblock is found via get_easyblock_class
-        klass = get_easyblock_class('ConfigureMake')
+        klass = get_easyblock_class('CMakeMake')
         self.assertTrue(issubclass(klass, EasyBlock), "%s is an EasyBlock derivative class" % klass)
 
         # 'undo' import of easyblocks
-        del sys.modules['easybuild.easyblocks.gromacs']
-        del sys.modules['easybuild.easyblocks.generic.configuremake']
+        del sys.modules['easybuild.easyblocks.llvm']
+        del sys.modules['easybuild.easyblocks.generic.cmakemake']
         sys.path[:] = orig_local_sys_path
         import easybuild.easyblocks
         reload(easybuild.easyblocks)
@@ -4856,7 +4856,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         # modifying an existing easyconfig requires a custom PR title
-        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb')
+        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
         self.assertExists(gcc_ec)
 
         args = [
@@ -5103,7 +5103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs = [
             r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
-            r'title: "delete {ec_name}"',
+            rf'title: "delete {ec_name}"',
             r"1 file(s?) changed,( 0 insertions\(\+\),)? [0-9]+ deletions\(-\)",
         ]
         self._assert_regexs(regexs, txt)
@@ -5335,6 +5335,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'EASYBUILD_INSTALLPATH',
             'EASYBUILD_ROBOT_PATHS',
             'EASYBUILD_SOURCEPATH',
+            'EASYBUILD_SOURCEPATH_DATA',
         ]
         for key in os.environ.keys():
             if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
@@ -5368,6 +5369,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"robot-paths\s* \(E\) = " + os.path.join(test_dir, 'easyconfigs', 'test_ecs'),
             r"rpath\s* \(D\) = " + ('False' if get_os_type() == DARWIN else 'True'),
             r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
+            r"sourcepath-data\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'data_sources'),
             r"subdir-modules\s* \(F\) = mods",
         ]
 
@@ -6843,7 +6845,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertNotIn('self.build_in_installdir = True', toy_eb_txt)
 
-        regex = re.compile(r'^(\s+)(super\(EB_toy, self\).__init__.*)\n', re.M)
+        regex = re.compile(r'^(\s+)(super\(\).__init__.*)\n', re.M)
         toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
         self.assertIn('self.build_in_installdir = True', toy_eb_txt)
 

@@ -527,7 +527,7 @@ class SystemToolsTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up systemtools test."""
-        super(SystemToolsTest, self).setUp()
+        super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
         self.orig_get_os_name = st.get_os_name
         self.orig_get_os_type = st.get_os_type
@@ -561,7 +561,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.ETC_OS_RELEASE = self.orig_ETC_OS_RELEASE
         if self.orig_archspec_cpu_host is not None:
             st.archspec_cpu_host = self.orig_archspec_cpu_host
-        super(SystemToolsTest, self).tearDown()
+        super().tearDown()
 
     def test_avail_core_count_native(self):
         """Test getting core count."""
@@ -751,7 +751,7 @@ class SystemToolsTest(EnhancedTestCase):
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
 
-        class MicroArch(object):
+        class MicroArch:
             def __init__(self, name):
                 self.name = name
 

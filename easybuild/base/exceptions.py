@@ -125,4 +125,4 @@ class LoggedException(Exception):
 
         getattr(logger, self.LOGGING_METHOD_NAME)(msg)
 
-        super(LoggedException, self).__init__(msg)
+        super().__init__(msg)
