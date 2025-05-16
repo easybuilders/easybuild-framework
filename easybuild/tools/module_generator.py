@@ -137,6 +137,10 @@ class ModuleGenerator:
     REGEX_SHELL_VAR = re.compile(rf'\$({REGEX_SHELL_VAR_PATTERN})')
     REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
 
+    # default options for modextravars
+    DEFAULT_MODEXTRAVARS_PUSHENV = False
+    DEFAULT_MODEXTRAVARS_SHELL_VARS = True
+
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
         self.app = application
@@ -430,24 +434,25 @@ class ModuleGenerator:
         """
         Unpack value that specifies how to define an environment variable with specified name.
         """
-        use_pushenv = False
+        use_pushenv = self.DEFAULT_MODEXTRAVARS_PUSHENV
+        shell_vars = self.DEFAULT_MODEXTRAVARS_SHELL_VARS
 
         # value may be specified as a string, or as a dict for special cases
         if isinstance(env_var_val, str):
             value = env_var_val
-
         elif isinstance(env_var_val, dict):
-            use_pushenv = env_var_val.get('pushenv', False)
+            use_pushenv = env_var_val.get('pushenv', self.DEFAULT_MODEXTRAVARS_PUSHENV)
+            shell_vars = env_var_val.get('shell_vars', self.DEFAULT_MODEXTRAVARS_SHELL_VARS)
             try:
                 value = env_var_val['value']
-            except KeyError:
+            except KeyError as err:
                 raise EasyBuildError("Required key 'value' is missing in dict that specifies how to set $%s: %s",
-                                     env_var_name, env_var_val)
+                                     env_var_name, env_var_val) from err
         else:
             raise EasyBuildError("Incorrect value type for setting $%s environment variable (%s): %s",
                                  env_var_name, type(env_var_val), env_var_val)
 
-        return value, use_pushenv
+        return value, use_pushenv, shell_vars
 
     # From this point on just not implemented methods
 
@@ -1060,12 +1065,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        set_value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, shell_vars = self.unpack_setenv_value(key, value)
 
         if relpath:
             set_value = os.path.join('$root', set_value) if set_value else '$root'
 
-        set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
+        if shell_vars:
+            set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         set_value = quote_str(set_value, tcl=True)
@@ -1161,6 +1167,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     START_STR = '[==['
     END_STR = ']==]'
+    CONCAT_STR = ' .. '
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -1529,18 +1536,19 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        set_value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, shell_vars = self.unpack_setenv_value(key, value)
 
         if relpath:
             set_value = self._path_join_cmd(set_value)
-            set_value = self.REGEX_QUOTE_SHELL_VAR.sub(r'os.getenv("\1")', set_value)
+            if shell_vars:
+                set_value = self.REGEX_QUOTE_SHELL_VAR.sub(r'os.getenv("\1")', set_value)
         else:
-            lua_concat = ' .. '
-            set_value = self.REGEX_SHELL_VAR.sub(rf'{lua_concat}os.getenv("\1"){lua_concat}', set_value)
-            set_value = lua_concat.join([
+            if shell_vars:
+                set_value = self.REGEX_SHELL_VAR.sub(rf'{self.CONCAT_STR}os.getenv("\1"){self.CONCAT_STR}', set_value)
+            set_value = self.CONCAT_STR.join([
                 # quote any substrings that are not lua commands
                 quote_str(x) if not x.startswith('os.') else x
-                for x in set_value.strip(lua_concat).split(lua_concat)
+                for x in set_value.strip(self.CONCAT_STR).split(self.CONCAT_STR)
             ])
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
