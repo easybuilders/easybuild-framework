@@ -3390,26 +3390,46 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return test_report_txt
 
         # define environment variables that should (not) show up in the test report
-        test_var_secret = 'THIS_IS_JUST_A_SECRET_ENV_VAR_FOR_EASYBUILD'
-        os.environ[test_var_secret] = 'thisshouldremainsecretonrequest'
-        test_var_secret_regex = re.compile(test_var_secret)
+        # The name contains an auto-excluded pattern `SECRET`
+        test_var_secret_always = 'THIS_IS_JUST_A_SECRET_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_secret_always] = 'thisshouldremainsecretonrequest'
+        test_var_secret_always_regex = re.compile(test_var_secret_always)
+        # The name contains an autoexcluded value as a recognized GH token
+        test_var_secret_always2 = 'THIS_IS_JUST_A_TOTALLY_PUBLIC_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_secret_always2] = 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz'
+        test_var_secret_always_regex2 = re.compile(test_var_secret_always2)
+        # This should be in general present and excluded on demand
+        test_var_secret_ondemand = 'THIS_IS_A_CUSTOM_ENV_VAR_FOR_EASYBUILD'
+        os.environ[test_var_secret_ondemand] = 'thisshouldbehiddenondemand'
+        test_var_secret_ondemand_regex = re.compile(test_var_secret_ondemand)
         test_var_public = 'THIS_IS_JUST_A_PUBLIC_ENV_VAR_FOR_EASYBUILD'
         os.environ[test_var_public] = 'thisshouldalwaysbeincluded'
         test_var_public_regex = re.compile(test_var_public)
 
         # default: no filtering
         test_report_txt = toy()
-        self.assertTrue(test_var_secret_regex.search(test_report_txt))
+        self.assertTrue(test_var_secret_ondemand_regex.search(test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
+        for rgx in [
+            test_var_secret_always_regex,
+            test_var_secret_always_regex2,
+        ]:
+            res = rgx.search(test_report_txt)
+            self.assertFalse(res, "No match for %s in %s" % (rgx.pattern, test_report_txt))
 
         # filter out env vars that match specified regex pattern
-        filter_arg = "--test-report-env-filter=.*_SECRET_ENV_VAR_FOR_EASYBUILD"
+        filter_arg = "--test-report-env-filter=.*_IS_A_CUSTOM_ENV_VAR_FOR_EASYBUILD"
         test_report_txt = toy(extra_args=[filter_arg])
-        res = test_var_secret_regex.search(test_report_txt)
-        self.assertFalse(res, "No match for %s in %s" % (test_var_secret_regex.pattern, test_report_txt))
+        for rgx in [
+            test_var_secret_ondemand_regex,
+            test_var_secret_always_regex,
+            test_var_secret_always_regex2,
+        ]:
+            res = rgx.search(test_report_txt)
+            self.assertFalse(res, "No match for %s in %s" % (rgx.pattern, test_report_txt))
         self.assertTrue(test_var_public_regex.search(test_report_txt))
         # make sure that used filter is reported correctly in test report
-        filter_arg_regex = re.compile(r"--test-report-env-filter='.\*_SECRET_ENV_VAR_FOR_EASYBUILD'")
+        filter_arg_regex = re.compile(r"--test-report-env-filter='.\*_IS_A_CUSTOM_ENV_VAR_FOR_EASYBUILD'")
         tup = (filter_arg_regex.pattern, test_report_txt)
         self.assertTrue(filter_arg_regex.search(test_report_txt), "%s in %s" % tup)
 
