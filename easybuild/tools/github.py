@@ -738,7 +738,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
             error_msg = f"HTTP error: {err}"
 
         if error_msg:
-            error_msg = f"Failed to download diff for {github_account}/{github_repo} commit {commit}! ({error_msg}"
+            error_msg = f"Failed to download diff for {github_account}/{github_repo} commit {commit}! ({error_msg})"
             raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_GITHUB)
 
         files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)

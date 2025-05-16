@@ -548,7 +548,7 @@ class GithubTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
 
         # test downloading of non-existing commit
-        error_pattern = r"Failed to download diff for commit c0ff33c0ff33 of easybuilders/easybuild-easyconfigs"
+        error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
     def test_fetch_easyconfigs_from_commit(self):
