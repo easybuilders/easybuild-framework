@@ -3234,7 +3234,8 @@ class ToyBuildTest(EnhancedTestCase):
         cuda_mod_file = os.path.join(cuda_mod_dir, '5.5.22.lua')
         cuda_mod_file_tcl = os.path.join(cuda_mod_dir, '5.5.22')
         write_file(cuda_mod_file, "-- Fake module content for CUDA")
-        write_file(cuda_mod_file_tcl, "#%Module1.0\n#This is a fake module file for CUDA")
+        write_file(cuda_mod_file_tcl, "#%Module1.0")
+        write_file(cuda_mod_file_tcl, "#This is a fake module file for CUDA", append=True)
         setvar('MODULEPATH', module_dir)
 
         # Filepath to cuobjdump
