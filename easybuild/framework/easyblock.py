@@ -3360,7 +3360,7 @@ class EasyBlock(object):
 
         fail_msgs = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
-        ignore_failures = not build_option('cuda_sanity_check_error_on_fail')
+        ignore_failures = not build_option('cuda_sanity_check_error_on_failed_checks')
         strict_cc_check = build_option('cuda_sanity_check_strict')
         accept_ptx_as_devcode = build_option('cuda_sanity_check_accept_ptx_as_devcode')
         accept_missing_ptx = build_option('cuda_sanity_check_accept_missing_ptx')

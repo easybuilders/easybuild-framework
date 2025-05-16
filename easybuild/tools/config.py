@@ -299,7 +299,7 @@ BUILD_OPTIONS_CMDLINE = {
         'container_build_image',
         'cuda_sanity_check_accept_ptx_as_devcode',
         'cuda_sanity_check_accept_missing_ptx',
-        'cuda_sanity_check_error_on_fail',
+        'cuda_sanity_check_error_on_failed_checks',
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',

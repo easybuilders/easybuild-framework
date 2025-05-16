@@ -27,10 +27,12 @@ Module with useful functions for getting system information
 
 Authors:
 
+* Kenneth Hoste (Ghent University)
 * Jens Timmerman (Ghent University)
 * Ward Poelmans (Ghent University)
 * Jasper Grimm (UoY)
 * Jan Andre Reuter (Forschungszentrum Juelich GmbH)
+* Caspar van Leeuwen (SURF)
 """
 import csv
 import ctypes
