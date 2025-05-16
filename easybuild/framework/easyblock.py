@@ -3398,7 +3398,7 @@ class EasyBlock:
 
         fail_msgs = []
         cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
-        ignore_failures = not build_option('cuda_sanity_check_error_on_fail')
+        ignore_failures = not build_option('cuda_sanity_check_error_on_failed_checks')
         strict_cc_check = build_option('cuda_sanity_check_strict')
         accept_ptx_as_devcode = build_option('cuda_sanity_check_accept_ptx_as_devcode')
         accept_missing_ptx = build_option('cuda_sanity_check_accept_missing_ptx')
@@ -3484,13 +3484,13 @@ class EasyBlock:
                         missing_devcodes = list(set(cfg_ccs) - set(found_dev_code_ccs))
 
                         # There are two reasons for ignoring failures:
-                        # - We are running with --disable-cuda-sanity-check-error-on-fail
+                        # - We are running with --disable-cuda-sanity-check-error-on-failed-checks
                         # - The specific {path} is on the cuda_sanity_ignore_files in the easyconfig
                         # In case we run with both, we'll just report that we're running with
-                        # --disable-cuda-sanity-check-error-on-fail
+                        # --disable-cuda-sanity-check-error-on-failed-checks
                         if ignore_failures:
                             ignore_msg = f"Failure for {path} will be ignored since we are not running with "
-                            ignore_msg += "--cuda-sanity-check-error-on-fail"
+                            ignore_msg += "--cuda-sanity-check-error-on-failed-checks"
                         else:
                             ignore_msg = f"This failure will be ignored as '{path}' is listed in "
                             ignore_msg += "'cuda_sanity_ignore_files'."
@@ -3511,8 +3511,8 @@ class EasyBlock:
                                 if strict_cc_check:
                                     # cuda-sanity-check-strict, so no additional compute capabilities allowed
                                     if path in ignore_file_list or ignore_failures:
-                                        # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                        # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                        # No error, either path is in cuda_sanity_ignore_files list in easyconfig,
+                                        # or we are running with --disable-cuda-sanity-check-error-on-failed-checks
                                         files_additional_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                         fail_msg += ignore_msg
                                     else:
@@ -3551,7 +3551,7 @@ class EasyBlock:
                                         if path in ignore_file_list or ignore_failures:
                                             # No error, because either path is on the cuda_sanity_ignore_files list in
                                             # the easyconfig, or we are running with
-                                            # --disable-cuda-sanity-check-error-on-fail
+                                            # --disable-cuda-sanity-check-error-on-failed-checks
                                             files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                             fail_msg += ignore_msg
                                         else:
@@ -3562,8 +3562,8 @@ class EasyBlock:
                                     # This is considered a failure
                                     files_missing_devcode.append(os.path.relpath(path, self.installdir))
                                     if path in ignore_file_list or ignore_failures:
-                                        # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                        # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                        # No error, either path is in cuda_sanity_ignore_files list in easyconfig,
+                                        # or we are running with --disable-cuda-sanity-check-error-on-failed-checks
                                         files_missing_devcode_ignored.append(os.path.relpath(path, self.installdir))
                                         fail_msg += ignore_msg
                                     else:
@@ -3585,7 +3585,7 @@ class EasyBlock:
                             fail_msg += "(PTX architectures supported in that file: %s). "
                             if path in ignore_file_list or ignore_failures:
                                 # No error, because either path is on the cuda_sanity_ignore_files list in the
-                                # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-fail
+                                # easyconfig, or we are running with --disable-cuda-sanity-check-error-on-failed-checks
                                 files_missing_ptx_ignored.append(os.path.relpath(path, self.installdir))
                                 fail_msg += ignore_msg
                                 self.log.warning(fail_msg, highest_cc[0], path, found_ptx_ccs)
@@ -3616,7 +3616,7 @@ class EasyBlock:
         elif ignore_failures:
             msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-failed-checks, so not considered failures)")
         else:
             msg = f"Number of files missing one or more CUDA Compute Capabilities: {len(files_missing_devcode)}"
             msg += f" (ignored: {len(files_missing_devcode_ignored)}, "
@@ -3633,7 +3633,7 @@ class EasyBlock:
             msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
             msg += f"{len(files_additional_devcode)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-failed-checks, so not considered failures)")
         elif strict_cc_check:
             msg = "Number of files with device code for more CUDA Compute Capabilities than requested: "
             msg += f"{len(files_additional_devcode)} (ignored: {len(files_additional_devcode_ignored)}, "
@@ -3650,7 +3650,7 @@ class EasyBlock:
             msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             msg += f"{len(files_missing_ptx)}"
             trace_and_log(msg)
-            trace_and_log("(not running with --cuda-sanity-check-error-on-fail, so not considered failures)")
+            trace_and_log("(not running with --cuda-sanity-check-error-on-failed-checks, so not considered failures)")
         elif accept_missing_ptx:
             msg = "Number of files missing PTX code for the highest configured CUDA Compute Capability: "
             msg += f"{len(files_missing_ptx)}"

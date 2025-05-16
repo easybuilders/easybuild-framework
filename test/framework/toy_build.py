@@ -3273,7 +3273,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 1a: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
         # 8.0 device code
-        # This should succeed (since the default for --cuda-sanity-check-error-on-fail is False)
+        # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
         # as to not break backwards compatibility
         write_file(cuobjdump_file, cuobjdump_txt_shebang),
         write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
@@ -3290,7 +3290,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Note that the difference with 1a is the presense of additional device code, PTX code foor the right
         # architecture, but missing device code for the requested architecture
         # It should not matter for the result, but triggers slightly different code paths in easyblock.py
-        # This should succeed (since the default for --cuda-sanity-check-error-on-fail is False)
+        # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
         # as to not break backwards compatibility
         write_file(cuobjdump_file, cuobjdump_txt_shebang),
         write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
@@ -3308,9 +3308,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
         assert_cuda_report(missing_cc=1, additional_cc=1, missing_ptx=0, log=outtxt, stdout=stdout)
 
-        # Test case 2: same as Test case 1, but add --cuda-sanity-check-error-on-fail
+        # Test case 2: same as Test case 1, but add --cuda-sanity-check-error-on-failed-checks
         # This is expected to fail since there is missing device code for CC80
-        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-fail']
+        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-failed-checks']
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files missing CUDA device code: 1."
         with self.mocked_stdout_stderr():
@@ -3328,7 +3328,7 @@ class ToyBuildTest(EnhancedTestCase):
         # This is expected to succeed, since now the PTX code for CC80 will be accepted as
         # device code. Note that also PTX code for the highest requested compute architecture (also CC80)
         # is present, so also this part of the sanity check passes
-        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-fail',
+        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-accept-ptx-as-devcode']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
@@ -3343,7 +3343,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 4: same as Test case 2, but run with --cuda-compute-capabilities=9.0
         # This is expected to fail: device code is present, but PTX code for the highest CC (9.0) is missing
-        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail']
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks']
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files missing CUDA PTX code: 1"
         with self.mocked_stdout_stderr():
@@ -3357,7 +3357,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 5: same as Test case 4, but add --cuda-sanity-check-accept-missing-ptx
         # This is expected to succeed: device code is present, PTX code is missing, but that's accepted
-        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-accept-missing-ptx']
         # We expect this to pass, so no need to check errors
         warning_pattern = r"Configured highest compute capability was '9\.0', "
@@ -3376,7 +3376,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Test case 6: same as Test case 5, but add --cuda-sanity-check-strict
         # This is expected to fail: device code is present, PTX code is missing (but accepted due to option)
         # but additional device code is present, which is not allowed by --cuda-sanity-check-strict
-        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files with additional CUDA device code: 1"
@@ -3395,7 +3395,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_whitelist_ec = os.path.join(self.test_prefix, 'toy-0.0-cuda-whitelist.eb')
         write_file(toy_whitelist_ec, read_file(toy_ec) + '\ncuda_sanity_ignore_files = ["bin/toy"]')
 
-        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail',
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
         # We expect this to succeed, so check output for expected patterns
         with self.mocked_stdout_stderr():
@@ -3405,7 +3405,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
         assert_cuda_report(missing_cc=0, additional_cc=1, missing_ptx=1, log=outtxt, stdout=stdout)
 
-        # Test case 8: try with --cuda-sanity-check-error-on-fail --cuda-compute-capabilities=9.0,9.0a
+        # Test case 8: try with --cuda-sanity-check-error-on-failed-checks --cuda-compute-capabilities=9.0,9.0a
         # and --cuda-sanity-check-strict
         # on a binary that contains 9.0 and 9.0a device code, and 9.0a ptx code. This tests the correct
         # ordering (i.e. 9.0a > 9.0). It should pass, since device code is present for both CCs and PTX
@@ -3416,7 +3416,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(cuobjdump_file, cuobjdump_txt_sm90a, append=True)
         write_file(cuobjdump_file, cuobjdump_txt_sm90a_ptx, append=True)
         adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
-        args = ['--cuda-compute-capabilities=9.0,9.0a', '--cuda-sanity-check-error-on-fail',
+        args = ['--cuda-compute-capabilities=9.0,9.0a', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-strict']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
@@ -3434,7 +3434,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 9: same as 8, but no --cuda-compute-capabilities are defined
         # We expect this to lead to a skip of the CUDA sanity check, and a success for the overall sanity check
-        args = ['--cuda-sanity-check-error-on-fail', '--cuda-sanity-check-strict']
+        args = ['--cuda-sanity-check-error-on-failed-checks', '--cuda-sanity-check-strict']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
@@ -3449,7 +3449,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(expected_result.search(outtxt), msg)
 
         # Test case 10: running with default options and a binary that does not contain ANY CUDA device code
-        # This is expected to succeed, since the default is --disable-cuda-sanity-check-error-on-fail
+        # This is expected to succeed, since the default is --disable-cuda-sanity-check-error-on-failed-checks
         write_file(cuobjdump_file, cuobjdump_txt_shebang)
         write_file(cuobjdump_file, cuobjdump_txt_no_cuda, append=True)
         adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
@@ -3469,9 +3469,9 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertTrue(expected_result.search(outtxt), msg)
         assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout, num_checked=0)
 
-        # Test case 11: same as Test case 10, but add --cuda-sanity-check-error-on-fail
+        # Test case 11: same as Test case 10, but add --cuda-sanity-check-error-on-failed-checks
         # This should pass: if it's not a CUDA binary, it shouldn't fail the CUDA sanity check
-        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-fail']
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
             outtxt = self._test_toy_build(ec_file=toy_ec, extra_args=args, raise_error=True)
