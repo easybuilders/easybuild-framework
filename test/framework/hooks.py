@@ -45,7 +45,7 @@ class HooksTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up for testing."""
-        super(HooksTest, self).setUp()
+        super().setUp()
         self.test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
         test_hooks_pymod_txt = '\n'.join([
             'def start_hook():',
@@ -92,7 +92,7 @@ class HooksTest(EnhancedTestCase):
         # reset cached hooks
         easybuild.tools.hooks._cached_hooks.clear()
 
-        super(HooksTest, self).tearDown()
+        super().tearDown()
 
     def test_load_hooks(self):
         """Test for load_hooks function."""

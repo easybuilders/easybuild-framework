@@ -62,7 +62,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
@@ -153,7 +153,7 @@ def env_vars_external_module(name, version, metadata):
     return env_vars
 
 
-class Toolchain(object):
+class Toolchain:
     """General toolchain class"""
 
     OPTIONS_CLASS = ToolchainOptions
@@ -839,7 +839,7 @@ class Toolchain(object):
         self.variables_init()
 
     def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
-                rpath_filter_dirs=None, rpath_include_dirs=None):
+                rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -853,6 +853,7 @@ class Toolchain(object):
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         :param rpath_include_dirs: extra directories to include in RPATH
+        :param rpath_wrappers_dir: directory in which to create RPATH wrappers
         """
 
         # take into account --sysroot configuration setting
@@ -906,7 +907,11 @@ class Toolchain(object):
 
         if build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers(rpath_filter_dirs, rpath_include_dirs)
+                self.prepare_rpath_wrappers(
+                    rpath_filter_dirs=rpath_filter_dirs,
+                    rpath_include_dirs=rpath_include_dirs,
+                    rpath_wrappers_dir=rpath_wrappers_dir
+                    )
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
@@ -975,11 +980,13 @@ class Toolchain(object):
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
         return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
+        :param rpath_include_dirs: extra directories to include in RPATH
+        :param rpath_wrappers_dir: directory in which to create RPATH wrappers (tmpdir is created if None)
         """
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
@@ -989,6 +996,11 @@ class Toolchain(object):
         if rpath_filter_dirs is None:
             rpath_filter_dirs = []
 
+        # only enable logging by RPATH wrapper scripts in debug mode
+        enable_wrapper_log = build_option('debug')
+
+        copy_rpath_args_py = False
+
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
         # (since CUDA 11.something the stubs are in $EBROOTCUDA/stubs/lib64)
@@ -997,13 +1009,35 @@ class Toolchain(object):
             if lib_stubs_pattern not in rpath_filter_dirs:
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
-        # directory where all wrappers will be placed
-        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        # directory where all RPATH wrapper script will be placed;
+        if rpath_wrappers_dir is None:
+            wrappers_dir = tempfile.mkdtemp()
+        else:
+            wrappers_dir = rpath_wrappers_dir
+            # disable logging in RPATH wrapper scripts when they may be exported for use outside of EasyBuild
+            enable_wrapper_log = False
+            # copy rpath_args.py script to sit alongside RPATH wrapper scripts
+            copy_rpath_args_py = True
+
+        # it's important to honor RPATH_WRAPPERS_SUBDIR, see is_rpath_wrapper method
+        wrappers_dir = os.path.join(wrappers_dir, RPATH_WRAPPERS_SUBDIR)
+        mkdir(wrappers_dir, parents=True)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
         rpath_args_py = find_eb_script('rpath_args.py')
+
+        # copy rpath_args.py script along RPATH wrappers, if desired
+        if copy_rpath_args_py:
+            copy_file(rpath_args_py, wrappers_dir)
+            # use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
+            # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
+            # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild;
+            # we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
+            # ${TOPDIR} is defined in template for RPATH wrapper scripts, refers to parent dir of RPATH wrapper script
+            rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
+
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
         # figure out list of patterns to use in rpath filter
@@ -1042,11 +1076,11 @@ class Toolchain(object):
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
-                    raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+                    raise EasyBuildError("Refusing to create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 # enable debug mode in wrapper script by specifying location for log file
-                if build_option('debug'):
-                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                if enable_wrapper_log:
+                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), f'rpath_wrapper_{cmd}.log')
                 else:
                     rpath_wrapper_log = '/dev/null'
 
@@ -1060,7 +1094,15 @@ class Toolchain(object):
                     'rpath_wrapper_log': rpath_wrapper_log,
                     'wrapper_dir': wrapper_dir,
                 }
-                write_file(cmd_wrapper, cmd_wrapper_txt)
+
+                # it may be the case that the wrapper already exists if the user provides a fixed location to store
+                # the RPATH wrappers, in this case the wrappers will be overwritten as they do not yet appear in the
+                # PATH (`which(cmd)` does not "see" them). Warn that they will be overwritten.
+                if os.path.exists(cmd_wrapper):
+                    _log.warning(f"Overwriting existing RPATH wrapper {cmd_wrapper}")
+                    write_file(cmd_wrapper, cmd_wrapper_txt, always_overwrite=True)
+                else:
+                    write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
 
                 # prepend location to this wrapper to $PATH

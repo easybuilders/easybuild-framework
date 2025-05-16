@@ -117,7 +117,7 @@ def dependencies_for(mod_name, modtool, depth=None):
     return mods
 
 
-class ModuleGenerator(object):
+class ModuleGenerator:
     """
     Class for generating module files.
     """
@@ -1161,7 +1161,7 @@ class ModuleGeneratorLua(ModuleGenerator):
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
-        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if self.modules_tool:
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
@@ -1410,8 +1410,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             else:
                 self.log.info("Lmod v%s < v%s, need to stick to Tcl syntax for .modulerc", lmod_ver, min_ver)
 
-        return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
-                                                        modulerc_txt=modulerc_txt)
+        return super().modulerc(module_version=module_version, filepath=filepath, modulerc_txt=modulerc_txt)
 
     def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """

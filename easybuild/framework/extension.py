@@ -82,7 +82,7 @@ def resolve_exts_filter_template(exts_filter, ext):
     return cmd, cmdinput
 
 
-class Extension(object):
+class Extension:
     """
     Support for installing extensions.
     """

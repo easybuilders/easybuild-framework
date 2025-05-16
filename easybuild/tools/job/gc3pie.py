@@ -97,7 +97,7 @@ class GC3Pie(JobBackend):
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
         """GC3Pie JobBackend constructor."""
-        super(GC3Pie, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')

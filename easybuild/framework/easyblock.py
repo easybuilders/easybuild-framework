@@ -82,7 +82,8 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
 from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
+from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -129,7 +130,7 @@ REPROD = 'reprod'
 _log = fancylogger.getLogger('easyblock')
 
 
-class EasyBlock(object):
+class EasyBlock:
     """Generic support for building and installing software, base class for actual easyblocks."""
 
     # static class method for extra easyconfig parameter definitions
@@ -167,12 +168,13 @@ class EasyBlock(object):
         # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
+        self.data_src = []
         self.checksums = []
         self.json_checksums = None
 
         # build/install directories
         self.builddir = None
-        self.installdir = None  # software
+        self.installdir = None  # software or data
         self.installdir_mod = None  # module file
 
         # extensions
@@ -237,6 +239,9 @@ class EasyBlock(object):
 
         # list of locations to include in RPATH used by toolchain
         self.rpath_include_dirs = []
+
+        # directory to export RPATH wrappers to
+        self.rpath_wrappers_dir = None
 
         # logging
         self.log = None
@@ -423,10 +428,9 @@ class EasyBlock(object):
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # tarballs made for git repos are not reproducible when created with Python < 3.9
             if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
-                self.log.deprecated(
+                print_warning(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
-                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
-                    '6.0'
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used."
                 )
                 return None
             # not all archives formats of git repos are reproducible
@@ -519,11 +523,11 @@ class EasyBlock(object):
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
 
-        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param sources: list of sources to fetch (if None, use 'sources' or 'data_sources' easyconfig parameter)
         :param checksums: list of checksums for sources
         """
         if sources is None:
-            sources = self.cfg['sources']
+            sources = self.cfg['sources'] or self.cfg['data_sources']
         if checksums is None:
             checksums = self.cfg['checksums']
 
@@ -801,7 +805,10 @@ class EasyBlock(object):
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths = source_paths()
+        if self.cfg['data_sources']:
+            srcpaths = source_paths_data()
+        else:
+            srcpaths = source_paths()
 
         # We don't account for the checksums file in the progress bar
         if filename != 'checksum.json':
@@ -1166,7 +1173,10 @@ class EasyBlock(object):
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path()
+        if self.cfg['data_sources']:
+            basepath = install_path(DATA)
+        else:
+            basepath = install_path(SOFTWARE)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
@@ -2103,7 +2113,9 @@ class EasyBlock(object):
                 # don't reload modules for toolchain, there is no need since they will be loaded already;
                 # the (fake) module for the parent software gets loaded before installing extensions
                 ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs)
+                                      rpath_filter_dirs=self.rpath_filter_dirs,
+                                      rpath_include_dirs=self.rpath_include_dirs,
+                                      rpath_wrappers_dir=self.rpath_wrappers_dir)
 
             # actual installation of the extension
             if install:
@@ -2265,7 +2277,9 @@ class EasyBlock(object):
                     # don't reload modules for toolchain, there is no need since they will be loaded already;
                     # the (fake) module for the parent software gets loaded before installing extensions
                     ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs)
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     if install:
                         ext.install_extension_substep("pre_install_extension")
                         ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
@@ -2378,11 +2392,11 @@ class EasyBlock(object):
             # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
             # set first element to be used, keep track of list in self.iter_opts
             # only needs to be done during first iteration, since after that the options won't be lists anymore
-            if self.iter_idx == 0:
+            if self.iter_idx == 0 and self.cfg.iterate_options:
                 # keep track of list, supply first element as first option to handle
-                for opt in self.cfg.iterate_options:
+                for opt in ITERATE_OPTIONS:
                     self.iter_opts[opt] = self.cfg[opt]  # copy
-                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+                    self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
                 print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
@@ -2390,7 +2404,12 @@ class EasyBlock(object):
 
             # pop first element from all iterative easyconfig parameters as next value to use
             for opt, value in self.iter_opts.items():
-                if len(value) > self.iter_idx:
+                if opt not in self.cfg.iterate_options:
+                    # Use original value even for options that were specified as strings so don't change
+                    # (ie. elements in ITERATE_OPTIONS but not in self.cfg.iterate_options), so they
+                    # are restored after an easyblock such as CMakeMake changes them
+                    self.cfg[opt] = value
+                elif len(value) > self.iter_idx:
                     self.cfg[opt] = value[self.iter_idx]
                 else:
                     self.cfg[opt] = ''  # empty list => empty option as next value
@@ -2591,8 +2610,10 @@ class EasyBlock(object):
         # fetch sources
         if self.cfg['sources']:
             self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
+        elif self.cfg['data_sources']:
+            self.fetch_sources(self.cfg['data_sources'], checksums=self.cfg['checksums'])
         else:
-            self.log.info('no sources provided')
+            self.log.info('no sources or data_sources provided')
 
         if self.dry_run:
             # actual list of patches is printed via _obtain_file_dry_run method
@@ -2689,19 +2710,25 @@ class EasyBlock(object):
         # this is better for error reporting that includes names of source files
         try:
             sources = ent.get('sources', [])
+            data_sources = ent.get('data_sources', [])
             patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
                 sources = ent.get_ref('sources')
+                data_sources = ent.get_ref('data_sources')
                 patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
                 checksums = ent.get_ref('checksums')
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
+        if isinstance(data_sources, dict):
+            data_sources = [data_sources]
         if isinstance(checksums, str):
             checksums = [checksums]
+
+        sources = sources + data_sources
 
         if not checksums:
             checksums_from_json = self.get_checksums_from_json()
@@ -2783,7 +2810,8 @@ class EasyBlock(object):
                 # take into account that extension may be a 2-tuple with just name/version
                 ext_opts = ext[2] if len(ext) == 3 else {}
                 # only a single source per extension is supported (see source_tmpl)
-                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
+                source_cnt = 1 if not ext_opts.get('nosource') else 0
+                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=source_cnt)
                 checksum_issues.extend(res)
 
         return checksum_issues
@@ -2894,6 +2922,14 @@ class EasyBlock(object):
             '$ORIGIN/../lib64',
         ])
 
+        # Location to store RPATH wrappers
+        if self.rpath_wrappers_dir is not None:
+            # Verify the path given is absolute
+            if os.path.isabs(self.rpath_wrappers_dir):
+                _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
+            else:
+                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
@@ -2909,9 +2945,11 @@ class EasyBlock(object):
                 self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
-                               loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
-                               rpath_include_dirs=self.rpath_include_dirs)
+        self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                               silent=self.silent, loadmod=load_tc_deps_modules,
+                               rpath_filter_dirs=self.rpath_filter_dirs,
+                               rpath_include_dirs=self.rpath_include_dirs,
+                               rpath_wrappers_dir=self.rpath_wrappers_dir)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
@@ -2962,6 +3000,8 @@ class EasyBlock(object):
         """Run the test_step and handles failures"""
         try:
             self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(f"An error was raised during test step: {err}")
         except RunShellCmdError as err:
             err.print()
             ec_path = os.path.basename(self.cfg.path)
@@ -3253,7 +3293,7 @@ class EasyBlock(object):
         - run post install commands if any were specified
         """
         # even though post_install_step is deprecated in easyblocks we need to keep this here until it is
-        # removed in 6.0 for easyblocks calling super(EB_xxx, self).post_install_step()
+        # removed in 6.0 for easyblocks calling super().post_install_step()
         # The deprecation warning for those is below, in post_processing_step().
 
         lib_dir = os.path.join(self.installdir, 'lib')
@@ -3395,6 +3435,14 @@ class EasyBlock(object):
                 self.log.debug(f"Sanity checking RPATH for files in {dirpath}")
 
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    # skip the check for any symlinks that resolve to outside the installation directory
+                    if not is_parent_path(self.installdir, path):
+                        realpath = os.path.realpath(path)
+                        msg = (f"Skipping RPATH sanity check for {path}, since its absolute path {realpath} resolves to"
+                               f" outside the installation directory {self.installdir}")
+                        self.log.info(msg)
+                        continue
+
                     self.log.debug(f"Sanity checking RPATH for {path}")
 
                     out = get_linked_libs_raw(path)
@@ -5082,8 +5130,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, patches
-            keys = ['patches', 'source_urls', 'sources']
+            # grab raw lines for source_urls, sources, data_sources, patches
+            keys = ['data_sources', 'patches', 'source_urls', 'sources']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5097,10 +5145,12 @@ def inject_checksums(ecs, checksum_type):
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
             sources_raw = raw.get('sources', '')
+            data_sources_raw = raw.get('data_sources', '')
             source_urls_raw = raw.get('source_urls', '')
             patches_raw = raw.get('patches', '')
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + patches_raw + checksums_txt + '\n', ectxt, count=1)
+            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
+                              ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)

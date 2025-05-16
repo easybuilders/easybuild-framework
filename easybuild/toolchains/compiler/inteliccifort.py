@@ -104,11 +104,11 @@ class IntelIccIfort(Compiler):
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.append('LIB_MULTITHREAD')
 
-        super(IntelIccIfort, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_compiler_vars(self):
         """Intel compilers-specific adjustments after setting compiler variables."""
-        super(IntelIccIfort, self)._set_compiler_vars()
+        super()._set_compiler_vars()
 
         if not ('icc' in self.COMPILER_MODULE_NAME and 'ifort' in self.COMPILER_MODULE_NAME):
             raise EasyBuildError("_set_compiler_vars: missing icc and/or ifort from COMPILER_MODULE_NAME %s",
@@ -137,4 +137,4 @@ class IntelIccIfort(Compiler):
         if LooseVersion(icc_version) < LooseVersion('12'):
             self.options.options_map['openmp'] = '-openmp'
 
-        super(IntelIccIfort, self).set_variables()
+        super().set_variables()

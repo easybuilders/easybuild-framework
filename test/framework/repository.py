@@ -51,7 +51,7 @@ class RepositoryTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RepositoryTest, self).setUp()
+        super().setUp()
 
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
@@ -165,7 +165,7 @@ class RepositoryTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up after test."""
-        super(RepositoryTest, self).tearDown()
+        super().tearDown()
 
         shutil.rmtree(self.path, True)
 

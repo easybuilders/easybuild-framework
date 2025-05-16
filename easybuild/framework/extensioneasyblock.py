@@ -200,9 +200,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                 self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
-            super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
-                                                              custom_commands=custom_commands,
-                                                              extension=self.is_extension)
+            super().sanity_check_step(custom_paths=custom_paths,
+                                      custom_commands=custom_commands,
+                                      extension=self.is_extension)
 
         # pass or fail sanity check
         if sanity_check_ok:
@@ -214,10 +214,18 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
-    def make_module_extra(self, extra=None):
+    def make_module_extra(self, *args, **kwargs):
         """Add custom entries to module."""
 
-        txt = EasyBlock.make_module_extra(self)
+        # The signature used to be make_module_extra(self, extra) which was wrong but supported
+        extra = kwargs.pop('extra', None)
+        if extra is None and len(args) == 1:
+            extra = args[0]
+            args = ()
+        if extra is not None:
+            self.log.deprecated("Passing the parameter 'extra' to make_module_extra should be "
+                                "replaced by concatenating the result", '6.0')
+        txt = super().make_module_extra(*args, **kwargs)
         if extra is not None:
             txt += extra
         return txt

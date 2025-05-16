@@ -406,6 +406,8 @@ def parse_easyconfigs(paths, validate=True):
     parsed_paths = []
 
     for (path, generated) in paths:
+        if not os.path.exists(path):
+            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
         # Avoid processing the same file multiple times
         path = os.path.abspath(path)
         if any(os.path.samefile(path, p) for p in parsed_paths):
@@ -414,8 +416,6 @@ def parse_easyconfigs(paths, validate=True):
 
         # keep track of whether any files were generated
         generated_ecs |= generated
-        if not os.path.exists(path):
-            raise EasyBuildError("Can't find path %s", path, exit_code=EasyBuildExit.MISSING_EASYCONFIG)
         try:
             ec_files = find_easyconfigs(path, ignore_dirs=build_option('ignore_dirs'))
             for ec_file in ec_files:

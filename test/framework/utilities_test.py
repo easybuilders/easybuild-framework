@@ -47,7 +47,7 @@ class UtilitiesTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup """
-        super(UtilitiesTest, self).setUp()
+        super().setUp()
 
         self.test_tmp_logdir = tempfile.mkdtemp()
         os.environ['EASYBUILD_TMP_LOGDIR'] = self.test_tmp_logdir

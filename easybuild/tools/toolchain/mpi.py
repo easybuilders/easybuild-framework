@@ -174,7 +174,7 @@ class Mpi(Toolchain):
 
         self._set_mpi_options()
 
-        super(Mpi, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_mpi_options(self):
         self.options.add_options(self.MPI_SHARED_OPTS, self.MPI_SHARED_OPTION_MAP)
@@ -189,7 +189,7 @@ class Mpi(Toolchain):
         self._set_mpi_variables()
 
         self.log.devel('set_variables: compiler variables %s', self.variables)
-        super(Mpi, self).set_variables()
+        super().set_variables()
 
     def _set_mpi_compiler_variables(self):
         """Set the MPI compiler variables"""
