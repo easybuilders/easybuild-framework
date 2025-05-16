@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax, get_repositorypath, update_build_option
+from easybuild.tools.config import get_module_syntax, get_repositorypath
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
