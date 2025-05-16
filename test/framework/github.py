@@ -1329,12 +1329,14 @@ class GithubTest(EnhancedTestCase):
             'REMOVEME': 'test-abc',
             'ReMoVeMe2': 'TeSt-xyz',
 
-            'AWS_ACCESS_KEY': 'AKIAIOSFODNN7EXAMPLE',
-            'AWS_SECRET_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-            'JWT': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),
-            'GH_TOKEN': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',
-            'SLACK_TOKEN': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',
+            # Test default removal based on variable value
+            'TOTALLYPUBLICVAR1': 'AKIAIOSFODNN7EXAMPLE',  # AWS_ACCESS_KEY
+            'TOTALLYPUBLICVAR2': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',  # AWS_SECRET_KEY
+            'TOTALLYPUBLICVAR3': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),  # JWT
+            'TOTALLYPUBLICVAR4': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',  # GH_TOKEN
+            'TOTALLYPUBLICVAR5': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',  # SLACK_TOKEN
 
+            # Test default removal based on variable name
             'API_SOMETHING': '1234567890',
             'MY_PASSWORD': '1234567890',
             'ABC_TOKEN': '1234567890',
@@ -1374,11 +1376,11 @@ class GithubTest(EnhancedTestCase):
         ]
         # Test that known token regexes for ENV vars are excluded by default
         exclude_patterns2 = [
-            'AWS_ACCESS_KEY',
-            'AWS_SECRET_KEY',
-            'JWT',
-            'GH_TOKEN',
-            'SLACK_TOKEN',
+            'TOTALLYPUBLICVAR1',
+            'TOTALLYPUBLICVAR2',
+            'TOTALLYPUBLICVAR3',
+            'TOTALLYPUBLICVAR4',
+            'TOTALLYPUBLICVAR5',
 
             'API_SOMETHING',
             'MY_PASSWORD',
