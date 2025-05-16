@@ -3000,6 +3000,8 @@ class EasyBlock:
         """Run the test_step and handles failures"""
         try:
             self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(f"An error was raised during test step: {err}")
         except RunShellCmdError as err:
             err.print()
             ec_path = os.path.basename(self.cfg.path)
