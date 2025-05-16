@@ -566,7 +566,7 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
         else:
             error_msg = f"HTTP status code: {status}"
     except HTTPError as err:
-        error_msg = f"HTTP error: {err}"
+        error_msg = str(err)
 
     if error_msg:
         error_msg = f"Failed to download diff for {github_account}/{github_repo} PR #{pr}! ({error_msg})"
@@ -735,7 +735,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
             else:
                 error_msg = f"HTTP status code: {status}"
         except HTTPError as err:
-            error_msg = f"HTTP error: {err}"
+            error_msg = str(err)
 
         if error_msg:
             error_msg = f"Failed to download diff for {github_account}/{github_repo} commit {commit}! ({error_msg})"
