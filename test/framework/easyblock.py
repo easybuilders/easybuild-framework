@@ -44,7 +44,7 @@ import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
@@ -1173,7 +1173,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterate_options, [])
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
-        expected_iter_opts = {'configopts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
+        expected_iter_opts = dict.fromkeys(ITERATE_OPTIONS, "")
+        expected_iter_opts['builddependencies'] = []
+        expected_iter_opts['configopts'] = ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]
 
         # once iteration mode is set, we're still in iteration #0
         self.mock_stdout(True)
@@ -1185,6 +1187,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
+        # mimic easyblock that changes this in-place
+        eb.cfg['preconfigopts'] = "FOO=bar "
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         # when next iteration is start, iteration index gets bumped
@@ -1196,6 +1200,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(stdout, "== starting iteration #1 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        # preconfigopts should have been restored (https://github.com/easybuilders/easybuild-framework/pull/4848)
+        self.assertEqual(eb.cfg['preconfigopts'], "")
         self.assertEqual(eb.cfg['configopts'], "--opt2")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 

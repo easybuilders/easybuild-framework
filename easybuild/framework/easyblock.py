@@ -2392,11 +2392,11 @@ class EasyBlock:
             # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
             # set first element to be used, keep track of list in self.iter_opts
             # only needs to be done during first iteration, since after that the options won't be lists anymore
-            if self.iter_idx == 0:
+            if self.iter_idx == 0 and self.cfg.iterate_options:
                 # keep track of list, supply first element as first option to handle
-                for opt in self.cfg.iterate_options:
+                for opt in ITERATE_OPTIONS:
                     self.iter_opts[opt] = self.cfg[opt]  # copy
-                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+                    self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
                 print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
@@ -2404,7 +2404,12 @@ class EasyBlock:
 
             # pop first element from all iterative easyconfig parameters as next value to use
             for opt, value in self.iter_opts.items():
-                if len(value) > self.iter_idx:
+                if opt not in self.cfg.iterate_options:
+                    # Use original value even for options that were specified as strings so don't change
+                    # (ie. elements in ITERATE_OPTIONS but not in self.cfg.iterate_options), so they
+                    # are restored after an easyblock such as CMakeMake changes them
+                    self.cfg[opt] = value
+                elif len(value) > self.iter_idx:
                     self.cfg[opt] = value[self.iter_idx]
                 else:
                     self.cfg[opt] = ''  # empty list => empty option as next value
