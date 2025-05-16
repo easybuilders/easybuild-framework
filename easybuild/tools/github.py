@@ -538,7 +538,12 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
 
     pr_target_branch = pr_data['base']['ref']
-    _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
+    _log.info(f"Target branch for PR #{pr}: {pr_target_branch}")
+    # 5.0.x branch was collapsed into develop branch and then removed shortly after release of EasyBuild v5.0.0,
+    # so for PRs targeting the 5.0.x branch use develop branch instead
+    if pr_target_branch == '5.0.x':
+        pr_target_branch = GITHUB_DEVELOP_BRANCH
+        _log.info(f"Using {pr_target_branch} instead of 5.0.x branch (since that branch was removed)")
 
     # download target branch of PR so we can try and apply the PR patch on top of it
     repo_target_branch = download_repo(repo=github_repo, account=github_account, branch=pr_target_branch,
