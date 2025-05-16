@@ -838,6 +838,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
     used_urllib = std_urllib
     switch_to_requests = False
 
+    wait = False
     wait_time = initial_wait_time
 
     while not downloaded and attempt_cnt < max_attempts:
@@ -880,6 +881,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
                 switch_to_requests = True
             elif status_code == 429:  # too many requests
                 _log.warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)")
+                wait = True
             elif 400 <= status_code <= 499:
                 _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
                 break
@@ -906,10 +908,11 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
                 _log.info("Downloading using requests package instead of urllib2")
                 used_urllib = requests
 
-            # exponential backoff
-            wait_time *= 2
-            _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
-            time.sleep(wait_time)
+            if wait:
+                _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
+                time.sleep(wait_time)
+                # exponential backoff
+                wait_time *= 2
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
