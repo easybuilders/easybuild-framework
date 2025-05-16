@@ -712,13 +712,13 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
     if not files:
         github_user = build_option('github_user')
 
-        def pr_request_fn(gh):
-            return gh.repos[github_account][github_repo].pulls[pr]
+        def commit_request_fn(gh):
+            return gh.repos[github_account][github_repo].commits[commit]
 
         # see also https://docs.github.com/en/rest/commits/commits#get-a-commit,
         # in particular part about media types
         accept_diff = {'Accept': 'application/vnd.github.diff'}
-        status, data = github_api_get_request(pr_request_fn, github_user=github_user, headers=accept_diff)
+        status, data = github_api_get_request(commit_request_fn, github_user=github_user, headers=accept_diff)
         if status == HTTP_STATUS_OK:
             # decode from bytes to text
             diff_txt = data.decode()
@@ -727,7 +727,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
             files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
             _log.debug("List of patched files for commit %s: %s", commit, files)
         else:
-            error_msg = f"Failed to download diff for {github_account}/{github_repo} PR #{pr}! (HTTP status code: {status})"
+            error_msg = f"Failed to download diff for {github_account}/{github_repo} PR #{pr}! "
+            error_msg += f"(HTTP status code: {status})"
             raise EasyBuildError(error_msg)
 
     # download tarball for specific commit
