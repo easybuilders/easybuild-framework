@@ -811,7 +811,7 @@ class EasyBlock:
             srcpaths = source_paths()
 
         # We don't account for the checksums file in the progress bar
-        if filename != 'checksum.json':
+        if filename != 'checksums.json':
             update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
 
         if alt_location is None:
