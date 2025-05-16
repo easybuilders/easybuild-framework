@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax, get_repositorypath
+from easybuild.tools.config import get_module_syntax, get_repositorypath, update_build_option
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
@@ -4361,6 +4361,9 @@ class ToyBuildTest(EnhancedTestCase):
         """
         test_ecs = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
         toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
+        toy_mod_path = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod_path += '.lua'
 
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += '\nruntest = "false"'
@@ -4370,6 +4373,27 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = r"shell command 'false \.\.\.' failed in test step"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
                               ec_file=test_ec, raise_error=True)
+        self.assertNotExists(toy_mod_path)
+
+        # make sure that option to ignore test failures works
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--ignore-test-failure'],
+                                            raise_error=True, verbose=True)
+        self.assertExists(toy_mod_path)
+        remove_file(toy_mod_path)
+
+        # ignoring test failure should also work if an EasyBuildError is raises from test step
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nruntest = "RAISE_ERROR"'
+        write_file(test_ec, test_ec_txt)
+
+        error_pattern = r"An error was raised during test step: 'TOY_TEST_FAIL'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                              ec_file=test_ec, raise_error=True)
+
+        # make sure that option to ignore test failures works
+        self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--ignore-test-failure'],
+                                            raise_error=True, verbose=True)
+        self.assertExists(toy_mod_path)
 
     def test_eb_crash(self):
         """
