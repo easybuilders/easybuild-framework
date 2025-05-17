@@ -128,6 +128,8 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 # Directory name in which to store reproducibility files
 REPROD = 'reprod'
 
+CHECKSUMS_JSON = 'checksums.json'
+
 _log = fancylogger.getLogger('easyblock')
 
 
@@ -139,7 +141,7 @@ def update_progress_bar_on_return(func):
         filename = args[1]
 
         # We don't account for the checksums file in the progress bar
-        if filename != 'checksums.json':
+        if filename != CHECKSUMS_JSON:
             update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
 
         return result
@@ -467,7 +469,7 @@ class EasyBlock:
         :param always_read: always read the checksums.json file, even if it has been read before
         """
         if always_read or self.json_checksums is None:
-            path = self.obtain_file("checksums.json", no_download=True, warning_only=True)
+            path = self.obtain_file(CHECKSUMS_JSON, no_download=True, warning_only=True)
             if path is not None:
                 self.log.info("Loading checksums from file %s", path)
                 json_txt = read_file(path)
@@ -828,7 +830,7 @@ class EasyBlock:
             srcpaths = source_paths()
 
         # We don't account for the checksums file in the progress bar
-        if filename != 'checksums.json':
+        if filename != CHECKSUMS_JSON:
             update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, progress_size=0, label=filename)
 
         if alt_location is None:
@@ -5058,7 +5060,7 @@ def inject_checksums_to_json(ecs, checksum_type):
                     raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
 
         # actually write the checksums
-        with open(os.path.join(ec_dir, 'checksums.json'), 'w') as outfile:
+        with open(os.path.join(ec_dir, CHECKSUMS_JSON), 'w') as outfile:
             json.dump(existing_checksums, outfile, indent=2, sort_keys=True)
 
 
