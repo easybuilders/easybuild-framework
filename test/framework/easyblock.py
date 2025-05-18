@@ -490,16 +490,20 @@ class EasyBlockTest(EnhancedTestCase):
         # -- No Files
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
+            self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib"))', guess)
         # -- With files
         write_file(os.path.join(eb.installdir, 'lib64', 'libfoo.so'), 'test')
         with eb.module_generator.start_module_creation():
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertTrue(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
+            self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib"))', guess)
         # -- With files in lib and lib64 symlinks to lib
         write_file(os.path.join(eb.installdir, 'lib', 'libfoo.so'), 'test')
         shutil.rmtree(os.path.join(eb.installdir, 'lib64'))
@@ -508,8 +512,10 @@ class EasyBlockTest(EnhancedTestCase):
             guess = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
             self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib64$", guess, re.M))
+            self.assertFalse(re.search(r"^prepend-path\s+CMAKE_LIBRARY_PATH\s+\$root/lib$", guess, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib64"))', guess)
+            self.assertNotIn('prepend_path("CMAKE_LIBRARY_PATH", pathJoin(root, "lib"))', guess)
 
         # With files in /lib and /lib64 symlinked to /lib there should be exactly 1 entry for (LD_)LIBRARY_PATH
         # pointing to /lib
