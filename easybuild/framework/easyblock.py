@@ -56,6 +56,7 @@ import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
@@ -1268,9 +1269,6 @@ class EasyBlock:
 
         self.log.info("Making devel module...")
 
-        # load fake module
-        fake_mod_data = self.load_fake_module(purge=True)
-
         header = self.module_generator.MODULE_SHEBANG
         if header:
             header += '\n'
@@ -1313,9 +1311,6 @@ class EasyBlock:
 
         txt = ''.join([header] + load_lines + env_lines)
         write_file(filename, txt)
-
-        # cleanup: unload fake module, remove fake module dir
-        self.clean_up_fake_module(fake_mod_data)
 
     def make_module_deppaths(self):
         """
@@ -1646,7 +1641,7 @@ class EasyBlock:
 
         return txt
 
-    def make_module_req(self, fake=False):
+    def make_module_req(self):
         """
         Generate the environment-variables required to run the module.
         """
@@ -1687,11 +1682,10 @@ class EasyBlock:
             mod_lines.append(self.module_generator.comment(note))
 
         for env_var, search_paths in env_var_requirements.items():
-            if self.dry_run or fake:
+            if self.dry_run:
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
-                if self.dry_run:
-                    self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
                 mod_req_paths = [
                     expanded_path for unexpanded_path in search_paths
@@ -1888,7 +1882,6 @@ class EasyBlock:
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
         self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
-
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
@@ -1972,10 +1965,11 @@ class EasyBlock:
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
-        if build_option('parallel_extensions_install'):
-            self.skip_extensions_parallel(exts_filter)
-        else:
-            self.skip_extensions_sequential(exts_filter)
+        with self.fake_module_environment():
+            if build_option('parallel_extensions_install'):
+                self.skip_extensions_parallel(exts_filter)
+            else:
+                self.skip_extensions_sequential(exts_filter)
 
     def skip_extensions_sequential(self, exts_filter):
         """
@@ -2103,31 +2097,27 @@ class EasyBlock:
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
-            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-
-            # prepare toolchain build environment, but only when not doing a dry run
-            # since in that case the build environment is the same as for the parent
             if self.dry_run:
                 self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
-            else:
-                # don't reload modules for toolchain, there is no need since they will be loaded already;
-                # the (fake) module for the parent software gets loaded before installing extensions
-                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs,
-                                      rpath_include_dirs=self.rpath_include_dirs,
-                                      rpath_wrappers_dir=self.rpath_wrappers_dir)
 
             # actual installation of the extension
-            if install:
-                try:
-                    ext.install_extension_substep("pre_install_extension")
-                    with self.module_generator.start_module_creation():
-                        txt = ext.install_extension_substep("install_extension")
-                    if txt:
-                        self.module_extra_extensions += txt
-                    ext.install_extension_substep("post_install_extension")
-                finally:
-                    if not self.dry_run:
+            if install and not self.dry_run:
+                with self.fake_module_environment(with_build_deps=True):
+                    self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+                    # don't reload modules for toolchain, there is no need
+                    # since they will be loaded already by the fake module
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
+                    try:
+                        ext.install_extension_substep("pre_install_extension")
+                        with self.module_generator.start_module_creation():
+                            txt = ext.install_extension_substep("install_extension")
+                        if txt:
+                            self.module_extra_extensions += txt
+                        ext.install_extension_substep("post_install_extension")
+                    finally:
                         ext_duration = datetime.now() - start_time
                         if ext_duration.total_seconds() >= 1:
                             print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
@@ -2274,17 +2264,18 @@ class EasyBlock:
                     tup = (ext.name, ext.version or '')
                     print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
 
-                    # don't reload modules for toolchain, there is no need since they will be loaded already;
-                    # the (fake) module for the parent software gets loaded before installing extensions
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs,
-                                          rpath_include_dirs=self.rpath_include_dirs,
-                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
-                    if install:
-                        ext.install_extension_substep("pre_install_extension")
-                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
-                        running_exts.append(ext)
-                        self.log.info(f"Started installation of extension {ext.name} in the background...")
+                    if install and not self.dry_run:
+                        with self.fake_module_environment(with_build_deps=True):
+                            # don't reload modules for toolchain, there is no
+                            # need since they will be loaded by the fake module
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                                  rpath_filter_dirs=self.rpath_filter_dirs,
+                                                  rpath_include_dirs=self.rpath_include_dirs,
+                                                  rpath_wrappers_dir=self.rpath_wrappers_dir)
+                            ext.install_extension_substep("pre_install_extension")
+                            ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
+                            running_exts.append(ext)
+                            self.log.info(f"Started installation of extension {ext.name} in the background...")
                         update_exts_progress_bar_helper(running_exts, 0)
 
             # print progress info after every iteration (unless that info is already shown via progress bar)
@@ -2307,6 +2298,25 @@ class EasyBlock:
     def start_dir(self):
         """Start directory in build directory"""
         return self.cfg['start_dir']
+
+    @contextmanager
+    def fake_module_environment(self, extra_modules=None, with_build_deps=False):
+        """
+        Load/Unload fake module
+        """
+        fake_mod_data = None
+
+        if with_build_deps:
+            # load modules for build dependencies as extra modules
+            extra_modules = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+        fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+
+        yield
+
+        # cleanup (unload fake module, remove fake module dir)
+        if fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
 
     def guess_start_dir(self):
         """
@@ -3130,14 +3140,9 @@ class EasyBlock:
             self.log.debug("No extensions in exts_list")
             return
 
-        # load fake module
-        fake_mod_data = None
-        if install and not self.dry_run:
-
-            # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and install:
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
@@ -3153,21 +3158,12 @@ class EasyBlock:
         if install:
             self.log.info("Installing extensions")
 
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
-
         self.init_ext_instances()
 
         if self.skip:
             self.skip_extensions()
 
         self.install_all_extensions(install=install)
-
-        # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
 
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
@@ -4078,7 +4074,7 @@ class EasyBlock:
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req(fake=fake)
+            txt += self.make_module_req()
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 
@@ -4122,13 +4118,14 @@ class EasyBlock:
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                try:
-                    self.make_devel_module()
-                except EasyBuildError as error:
-                    if build_option('module_only') or self.cfg['module_only']:
-                        self.log.info("Using --module-only so can recover from error: %s", error)
-                    else:
-                        raise error
+                with self.fake_module_environment():
+                    try:
+                        self.make_devel_module()
+                    except EasyBuildError as error:
+                        if build_option('module_only') or self.cfg['module_only']:
+                            self.log.info("Using --module-only so can recover from error: %s", error)
+                        else:
+                            raise error
             else:
                 self.log.info("Skipping devel module...")
 

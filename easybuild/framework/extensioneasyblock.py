@@ -176,28 +176,21 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # make sure Extension sanity check step is run once, by using a single empty list of extra modules
             lists_of_extra_modules = [[]]
 
-        for extra_modules in lists_of_extra_modules:
-
-            fake_mod_data = None
-
-            # only load fake module + extra modules for stand-alone installations (not for extensions),
-            # since for extension the necessary modules should already be loaded at this point;
-            # take into account that module may already be loaded earlier in sanity check
-            if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
-                # load fake module
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
-
-                if extra_modules:
-                    info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
-                    self.log.info(info_msg)
-                    trace_msg(info_msg)
-
-            # perform extension sanity check
+        # only load fake module + extra modules for stand-alone installations (not for extensions),
+        # since for extension the necessary modules should already be loaded at this point;
+        # take into account that module may already be loaded earlier in sanity check
+        if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
+            for extra_modules in lists_of_extra_modules:
+                with self.fake_module_environment(extra_modules=extra_modules):
+                    if extra_modules:
+                        info_msg = f"Running extension sanity check with extra modules: {', '.join(extra_modules)}"
+                        self.log.info(info_msg)
+                        trace_msg(info_msg)
+                    # perform sanity check for stand-alone extension
+                    (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+        else:
+            # perform single sanity check for extension
             (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
-
-            if fake_mod_data:
-                # unload fake module and clean up
-                self.clean_up_fake_module(fake_mod_data)
 
         if custom_paths or custom_commands or not self.is_extension:
             super().sanity_check_step(custom_paths=custom_paths,
