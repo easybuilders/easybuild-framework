@@ -133,7 +133,7 @@ CHECKSUMS_JSON = 'checksums.json'
 _log = fancylogger.getLogger('easyblock')
 
 
-def update_progress_bar_on_return(func):
+def _obtain_file_update_progress_bar_on_return(func):
     """Decorator for obtain_file() to update the progress bar upon return"""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -806,7 +806,7 @@ class EasyBlock:
 
         return exts_sources
 
-    @update_progress_bar_on_return
+    @_obtain_file_update_progress_bar_on_return
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
                     git_config=None, no_download=False, download_instructions=None, alt_location=None,
                     warning_only=False):
