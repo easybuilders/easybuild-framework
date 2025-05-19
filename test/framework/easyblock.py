@@ -44,7 +44,7 @@ import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
 from easybuild.framework.easyconfig import CUSTOM
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
@@ -1179,7 +1179,9 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterate_options, [])
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
-        expected_iter_opts = {'configopts': ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]}
+        expected_iter_opts = dict.fromkeys(ITERATE_OPTIONS, "")
+        expected_iter_opts['builddependencies'] = []
+        expected_iter_opts['configopts'] = ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"]
 
         # once iteration mode is set, we're still in iteration #0
         self.mock_stdout(True)
@@ -1191,6 +1193,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
+        # mimic easyblock that changes this in-place
+        eb.cfg['preconfigopts'] = "FOO=bar "
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
         # when next iteration is start, iteration index gets bumped
@@ -1202,6 +1206,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(stdout, "== starting iteration #1 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
+        # preconfigopts should have been restored (https://github.com/easybuilders/easybuild-framework/pull/4848)
+        self.assertEqual(eb.cfg['preconfigopts'], "")
         self.assertEqual(eb.cfg['configopts'], "--opt2")
         self.assertEqual(eb.iter_opts, expected_iter_opts)
 
@@ -1324,7 +1330,6 @@ class EasyBlockTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'exts_defaultclass = "DummyExtension"',
-            'exts_list = ["ext1"]',
             'exts_list = [',
             '    "dummy_ext",',
             '    ("custom_ext", "0.0", {"easyblock": "CustomDummyExtension"}),',
@@ -1416,7 +1421,7 @@ class EasyBlockTest(EnhancedTestCase):
             "toolchain = SYSTEM",
             "exts_list = [",
             "    ('bar', '0.0', {",
-            "         'source_tmpl': [SOURCE_TAR_GZ],",
+            "        'source_tmpl': [SOURCE_TAR_GZ],",
             "    }),",
             "]",
         ])
@@ -1489,6 +1494,46 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_extension_fake_modules(self):
+        """
+        Test that extensions relying on installation files from previous extensions work
+        Search paths of fake module should update for each extension and resolve any globs
+        """
+        self.contents = cleandoc("""
+            easyblock = 'ConfigureMake'
+            name = 'toy'
+            version = '0.0'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            exts_list = [
+                ('bar', '0.0', {
+                   'postinstallcmds': [
+                       'mkdir -p %(installdir)s/custom_bin',
+                       'touch %(installdir)s/custom_bin/bar.sh',
+                       'chmod +x %(installdir)s/custom_bin/bar.sh',
+                    ],
+                }),
+                ('barbar', '0.0', {
+                   'postinstallcmds': ['bar.sh'],
+                }),
+            ]
+            exts_defaultclass = "DummyExtension"
+            modextrapaths = {'PATH': 'custom*'}
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
+
+        self.mock_stdout(True)
+        eb.extensions_step(fetch=True)
+        stdout = self.get_stdout()
+        self.mock_stdout(False)
+
+        pattern = r">> running shell command:\n\s+bar.sh(\n\s+\[.*\]){3}\n\s+>> command completed: exit 0"
+        self.assertTrue(re.search(pattern, stdout, re.M))
 
     def test_make_module_step(self):
         """Test the make_module_step"""
@@ -2489,6 +2534,7 @@ class EasyBlockTest(EnhancedTestCase):
             exts_list = toy_ec['exts_list']
             exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
             toy_ec['exts_list'] = exts_list
+            toy_ec['exts_defaultclass'] = 'DummyExtension'
 
         eb = EB_toy(toy_ec)
         eb.silent = True
@@ -2503,6 +2549,7 @@ class EasyBlockTest(EnhancedTestCase):
         # sanity check commands are checked after checking sanity check paths, so this should work
         toy_ec = EasyConfig(toy_ec_fn)
         toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
+        toy_ec['exts_defaultclass'] = 'DummyExtension'
         eb = EB_toy(toy_ec)
         eb.silent = True
         with self.mocked_stdout_stderr():

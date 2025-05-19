@@ -44,6 +44,7 @@ Authors:
 """
 import concurrent
 import copy
+import functools
 import glob
 import inspect
 import json
@@ -56,6 +57,7 @@ import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
@@ -82,7 +84,8 @@ from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, F
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
 from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
-from easybuild.tools.config import install_path, log_path, package_path, source_paths
+from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
+from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
@@ -125,7 +128,24 @@ PYPI_PKG_URL_PATTERN = 'pypi.python.org/packages/source/'
 # Directory name in which to store reproducibility files
 REPROD = 'reprod'
 
+CHECKSUMS_JSON = 'checksums.json'
+
 _log = fancylogger.getLogger('easyblock')
+
+
+def _obtain_file_update_progress_bar_on_return(func):
+    """Decorator for obtain_file() to update the progress bar upon return"""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        filename = args[1]
+
+        # We don't account for the checksums file in the progress bar
+        if filename != CHECKSUMS_JSON:
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        return result
+    return wrapper
 
 
 class EasyBlock:
@@ -166,12 +186,13 @@ class EasyBlock:
         # list of patch/source files, along with checksums
         self.patches = []
         self.src = []
+        self.data_src = []
         self.checksums = []
         self.json_checksums = None
 
         # build/install directories
         self.builddir = None
-        self.installdir = None  # software
+        self.installdir = None  # software or data
         self.installdir_mod = None  # module file
 
         # extensions
@@ -236,6 +257,9 @@ class EasyBlock:
 
         # list of locations to include in RPATH used by toolchain
         self.rpath_include_dirs = []
+
+        # directory to export RPATH wrappers to
+        self.rpath_wrappers_dir = None
 
         # logging
         self.log = None
@@ -422,10 +446,9 @@ class EasyBlock:
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # tarballs made for git repos are not reproducible when created with Python < 3.9
             if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
-                self.log.deprecated(
+                print_warning(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
-                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used.",
-                    '6.0'
+                    f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used."
                 )
                 return None
             # not all archives formats of git repos are reproducible
@@ -446,7 +469,7 @@ class EasyBlock:
         :param always_read: always read the checksums.json file, even if it has been read before
         """
         if always_read or self.json_checksums is None:
-            path = self.obtain_file("checksums.json", no_download=True, warning_only=True)
+            path = self.obtain_file(CHECKSUMS_JSON, no_download=True, warning_only=True)
             if path is not None:
                 self.log.info("Loading checksums from file %s", path)
                 json_txt = read_file(path)
@@ -518,11 +541,11 @@ class EasyBlock:
         Add a list of source files (can be tarballs, isos, urls).
         All source files will be checked if a file exists (or can be located)
 
-        :param sources: list of sources to fetch (if None, use 'sources' easyconfig parameter)
+        :param sources: list of sources to fetch (if None, use 'sources' or 'data_sources' easyconfig parameter)
         :param checksums: list of checksums for sources
         """
         if sources is None:
-            sources = self.cfg['sources']
+            sources = self.cfg['sources'] or self.cfg['data_sources']
         if checksums is None:
             checksums = self.cfg['checksums']
 
@@ -783,6 +806,7 @@ class EasyBlock:
 
         return exts_sources
 
+    @_obtain_file_update_progress_bar_on_return
     def obtain_file(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
                     git_config=None, no_download=False, download_instructions=None, alt_location=None,
                     warning_only=False):
@@ -800,11 +824,14 @@ class EasyBlock:
         :param download_instructions: instructions to manually add source (used for complex cases)
         :param alt_location: alternative location to use instead of self.name
         """
-        srcpaths = source_paths()
+        if self.cfg['data_sources']:
+            srcpaths = source_paths_data()
+        else:
+            srcpaths = source_paths()
 
         # We don't account for the checksums file in the progress bar
-        if filename != 'checksum.json':
-            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, label=filename)
+        if filename != CHECKSUMS_JSON:
+            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, progress_size=0, label=filename)
 
         if alt_location is None:
             location = self.name
@@ -1165,7 +1192,10 @@ class EasyBlock:
         """
         Generate the name of the installation directory.
         """
-        basepath = install_path()
+        if self.cfg['data_sources']:
+            basepath = install_path(DATA)
+        else:
+            basepath = install_path(SOFTWARE)
         if basepath:
             self.install_subdir = ActiveMNS().det_install_subdir(self.cfg)
             self.installdir = os.path.join(os.path.abspath(basepath), self.install_subdir)
@@ -1257,9 +1287,6 @@ class EasyBlock:
 
         self.log.info("Making devel module...")
 
-        # load fake module
-        fake_mod_data = self.load_fake_module(purge=True)
-
         header = self.module_generator.MODULE_SHEBANG
         if header:
             header += '\n'
@@ -1302,9 +1329,6 @@ class EasyBlock:
 
         txt = ''.join([header] + load_lines + env_lines)
         write_file(filename, txt)
-
-        # cleanup: unload fake module, remove fake module dir
-        self.clean_up_fake_module(fake_mod_data)
 
     def make_module_deppaths(self):
         """
@@ -1635,7 +1659,7 @@ class EasyBlock:
 
         return txt
 
-    def make_module_req(self, fake=False):
+    def make_module_req(self):
         """
         Generate the environment-variables required to run the module.
         """
@@ -1676,11 +1700,10 @@ class EasyBlock:
             mod_lines.append(self.module_generator.comment(note))
 
         for env_var, search_paths in env_var_requirements.items():
-            if self.dry_run or fake:
+            if self.dry_run:
                 # Don't expand globs or do any filtering for dry run
                 mod_req_paths = search_paths
-                if self.dry_run:
-                    self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
+                self.dry_run_msg(f" ${env_var}:{', '.join(mod_req_paths)}")
             else:
                 mod_req_paths = search_paths.expand_paths(self.installdir)
 
@@ -1844,7 +1867,6 @@ class EasyBlock:
         # load fake module
         self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
         self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
-
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
@@ -1928,10 +1950,11 @@ class EasyBlock:
         if not exts_filter or len(exts_filter) == 0:
             raise EasyBuildError("Skipping of extensions, but no exts_filter set in easyconfig")
 
-        if build_option('parallel_extensions_install'):
-            self.skip_extensions_parallel(exts_filter)
-        else:
-            self.skip_extensions_sequential(exts_filter)
+        with self.fake_module_environment():
+            if build_option('parallel_extensions_install'):
+                self.skip_extensions_parallel(exts_filter)
+            else:
+                self.skip_extensions_sequential(exts_filter)
 
     def skip_extensions_sequential(self, exts_filter):
         """
@@ -2059,29 +2082,27 @@ class EasyBlock:
                 msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
                 self.dry_run_msg(msg)
 
-            self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-
-            # prepare toolchain build environment, but only when not doing a dry run
-            # since in that case the build environment is the same as for the parent
             if self.dry_run:
                 self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
-            else:
-                # don't reload modules for toolchain, there is no need since they will be loaded already;
-                # the (fake) module for the parent software gets loaded before installing extensions
-                ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                      rpath_filter_dirs=self.rpath_filter_dirs)
 
             # actual installation of the extension
-            if install:
-                try:
-                    ext.install_extension_substep("pre_install_extension")
-                    with self.module_generator.start_module_creation():
-                        txt = ext.install_extension_substep("install_extension")
-                    if txt:
-                        self.module_extra_extensions += txt
-                    ext.install_extension_substep("post_install_extension")
-                finally:
-                    if not self.dry_run:
+            if install and not self.dry_run:
+                with self.fake_module_environment(with_build_deps=True):
+                    self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+                    # don't reload modules for toolchain, there is no need
+                    # since they will be loaded already by the fake module
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
+                    try:
+                        ext.install_extension_substep("pre_install_extension")
+                        with self.module_generator.start_module_creation():
+                            txt = ext.install_extension_substep("install_extension")
+                        if txt:
+                            self.module_extra_extensions += txt
+                        ext.install_extension_substep("post_install_extension")
+                    finally:
                         ext_duration = datetime.now() - start_time
                         if ext_duration.total_seconds() >= 1:
                             print_msg("\t... (took %s)", time2str(ext_duration), log=self.log, silent=self.silent)
@@ -2228,15 +2249,18 @@ class EasyBlock:
                     tup = (ext.name, ext.version or '')
                     print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
 
-                    # don't reload modules for toolchain, there is no need since they will be loaded already;
-                    # the (fake) module for the parent software gets loaded before installing extensions
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs)
-                    if install:
-                        ext.install_extension_substep("pre_install_extension")
-                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
-                        running_exts.append(ext)
-                        self.log.info(f"Started installation of extension {ext.name} in the background...")
+                    if install and not self.dry_run:
+                        with self.fake_module_environment(with_build_deps=True):
+                            # don't reload modules for toolchain, there is no
+                            # need since they will be loaded by the fake module
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                                  rpath_filter_dirs=self.rpath_filter_dirs,
+                                                  rpath_include_dirs=self.rpath_include_dirs,
+                                                  rpath_wrappers_dir=self.rpath_wrappers_dir)
+                            ext.install_extension_substep("pre_install_extension")
+                            ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
+                            running_exts.append(ext)
+                            self.log.info(f"Started installation of extension {ext.name} in the background...")
                         update_exts_progress_bar_helper(running_exts, 0)
 
             # print progress info after every iteration (unless that info is already shown via progress bar)
@@ -2259,6 +2283,25 @@ class EasyBlock:
     def start_dir(self):
         """Start directory in build directory"""
         return self.cfg['start_dir']
+
+    @contextmanager
+    def fake_module_environment(self, extra_modules=None, with_build_deps=False):
+        """
+        Load/Unload fake module
+        """
+        fake_mod_data = None
+
+        if with_build_deps:
+            # load modules for build dependencies as extra modules
+            extra_modules = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
+
+        fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
+
+        yield
+
+        # cleanup (unload fake module, remove fake module dir)
+        if fake_mod_data:
+            self.clean_up_fake_module(fake_mod_data)
 
     def guess_start_dir(self):
         """
@@ -2344,11 +2387,11 @@ class EasyBlock:
             # handle configure/build/install options that are specified as lists (+ perhaps builddependencies)
             # set first element to be used, keep track of list in self.iter_opts
             # only needs to be done during first iteration, since after that the options won't be lists anymore
-            if self.iter_idx == 0:
+            if self.iter_idx == 0 and self.cfg.iterate_options:
                 # keep track of list, supply first element as first option to handle
-                for opt in self.cfg.iterate_options:
+                for opt in ITERATE_OPTIONS:
                     self.iter_opts[opt] = self.cfg[opt]  # copy
-                    self.log.debug("Found list for %s: %s", opt, self.iter_opts[opt])
+                    self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
                 print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
@@ -2356,7 +2399,12 @@ class EasyBlock:
 
             # pop first element from all iterative easyconfig parameters as next value to use
             for opt, value in self.iter_opts.items():
-                if len(value) > self.iter_idx:
+                if opt not in self.cfg.iterate_options:
+                    # Use original value even for options that were specified as strings so don't change
+                    # (ie. elements in ITERATE_OPTIONS but not in self.cfg.iterate_options), so they
+                    # are restored after an easyblock such as CMakeMake changes them
+                    self.cfg[opt] = value
+                elif len(value) > self.iter_idx:
                     self.cfg[opt] = value[self.iter_idx]
                 else:
                     self.cfg[opt] = ''  # empty list => empty option as next value
@@ -2557,8 +2605,10 @@ class EasyBlock:
         # fetch sources
         if self.cfg['sources']:
             self.fetch_sources(self.cfg['sources'], checksums=self.cfg['checksums'])
+        elif self.cfg['data_sources']:
+            self.fetch_sources(self.cfg['data_sources'], checksums=self.cfg['checksums'])
         else:
-            self.log.info('no sources provided')
+            self.log.info('no sources or data_sources provided')
 
         if self.dry_run:
             # actual list of patches is printed via _obtain_file_dry_run method
@@ -2655,19 +2705,25 @@ class EasyBlock:
         # this is better for error reporting that includes names of source files
         try:
             sources = ent.get('sources', [])
+            data_sources = ent.get('data_sources', [])
             patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
                 sources = ent.get_ref('sources')
+                data_sources = ent.get_ref('data_sources')
                 patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
                 checksums = ent.get_ref('checksums')
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
             sources = [sources]
+        if isinstance(data_sources, dict):
+            data_sources = [data_sources]
         if isinstance(checksums, str):
             checksums = [checksums]
+
+        sources = sources + data_sources
 
         if not checksums:
             checksums_from_json = self.get_checksums_from_json()
@@ -2749,7 +2805,8 @@ class EasyBlock:
                 # take into account that extension may be a 2-tuple with just name/version
                 ext_opts = ext[2] if len(ext) == 3 else {}
                 # only a single source per extension is supported (see source_tmpl)
-                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=1)
+                source_cnt = 1 if not ext_opts.get('nosource') else 0
+                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=source_cnt)
                 checksum_issues.extend(res)
 
         return checksum_issues
@@ -2860,6 +2917,14 @@ class EasyBlock:
             '$ORIGIN/../lib64',
         ])
 
+        # Location to store RPATH wrappers
+        if self.rpath_wrappers_dir is not None:
+            # Verify the path given is absolute
+            if os.path.isabs(self.rpath_wrappers_dir):
+                _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
+            else:
+                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
             self.toolchain.reset()
@@ -2875,9 +2940,11 @@ class EasyBlock:
                 self.modules_tool.prepend_module_path(full_mod_path)
 
         # prepare toolchain: load toolchain module and dependencies, set up build environment
-        self.toolchain.prepare(self.cfg['onlytcmod'], deps=self.cfg.dependencies(), silent=self.silent,
-                               loadmod=load_tc_deps_modules, rpath_filter_dirs=self.rpath_filter_dirs,
-                               rpath_include_dirs=self.rpath_include_dirs)
+        self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                               silent=self.silent, loadmod=load_tc_deps_modules,
+                               rpath_filter_dirs=self.rpath_filter_dirs,
+                               rpath_include_dirs=self.rpath_include_dirs,
+                               rpath_wrappers_dir=self.rpath_wrappers_dir)
 
         # keep track of environment variables that were tweaked and need to be restored after environment got reset
         # $TMPDIR may be tweaked for OpenMPI 2.x, which doesn't like long $TMPDIR paths...
@@ -2928,6 +2995,8 @@ class EasyBlock:
         """Run the test_step and handles failures"""
         try:
             self.test_step()
+        except EasyBuildError as err:
+            self.report_test_failure(f"An error was raised during test step: {err}")
         except RunShellCmdError as err:
             err.print()
             ec_path = os.path.basename(self.cfg.path)
@@ -3056,14 +3125,9 @@ class EasyBlock:
             self.log.debug("No extensions in exts_list")
             return
 
-        # load fake module
-        fake_mod_data = None
-        if install and not self.dry_run:
-
-            # load modules for build dependencies as extra modules
-            build_dep_mods = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
-
-            fake_mod_data = self.load_fake_module(purge=True, extra_modules=build_dep_mods)
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and install:
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
@@ -3079,21 +3143,12 @@ class EasyBlock:
         if install:
             self.log.info("Installing extensions")
 
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
-
         self.init_ext_instances()
 
         if self.skip:
             self.skip_extensions()
 
         self.install_all_extensions(install=install)
-
-        # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
 
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS, visible=False)
 
@@ -3361,6 +3416,14 @@ class EasyBlock:
                 self.log.debug(f"Sanity checking RPATH for files in {dirpath}")
 
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
+                    # skip the check for any symlinks that resolve to outside the installation directory
+                    if not is_parent_path(self.installdir, path):
+                        realpath = os.path.realpath(path)
+                        msg = (f"Skipping RPATH sanity check for {path}, since its absolute path {realpath} resolves to"
+                               f" outside the installation directory {self.installdir}")
+                        self.log.info(msg)
+                        continue
+
                     self.log.debug(f"Sanity checking RPATH for {path}")
 
                     out = get_linked_libs_raw(path)
@@ -3996,7 +4059,7 @@ class EasyBlock:
             txt += self.make_module_deppaths()
             txt += self.make_module_dep()
             txt += self.make_module_extend_modpath()
-            txt += self.make_module_req(fake=fake)
+            txt += self.make_module_req()
             txt += self.make_module_extra()
             txt += self.make_module_footer()
 
@@ -4040,13 +4103,14 @@ class EasyBlock:
             self.module_generator.create_symlinks(mod_symlink_paths, fake=fake)
 
             if ActiveMNS().mns.det_make_devel_module() and not fake and build_option('generate_devel_module'):
-                try:
-                    self.make_devel_module()
-                except EasyBuildError as error:
-                    if build_option('module_only') or self.cfg['module_only']:
-                        self.log.info("Using --module-only so can recover from error: %s", error)
-                    else:
-                        raise error
+                with self.fake_module_environment():
+                    try:
+                        self.make_devel_module()
+                    except EasyBuildError as error:
+                        if build_option('module_only') or self.cfg['module_only']:
+                            self.log.info("Using --module-only so can recover from error: %s", error)
+                        else:
+                            raise error
             else:
                 self.log.info("Skipping devel module...")
 
@@ -4959,7 +5023,7 @@ def inject_checksums_to_json(ecs, checksum_type):
                     raise EasyBuildError("Found existing checksum for %s, use --force to overwrite them" % filename)
 
         # actually write the checksums
-        with open(os.path.join(ec_dir, 'checksums.json'), 'w') as outfile:
+        with open(os.path.join(ec_dir, CHECKSUMS_JSON), 'w') as outfile:
             json.dump(existing_checksums, outfile, indent=2, sort_keys=True)
 
 
@@ -5048,8 +5112,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, patches
-            keys = ['patches', 'source_urls', 'sources']
+            # grab raw lines for source_urls, sources, data_sources, patches
+            keys = ['data_sources', 'patches', 'source_urls', 'sources']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5063,10 +5127,12 @@ def inject_checksums(ecs, checksum_type):
             # inject combination of source_urls/sources/patches/checksums into easyconfig
             # by replacing first occurence of placeholder that was put in place
             sources_raw = raw.get('sources', '')
+            data_sources_raw = raw.get('data_sources', '')
             source_urls_raw = raw.get('source_urls', '')
             patches_raw = raw.get('patches', '')
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + patches_raw + checksums_txt + '\n', ectxt, count=1)
+            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
+                              ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)

@@ -111,7 +111,30 @@ def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=
     return [(ec_file, generated)]
 
 
-def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
+def summary(ecs_with_res):
+    """
+    Compose summary of the build:
+    * [SUCCESS] for a successful build
+    * [FAILED] for a failed build
+    * [SKIPPED] for a build that didn’t run
+
+    :param ecs_with_res: list of tuples (ec, ec_res), ec is an EasyConfig object, and ec_res is a dict of the result
+    """
+    summary_fmt = "   * {} {}"
+    success_map = {
+        True: f'{"[SUCCESS]":<9}',
+        False: f'{"[FAILED]":<9}',
+        None: f'{"[SKIPPED]":<9}',
+    }
+    lines = ["Summary:"]
+    lines.extend([
+        summary_fmt.format(success_map[ec_res.get('success', False)], ec['full_mod_name'])
+        for ec, ec_res in ecs_with_res
+    ])
+    return '\n'.join(lines)
+
+
+def build_and_install_software(ecs, init_session_state, exit_on_failure=True, testing=False):
     """
     Build and install software for all provided parsed easyconfig files.
 
@@ -126,7 +149,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
     start_progress_bar(STATUS_BAR, size=len(ecs))
 
-    res = []
+    ecs_with_res = []
     ec_results = []
     failed_cnt = 0
 
@@ -171,13 +194,16 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
                 write_file(test_report_fp, test_report_txt['full'])
                 adjust_permissions(parent_dir, stat.S_IWUSR, add=False, recursive=False)
 
+        ecs_with_res.append((ec, ec_res))
+
         if not ec_res['success'] and exit_on_failure:
+            ecs_in_res = [res[0] for res in ecs_with_res]
+            ecs_without_res = [(ec, {'success': None}) for ec in ecs if ec not in ecs_in_res]
+            print_msg(summary(ecs_with_res + ecs_without_res), log=_log, silent=testing)
             error = ec_res['err']
             if isinstance(error, EasyBuildError):
                 error = EasyBuildError(test_msg, exit_code=error.exit_code)
             raise error
-
-        res.append((ec, ec_res))
 
         if failed_cnt:
             # if installations failed: indicate th
@@ -192,7 +218,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True):
 
     stop_progress_bar(STATUS_BAR)
 
-    return res
+    return ecs_with_res
 
 
 def run_contrib_style_checks(ecs, check_contrib, check_style):
@@ -563,11 +589,11 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
         with rich_live_cm():
             run_hook(PRE_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ordered_ecs])
-            ecs_with_res = build_and_install_software(ordered_ecs, init_session_state,
-                                                      exit_on_failure=exit_on_failure)
+            ecs_with_res = build_and_install_software(
+                ordered_ecs, init_session_state, exit_on_failure=exit_on_failure, testing=testing)
             run_hook(POST_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ecs_with_res])
     else:
-        ecs_with_res = [(ec, {}) for ec in ordered_ecs]
+        ecs_with_res = [(ec, {'success': None}) for ec in ordered_ecs]
 
     correct_builds_cnt = len([ec_res for (_, ec_res) in ecs_with_res if ec_res.get('success', False)])
     overall_success = correct_builds_cnt == len(ordered_ecs)
@@ -585,6 +611,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         print_msg(test_report_msg)
 
     print_msg(success_msg, log=_log, silent=testing)
+    if ecs_with_res:
+        print_msg(summary(ecs_with_res), log=_log, silent=testing)
 
     # cleanup and spec files
     for ec in easyconfigs:

@@ -132,6 +132,13 @@ class EB_toy(ExtensionEasyBlock):
         if res.exit_code:
             print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
 
+    def test_step(self, *args, **kwargs):
+        """Test toy."""
+        if self.cfg['runtest'] == 'RAISE_ERROR':
+            raise EasyBuildError("TOY_TEST_FAIL")
+        else:
+            super().test_step(*args, **kwargs)
+
     def install_step(self, name=None):
         """Install toy."""
         if name is None:
