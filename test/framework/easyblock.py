@@ -2470,26 +2470,26 @@ class EasyBlockTest(EnhancedTestCase):
     def test_patch_step(self):
         """Test patch step."""
         test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
-        orig_sources = ec['ec']['sources'][:]
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]['ec']
+        orig_sources = ec['sources'][:]
 
         toy_patches = [
             'toy-0.0_fix-silly-typo-in-printf-statement.patch',  # test for applying patch
             ('toy-extra.txt', 'toy-0.0'),  # test for patch-by-copy
         ]
-        self.assertEqual(ec['ec']['patches'], toy_patches)
+        self.assertEqual(ec['patches'], toy_patches)
 
         # test applying patches without sources
-        ec['ec']['sources'] = []
-        eb = EasyBlock(ec['ec'])
+        ec['sources'] = []
+        eb = EasyBlock(ec)
         with self.mocked_stdout_stderr():
             eb.fetch_step()
             eb.extract_step()
             self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
 
         # test actual patching of unpacked sources
-        ec['ec']['sources'] = orig_sources
-        eb = EasyBlock(ec['ec'])
+        ec['sources'] = orig_sources
+        eb = EasyBlock(ec)
         with self.mocked_stdout_stderr():
             eb.fetch_step()
             eb.extract_step()
@@ -2502,17 +2502,31 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check again with backup of patched files enabled
         update_build_option('backup_patched_files', True)
-        eb = EasyBlock(ec['ec'])
+        eb = EasyBlock(ec)
         with self.mocked_stdout_stderr():
             eb.fetch_step()
             eb.extract_step()
             eb.patch_step()
         # verify that patches were applied
         toydir = os.path.join(eb.builddir, 'toy-0.0')
+        backup_file = os.path.join(toydir, 'toy.source.orig')
         self.assertEqual(sorted(os.listdir(toydir)), ['toy-extra.txt', 'toy.source', 'toy.source.orig'])
         self.assertIn("and very proud of it", read_file(os.path.join(toydir, 'toy.source')))
-        self.assertNotIn("and very proud of it", read_file(os.path.join(toydir, 'toy.source.orig')))
+        self.assertNotIn("and very proud of it", read_file(backup_file))
         self.assertEqual(read_file(os.path.join(toydir, 'toy-extra.txt')), 'moar!\n')
+
+        # Check with options set
+        update_build_option('backup_patched_files', False)
+        ec['patches'] = [{'name': toy_patches[0], 'opts': '--backup --quiet'}]
+        eb = EasyBlock(ec)
+        with self.mocked_stdout_stderr():
+            eb.fetch_step()
+            eb.extract_step()
+            remove_file(backup_file)
+            eb.patch_step()
+            # Backup created by manual option
+            self.assertExists(backup_file)
+            self.assertRegex(read_file(eb.logfile), fr'patch .*{toy_patches[0]} .*--backup --quiet')
 
     def test_extensions_sanity_check(self):
         """Test sanity check aspect of extensions."""
