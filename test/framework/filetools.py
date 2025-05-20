@@ -1894,6 +1894,12 @@ class FileToolsTest(EnhancedTestCase):
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
+        # Passing an option works
+        with self.mocked_stdout_stderr():
+            ft.apply_patch(toy_patch_gz, path, options=' --reverse')
+        # Change was really removed
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
+
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
         ft.write_file(test_file, '123')

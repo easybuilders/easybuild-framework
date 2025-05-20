@@ -2892,9 +2892,10 @@ class EasyBlock:
             srcpathsuffix = patch.get('sourcepath', patch.get('copy', ''))
             # determine whether 'patch' file should be copied rather than applied
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
+            options = patch.get('opts', None)  # Extra options for patch command
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s",
-                           srcind, level, srcpathsuffix, copy_patch)
+            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
+                           srcind, level, srcpathsuffix, copy_patch, options)
 
             if beginpath is None:
                 try:
@@ -2910,7 +2911,7 @@ class EasyBlock:
             src = os.path.abspath(weld_paths(beginpath, srcpathsuffix))
             self.log.debug("Applying patch %s in path %s", patch, src)
 
-            apply_patch(patch['path'], src, copy=copy_patch, level=level)
+            apply_patch(patch['path'], src, copy=copy_patch, level=level, options=options)
 
     def prepare_step(self, start_dir=True, load_tc_deps_modules=True):
         """
