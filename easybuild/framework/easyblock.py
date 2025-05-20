@@ -3951,7 +3951,7 @@ class EasyBlock:
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         if not self.sanity_check_module_loaded:
-            self.fake_mod_data = self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
+            self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
