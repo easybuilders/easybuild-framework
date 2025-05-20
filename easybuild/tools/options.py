@@ -398,7 +398,42 @@ class EasyBuildOptions(GeneralOption):
                                    int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
-                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
+                                          "for example: 3.5,5.0,7.2. EasyBuild will (where possible) compile fat "
+                                          "binaries with support for (at least) all requested CUDA compute "
+                                          "capabilities, and PTX code for the highest CUDA compute capability (for "
+                                          "forwards compatibility). The check on this behavior may be relaxed using "
+                                          "--cuda-sanity-check-accept-missing-ptx, "
+                                          "--cuda-sanity-check-accept-ptx-as-devcode, "
+                                          "or made more stringent using --cuda-sanity-check-strict.",
+                                          'strlist', 'extend', None),
+            'cuda-sanity-check-accept-missing-ptx': ("Relax CUDA sanity check to accept that PTX code for the highest "
+                                                     "requested CUDA compute capability is not present (but will "
+                                                     "print a warning)",
+                                                     None, 'store_true', False),
+            'cuda-sanity-check-accept-ptx-as-devcode': ("Relax CUDA sanity check to accept that requested device code "
+                                                        "is not present, as long as PTX code is present that can be "
+                                                        "JIT-compiled for each target in --cuda-compute-capabilities. "
+                                                        "For example, if --cuda-compute-capabilities=8.0 and a binary "
+                                                        "is found in the installation that does not have device code "
+                                                        "for 8.0, but it does have PTX code for 7.0, the sanity check "
+                                                        "will pass if, and only if, this option is enabled. "
+                                                        "Note that JIT-compiling means the binary will work on the "
+                                                        "requested architecture, but is it not necessarily as well "
+                                                        "optimized as when actual device code is present for the "
+                                                        "requested architecture ",
+                                                        None, 'store_true', False),
+            'cuda-sanity-check-error-on-failed-checks': ("If enabled, failures in the CUDA sanity check will produce "
+                                                         "an error. If disabled, the CUDA sanity check will be "
+                                                         "performed and failures will be reported through warnings, "
+                                                         "but they will not result in an error",
+                                                         None, 'store_true', False),
+            'cuda-sanity-check-strict': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
+                                         "check will fail if the CUDA binaries don't contain code for (at least) "
+                                         "all compute capabilities defined in --cude-compute-capabilities, "
+                                         "but will accept if code for additional compute capabilities is present. "
+                                         "With this setting, the sanity check will also fail if code is present for "
+                                         "more compute capabilities than defined in --cuda-compute-capabilities.",
+                                         None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
@@ -544,7 +579,7 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
-            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involves unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
                                           None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
@@ -950,7 +985,7 @@ class EasyBuildOptions(GeneralOption):
         # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
         # see https://developer.nvidia.com/cuda-gpus
         if self.options.cuda_compute_capabilities:
-            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+$')
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+a?$')
             faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
             if faulty_cuda_ccs:
                 error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"

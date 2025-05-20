@@ -54,7 +54,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
-from easybuild.tools.environment import modify_env
+from easybuild.tools.environment import modify_env, setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
@@ -3119,6 +3119,404 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
                                   extra_args=args, name='toy-app', raise_error=True, verbose=False)
+
+    def test_toy_cuda_sanity_check(self):
+        """Test the CUDA sanity check"""
+        # We need to mock a cuobjdump executable and prepend in on the PATH
+        # First, make sure we can restore environment at the end of this test
+        start_env = copy.deepcopy(os.environ)
+
+        # Define the toy_ec file we want to use
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        toy_bin = '%(installdir)s/bin/toy'
+        py_site_pkgs = '%(installdir)s/lib/python3.9/site-packages'
+        shlib_ext = get_shared_lib_ext()
+
+        toy_ec_cuda = os.path.join(self.test_prefix, 'toy-0.0-cuda.eb')
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt += '\n' + '\n'.join([
+            "dependencies = [('CUDA', '5.5.22', '', SYSTEM)]",
+            "postinstallcmds += [",
+            "    'mkdir -p %(installdir)s/lib/python3.9/site-packages/plugins',",
+            # copy 'toy' binary, must be something that passes 'file' check in get_cuda_object_dump_raw
+            "    'cp %s %s/pytoy-cuda.cpython-39-x86_64-linux-gnu.%s'," % (toy_bin, py_site_pkgs, shlib_ext),
+            "    'cp %s %s/plugins/libpytoy_cuda.%s'," % (toy_bin, py_site_pkgs, shlib_ext),
+            "]",
+        ])
+        write_file(toy_ec_cuda, toy_ec_txt)
+
+        # Create mock cuobjdump
+        # First, lets define sections of echo's for cuobjdump for various scenarios
+
+        # Shebang for cuobjdump
+        cuobjdump_txt_shebang = "#!/bin/bash\n"
+
+        # Section for cuobjdump printing output for sm_70 architecture
+        cuobjdump_txt_sm70 = '\n'.join([
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_70'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output for sm_70 architecture
+        cuobjdump_txt_sm80 = '\n'.join([
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_80'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output for sm_90 architecture
+        cuobjdump_txt_sm90 = '\n'.join([
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_90'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output for sm_90a architecture
+        cuobjdump_txt_sm90a = '\n'.join([
+            "echo 'Fatbin elf code:'",
+            "echo '================'",
+            "echo 'arch = sm_90a'",
+            "echo 'code version = [1,7]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output for sm_80 PTX code
+        cuobjdump_txt_sm80_ptx = '\n'.join([
+            "echo 'Fatbin ptx code:'",
+            "echo '================'",
+            "echo 'arch = sm_80'",
+            "echo 'code version = [8,1]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo 'compressed'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output for sm_90a PTX code
+        cuobjdump_txt_sm90a_ptx = '\n'.join([
+            "echo 'Fatbin ptx code:'",
+            "echo '================'",
+            "echo 'arch = sm_90a'",
+            "echo 'code version = [8,1]'",
+            "echo 'host = linux'",
+            "echo 'compile_size = 64bit'",
+            "echo 'compressed'",
+            "echo ''\n"
+        ])
+
+        # Section for cuobjdump printing output that toy doesn't contain device code
+        cuobjdump_txt_no_cuda = "echo 'cuobjdump info    : File '/mock/path/to/toy' does not contain device code'"
+
+        # Created regex for success and failures
+        device_code_regex_success_pattern = r"DEBUG Output of 'cuobjdump' checked for '.*/bin/toy'; device code "
+        device_code_regex_success_pattern += "architectures match those in cuda_compute_capabilities"
+        device_code_regex_success = re.compile(device_code_regex_success_pattern, re.M)
+
+        device_missing_80_code_regex_pattern = r"Missing compute capabilities: 8.0."
+        device_missing_80_code_regex = re.compile(device_missing_80_code_regex_pattern, re.M)
+
+        device_additional_70_code_regex_pattern = r"Additional compute capabilities: 7.0."
+        device_additional_70_code_regex = re.compile(device_additional_70_code_regex_pattern, re.M)
+        device_additional_70_90_code_regex_pattern = r"Additional compute capabilities: 7.0, 9.0."
+        device_additional_70_90_code_regex = re.compile(device_additional_70_90_code_regex_pattern, re.M)
+
+        ptx_code_regex_success_pattern = r"DEBUG Output of 'cuobjdump' checked for '.*/bin/toy'; ptx code was "
+        ptx_code_regex_success_pattern += r"present for \(at least\) the highest CUDA compute capability in "
+        ptx_code_regex_success_pattern += "cuda_compute_capabilities"
+        ptx_code_regex_success = re.compile(ptx_code_regex_success_pattern, re.M)
+
+        # Create temporary subdir for cuobjdump, so that we don't have to add self.test_prefix itself to the PATH
+        cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
+        mkdir(cuobjdump_dir, parents=True)
+
+        # Add cuobjdump_dir to the path
+        setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
+
+        # Pretend the CUDA dep is already installed
+        module_dir = os.path.join(self.test_prefix, 'modules', 'all')
+        mkdir(module_dir, parents=True)
+        cuda_mod_dir = os.path.join(module_dir, 'CUDA')
+        cuda_mod_file = os.path.join(cuda_mod_dir, '5.5.22.lua')
+        cuda_mod_file_tcl = os.path.join(cuda_mod_dir, '5.5.22')
+        write_file(cuda_mod_file, "-- Fake module content for CUDA")
+        write_file(cuda_mod_file_tcl, "#%Module1.0")
+        write_file(cuda_mod_file_tcl, "#This is a fake module file for CUDA", append=True)
+        setvar('MODULEPATH', module_dir)
+
+        # Filepath to cuobjdump
+        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
+
+        # Predefine a function that takes a pattern, creates a regex, searches if it's found in the log
+        # Also, check if it's found in stdout, if defined
+        # If either of these fail their assert, print an informative, standardized message
+        def assert_regex(pattern, log, stdout=None):
+            regex = re.compile(pattern, re.M)
+            msg = "Pattern '%s' not found in full build log: %s" % (pattern, log)
+            self.assertTrue(regex.search(log), msg)
+            if stdout is not None:
+                msg2 = "Pattern '%s' not found in standard output: %s" % (pattern, stdout)
+                self.assertTrue(regex.search(stdout), msg2)
+
+        def assert_cuda_report(missing_cc, additional_cc, missing_ptx, log, stdout=None, missing_cc_but_ptx=None,
+                               num_checked=None):
+            if num_checked is not None:
+                num_checked_str = r"Number of CUDA files checked: %s" % num_checked
+                assert_regex(num_checked_str, outtxt, stdout)
+            if missing_cc_but_ptx is not None:
+                missing_cc_but_ptx_str = r"Number of files missing one or more CUDA Compute Capabilities, but having "
+                missing_cc_but_ptx_str += r"suitable PTX code that can be JIT compiled for the requested CUDA Compute "
+                missing_cc_but_ptx_str += r"Capabilities: %s" % additional_cc
+                assert_regex(missing_cc_but_ptx_str, outtxt, stdout)
+            missing_cc_str = r"Number of files missing one or more CUDA Compute Capabilities: %s" % missing_cc
+            additional_cc_str = r"Number of files with device code for more CUDA Compute Capabilities than requested: "
+            additional_cc_str += r"%s" % additional_cc
+            missing_ptx_str = r"Number of files missing PTX code for the highest configured CUDA Compute Capability: "
+            missing_ptx_str += r"%s" % missing_ptx
+            assert_regex(missing_cc_str, outtxt, stdout)
+            assert_regex(additional_cc_str, outtxt, stdout)
+            assert_regex(missing_ptx_str, outtxt, stdout)
+
+        # Test case 1a: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
+        # 8.0 device code
+        # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
+        # as to not break backwards compatibility
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=3, log=outtxt, stdout=stdout)
+
+        # Test case 1b: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
+        # 7.0 and 9.0 device code and 8.0 PTX code.
+        # Note that the difference with 1a is the presense of additional device code, PTX code foor the right
+        # architecture, but missing device code for the requested architecture
+        # It should not matter for the result, but triggers slightly different code paths in easyblock.py
+        # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
+        # as to not break backwards compatibility
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm80_ptx, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm70, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=8.0']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_90_code_regex.search(outtxt), msg)
+        msg = "Pattern '%s' not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=3, additional_cc=3, missing_ptx=0, log=outtxt, stdout=stdout)
+
+        # Test case 2: same as Test case 1, but add --cuda-sanity-check-error-on-failed-checks
+        # This is expected to fail since there is missing device code for CC80
+        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-failed-checks']
+        # We expect this to fail, so first check error, then run again to check output
+        error_pattern = r"Files missing CUDA device code: 3."
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_90_code_regex.search(outtxt), msg)
+        msg = "Pattern '%s' not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=3, additional_cc=3, missing_ptx=0, log=outtxt, stdout=stdout)
+
+        # Test case 3: same as Test case 2, but add --cuda-sanity-check-accept-ptx-as-devcode
+        # This is expected to succeed, since now the PTX code for CC80 will be accepted as
+        # device code. Note that also PTX code for the highest requested compute architecture (also CC80)
+        # is present, so also this part of the sanity check passes
+        args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-accept-ptx-as-devcode']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_90_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_90_code_regex.search(outtxt), msg)
+        msg = "Pattern '%s' not found in full build log: %s" % (device_missing_80_code_regex.pattern, outtxt)
+        self.assertTrue(device_missing_80_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=3, missing_ptx=0, log=outtxt, stdout=stdout,
+                           missing_cc_but_ptx=3)
+
+        # Test case 4: same as Test case 2, but run with --cuda-compute-capabilities=9.0
+        # This is expected to fail: device code is present, but PTX code for the highest CC (9.0) is missing
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks']
+        # We expect this to fail, so first check error, then run again to check output
+        error_pattern = r"Files missing CUDA PTX code: 3"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=3, missing_ptx=3, log=outtxt, stdout=stdout)
+
+        # Test case 5: same as Test case 4, but add --cuda-sanity-check-accept-missing-ptx
+        # This is expected to succeed: device code is present, PTX code is missing, but that's accepted
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-accept-missing-ptx']
+        # We expect this to pass, so no need to check errors
+        warning_pattern = r"Configured highest compute capability was '9\.0', "
+        warning_pattern += r"but no PTX code for this compute capability was found in '.*/bin/toy' "
+        warning_pattern += r"\(PTX architectures supported in that file: \['8\.0'\]\)"
+        warning_pattern_regex = re.compile(warning_pattern, re.M)
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
+        msg = "Pattern '%s' not found in full build log: %s" % (warning_pattern, outtxt)
+        self.assertTrue(warning_pattern_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=3, missing_ptx=3, log=outtxt, stdout=stdout)
+
+        # Test case 6: same as Test case 5, but add --cuda-sanity-check-strict
+        # This is expected to fail: device code is present, PTX code is missing (but accepted due to option)
+        # but additional device code is present, which is not allowed by --cuda-sanity-check-strict
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
+        # We expect this to fail, so first check error, then run again to check output
+        error_pattern = r"Files with additional CUDA device code: 3"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                  extra_args=args, raise_error=True)
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=3, missing_ptx=3, log=outtxt, stdout=stdout)
+
+        # Test case 7: same as Test case 6, but add the failing file to the cuda_sanity_ignore_files
+        # This is expected to succeed: the individual file which _would_ cause the sanity check to fail is
+        # now on the ignore list
+        toy_whitelist_ec = os.path.join(self.test_prefix, 'toy-0.0-cuda-whitelist.eb')
+        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt += '\n' + '\n'.join([
+            "dependencies = [('CUDA', '5.5.22', '', SYSTEM)]",
+            "cuda_sanity_ignore_files = ['bin/toy']",
+        ])
+        write_file(toy_ec_cuda, toy_ec_txt)
+        write_file(toy_whitelist_ec, toy_ec_txt)
+
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-accept-missing-ptx', '--cuda-sanity-check-strict']
+        # We expect this to succeed, so check output for expected patterns
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_whitelist_ec, extra_args=args, raise_error=True, verify=False)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_additional_70_code_regex.pattern, outtxt)
+        self.assertTrue(device_additional_70_code_regex.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=1, missing_ptx=1, log=outtxt, stdout=stdout)
+
+        # Test case 8: try with --cuda-sanity-check-error-on-failed-checks --cuda-compute-capabilities=9.0,9.0a
+        # and --cuda-sanity-check-strict
+        # on a binary that contains 9.0 and 9.0a device code, and 9.0a ptx code. This tests the correct
+        # ordering (i.e. 9.0a > 9.0). It should pass, since device code is present for both CCs and PTX
+        # code is present for the highest CC, and there is no additiona device code present
+        # This also tests a case with multiple compute capabilities.
+        write_file(cuobjdump_file, cuobjdump_txt_shebang),
+        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90a, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm90a_ptx, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=9.0,9.0a', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-strict']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        msg = "Pattern '%s' not found in full build log: %s" % (device_code_regex_success.pattern, outtxt)
+        self.assertTrue(device_code_regex_success.search(outtxt), msg)
+        msg = "Pattern '%s' not found in full build log: %s" % (ptx_code_regex_success.pattern, outtxt)
+        self.assertTrue(ptx_code_regex_success.search(outtxt), msg)
+        expected_result_pattern = "INFO Sanity check for toy successful"
+        expected_result = re.compile(expected_result_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
+        self.assertTrue(expected_result.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout)
+
+        # Test case 9: same as 8, but no --cuda-compute-capabilities are defined
+        # We expect this to lead to a skip of the CUDA sanity check, and a success for the overall sanity check
+        args = ['--cuda-sanity-check-error-on-failed-checks', '--cuda-sanity-check-strict']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        cuda_sanity_skipped = r"INFO Skipping CUDA sanity check, as no CUDA compute capabilities were configured"
+        cuda_sanity_skipped_regex = re.compile(cuda_sanity_skipped, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (cuda_sanity_skipped, outtxt)
+        self.assertTrue(cuda_sanity_skipped_regex.search(outtxt), msg)
+        expected_result_pattern = "INFO Sanity check for toy successful"
+        expected_result = re.compile(expected_result_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
+        self.assertTrue(expected_result.search(outtxt), msg)
+
+        # Test case 10: running with default options and a binary that does not contain ANY CUDA device code
+        # This is expected to succeed, since the default is --disable-cuda-sanity-check-error-on-failed-checks
+        write_file(cuobjdump_file, cuobjdump_txt_shebang)
+        write_file(cuobjdump_file, cuobjdump_txt_no_cuda, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        args = ['--cuda-compute-capabilities=9.0']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        no_cuda_pattern = r".*/bin/toy does not appear to be a CUDA executable \(no CUDA device code found\), "
+        no_cuda_pattern += r"so skipping CUDA sanity check"
+        no_cuda_regex = re.compile(no_cuda_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (no_cuda_pattern, outtxt)
+        self.assertTrue(no_cuda_regex.search(outtxt), msg)
+        expected_result_pattern = "INFO Sanity check for toy successful"
+        expected_result = re.compile(expected_result_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
+        self.assertTrue(expected_result.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout, num_checked=0)
+
+        # Test case 11: same as Test case 10, but add --cuda-sanity-check-error-on-failed-checks
+        # This should pass: if it's not a CUDA binary, it shouldn't fail the CUDA sanity check
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks']
+        # We expect this to pass, so no need to check errors
+        with self.mocked_stdout_stderr():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=True)
+            stdout = self.get_stdout()
+        no_cuda_pattern = r".*/bin/toy does not appear to be a CUDA executable \(no CUDA device code found\), "
+        no_cuda_pattern += r"so skipping CUDA sanity check"
+        no_cuda_regex = re.compile(no_cuda_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (no_cuda_pattern, outtxt)
+        self.assertTrue(no_cuda_regex.search(outtxt), msg)
+        expected_result_pattern = "INFO Sanity check for toy successful"
+        expected_result = re.compile(expected_result_pattern, re.M)
+        msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
+        self.assertTrue(expected_result.search(outtxt), msg)
+        assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout, num_checked=0)
+
+        # Restore original environment
+        modify_env(os.environ, start_env, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
