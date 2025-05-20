@@ -323,15 +323,12 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     for key in sorted(environ_dump.keys()):
         if env_filter is not None and env_filter.search(key):
             continue
+        if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES + _exclude_env_from_report):
+            continue
         value = environ_dump[key]
         if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
             continue
         environment += ["%s = %s" % (key, value)]
-
-    environment = list(filter(
-        lambda x: not any(y in x.upper() for y in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES + _exclude_env_from_report),
-        environment
-    ))
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 
