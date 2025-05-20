@@ -60,7 +60,7 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 _log = fancylogger.getLogger('testing', fname=False)
 
 _exclude_env_from_report = []
-DEFAULT_EXCLUDE_FROM_REPORT = [
+DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES = [
     'KEY',
     'SECRET',
     'TOKEN',
@@ -72,7 +72,7 @@ DEFAULT_EXCLUDE_FROM_REPORT = [
     'LICENSE',
     'LICENCE',
 ]
-DEFAULT_EXCLUDE_FROM_REPORT_RGX = [
+DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX = [
     # From PR comments https://github.com/easybuilders/easybuild-framework/pull/4877
     r'AKIA[0-9A-Z]{16}',  # AWS access key
     r'[A-Za-z0-9/+=]{40}',  # AWS secret key
@@ -324,12 +324,12 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
         if env_filter is not None and env_filter.search(key):
             continue
         value = environ_dump[key]
-        if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_REPORT_RGX):
+        if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
             continue
         environment += ["%s = %s" % (key, value)]
 
     environment = list(filter(
-        lambda x: not any(y in x.upper() for y in DEFAULT_EXCLUDE_FROM_REPORT + _exclude_env_from_report),
+        lambda x: not any(y in x.upper() for y in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES + _exclude_env_from_report),
         environment
     ))
 
