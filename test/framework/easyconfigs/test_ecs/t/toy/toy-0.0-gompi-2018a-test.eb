@@ -27,7 +27,6 @@ local_bar_buildopts = " && gcc bar.c -o anotherbar && "
 # used to check whether $TOY_LIBS_PATH is defined even when 'lib' subdirectory doesn't exist yet
 local_bar_buildopts += 'echo "TOY_EXAMPLES=$TOY_EXAMPLES" > %(installdir)s/toy_libs_path.txt'
 
-exts_defaultclass = 'DummyExtension'
 exts_list = [
     'ulimit',  # extension that is part of "standard library"
     ('bar', '0.0', {

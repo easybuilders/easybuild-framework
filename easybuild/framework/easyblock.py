@@ -3176,13 +3176,13 @@ class EasyBlock:
             self.log.debug("No extensions in exts_list")
             return
 
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and install:
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
-
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
+
+        # we really need a default class
+        if not self.cfg['exts_defaultclass'] and install:
+            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")
