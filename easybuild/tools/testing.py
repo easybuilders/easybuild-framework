@@ -59,7 +59,6 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 _log = fancylogger.getLogger('testing', fname=False)
 
-_exclude_env_from_report = []
 DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES = [
     'KEY',
     'SECRET',
@@ -81,7 +80,8 @@ DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX = [
     r'xox[baprs]-[A-Za-z0-9-]+',  # Slack token
 
     # https://github.com/odomojuli/regextokens
-    r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$',  # Base64
+    # This is too aggressive and can end up excluding any alphanumeric string with length multiple of 4
+    # r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$',  # Base64
     r'[1-9][0-9]+-[0-9a-zA-Z]{40}',  # Twitter token
     r'EAACEdEose0cBA[0-9A-Za-z]+',  # Facebook token
     r'[0-9a-fA-F]{7}.[0-9a-fA-F]{32}',  # Instagram token
@@ -181,21 +181,6 @@ def session_state():
         'environment': copy.deepcopy(os.environ),
         'system_info': get_system_info(),
     }
-
-
-def exclude_env_from_report_add(key):
-    """
-    Exclude key from test report if an environment variables contains key.
-    :param key: environment variable to exclude
-    """
-    _exclude_env_from_report.append(key.upper())
-
-
-def exclude_env_from_report_clear():
-    """
-    Clear list of environment variables to exclude from test report.
-    """
-    _exclude_env_from_report.clear()
 
 
 def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_log=False, easyblock_pr_nrs=None,
@@ -323,7 +308,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     for key in sorted(environ_dump.keys()):
         if env_filter is not None and env_filter.search(key):
             continue
-        if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES + _exclude_env_from_report):
+        if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES):
             continue
         value = environ_dump[key]
         if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):

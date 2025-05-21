@@ -55,7 +55,6 @@ from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
 from easybuild.tools.github import is_patch_for, pick_default_branch
 from easybuild.tools.testing import create_test_report, post_pr_test_report, session_state
-from easybuild.tools.testing import exclude_env_from_report_add, exclude_env_from_report_clear
 import easybuild.tools.github as gh
 
 try:
@@ -1320,15 +1319,11 @@ class GithubTest(EnhancedTestCase):
         ]
         environ = {
             'USER': 'test',
-            'DONT_REMOVE_ME': 'test-123',
         }
         JWT_HDR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
         JWT_PLD = 'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzA4MzQ1MTIzLCJleHAiOjE3MDgzNTUxMjN9'
         JWT_SIG = 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
         secret_environ = {
-            'REMOVEME': 'test-abc',
-            'ReMoVeMe2': 'TeSt-xyz',
-
             # Test default removal based on variable value
             'TOTALLYPUBLICVAR1': 'AKIAIOSFODNN7EXAMPLE',  # AWS_ACCESS_KEY
             'TOTALLYPUBLICVAR2': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',  # AWS_SECRET_KEY
@@ -1355,27 +1350,19 @@ class GithubTest(EnhancedTestCase):
             'time': gmtime(0),
         }
 
-        # Test exclude_env_from_report_add/clear
-        exclude_env_from_report_add('REMOVEME'.lower())  # Also check that the name is uppercased in the check
-
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
             "**FAIL (build issue)** _fail.eb_",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
-            "DONT_REMOVE_ME = test-123",
+            "USER = test",
         ]
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 
-        # Test that excluded patterns works by matching also partial strings
-        exclude_patterns1 = [
-            'REMOVEME',
-            'ReMoVeMe2',
-        ]
         # Test that known token regexes for ENV vars are excluded by default
-        exclude_patterns2 = [
+        exclude_patterns = [
             'TOTALLYPUBLICVAR1',
             'TOTALLYPUBLICVAR2',
             'TOTALLYPUBLICVAR3',
@@ -1392,12 +1379,9 @@ class GithubTest(EnhancedTestCase):
             'SECRET_SECRET',
             'INFO_CREDENTIALS',
         ]
-        for pattern in exclude_patterns1 + exclude_patterns2:
+        for pattern in exclude_patterns:
             # .lower() test that variable name is not case sensitive for excluding
             self.assertNotIn(pattern.lower(), res['full'])
-
-        exclude_env_from_report_clear()
-        patterns += exclude_patterns1
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         for pattern in patterns:
@@ -1406,7 +1390,7 @@ class GithubTest(EnhancedTestCase):
         for pattern in patterns[:2]:
             self.assertIn(pattern, res['overview'])
 
-        for pattern in exclude_patterns2:
+        for pattern in exclude_patterns:
             # .lower() test that variable name is not case sensitive for excluding
             self.assertNotIn(pattern.lower(), res['full'])
 
