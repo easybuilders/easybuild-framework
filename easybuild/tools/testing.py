@@ -306,13 +306,19 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     env_filter = build_option('test_report_env_filter')
 
     for key in sorted(environ_dump.keys()):
-        if env_filter is not None and env_filter.search(key):
-            continue
-        if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES):
-            continue
         value = environ_dump[key]
-        if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
-            continue
+
+        # check if value needs to be filtered/censored
+        if env_filter is not None and env_filter.search(key):
+            value = "...  # filtered out due to --test-report-env-filter"
+            _log.info(f"Filtered environment variable ${key} due to test-report-env-filter configuration setting")
+        elif any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES):
+            value = "...  # value censored since this is potentially a sensitive environment variable"
+            _log.info(f"Censoring value of environment variable ${key} since it could be sensitive")
+        elif any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
+            value = "...  # value censored since it looks sensitive"
+            _log.info(f"Censoring value of environment variable ${key} since it looks sensitive")
+
         environment += ["%s = %s" % (key, value)]
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
