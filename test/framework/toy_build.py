@@ -428,9 +428,9 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertTrue(re.search(r'^puts stderr "oh hai!"$', toy_module_txt, re.M))
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^setenv\("FOO", "bar"\)', toy_module_txt, re.M))
-            pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)$'
+            pattern = r'^prepend_path\("SOMEPATH", pathJoin\(root, "foo", "bar"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
-            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)$'
+            pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux", "fred"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
             pattern = r'^append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)$'
             self.assertTrue(re.search(pattern, toy_module_txt, re.M))
@@ -1654,15 +1654,15 @@ class ToyBuildTest(EnhancedTestCase):
                 r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("LIBRARY_PATH", pathJoin\(root, "lib"\)\)',
                 r'prepend_path\("PATH", pathJoin\(root, "bin"\)\)',
-                r'prepend_path\("SOMEPATH", pathJoin\(root, "foo/bar"\)\)',
+                r'prepend_path\("SOMEPATH", pathJoin\(root, "foo", "bar"\)\)',
                 r'prepend_path\("SOMEPATH", pathJoin\(root, "baz"\)\)',
                 r'prepend_path\("SOMEPATH", root\)',
-                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux/fred"\)\)',
+                r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "qux", "fred"\)\)',
                 r'append_path\("SOMEPATH_APPEND", pathJoin\(root, "thud"\)\)',
                 r'append_path\("SOMEPATH_APPEND", root\)',
                 r'setenv\("EBROOTTOY", root\)',
                 r'setenv\("EBVERSIONTOY", "0.0"\)',
-                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild/toy-0.0-tweaked-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELTOY", pathJoin\(root, "easybuild", "toy-0.0-tweaked-easybuild-devel"\)\)',
                 r'',
                 r'setenv\("FOO", "bar"\)',
                 r'',
@@ -4898,7 +4898,7 @@ class ToyBuildTest(EnhancedTestCase):
             toy_mod += '.lua'
         toy_mod_txt = read_file(toy_mod)
 
-        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib/python3.6/site-packages', re.M)
+        pythonpath_regex = re.compile('^prepend.path.*PYTHONPATH.*lib.*python3.6.*site-packages', re.M)
 
         self.assertTrue(pythonpath_regex.search(toy_mod_txt),
                         f"Pattern '{pythonpath_regex.pattern}' found in: {toy_mod_txt}")

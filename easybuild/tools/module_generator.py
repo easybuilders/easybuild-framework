@@ -52,7 +52,6 @@ from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_fil
 from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
-
 _log = fancylogger.getLogger('module_generator', fname=False)
 
 
@@ -132,6 +131,15 @@ class ModuleGenerator:
 
     # a single level of indentation
     INDENTATION = ' ' * 4
+
+    # shell environment variable name: ${__}VAR_NAME_00_SUFFIX
+    REGEX_SHELL_VAR_PATTERN = r'[A-Z_]+[A-Z0-9_]+'
+    REGEX_SHELL_VAR = re.compile(rf'\$({REGEX_SHELL_VAR_PATTERN})')
+    REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
+
+    # default options for modextravars
+    DEFAULT_MODEXTRAVARS_USE_PUSHENV = False
+    DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS = True
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -422,28 +430,38 @@ class ModuleGenerator:
 
         return res
 
-    def unpack_setenv_value(self, env_var_name, env_var_val):
+    def unpack_setenv_value(self, *args, **kwargs):
+        """
+        DEPRECATED method, should not be used.
+        Replaced with (internal) _unpack_setenv_value method.
+        """
+        self.log.deprecated("unpack_setenv_value should not be used directly (replaced by internal method)", '6.0')
+        value, use_pushenv, _ = self._unpack_setenv_value(*args, **kwargs)
+        return value, use_pushenv
+
+    def _unpack_setenv_value(self, env_var_name, env_var_val):
         """
         Unpack value that specifies how to define an environment variable with specified name.
         """
-        use_pushenv = False
+        use_pushenv = self.DEFAULT_MODEXTRAVARS_USE_PUSHENV
+        resolve_env_vars = self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS
 
         # value may be specified as a string, or as a dict for special cases
         if isinstance(env_var_val, str):
             value = env_var_val
-
         elif isinstance(env_var_val, dict):
-            use_pushenv = env_var_val.get('pushenv', False)
+            use_pushenv = env_var_val.get('pushenv', self.DEFAULT_MODEXTRAVARS_USE_PUSHENV)
+            resolve_env_vars = env_var_val.get('resolve_env_vars', self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS)
             try:
                 value = env_var_val['value']
-            except KeyError:
+            except KeyError as err:
                 raise EasyBuildError("Required key 'value' is missing in dict that specifies how to set $%s: %s",
-                                     env_var_name, env_var_val)
+                                     env_var_name, env_var_val) from err
         else:
             raise EasyBuildError("Incorrect value type for setting $%s environment variable (%s): %s",
                                  env_var_name, type(env_var_val), env_var_val)
 
-        return value, use_pushenv
+        return value, use_pushenv, resolve_env_vars
 
     # From this point on just not implemented methods
 
@@ -1056,19 +1074,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
+
+        if relpath:
+            set_value = os.path.join('$root', set_value) if set_value else '$root'
+
+        if resolve_env_vars:
+            set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        if relpath:
-            if value:
-                val = quote_str(os.path.join('$root', value), tcl=True)
-            else:
-                val = '"$root"'
-        else:
-            val = quote_str(value, tcl=True)
+        set_value = quote_str(set_value, tcl=True)
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-        return '%s\t%s\t\t%s\n' % (env_setter, key, val)
+        return f'{env_setter}\t{key}\t\t{set_value}\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
@@ -1152,12 +1170,14 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
+    OS_GETENV_TEMPLATE = r'os.getenv("%s")'
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
     UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
 
     START_STR = '[==['
     END_STR = ']==]'
+    CONCAT_STR = ' .. '
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
@@ -1166,6 +1186,20 @@ class ModuleGeneratorLua(ModuleGenerator):
         if self.modules_tool:
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
+
+    @staticmethod
+    def _path_join_cmd(path):
+        "Return 'pathJoin' command for given path string"
+        path_components = [quote_str(p) for p in path.split(os.path.sep) if p]
+
+        path_root = quote_str(os.path.sep) if os.path.isabs(path) else 'root'
+        path_components.insert(0, path_root)
+
+        if len(path_components) > 1:
+            return 'pathJoin(' + ', '.join(path_components) + ')'
+
+        # no need for a pathJoin for single component paths
+        return path_components[0]
 
     def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
         """
@@ -1292,10 +1326,9 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if default is None:
-            cmd = 'os.getenv("%s")' % envvar
-        else:
-            cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
+        cmd = self.OS_GETENV_TEMPLATE % envvar
+        if default is not None:
+            cmd += f' or "{default}"'
         return cmd
 
     def load_module(self, mod_name, recursive_unload=None, depends_on=None, unload_modules=None, multi_dep_mods=None):
@@ -1448,7 +1481,7 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # use pathJoin for (non-empty) relative paths
                 if path:
                     if expand_relpaths:
-                        abspaths.append(self.PATH_JOIN_TEMPLATE % path)
+                        abspaths.append(self._path_join_cmd(path))
                     else:
                         abspaths.append(quote_str(path))
                 else:
@@ -1513,19 +1546,28 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
         if relpath:
-            if value:
-                val = self.PATH_JOIN_TEMPLATE % value
-            else:
-                val = 'root'
+            set_value = self._path_join_cmd(set_value)
+            if resolve_env_vars:
+                # replace quoted substring with env var with os.getenv statement
+                # example: pathJoin(root, "$HOME") -> pathJoin(root, os.getenv("HOME"))
+                set_value = self.REGEX_QUOTE_SHELL_VAR.sub(self.OS_GETENV_TEMPLATE % r"\1", set_value)
         else:
-            val = quote_str(value)
+            if resolve_env_vars:
+                # replace env var with os.getenv statement
+                # example: $HOME -> os.getenv("HOME")
+                concat_getenv = self.CONCAT_STR + self.OS_GETENV_TEMPLATE % r"\1" + self.CONCAT_STR
+                set_value = self.REGEX_SHELL_VAR.sub(concat_getenv, set_value)
+            set_value = self.CONCAT_STR.join([
+                # quote any substrings that are not a os.getenv Lua statement
+                x if x.startswith(self.OS_GETENV_TEMPLATE[:10]) else quote_str(x)
+                for x in set_value.strip(self.CONCAT_STR).split(self.CONCAT_STR)
+            ])
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-
-        return '%s("%s", %s)\n' % (env_setter, key, val)
+        return f'{env_setter}("{key}", {set_value})\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """

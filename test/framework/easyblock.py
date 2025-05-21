@@ -462,7 +462,7 @@ class EasyBlockTest(EnhancedTestCase):
         elif get_module_syntax() == 'Lua':
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "bla.jar"\)\)$', guess, re.M))
             self.assertTrue(re.search(r'^prepend_path\("CLASSPATH", pathJoin\(root, "foo.jar"\)\)$', guess, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share/man"\)\)$', guess, re.M))
+            self.assertTrue(re.search(r'^prepend_path\("MANPATH", pathJoin\(root, "share", "man"\)\)$', guess, re.M))
             self.assertIn('prepend_path("CMAKE_PREFIX_PATH", root)', guess)
             # bin/ is not added to $PATH if it doesn't include files
             self.assertFalse(re.search(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', guess, re.M))
@@ -579,12 +579,12 @@ class EasyBlockTest(EnhancedTestCase):
                                        r"prepend-path\s+LD_LIBRARY_PATH\s+\$root/lib/pathA\n",
                                        txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathC"\)\)\n' +
-                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathA"\)\)\n' +
-                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathB"\)\)\n',
+            self.assertTrue(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib", "pathC"\)\)\n' +
+                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib", "pathA"\)\)\n' +
+                                      r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib", "pathB"\)\)\n',
                                       txt, re.M))
-            self.assertFalse(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathB"\)\)\n' +
-                                       r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib/pathA"\)\)\n',
+            self.assertFalse(re.search(r'\nprepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib", "pathB"\)\)\n' +
+                                       r'prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "lib", "pathA"\)\)\n',
                                        txt, re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
@@ -657,10 +657,12 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertTrue(re.search(r"^prepend-path\s+LD_LIBRARY_PATH\s+\$root/libraries/intel64_lin$", txt, re.M))
             self.assertTrue(re.search(r"^prepend-path\s+LIBRARY_PATH\s+\$root/libraries/intel64_lin\n$", txt, re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.search(r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
-                                      txt, re.M))
-            self.assertTrue(re.search(r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "libraries/intel64_lin"\)\)$',
-                                      txt, re.M))
+            self.assertTrue(re.search(
+                r'^prepend_path\("LD_LIBRARY_PATH", pathJoin\(root, "libraries", "intel64_lin"\)\)$', txt, re.M
+            ))
+            self.assertTrue(re.search(
+                r'^prepend_path\("LIBRARY_PATH", pathJoin\(root, "libraries", "intel64_lin"\)\)$', txt, re.M
+            ))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -718,7 +720,7 @@ class EasyBlockTest(EnhancedTestCase):
         expected_patterns = [
             r"^append[-_]path.*TEST_VAR_CUSTOM.*root.*foo.*",
             r"^prepend[-_]path.*CPATH.*root.*include.*",
-            r"^prepend[-_]path.*CPATH.*root.*include/foo.*",
+            r"^prepend[-_]path.*CPATH.*root.*include.*foo.*",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*lib",
             r"^prepend[-_]path.*LD_LIBRARY_PATH.*root.*foo",
             r"^prepend[-_]path.*TEST_VAR.*root.*foo",
@@ -874,12 +876,12 @@ class EasyBlockTest(EnhancedTestCase):
             expected_default = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", root\)',
                 r'setenv\("EBVERSIONPI", "3.14"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild", "pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
             expected_alt = re.compile(r'\n'.join([
                 r'setenv\("EBROOTPI", "/opt/software/tau/6.28"\)',
                 r'setenv\("EBVERSIONPI", "6.28"\)',
-                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild/pi-3.14-gompi-2018a-easybuild-devel"\)\)',
+                r'setenv\("EBDEVELPI", pathJoin\(root, "easybuild", "pi-3.14-gompi-2018a-easybuild-devel"\)\)',
             ]))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
@@ -1665,7 +1667,7 @@ class EasyBlockTest(EnhancedTestCase):
                     if val == '':
                         full_val = 'root'
                     else:
-                        full_val = fr'pathJoin\(root, "{val}"\)'
+                        full_val = fr'pathJoin\(root, "{val.replace("/", ".*")}"\)'
                     regex = re.compile(fr'^{placement}_path\("{key}", {full_val}{delim_lua}\)$', re.M)
                 else:
                     self.fail(f"Unknown module syntax: {get_module_syntax()}")
