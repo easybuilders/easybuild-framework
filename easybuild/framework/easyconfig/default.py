@@ -159,7 +159,7 @@ DEFAULT_CONFIG = {
     'dontcreateinstalldir': [False, ('Boolean to create (False) or not create (True) the install directory'),
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
-                                    'name. Experts only!'), FILEMANAGEMENT],
+                                    'name (except if buildininstalldir is True). Experts only!'), FILEMANAGEMENT],
     'forcekeeppreviousinstall': [False, ('Boolean to forcefully keep the previous installation with identical '
                                          'name, even if buildininstalldir is True. Experts only! Probably only useful '
                                          'when installing in new mount namespace (e.g. with bwrap).'), FILEMANAGEMENT],
