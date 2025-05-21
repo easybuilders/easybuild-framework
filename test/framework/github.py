@@ -1317,25 +1317,82 @@ class GithubTest(EnhancedTestCase):
                 'log_file': logfile,
             }),
         ]
+        environ = {
+            'USER': 'test',
+        }
+        JWT_HDR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+        JWT_PLD = 'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzA4MzQ1MTIzLCJleHAiOjE3MDgzNTUxMjN9'
+        JWT_SIG = 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+        secret_environ = {
+            # Test default removal based on variable value
+            'TOTALLYPUBLICVAR1': 'AKIAIOSFODNN7EXAMPLE',  # AWS_ACCESS_KEY
+            'TOTALLYPUBLICVAR2': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',  # AWS_SECRET_KEY
+            'TOTALLYPUBLICVAR3': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),  # JWT
+            'TOTALLYPUBLICVAR4': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',  # GH_TOKEN
+            'TOTALLYPUBLICVAR5': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',  # SLACK_TOKEN
+
+            # Test default removal based on variable name
+            'API_SOMETHING': '1234567890',
+            'MY_PASSWORD': '1234567890',
+            'ABC_TOKEN': '1234567890',
+            'AUTH_XXX': '1234567890',
+            'LICENSE': '1234567890',
+            'WORLD_KEY': '1234567890',
+            'PRIVATE_INFO': '1234567890',
+            'SECRET_SECRET': '1234567890',
+            'INFO_CREDENTIALS': '1234567890',
+        }
         init_session_state = {
             'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
-            'environment': {'USER': 'test'},
+            'environment': {**environ, **secret_environ},
             'module_list': [{'mod_name': 'test'}],
             'system_info': {'name': 'test'},
             'time': gmtime(0),
         }
+
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
             "**FAIL (build issue)** _fail.eb_",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
+            "USER = test",
         ]
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 
-        for pattern in patterns[:2]:
+        # Test that known token regexes for ENV vars are excluded by default
+        exclude_patterns = [
+            'TOTALLYPUBLICVAR1',
+            'TOTALLYPUBLICVAR2',
+            'TOTALLYPUBLICVAR3',
+            'TOTALLYPUBLICVAR4',
+            'TOTALLYPUBLICVAR5',
+
+            'API_SOMETHING',
+            'MY_PASSWORD',
+            'ABC_TOKEN',
+            'AUTH_XXX',
+            'LICENSE',
+            'WORLD_KEY',
+            'PRIVATE_INFO',
+            'SECRET_SECRET',
+            'INFO_CREDENTIALS',
+        ]
+        for pattern in exclude_patterns:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
+
+        res = create_test_report("just a test", ecs_with_res, init_session_state)
+        for pattern in patterns:
             self.assertIn(pattern, res['full'])
+
+        for pattern in patterns[:2]:
+            self.assertIn(pattern, res['overview'])
+
+        for pattern in exclude_patterns:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
@@ -1353,7 +1410,7 @@ class GithubTest(EnhancedTestCase):
             self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertIn(pattern, res['full'])
+            self.assertIn(pattern, res['overview'])
 
         self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
