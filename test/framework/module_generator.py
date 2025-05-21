@@ -990,21 +990,21 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ({'value': 'value',
               'pushenv': False},    False,  'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
             ({'value': "$VAR",
-              'shell_vars': True},  False,  'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
             ({'value': "$VAR",
-              'shell_vars': True},  True,   'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
             ({'value': "$VAR",
-              'shell_vars': False}, False,  'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
             ({'value': "$VAR",
-              'shell_vars': False}, True,   'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
             ({'value': "path/$VAR/dir",
-              'shell_vars': True},  False,  'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
             ({'value': "path/$VAR/dir",
-              'shell_vars': True},  True,   'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
             ({'value': "path/$VAR/dir",
-              'shell_vars': False}, False,  'setenv\tkey\t\t"path/$VAR/dir"\n',               'setenv("key", "path/$VAR/dir")\n'),  # noqa
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"path/$VAR/dir"\n',               'setenv("key", "path/$VAR/dir")\n'),  # noqa
             ({'value': "path/$VAR/dir",
-              'shell_vars': False}, True,   'setenv\tkey\t\t"$root/path/$VAR/dir"\n',         'setenv("key", pathJoin(root, "path", "$VAR", "dir"))\n'),  # noqa
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/path/$VAR/dir"\n',         'setenv("key", pathJoin(root, "path", "$VAR", "dir"))\n'),  # noqa
         )
         # test set_environment
         for test_value, test_relpath, ref_tcl, ref_lua in collection:
