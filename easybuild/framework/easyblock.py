@@ -1779,21 +1779,10 @@ class EasyBlock:
 
     def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
         """
-        Expand given path glob and return list of suitable paths to be used as search paths:
-            - Paths must point to existing files/directories
-            - Relative paths are relative to installation prefix root and are kept relative after expansion
-            - Absolute paths are kept as absolute paths after expansion
-            - Follow symlinks and resolve their paths (avoids duplicate paths through symlinks)
-            - :path_type: ModEnvVarType that controls requirements for population of directories
-              - PATH: no requirements, can be empty
-              - PATH_WITH_FILES: must contain at least one file in them (default)
-              - PATH_WITH_TOP_FILES: increase stricness to require files in top level directory
+        REMOVED in EasyBuild 5.1, use EasyBlock.module_load_environment.expand_paths instead
         """
-        self.log.deprecated(
-            "expand_module_search_path() is deprecated, use EasyBlock.module_load_environment.expand_paths instead",
-            '5.1',
-        )
-        return False
+        msg = "expand_module_search_path is replaced by EasyBlock.module_load_environment.expand_paths"
+        self.log.nosupport(msg, '5.1')
 
     def make_module_req_guess(self):
         """
