@@ -160,6 +160,9 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
+    'forcekeeppreviousinstall': [False, ('Boolean to forcefully keep the previous installation with identical '
+                                         'name, even if buildininstalldir is True. Experts only! Probably only useful '
+                                         'when installing in new mount namespace (e.g. with bwrap).'), FILEMANAGEMENT],
     'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
                             'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],

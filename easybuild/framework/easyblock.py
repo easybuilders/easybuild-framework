@@ -1163,8 +1163,12 @@ class EasyBlock:
                 self.cfg['cleanupoldbuild'] = False
             else:
                 self.cfg['cleanupoldbuild'] = True
-
-            self.cfg['keeppreviousinstall'] = False
+            if self.cfg['forcekeeppreviousinstall']:
+                self.log.info("Forcefully setting 'keeppreviousinstall' (to True) because "
+                              "'forcekeeppreviousinstall' is True.")
+                self.cfg['keeppreviousinstall'] = True
+            else:
+                self.cfg['keeppreviousinstall'] = False
             # avoid cleanup after installation
             self.cfg['cleanupoldinstall'] = False
 
