@@ -432,8 +432,10 @@ class ModuleGenerator:
 
     def unpack_setenv_value(self, *args, **kwargs):
         """
+        DEPRECATED method, should not be used.
+        Replaced with (internal) _unpack_setenv_value method.
         """
-        self.log.deprecated("...", '6.0')
+        self.log.deprecated("unpack_setenv_value should not be used directly (replaced by internal method)", '6.0')
         value, use_pushenv, _ = self._unpack_setenv_value(*args, **kwargs)
         return value, use_pushenv
 
