@@ -138,8 +138,8 @@ class ModuleGenerator:
     REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
 
     # default options for modextravars
-    DEFAULT_MODEXTRAVARS_PUSHENV = False
-    DEFAULT_MODEXTRAVARS_SHELL_VARS = True
+    DEFAULT_MODEXTRAVARS_USE_PUSHENV = False
+    DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS = True
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -443,15 +443,15 @@ class ModuleGenerator:
         """
         Unpack value that specifies how to define an environment variable with specified name.
         """
-        use_pushenv = self.DEFAULT_MODEXTRAVARS_PUSHENV
-        resolve_shell_vars = self.DEFAULT_MODEXTRAVARS_SHELL_VARS
+        use_pushenv = self.DEFAULT_MODEXTRAVARS_USE_PUSHENV
+        resolve_env_vars = self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS
 
         # value may be specified as a string, or as a dict for special cases
         if isinstance(env_var_val, str):
             value = env_var_val
         elif isinstance(env_var_val, dict):
-            use_pushenv = env_var_val.get('pushenv', self.DEFAULT_MODEXTRAVARS_PUSHENV)
-            resolve_shell_vars = env_var_val.get('shell_vars', self.DEFAULT_MODEXTRAVARS_SHELL_VARS)
+            use_pushenv = env_var_val.get('pushenv', self.DEFAULT_MODEXTRAVARS_USE_PUSHENV)
+            resolve_env_vars = env_var_val.get('resolve_env_vars', self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS)
             try:
                 value = env_var_val['value']
             except KeyError as err:
@@ -461,7 +461,7 @@ class ModuleGenerator:
             raise EasyBuildError("Incorrect value type for setting $%s environment variable (%s): %s",
                                  env_var_name, type(env_var_val), env_var_val)
 
-        return value, use_pushenv, resolve_shell_vars
+        return value, use_pushenv, resolve_env_vars
 
     # From this point on just not implemented methods
 
@@ -1074,12 +1074,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        set_value, use_pushenv, resolve_shell_vars = self._unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
         if relpath:
             set_value = os.path.join('$root', set_value) if set_value else '$root'
 
-        if resolve_shell_vars:
+        if resolve_env_vars:
             set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
@@ -1546,16 +1546,16 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        set_value, use_pushenv, resolve_shell_vars = self._unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
         if relpath:
             set_value = self._path_join_cmd(set_value)
-            if resolve_shell_vars:
+            if resolve_env_vars:
                 # replace quoted substring with env var with os.getenv statement
                 # example: pathJoin(root, "$HOME") -> pathJoin(root, os.getenv("HOME"))
                 set_value = self.REGEX_QUOTE_SHELL_VAR.sub(self.OS_GETENV_TEMPLATE % r"\1", set_value)
         else:
-            if resolve_shell_vars:
+            if resolve_env_vars:
                 # replace env var with os.getenv statement
                 # example: $HOME -> os.getenv("HOME")
                 concat_getenv = self.CONCAT_STR + self.OS_GETENV_TEMPLATE % r"\1" + self.CONCAT_STR
