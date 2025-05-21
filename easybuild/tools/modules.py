@@ -50,7 +50,8 @@ from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
-from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
+from easybuild.tools.filetools import convert_name, dir_contains_files, mkdir, normalize_path, path_matches, read_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -237,6 +238,7 @@ class ModuleEnvironmentVariable:
 
     @property
     def is_path(self):
+        """Return True for any ModEnvVarType that is a path"""
         path_like_types = [
             ModEnvVarType.PATH,
             ModEnvVarType.PATH_WITH_FILES,
@@ -244,6 +246,81 @@ class ModuleEnvironmentVariable:
             ModEnvVarType.STRICT_PATH_WITH_FILES,
         ]
         return self.type in path_like_types
+
+    def expand_paths(self, parent):
+        """
+        Expand path glob into list of unique corresponding real paths.
+        General behaviour:
+        - Only expand path-like variables
+        - Paths must point to existing files/directories
+        - Resolve paths following symlinks into real paths to avoid duplicate
+          paths through symlinks
+        - Relative paths are expanded on given parent folder and are kept
+          relative after expansion
+        - Absolute paths are kept as absolute paths after expansion
+        Follow requirements based on current type (ModEnvVarType):
+          - PATH: no requirements, must exist but can be empty
+          - PATH_WITH_FILES: must contain at least one file anywhere in subtree
+          - PATH_WITH_TOP_FILES: must contain files in top level directory of path
+          - STRICT_PATH_WITH_FILES: given path must expand into its real path and
+            contain files anywhere in subtree
+        """
+        if not self.is_path:
+            return None
+
+        populated_path_types = (
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+            ModEnvVarType.STRICT_PATH_WITH_FILES,
+        )
+
+        retained_expanded_paths = []
+        real_parent = os.path.realpath(parent)
+
+        for path_glob in self.contents:
+            abs_glob = path_glob
+            if not os.path.isabs(path_glob):
+                abs_glob = os.path.join(real_parent, path_glob)
+
+            expanded_paths = glob.glob(abs_glob, recursive=True)
+
+            for exp_path in expanded_paths:
+                real_path = os.path.realpath(exp_path)
+
+                if self.type is ModEnvVarType.STRICT_PATH_WITH_FILES and exp_path != real_path:
+                    # avoid going through symlink for strict path types
+                    self.log.debug(
+                        f"Discarded search path '{exp_path} of type '{self.type}' as it does not correspond "
+                        f"to its real path: {real_path}"
+                    )
+                    continue
+
+                if os.path.isdir(exp_path) and self.type in populated_path_types:
+                    # only retain paths to directories that contain at least one file
+                    recursive = self.type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.STRICT_PATH_WITH_FILES)
+                    if not dir_contains_files(exp_path, recursive=recursive):
+                        self.log.debug(f"Discarded search path '{exp_path}' of type '{self.type}' to empty directory.")
+                        continue
+
+                retain_path = exp_path  # no discards, we got a keeper
+
+                if not os.path.isabs(path_glob):
+                    # recover relative path
+                    retain_path = os.path.relpath(real_path, start=real_parent)
+                    # modules use empty string to represent root of install dir
+                    if retain_path == '.':
+                        retain_path = ''
+
+                if retain_path.startswith('..' + os.path.sep):
+                    raise EasyBuildError(
+                        f"Expansion of search path glob pattern '{path_glob}' resulted in a relative path "
+                        f"pointing outside of parent directory: {retain_path}"
+                    )
+
+                if retain_path not in retained_expanded_paths:
+                    retained_expanded_paths.append(retain_path)
+
+        return retained_expanded_paths
 
 
 class ModuleLoadEnvironment:
