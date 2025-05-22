@@ -40,8 +40,8 @@ from easybuild.toolchains.linalg.scalapack import ScaLAPACK
 from easybuild.tools import LooseVersion
 
 
-class LFoss(Lompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, OpenMPI, OpenBLAS, ScaLAPACK and FFTW."""
+class LFoss(Lompi, FlexiBLAS, ScaLAPACK, Fftw):
+    """Compiler toolchain with GCC, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
     NAME = 'lfoss'
     SUBTOOLCHAIN = [
         Lompi.NAME, 
@@ -63,12 +63,8 @@ class LFoss(Lompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         constants = ('BLAS_MODULE_NAME', 'BLAS_LIB', 'BLAS_LIB_MT', 'BLAS_FAMILY',
                      'LAPACK_MODULE_NAME', 'LAPACK_IS_BLAS', 'LAPACK_FAMILY')
 
-        if self.looseversion > LooseVersion('2021.0'):
-            for constant in constants:
-                setattr(self, constant, getattr(FlexiBLAS, constant))
-        else:
-            for constant in constants:
-                setattr(self, constant, getattr(OpenBLAS, constant))
+        for constant in constants:
+            setattr(self, constant, getattr(FlexiBLAS, constant))
 
     def banned_linked_shared_libs(self):
         """
@@ -77,12 +73,7 @@ class LFoss(Lompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
         """
         res = []
         res.extend(Lompi.banned_linked_shared_libs(self))
-
-        if self.looseversion >= LooseVersion('2021.0'):
-            res.extend(FlexiBLAS.banned_linked_shared_libs(self))
-        else:
-            res.extend(OpenBLAS.banned_linked_shared_libs(self))
-
+        res.extend(FlexiBLAS.banned_linked_shared_libs(self))
         res.extend(ScaLAPACK.banned_linked_shared_libs(self))
         res.extend(Fftw.banned_linked_shared_libs(self))
 
@@ -91,8 +82,8 @@ class LFoss(Lompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
 
-        # foss toolchains older than foss/2019a are deprecated since EasyBuild v4.5.0;
-        if self.looseversion < LooseVersion('2019'):
+        # lfoss toolchains older than 2023b should not exist (need GCC >= 13)
+        if self.looseversion < LooseVersion('2023'):
             deprecated = True
         else:
             deprecated = False
