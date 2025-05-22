@@ -1,14 +1,11 @@
 ##
-# Copyright 2015-2025 Bart Oldeman
-#
-# This file is triple-licensed under GPLv2 (see below), MIT, and
-# BSD three-clause licenses.
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
-# the Hercules foundation (http://www.herculesstichting.be/in_English)
+# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # https://github.com/easybuilders/easybuild
@@ -26,23 +23,27 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for NVHPC compiler toolchain.
+EasyBuild support for NVHPC compiler toolchain with support for MPI
 
 Authors:
 
 * Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 * Andreas Herten (Forschungszentrum Juelich)
 """
+from easybuild.toolchains.mpi.nvhpcx import NVHPCX
+from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
+from easybuild.tools import LooseVersion
 
-from easybuild.toolchains.compiler.nvhpc import NVHPC
-from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
-
-class NVHPCToolchain(NVHPC):
-    """Simple toolchain with just the NVIDIA HPC SDK compilers."""
+class NVHPC(NvidiaCompilersToolchain, NVHPCX):
+    """Toolchain with Nvidia compilers and NVHPCX."""
     NAME = 'NVHPC'
-    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
-    # in particular in a hierarchical module naming scheme
-    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
-    OPTIONAL = False
+    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
+
+    def is_deprecated(self):
+        """Return whether or not this toolchain is deprecated."""
+        deprecated = False
+        if LooseVersion(self.version) < LooseVersion('24.0'):
+            deprecated = True
+
+        return deprecated

@@ -30,11 +30,11 @@ Authors:
 * Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
-from easybuild.toolchains.nvhpc import NVHPCToolchain
 from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
 
 
-class Nvompi(NVHPCToolchain, OpenMPI):
+class Nvompi(NvidiaCompilersToolchain, OpenMPI):
     """Compiler toolchain with NVHPC and Open MPI."""
     NAME = 'nvompi'
-    SUBTOOLCHAIN = NVHPCToolchain.NAME
+    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
