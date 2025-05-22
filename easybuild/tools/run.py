@@ -369,22 +369,40 @@ def _read_pipe(pipe, output):
     output.append(out)
 
 
-def read_pipe(pipe, timeout=None):
-    """Read from a pipe using a separate thread to avoid blocking and implement a timeout.
-    :param pipe: pipe to read from
+def read_process_pipe(proc, pipe_name, start=None, timeout=None):
+    """Read from a pipe form a process using a separate thread to avoid blocking and implement a timeout.
+    :param proc: process to read from
+    :param pipe_name: name of the pipe to read from (stdout or stderr)
+    :param start: time when the process was started (used to calculate timeout)
     :param timeout: timeout in seconds (default: None = no timeout)
 
     :return: data read from pipe
 
-    :raises TimeoutError: when reading from pipe takes longer than specified timeout
+    :raises EasyBuildError: when reading from pipe takes longer than specified timeout
     """
+    pipe = getattr(proc, pipe_name, None)
+    if pipe is None:
+        raise EasyBuildError(f"Pipe '{pipe_name}' not found in process '{proc}'. This is probably a bug.")
+
+    error_msg = "Unexpected timeout error during read_process_pipe"
+    current_timeout = None
+    if start is not None and timeout is not None:
+        current_timeout = timeout - (time.time() - start)
+        error_msg = f"Timeout during `{proc.args}` after {timeout} seconds"
+        if current_timeout <= 0:
+            _log.warning(error_msg)
+            try:
+                terminate_process(proc)
+            except subprocess.TimeoutExpired as exc:
+                _log.warning(f"Failed to terminate process '{proc.args}': {exc}")
+            raise EasyBuildError(error_msg)
 
     output = []
     t = threading.Thread(target=_read_pipe, args=(pipe, output))
     t.start()
-    t.join(timeout)
+    t.join(current_timeout)
     if t.is_alive():
-        raise TimeoutError()
+        raise EasyBuildError(error_msg)
     return output[0]
 
 
@@ -395,6 +413,8 @@ def terminate_process(proc, timeout=20):
 
     :param proc: process to terminate
     :param timeout: timeout in seconds to wait for process to terminate
+
+    :raises subprocess.TimeoutExpired: if process does not terminate within specified timeout
     """
     proc.terminate()
     try:
@@ -403,11 +423,7 @@ def terminate_process(proc, timeout=20):
         _log.warning(f"Process did not terminate after {timeout} seconds, sending SIGKILL")
 
         proc.kill()
-        try:
-            proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            raise EasyBuildError(f"Process `{proc.args}` did not terminate after {timeout} seconds, giving up")
-
+        proc.wait(timeout=timeout)
 
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
@@ -581,24 +597,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         # collect output piece-wise, while checking for questions to answer (if qa_patterns is provided)
         start = time.time()
         while exit_code is None:
-            if timeout and time.time() - start > timeout:
-                error_msg = f"Timeout during `{cmd}` after {timeout} seconds!"
-                _log.warning(error_msg)
-                terminate_process(proc)
-                raise EasyBuildError(error_msg)
-            try:
-                t = timeout - (time.time() - start) if timeout else None
-                stdout += read_pipe(proc.stdout, timeout=t)
-            except TimeoutError:
-                pass
+            stdout += read_process_pipe(proc, 'stdout', start=start, timeout=timeout)
 
             # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                try:
-                    t = timeout - (time.time() - start) if timeout else None
-                    stderr += read_pipe(proc.stderr, timeout=t)
-                except TimeoutError:
-                    pass
+                stderr += read_process_pipe(proc, 'stderr', start=start, timeout=timeout)
 
             if qa_patterns:
                 # only check for question patterns if additional output is available
