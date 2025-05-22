@@ -80,14 +80,7 @@ try:
     # https://pypi.python.org/pypi/python-graph-dot
     import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
-    sys.path.append('..')
-    sys.path.append('/usr/lib/graphviz/python/')
-    sys.path.append('/usr/lib64/graphviz/python/')
-    # Python bindings to Graphviz (http://www.graphviz.org/),
-    # see https://pypi.python.org/pypi/graphviz-python
-    # graphviz-python (yum) or python-pygraphviz (apt-get)
-    # or brew install graphviz --with-bindings (OS X)
-    import gv
+    import graphviz
 except ImportError:
     pass
 
@@ -244,13 +237,14 @@ def _dep_graph_dump(dgr, filename):
         return _dep_graph_gv(dottxt, filename)
 
 
-@only_if_module_is_available('gv', pkgname='graphviz-python')
+@only_if_module_is_available('graphviz', pkgname='graphviz')
 def _dep_graph_gv(dottxt, filename):
     """Render dependency graph to file using graphviz."""
     # try and render graph in specified file format
-    gvv = gv.readstring(dottxt)
-    if gv.layout(gvv, 'dot') is not False:
-        return gv.render(gvv, os.path.splitext(filename)[-1], filename)
+    gvv = graphviz.Source(dottxt)
+    if gvv.pipe():
+        name, ext = os.path.splitext(filename)
+        return gvv.render(filename=name, format=ext[1:], cleanup=True)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):
