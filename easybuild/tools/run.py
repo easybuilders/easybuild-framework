@@ -425,6 +425,7 @@ def terminate_process(proc, timeout=20):
         proc.kill()
         proc.wait(timeout=timeout)
 
+
 @run_shell_cmd_cache
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
