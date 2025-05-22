@@ -3740,7 +3740,7 @@ class EasyBlock:
         self.log.info("Checking RPATH linkage for binaries/libraries...")
 
         fails = []
-        
+
         # Configure RPATH checking by readelf using easyconfig variable 'check_readelf_rpath' (default True)
         if check_readelf_rpath is None:
             check_readelf_rpath = self.cfg["check_readelf_rpath"]
