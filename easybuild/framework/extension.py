@@ -319,7 +319,7 @@ class Extension:
 
             msg = f"Extension sanity check command '{cmd}': "
             if cmd_res.exit_code == EasyBuildExit.SUCCESS:
-                trace_msg(msg + 'PASS')
+                trace_msg(msg + 'OK')
             else:
                 trace_msg(msg + 'FAIL')
                 if stdin:
