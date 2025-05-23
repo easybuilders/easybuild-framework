@@ -43,6 +43,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.utilities import trace_msg
 
 
 def resolve_exts_filter_template(exts_filter, ext):
@@ -314,9 +315,13 @@ class Extension:
             self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
         elif exts_filter:
             cmd, stdin = resolve_exts_filter_template(exts_filter, self)
-            cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin)
+            cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin, hidden=True)
 
-            if cmd_res.exit_code != EasyBuildExit.SUCCESS:
+            msg = f"Extension sanity check command '{cmd}': "
+            if cmd_res.exit_code == EasyBuildExit.SUCCESS:
+                trace_msg(msg + 'OK')
+            else:
+                trace_msg(msg + 'FAIL')
                 if stdin:
                     fail_msg = 'command "%s" (stdin: "%s") failed' % (cmd, stdin)
                 else:
