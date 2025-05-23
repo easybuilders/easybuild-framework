@@ -3742,13 +3742,11 @@ class EasyBlock:
         fails = []
 
         # Configure RPATH checking by readelf using easyconfig variable 'check_readelf_rpath' (default True)
-        if check_readelf_rpath is None:
-            check_readelf_rpath = self.cfg["check_readelf_rpath"]
-            (
-                self.log.info("RPATH checking by readelf is enabled")
-                if check_readelf_rpath
-                else self.log.info("RPATH checking by readelf is disabled")
-            )
+        check_readelf_rpath = self.cfg["check_readelf_rpath"]
+        if check_readelf_rpath:
+            self.log.info("Checks on RPATH section of binaries/libraries (via 'readelf -d') enabled")
+        else:
+            self.log.info("Checks on RPATH section of binaries/libraries (via 'readelf -d') disabled")
 
         if build_option('strict_rpath_sanity_check'):
             self.log.info("Unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is enabled...")
