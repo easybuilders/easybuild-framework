@@ -207,7 +207,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'autopep8': (None, "auto-formatting for dumped easyconfigs"),
     'GC3Pie': ('gc3libs', "backend for --job"),
     'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
-    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'graphviz': ('graphviz', "rendering dependency graph with Graphviz: --dep-graph"),
     'keyring': (None, "storing GitHub token"),
     'pbs-python': ('pbs', "using Torque as --job backend"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
