@@ -236,6 +236,7 @@ DEFAULT_CONFIG = {
                           "and will be archived in the next major release of EasyBuild", OTHER],
     'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
                              "of the easyconfig", OTHER],
+    'check_readelf_rpath': [True, "If False, it won't check the RPATH by readelf even with the --rpath flag", OTHER],
 }
 
 

@@ -3734,12 +3734,21 @@ class EasyBlock:
 
         return fail_msgs
 
-    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=True):
+    def sanity_check_rpath(self, rpath_dirs=None, check_readelf_rpath=None):
         """Sanity check binaries/libraries w.r.t. RPATH linking."""
 
         self.log.info("Checking RPATH linkage for binaries/libraries...")
 
         fails = []
+
+        if check_readelf_rpath is None:
+            # Configure RPATH checking by readelf using easyconfig variable 'check_readelf_rpath' (default True)
+            check_readelf_rpath = self.cfg["check_readelf_rpath"]
+
+        if check_readelf_rpath:
+            self.log.info("Checks on RPATH section of binaries/libraries (via 'readelf -d') enabled")
+        else:
+            self.log.info("Checks on RPATH section of binaries/libraries (via 'readelf -d') disabled")
 
         if build_option('strict_rpath_sanity_check'):
             self.log.info("Unsetting $LD_LIBRARY_PATH since strict RPATH sanity check is enabled...")

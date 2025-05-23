@@ -3035,6 +3035,15 @@ class ToyBuildTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
 
+        # test check_readelf_rpath easyconfig parameter
+        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        toy_ec_txt = read_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
+        toy_ec_txt += "\ncheck_readelf_rpath = False\n"
+        toy_ec = os.path.join(self.test_prefix, 'toy.eb')
+        write_file(toy_ec, toy_ec_txt)
+        with self.mocked_stdout_stderr():
+            self._test_toy_build(ec_file=toy_ec, extra_args=['--rpath'], raise_error=True)
+
     def test_toy_filter_rpath_sanity_libs(self):
         """Test use of --filter-rpath-sanity-libs."""
 
