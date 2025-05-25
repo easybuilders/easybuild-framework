@@ -465,6 +465,7 @@ BUILD_OPTIONS_OTHER = {
     ],
     False: [
         'dry_run',
+        'new_namespace_installdir',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',
