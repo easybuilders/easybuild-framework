@@ -330,6 +330,7 @@ BUILD_OPTIONS_CMDLINE = {
         'logtostdout',
         'minimal_toolchains',
         'module_only',
+        'new_namespace_installdir',
         'package',
         'parallel_extensions_install',
         'read_only_installdir',
@@ -465,7 +466,6 @@ BUILD_OPTIONS_OTHER = {
     ],
     False: [
         'dry_run',
-        'new_namespace_installdir',
         'recursive_mod_unload',
         'retain_all_deps',
         'silent',
