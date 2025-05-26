@@ -32,7 +32,7 @@ feature release
   - enhance RPATH sanity check to skip anything whose absolute path resolves to outside the install dir (#4854)
   - use new `ModEnvVarType.STRICT_PATH_WITH_FILES` with `CMAKE_LIBRARY_PATH` environment variable (#4858)
   - fix `is_patch_for` for patch dicts (#4865)
-  - update fake module for each extension installed (#4868, #4888)
+  - update fake module for each extension installed (#4868, #4888, #4895)
   - implement exponential backoff in `download_file` (#4870, #4880)
   - use `develop` branch for PRs that target removed `5.0.x` branch in `fetch_files_from_pr` (#4879)
   - also ignore errors raised during test step when `--ignore-test-failure` is used (#4881)
