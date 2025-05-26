@@ -63,7 +63,7 @@ class ModulesToolTest(EnhancedTestCase):
 
     def setUp(self):
         """Testcase setup."""
-        super(ModulesToolTest, self).setUp()
+        super().setUp()
 
         # keep track of original 'module' function definition so we can restore it
         self.orig_module = os.environ.get('module', None)
@@ -250,7 +250,7 @@ class ModulesToolTest(EnhancedTestCase):
 
     def tearDown(self):
         """Testcase cleanup."""
-        super(ModulesToolTest, self).tearDown()
+        super().tearDown()
 
         # restore 'module' function
         if self.orig_module is not None:

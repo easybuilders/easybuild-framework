@@ -64,12 +64,12 @@ class RunTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RunTest, self).setUp()
+        super().setUp()
         self.orig_experimental = easybuild.tools.utilities._log.experimental
 
     def tearDown(self):
         """Test cleanup."""
-        super(RunTest, self).tearDown()
+        super().tearDown()
 
         # restore log.experimental
         easybuild.tools.utilities._log.experimental = self.orig_experimental

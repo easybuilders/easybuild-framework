@@ -422,7 +422,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     return toolchain_hierarchy
 
 
-class EasyConfig(object):
+class EasyConfig:
     """
     Class which handles loading, reading, validation of easyconfigs
     """
@@ -835,7 +835,7 @@ class EasyConfig(object):
 
         # No need to resolve templates as we only need a count not the names
         with self.disable_templating():
-            cnt = len(self['sources']) + len(self['patches'])
+            cnt = sum(len(self[k]) for k in ['data_sources', 'sources', 'patches'])
             exts = self['exts_list']
 
         for ext in exts:

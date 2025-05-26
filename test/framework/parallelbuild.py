@@ -84,7 +84,7 @@ def mock(*args, **kwargs):
     return 1
 
 
-class MockPbsJob(object):
+class MockPbsJob:
     """Mocking class for PbsJob."""
 
     def __init__(self, *args, **kwargs):

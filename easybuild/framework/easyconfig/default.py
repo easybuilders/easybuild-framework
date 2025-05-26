@@ -92,6 +92,7 @@ DEFAULT_CONFIG = {
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
+    'data_sources': [[], "List of source files for data", BUILD],
     'download_instructions': ['', "Specify steps to acquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
@@ -124,6 +125,11 @@ DEFAULT_CONFIG = {
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
+    'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failures in "
+                                     "the CUDA sanity check step are ignored. Typically used for files where you "
+                                     "know the CUDA architectures in those files don't match the "
+                                     "--cuda-compute-capabitilities configured for EasyBuild AND where you know "
+                                     "that this is ok / reasonable (e.g. binary installations)", BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
@@ -132,7 +138,7 @@ DEFAULT_CONFIG = {
     'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
-    'sources': [[], "List of source files", BUILD],
+    'sources': [[], "List of source files for software", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
     'testopts': ['', 'Extra options for test.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
@@ -230,6 +236,7 @@ DEFAULT_CONFIG = {
                           "and will be archived in the next major release of EasyBuild", OTHER],
     'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
                              "of the easyconfig", OTHER],
+    'check_readelf_rpath': [True, "If False, it won't check the RPATH by readelf even with the --rpath flag", OTHER],
 }
 
 

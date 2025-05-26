@@ -27,9 +27,12 @@ Module with useful functions for getting system information
 
 Authors:
 
+* Kenneth Hoste (Ghent University)
 * Jens Timmerman (Ghent University)
 * Ward Poelmans (Ghent University)
+* Jasper Grimm (UoY)
 * Jan Andre Reuter (Forschungszentrum Juelich GmbH)
+* Caspar van Leeuwen (SURF)
 """
 import csv
 import ctypes
@@ -41,6 +44,7 @@ import os
 import platform
 import pwd
 import re
+import shutil
 import struct
 import sys
 import termios
@@ -64,6 +68,7 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
@@ -202,7 +207,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'autopep8': (None, "auto-formatting for dumped easyconfigs"),
     'GC3Pie': ('gc3libs', "backend for --job"),
     'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
-    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'graphviz': ('graphviz', "rendering dependency graph with Graphviz: --dep-graph"),
     'keyring': (None, "storing GitHub token"),
     'pbs-python': ('pbs', "using Torque as --job backend"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
@@ -996,6 +1001,106 @@ def get_glibc_version():
         _log.debug("No glibc on a non-Linux system, so can't determine version.")
 
     return glibc_ver
+
+
+def get_cuda_object_dump_raw(path):
+    """
+    Get raw ouput from command which extracts information from CUDA binary files in a human-readable format,
+    or None for files containing no CUDA device code.
+    See https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html#cuobjdump
+    """
+
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
+        _log.warning(fail_msg)
+
+    # check that the file is an executable or object (shared library) or archive (static library)
+    result = None
+    if any(x in res.output for x in ['executable', 'object', 'archive']):
+        # Make sure we have a cuobjdump command
+        if not shutil.which('cuobjdump'):
+            raise EasyBuildError("Failed to get object dump from CUDA file: cuobjdump command not found")
+        cuda_cmd = f"cuobjdump {path}"
+        res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+        if res.exit_code == EasyBuildExit.SUCCESS:
+            result = res.output
+        else:
+            # Check and report for the common case that this is simply not a CUDA binary, i.e. does not
+            # contain CUDA device code
+            no_device_code_match = re.search(r'does not contain device code', res.output)
+            if no_device_code_match is not None:
+                # File is a regular executable, object or library, but not a CUDA file
+                msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
+                _log.debug(msg, path)
+            else:
+                # This should not happen: there was no string saying this was NOT a CUDA file, yet no device code
+                # was found at all
+                msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
+                raise EasyBuildError(msg, path, cuda_cmd, res.output)
+
+    return result
+
+
+def get_cuda_architectures(path, section_type):
+    """
+    Get a sorted list of CUDA architectures supported in the file in 'path'.
+    path: full path to a CUDA file
+    section_type: the type of section in the cuobjdump output to check for architectures ('elf' or 'ptx')
+    Returns None if no CUDA device code is present in the file
+    """
+
+    # Note that typical output for a cuobjdump call will look like this for device code:
+    #
+    # Fatbin elf code:
+    # ================
+    # arch = sm_90
+    # code version = [1,7]
+    # host = linux
+    # compile_size = 64bit
+    #
+    # And for ptx code, it will look like this:
+    #
+    # Fatbin ptx code:
+    # ================
+    # arch = sm_90
+    # code version = [8,1]
+    # host = linux
+    # compile_size = 64bit
+
+    # Pattern to extract elf code architectures and ptx code architectures respectively
+    code_regex = re.compile(f'Fatbin {section_type} code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
+
+    # resolve symlinks
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    cc_archs = None
+    cuda_raw = get_cuda_object_dump_raw(path)
+    if cuda_raw is not None:
+        # extract unique device code architectures from raw dump
+        code_matches = re.findall(code_regex, cuda_raw)
+        if code_matches:
+            # convert match tuples into unique list of cuda compute capabilities
+            # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+            cc_archs = sorted(['.'.join(m) for m in set(code_matches)], key=LooseVersion)
+        else:
+            # Try to be clear in the warning... did we not find elf/ptx code sections at all? or was the arch missing?
+            section_regex = re.compile(f'Fatbin {section_type} code')
+            section_matches = re.findall(section_regex, cuda_raw)
+            if section_matches:
+                fail_msg = f"Found Fatbin {section_type} code section(s) in cuobjdump output for {path}, "
+                fail_msg += "but failed to extract CUDA architecture"
+            else:
+                # In this case, the "Fatbin {section_type} code" section is simply missing from the binary
+                # It is entirely possible for a CUDA binary to have only device code or only ptx code (and thus the
+                # other section could be missing). However, considering --cuda-compute-capabilities is supposed to
+                # generate both PTX and device code (at least for the highest CC in that list), it is unexpected
+                # in an EasyBuild context and thus we print a warning
+                fail_msg = f"Failed to find Fatbin {section_type} code section(s) in cuobjdump output for {path}."
+            _log.warning(fail_msg)
+
+    return cc_archs
 
 
 def get_linked_libs_raw(path):

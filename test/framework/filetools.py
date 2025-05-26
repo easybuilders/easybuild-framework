@@ -70,7 +70,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(FileToolsTest, self).setUp()
+        super().setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
         if ft.HAVE_REQUESTS:
@@ -79,7 +79,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
-        super(FileToolsTest, self).tearDown()
+        super().tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
         ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS
@@ -553,6 +553,21 @@ class FileToolsTest(EnhancedTestCase):
         source_url = 'file://%s/%s' % (toy_source_dir, fn)
         with self.mocked_stdout_stderr():
             res = ft.download_file(fn, source_url, target_location)
+        self.assertEqual(res, target_location, "'download' of local file works")
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 1)
+
+        ft.remove_file(target_location)
+
+        # with max attempts set to 0, nothing gets downloaded
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=0)
+        self.assertEqual(res, None)
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 0)
+
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=3, initial_wait_time=5)
         self.assertEqual(res, target_location, "'download' of local file works")
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)
@@ -1879,6 +1894,12 @@ class FileToolsTest(EnhancedTestCase):
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
 
+        # Passing an option works
+        with self.mocked_stdout_stderr():
+            ft.apply_patch(toy_patch_gz, path, options=' --reverse')
+        # Change was really removed
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
+
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
         ft.write_file(test_file, '123')
@@ -2271,8 +2292,8 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertExists(target_dir)
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb',
-                    'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
+        expected = ['GCC-10.2.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
+                    'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
         # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
         self.assertNotExists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb'))
@@ -2613,7 +2634,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 94)
+            self.assertEqual(len(index), 95)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2663,7 +2684,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 25)
+        self.assertEqual(len(index), 26)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -2693,7 +2714,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 25)
+        self.assertEqual(len(index), 26)
         for fn in expected:
             self.assertIn(fn, index)
 

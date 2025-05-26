@@ -97,7 +97,7 @@ class Pgi(Compiler):
         """Set -tp=x64 if optarch is set to False."""
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
-        super(Pgi, self)._set_compiler_flags()
+        super()._set_compiler_flags()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
@@ -114,4 +114,4 @@ class Pgi(Compiler):
         else:
             self.COMPILER_F77 = 'pgf77'
 
-        super(Pgi, self)._set_compiler_vars()
+        super()._set_compiler_vars()

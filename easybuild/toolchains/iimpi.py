@@ -51,7 +51,7 @@ class Iimpi(IccIfort, IntelCompilersToolchain, IntelMPI):
     def __init__(self, *args, **kwargs):
         """Constructor for Iimpi toolchain class."""
 
-        super(Iimpi, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', self.version):

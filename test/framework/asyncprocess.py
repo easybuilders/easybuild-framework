@@ -43,7 +43,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup a basic shell """
-        super(AsyncProcessTest, self).setUp()
+        super().setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
 
     def test_echo_between_process(self):
@@ -64,7 +64,7 @@ class AsyncProcessTest(EnhancedTestCase):
     def tearDown(self):
         """cleanup"""
         subprocess_terminate(self.shell, timeout=1)
-        super(AsyncProcessTest, self).tearDown()
+        super().tearDown()
 
 
 def suite():
