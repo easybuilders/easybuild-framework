@@ -54,7 +54,7 @@ class Lompi(LLVMtc, OpenMPI):
         # make sure a non-symbolic version (e.g., 'system') is used before making comparisons using LooseVersion
         if re.match('^[0-9]', version):
             # lompi toolchains older than 2023b should not exist  (need GCC >= 13)
-            if LooseVersion(version) < LooseVersion('2021'):
+            if LooseVersion(version) < LooseVersion('2023'):
                 deprecated = True
 
         return deprecated
