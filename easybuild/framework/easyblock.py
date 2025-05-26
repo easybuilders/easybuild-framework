@@ -2289,11 +2289,12 @@ class EasyBlock:
 
         fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
 
-        yield
-
-        # cleanup (unload fake module, remove fake module dir)
-        if fake_mod_data:
-            self.clean_up_fake_module(fake_mod_data)
+        try:
+            yield
+        finally:
+            # cleanup (unload fake module, remove fake module dir)
+            if fake_mod_data:
+                self.clean_up_fake_module(fake_mod_data)
 
     def guess_start_dir(self):
         """
