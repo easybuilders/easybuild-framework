@@ -32,6 +32,8 @@ Authors:
 
 * Davide Grassano (CECAM EPFL)
 """
+
+from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.compiler.clang import Clang
 from easybuild.toolchains.compiler.flang import Flang
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
@@ -45,7 +47,7 @@ class LLVMtc(Clang, Flang):
     NAME = 'LLVMtc'
     COMPILER_MODULE_NAME = [NAME]
     COMPILER_FAMILY = TC_CONSTANT_LLVMTC
-    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
 
     COMPILER_UNIQUE_OPTS = {
         **Clang.COMPILER_UNIQUE_OPTS,
