@@ -34,7 +34,7 @@ Authors:
 """
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
+from easybuild.tools.toolchain.compiler import Compiler
 
 
 TC_CONSTANT_CLANG = "Clang"
@@ -86,7 +86,6 @@ class Clang(Compiler):
         'loose': ['-ffast-math', '-fno-unsafe-math-optimizations'],
         'veryloose': ['-ffast-math'],
         'vectorize': {False: '-fno-vectorize', True: '-fvectorize'},
-        DEFAULT_OPT_LEVEL: ['-O2', '-ftree-vectorize'],
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
@@ -105,9 +104,7 @@ class Clang(Compiler):
 
     COMPILER_CC = 'clang'
     COMPILER_CXX = 'clang++'
-    COMPILER_C_UNIQUE_OPTIONS = [
-        # 'lld_undefined_version'
-    ]
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
