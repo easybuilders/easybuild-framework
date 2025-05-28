@@ -1476,7 +1476,7 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
     # prefer using importlib.metadata, since pkg_resources is deprecated since setuptools v68.0.0
     # and is scheduled to be removed in November 2025; see also https://github.com/pypa/setuptools/pull/5007
 
-    _get_version, raised_error = None, None
+    raised_error = None
 
     # figure out which function to use to determine module/package version,
     # and which error may be raised if the name is unknown
@@ -1494,7 +1494,7 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
 
         raised_error = pkg_resources.DistributionNotFound
 
-    if _get_version is not None:
+    if raised_error is not None:
         if import_name:
             try:
                 version = _get_version(import_name)
