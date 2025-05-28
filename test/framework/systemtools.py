@@ -1123,7 +1123,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertIsNone(det_pypkg_version('doesnotexist', 'doesnotexist.foo'))
 
         rich_ver = det_pypkg_version('rich', 'rich')
-        regex = re.compile('^[0-9]+\.[0-9].*')
+        regex = re.compile(r'^[0-9]+\.[0-9].*')
         self.assertTrue(regex.match(rich_ver), f"Pattern {regex.pattern} should match for: {rich_ver}")
 
     def test_pick_system_specific_value(self):
