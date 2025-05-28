@@ -56,10 +56,19 @@ from socket import gethostname
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
 try:
-    import pkg_resources
+    # catch & ignore deprecation warning when importing pkg_resources produced by setuptools
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        import pkg_resources
     HAVE_PKG_RESOURCES = True
 except ImportError:
     HAVE_PKG_RESOURCES = False
+
+# importlib.metadata only available in Python 3.10+ (which we take into account when using it)
+try:
+    import importlib.metadata
+except ImportError:
+    pass
 
 try:
     # only needed on macOS, may not be available on Linux
@@ -1467,17 +1476,38 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
 
     version = None
 
-    if HAVE_PKG_RESOURCES:
+    # prefer using importlib.metadata, since pkg_resources is deprecated since setuptools v68.0.0
+    # and is scheduled to be removed in November 2025; see also https://github.com/pypa/setuptools/pull/5007
+
+    raised_error = None
+
+    # figure out which function to use to determine module/package version,
+    # and which error may be raised if the name is unknown
+    if check_python_version() >= (3, 10):
+
+        def _get_version(name):
+            return importlib.metadata.version(name)
+
+        raised_error = importlib.metadata.PackageNotFoundError
+
+    elif HAVE_PKG_RESOURCES:
+
+        def _get_version(name):
+            return pkg_resources.get_distribution(name).version
+
+        raised_error = pkg_resources.DistributionNotFound
+
+    if raised_error is not None:
         if import_name:
             try:
-                version = pkg_resources.get_distribution(import_name).version
-            except pkg_resources.DistributionNotFound as err:
+                version = _get_version(import_name)
+            except raised_error as err:
                 _log.debug("%s Python package not found: %s", import_name, err)
 
         if version is None:
             try:
-                version = pkg_resources.get_distribution(pkg_name).version
-            except pkg_resources.DistributionNotFound as err:
+                version = _get_version(pkg_name)
+            except raised_error as err:
                 _log.debug("%s Python package not found: %s", pkg_name, err)
 
     if version is None:

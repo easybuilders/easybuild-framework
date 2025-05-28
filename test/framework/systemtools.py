@@ -49,11 +49,12 @@ from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, U
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
 from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
-from easybuild.tools.systemtools import det_parallelism, get_avail_core_count, get_cuda_object_dump_raw
-from easybuild.tools.systemtools import get_cuda_architectures, get_cpu_arch_name, get_cpu_architecture
-from easybuild.tools.systemtools import get_cpu_family, get_cpu_features, get_cpu_model, get_cpu_speed, get_cpu_vendor
-from easybuild.tools.systemtools import get_gcc_version, get_glibc_version, get_os_type, get_os_name, get_os_version
-from easybuild.tools.systemtools import get_platform_name, get_shared_lib_ext, get_system_info, get_total_memory
+from easybuild.tools.systemtools import det_parallelism, det_pypkg_version, get_avail_core_count
+from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_architectures, get_cpu_arch_name
+from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_cpu_model
+from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_os_type
+from easybuild.tools.systemtools import get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
+from easybuild.tools.systemtools import get_system_info, get_total_memory
 from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
@@ -1116,6 +1117,14 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
         error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+
+    def test_det_pypkg_version(self):
+        """Test det_pypkg_version function."""
+        self.assertIsNone(det_pypkg_version('doesnotexist', 'doesnotexist.foo'))
+
+        rich_ver = det_pypkg_version('rich', 'rich')
+        regex = re.compile(r'^[0-9]+\.[0-9].*')
+        self.assertTrue(regex.match(rich_ver), f"Pattern {regex.pattern} should match for: {rich_ver}")
 
     def test_pick_system_specific_value(self):
         """Test pick_system_specific_value function."""
