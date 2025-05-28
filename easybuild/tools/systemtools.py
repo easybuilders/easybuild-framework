@@ -56,7 +56,10 @@ from socket import gethostname
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
 try:
-    import pkg_resources
+    # catch & ignore deprecation warning when importing pkg_resources produced by setuptools
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        import pkg_resources
     HAVE_PKG_RESOURCES = True
 except ImportError:
     HAVE_PKG_RESOURCES = False
