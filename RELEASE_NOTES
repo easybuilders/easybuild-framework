@@ -4,8 +4,61 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.1.0 (26 May 2025)
+--------------------
+
+feature release
+
+- various enhancements, including:
+  - add support for data installations (#4474, #4873, #4874)
+  - allow specifying location for RPATH wrapper scripts via `rpath_wrappers_dir` (#4596)
+  - add a CUDA device code sanity check (#4692)
+  - add support for check_readelf_rpath easyconfig parameter to optionally skip RPATH checks (#4768)
+  - add support for using environment variables in value used in modextravars (#4855)
+  - print summary after the build in trace output (#4861, #4875)
+  - avoid leaking keys by mistake with `--upload-test-report` (#4877)
+  - obtain PR/commit diff via GitHub API rather than downloading `*.diff` file via github.com (#4878)
+  - support options for patch command (#4886)
+  - replace full trace message for extension check command with simple pass/fail message (#4892)
+- various bug fixes, including:
+  - also pass `rpath_include_dirs` when preparing build environment for extensions (#4596)
+  - fix `check_checksums` when `nosource: True` is used (#4806)
+  - fix help string of findPythonDeps.py script (#4821)
+  - take into account `job-output-dir` option in Slurm job backend (#4842)
+  - fix unbound variable in error case in `build_and_install_software` (#4843)
+  - avoid failure when only some passed easyconfigs exist (#4847)
+  - restore original value for non-list easyconfig parameter values that are considered for iterating over (#4848)
+  - add '-' before 'DMKL_ILP64' in $CFLAGS (#4850)
+  - enhance RPATH sanity check to skip anything whose absolute path resolves to outside the install dir (#4854)
+  - use new `ModEnvVarType.STRICT_PATH_WITH_FILES` with `CMAKE_LIBRARY_PATH` environment variable (#4858)
+  - fix `is_patch_for` for patch dicts (#4865)
+  - update fake module for each extension installed (#4868, #4888, #4895)
+  - implement exponential backoff in `download_file` (#4870, #4880)
+  - use `develop` branch for PRs that target removed `5.0.x` branch in `fetch_files_from_pr` (#4879)
+  - also ignore errors raised during test step when `--ignore-test-failure` is used (#4881)
+  - fix download progress bar (#4885)
+  - fix `--dep-graph` by using `graphviz` Python package (#4891)
+- fixes for test suite:
+  - fix `test_github_preview_pr` which got broken because there's no more easyconfigs for bzip2 1.0.6 in easyconfigs repo (#4827)
+  - fix tests after removal of 5.0.x branch (#4830)
+  - fix missed message in trivial equal-asserts (#4831)
+  - fix wrong variable name used for Python version in linting CI (#4839)
+  - fix failing GitHub integration CI tests (#4841)
+  - fix testsuite badge in README (#4845)
+- other changes:
+  - go back to using `develop` branch rather than `5.0.x` branch in GitHub Actions workflows (#4820)
+  - remove source tarball for Python 3.7.2 from test sources (#4828)
+  - delete .coveragerc (#4833)
+  - remove Python 2 constructs (#4834)
+  - remove superflous assignment in `_sanity_check_step` (#4851)
+  - replace deprecation warning about reproducible tarballs on Python older than 3.9 with a regular warning (#4852)
+  - move `EasyBlock.expand_module_search_path` into `ModuleEnvironmentVariable.expand_paths` (#4859)
+
+
 v5.0.0 (18 March 2025)
 ----------------------
+
+major release (includes breaking changes)
 
 - remove support for Python 2.7 and 3.5 (#4229, #4270, #4306, #4473, #4477, #4476, #4478, #4524, #4607, #4756, #4810, #4811) 
   - also run unit test suite with Python 3.12 + 3.13 (#4484, #4674)
