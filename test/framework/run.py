@@ -2131,7 +2131,7 @@ class RunTest(EnhancedTestCase):
             # we just want to verify that the post_run_shell_cmd_hook has run
             try:
                 run_shell_cmd("false")
-            except:
+            except RunShellCmdError:
                 pass
             stdout = self.get_stdout()
 
