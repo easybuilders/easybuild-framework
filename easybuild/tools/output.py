@@ -48,13 +48,19 @@ except ImportError:
     pass
 
 
+COLOR_BLUE = 'blue'
+COLOR_CYAN = 'cyan'
 COLOR_GREEN = 'green'
+COLOR_PURPLE = 'purple'
 COLOR_RED = 'red'
 COLOR_YELLOW = 'yellow'
 
 # map known colors to ANSII color codes
 KNOWN_COLORS = {
+    COLOR_BLUE: '\033[0;34m',
+    COLOR_CYAN: '\033[0;36m',
     COLOR_GREEN: '\033[0;32m',
+    COLOR_PURPLE: '\033[0;35m',
     COLOR_RED: '\033[0;31m',
     COLOR_YELLOW: '\033[1;33m',
 }
