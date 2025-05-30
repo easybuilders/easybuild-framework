@@ -2068,7 +2068,7 @@ class RunTest(EnhancedTestCase):
                     print("pre-run hook '%s' in %s" % (cmd, work_dir))
                     import sys
                     sys.stderr.write('pre-run hook done\\n')
-                if not cmd.startswith('echo'):
+                if cmd != 'false' and not cmd.startswith('echo'):
                     cmds = cmd.split(';')
                     return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
 
@@ -2125,6 +2125,18 @@ class RunTest(EnhancedTestCase):
 
         regex = re.compile('>> running shell command:\n\techo make', re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        with self.mocked_stdout_stderr():
+            # run_shell_cmd will raise RunShellCmdError which we don't care about here,
+            # we just want to verify that the post_run_shell_cmd_hook has run
+            try:
+                run_shell_cmd("false")
+            except:
+                pass
+            stdout = self.get_stdout()
+
+        expected_last_line = "\npost-run hook 'false' (exit code: 1, output: '')\n"
+        self.assertTrue(stdout.endswith(expected_last_line), f"Stdout should end with '{expected_last_line}': {stdout}")
 
     def test_run_shell_cmd_delete_cwd(self):
         """
