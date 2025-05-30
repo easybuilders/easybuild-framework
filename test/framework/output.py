@@ -130,10 +130,13 @@ class OutputTest(EnhancedTestCase):
         Test colorize function
         """
         if HAVE_RICH:
-            for color in ('green', 'red', 'yellow'):
+            for color in ('blue', 'cyan', 'green', 'purple', 'red', 'yellow'):
                 self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
         else:
+            self.assertEqual(colorize('test', 'blue'), '\x1b[0;34mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'cyan'), '\x1b[0;36mtest\x1b[0m')
             self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
+            self.assertEqual(colorize('test', 'purple'), '\x1b[0;35mtest\x1b[0m')
             self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
             self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
 
