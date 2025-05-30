@@ -589,6 +589,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
                             work_dir=work_dir, out_file=cmd_out_fp, err_file=cmd_err_fp, cmd_sh=cmd_sh,
                             thread_id=thread_id, task_id=task_id)
 
+    if with_hooks:
+        run_hook_kwargs = {
+            'exit_code': res.exit_code,
+            'interactive': interactive,
+            'output': res.output,
+            'stderr': res.stderr,
+            'work_dir': res.work_dir,
+            'shell_cmd_result': res,
+        }
+        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
+
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
     if split_stderr:
@@ -617,16 +628,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             os.chdir(initial_work_dir)
         except OSError as err:
             raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
-
-    if with_hooks:
-        run_hook_kwargs = {
-            'exit_code': res.exit_code,
-            'interactive': interactive,
-            'output': res.output,
-            'stderr': res.stderr,
-            'work_dir': res.work_dir,
-        }
-        run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     if not hidden:
         time_since_start = time_str_since(start_time)
