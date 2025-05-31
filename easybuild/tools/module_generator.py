@@ -1312,13 +1312,14 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
-            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
-            if extensions_list:
-                extensions_stmt = 'extensions("%s")' % extensions_list
-                # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
-                # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
-                # https://github.com/TACC/Lmod/issues/428
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
+            if build_option('module_extensions'):
+                extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
+                if extensions_list:
+                    extensions_stmt = 'extensions("%s")' % extensions_list
+                    # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
+                    # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
+                    # https://github.com/TACC/Lmod/issues/428
+                    lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
 
         return '\n'.join(lines + [''])
 
