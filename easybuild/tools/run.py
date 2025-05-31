@@ -424,6 +424,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         kwargs = {
             'interactive': interactive,
             'work_dir': work_dir,
+            'fail_on_error': fail_on_error,
+            'hidden': hidden,
         }
         hook_res = run_hook(RUN_SHELL_CMD, hooks, pre_step_hook=True, args=[cmd], kwargs=kwargs)
         if hook_res:
@@ -597,6 +599,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             'stderr': res.stderr,
             'work_dir': res.work_dir,
             'shell_cmd_result': res,
+            'fail_on_error': fail_on_error,
+            'hidden': hidden,
         }
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
