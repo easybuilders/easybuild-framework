@@ -816,6 +816,13 @@ class EasyConfig:
                 builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
             self['builddependencies'] = remove_false_versions(builddeps)
 
+            source_deps = self['source_deps']
+            if source_deps and all(isinstance(x, (list, tuple)) for b in source_deps for x in b):
+                source_deps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in source_deps]
+            else:
+                source_deps = [self._parse_dependency(dep, build_only=True) for dep in source_deps]
+            self['source_deps'] = remove_false_versions(source_deps)
+
             # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
             self.multi_deps = self.get_parsed_multi_deps()
 
