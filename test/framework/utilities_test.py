@@ -155,6 +155,12 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc']))
         self.assertFalse(version_4beta.is_prerelease('4.0.0', ['rc, -beta']))
 
+        # behaviour when one version is prefixed with e.g. 'v' is perhaps unintuitive -
+        # leading alphabetical characters are always "greater" than numerals
+        self.assertLess(LooseVersion('1000'), LooseVersion('v1.0'))
+        self.assertGreater(LooseVersion('v2.0'), LooseVersion('v1.0'))
+        self.assertGreater(LooseVersion('w0.1'), LooseVersion('v1.0'))
+
         # The following test is based on the Python distutils tests
         # licensed under the Python Software Foundation License Version 2
         versions = (('1.5.1', '1.5.2b2', -1),
