@@ -376,6 +376,7 @@ BUILD_OPTIONS_CMDLINE = {
     EMPTY_LIST: [
         'accept_eula_for',
         'from_pr',
+        'ignore_pip_unversioned_pkgs',
         'include_easyblocks_from_pr',
         'robot',
         'search_paths',
