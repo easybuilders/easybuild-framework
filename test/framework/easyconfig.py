@@ -5090,6 +5090,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)
