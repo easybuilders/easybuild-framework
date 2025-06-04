@@ -59,7 +59,7 @@ class MPItrampoline(Mpi):
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor"""
-        super(MPItrampoline, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands and add MPITRAMPOLINE_* variables to set."""
@@ -75,4 +75,4 @@ class MPItrampoline(Mpi):
                 var_class=CommandFlagList
             )
 
-        super(MPItrampoline, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

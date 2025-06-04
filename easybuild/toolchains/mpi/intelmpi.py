@@ -71,12 +71,12 @@ class IntelMPI(Mpich2):
         for var, _ in COMPILER_VARIABLES:
             self.variables.nappend('I_MPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
-        super(IntelMPI, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()
 
     def _set_mpi_variables(self):
         """Set the other MPI variables"""
 
-        super(IntelMPI, self)._set_mpi_variables()
+        super()._set_mpi_variables()
 
         if (LooseVersion(self.version) >= LooseVersion('2019')):
             lib_dir = [os.path.join('intel64', 'lib', 'release')]
@@ -94,7 +94,7 @@ class IntelMPI(Mpich2):
 
     def set_variables(self):
         """Intel MPI-specific updates to variables."""
-        super(IntelMPI, self).set_variables()
+        super().set_variables()
         # add -mt_mpi flag to ensure linking against thread-safe MPI library when OpenMP is enabled
         if self.options.get('openmp', None) and self.options.get('usempi', None):
             mt_mpi_option = ['-mt_mpi']

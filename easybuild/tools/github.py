@@ -32,7 +32,6 @@ Authors:
 * Toon Willems (Ghent University)
 """
 import base64
-import copy
 import getpass
 import glob
 import functools
@@ -139,7 +138,7 @@ def pick_default_branch(github_owner):
     return branch
 
 
-class Githubfs(object):
+class Githubfs:
     """This class implements some higher level functionality on top of the Github api"""
 
     def __init__(self, githubuser, reponame, branchname=None, username=None, password=None, token=None):
@@ -539,18 +538,44 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
 
     pr_target_branch = pr_data['base']['ref']
-    _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
+    _log.info(f"Target branch for PR #{pr}: {pr_target_branch}")
+    # 5.0.x branch was collapsed into develop branch and then removed shortly after release of EasyBuild v5.0.0,
+    # so for PRs targeting the 5.0.x branch use develop branch instead
+    if pr_target_branch == '5.0.x':
+        pr_target_branch = GITHUB_DEVELOP_BRANCH
+        _log.info(f"Using {pr_target_branch} instead of 5.0.x branch (since that branch was removed)")
 
     # download target branch of PR so we can try and apply the PR patch on top of it
     repo_target_branch = download_repo(repo=github_repo, account=github_account, branch=pr_target_branch,
                                        github_user=github_user)
 
     # determine list of changed files via diff
-    diff_fn = os.path.basename(pr_data['diff_url'])
+    diff_url = pr_data['diff_url']
+    diff_fn = os.path.basename(diff_url)
     diff_filepath = os.path.join(path, diff_fn)
-    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True, trace=False)
-    diff_txt = read_file(diff_filepath)
-    _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
+
+    def pr_request_fn(gh):
+        return gh.repos[github_account][github_repo].pulls[pr]
+
+    # see also https://docs.github.com/en/rest/pulls/pulls#get-a-pull-request,
+    # in particular part about media types
+    error_msg = None
+    accept_diff = {'Accept': 'application/vnd.github.diff'}
+    try:
+        status, data = github_api_get_request(pr_request_fn, github_user=github_user, headers=accept_diff)
+        if status == HTTP_STATUS_OK:
+            # decode from bytes to text
+            diff_txt = data.decode()
+            _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
+            write_file(diff_filepath, diff_txt)
+        else:
+            error_msg = f"HTTP status code: {status}"
+    except HTTPError as err:
+        error_msg = str(err)
+
+    if error_msg:
+        error_msg = f"Failed to download diff for {github_account}/{github_repo} PR #{pr}! ({error_msg})"
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_GITHUB)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files for PR #%s: %s", pr, patched_files)
@@ -697,20 +722,32 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
     # if no files are specified, determine which files are touched in commit
     if not files:
-        diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
-        diff_fn = os.path.basename(diff_url)
-        diff_filepath = os.path.join(path, diff_fn)
-        if download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False):
-            diff_txt = read_file(diff_filepath)
-            _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+        github_user = build_option('github_user')
 
-            files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
-            _log.debug("List of patched files for commit %s: %s", commit, files)
-        else:
-            raise EasyBuildError(
-                "Failed to download diff for commit %s of %s/%s", commit, github_account, github_repo,
-                exit_code=EasyBuildExit.FAIL_GITHUB
-            )
+        def commit_request_fn(gh):
+            return gh.repos[github_account][github_repo].commits[commit]
+
+        error_msg = None
+        try:
+            # see also https://docs.github.com/en/rest/commits/commits#get-a-commit,
+            # in particular part about media types
+            accept_diff = {'Accept': 'application/vnd.github.diff'}
+            status, data = github_api_get_request(commit_request_fn, github_user=github_user, headers=accept_diff)
+            if status == HTTP_STATUS_OK:
+                # decode from bytes to text
+                diff_txt = data.decode()
+                _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+            else:
+                error_msg = f"HTTP status code: {status}"
+        except HTTPError as err:
+            error_msg = str(err)
+
+        if error_msg:
+            error_msg = f"Failed to download diff for {github_account}/{github_repo} commit {commit}! ({error_msg})"
+            raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_GITHUB)
+
+        files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
+        _log.debug("List of patched files for commit %s: %s", commit, files)
 
     # download tarball for specific commit
     repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
@@ -1283,9 +1320,19 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
 
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
-    res = False
+    # Extract name from patch entry
+    def get_name(patch):
+        if isinstance(patch, (tuple, list)):
+            patch = patch[0]
+        elif isinstance(patch, dict):
+            try:
+                patch = patch['name']
+            except KeyError:
+                raise EasyBuildError(f"Invalid patch spec in {ec.path}: Missing 'name' key",
+                                     exit_code=EasyBuildExit.VALUE_ERROR)
+        return patch
 
-    patches = copy.copy(ec['patches'])
+    patches = [get_name(p) for p in ec['patches']]
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
@@ -1297,17 +1344,9 @@ def is_patch_for(patch_name, ec):
                     'version': entry[1],
                 }
                 options = entry[2]
-                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
-                               for p in options.get('patches', []))
+                patches.extend(get_name(p) % templates for p in options.get('patches', []))
 
-    for patch in patches:
-        if isinstance(patch, (tuple, list)):
-            patch = patch[0]
-        if patch == patch_name:
-            res = True
-            break
-
-    return res
+    return patch_name in patches
 
 
 def det_patch_specs(patch_paths, file_info, ec_dirs):
@@ -1398,7 +1437,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     soft_name = ec['ec']['name']
                     break
         except EasyBuildError as err:
-            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+            _log.warning("Ignoring easyconfig %s that fails to parse: %s", path, err)
         sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 

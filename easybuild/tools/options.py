@@ -263,7 +263,7 @@ class EasyBuildOptions(GeneralOption):
             constants = {name: value for name, (value, _) in constants.items()}
             go_cfg_initenv.setdefault(section, {}).update(constants)
 
-        super(EasyBuildOptions, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def basic_options(self):
         """basic runtime options"""
@@ -398,7 +398,42 @@ class EasyBuildOptions(GeneralOption):
                                    int, 'store_or_None', None),
             'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
                                           "values should be specified as digits separated by a dot, "
-                                          "for example: 3.5,5.0,7.2", 'strlist', 'extend', None),
+                                          "for example: 3.5,5.0,7.2. EasyBuild will (where possible) compile fat "
+                                          "binaries with support for (at least) all requested CUDA compute "
+                                          "capabilities, and PTX code for the highest CUDA compute capability (for "
+                                          "forwards compatibility). The check on this behavior may be relaxed using "
+                                          "--cuda-sanity-check-accept-missing-ptx, "
+                                          "--cuda-sanity-check-accept-ptx-as-devcode, "
+                                          "or made more stringent using --cuda-sanity-check-strict.",
+                                          'strlist', 'extend', None),
+            'cuda-sanity-check-accept-missing-ptx': ("Relax CUDA sanity check to accept that PTX code for the highest "
+                                                     "requested CUDA compute capability is not present (but will "
+                                                     "print a warning)",
+                                                     None, 'store_true', False),
+            'cuda-sanity-check-accept-ptx-as-devcode': ("Relax CUDA sanity check to accept that requested device code "
+                                                        "is not present, as long as PTX code is present that can be "
+                                                        "JIT-compiled for each target in --cuda-compute-capabilities. "
+                                                        "For example, if --cuda-compute-capabilities=8.0 and a binary "
+                                                        "is found in the installation that does not have device code "
+                                                        "for 8.0, but it does have PTX code for 7.0, the sanity check "
+                                                        "will pass if, and only if, this option is enabled. "
+                                                        "Note that JIT-compiling means the binary will work on the "
+                                                        "requested architecture, but is it not necessarily as well "
+                                                        "optimized as when actual device code is present for the "
+                                                        "requested architecture ",
+                                                        None, 'store_true', False),
+            'cuda-sanity-check-error-on-failed-checks': ("If enabled, failures in the CUDA sanity check will produce "
+                                                         "an error. If disabled, the CUDA sanity check will be "
+                                                         "performed and failures will be reported through warnings, "
+                                                         "but they will not result in an error",
+                                                         None, 'store_true', False),
+            'cuda-sanity-check-strict': ("Perform strict CUDA sanity check. Without this option, the CUDA sanity "
+                                         "check will fail if the CUDA binaries don't contain code for (at least) "
+                                         "all compute capabilities defined in --cude-compute-capabilities, "
+                                         "but will accept if code for additional compute capabilities is present. "
+                                         "With this setting, the sanity check will also fail if code is present for "
+                                         "more compute capabilities than defined in --cuda-compute-capabilities.",
+                                         None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
@@ -544,7 +579,7 @@ class EasyBuildOptions(GeneralOption):
                 "Git commit to use for the target software build (robot capabilities are automatically disabled)",
                 None, 'store', None),
             'sticky-bit': ("Set sticky bit on newly created directories", None, 'store_true', False),
-            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involces unsetting "
+            'strict-rpath-sanity-check': ("Perform strict RPATH sanity check, which involves unsetting "
                                           "$LD_LIBRARY_PATH before checking whether all required libraries are found",
                                           None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
@@ -611,6 +646,8 @@ class EasyBuildOptions(GeneralOption):
                                    'strlist', 'store', []),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
+            'installpath-data': ("Install path for data (if None, combine --installpath and --subdir-data)",
+                                 None, 'store', None),
             'installpath-modules': ("Install path for modules (if None, combine --installpath and --subdir-modules)",
                                     None, 'store', None),
             'installpath-software': ("Install path for software (if None, combine --installpath and --subdir-software)",
@@ -644,7 +681,7 @@ class EasyBuildOptions(GeneralOption):
                             None, 'store', mk_full_default_path('packagepath')),
             'package-naming-scheme': ("Packaging naming scheme choice",
                                       'choice', 'store', DEFAULT_PNS, sorted(avail_package_naming_schemes().keys())),
-            'prefix': (("Change prefix for buildpath, installpath, sourcepath and repositorypath "
+            'prefix': (("Change prefix for buildpath, installpath, sourcepath, sourcepath-data, and repositorypath "
                         "(used prefix for defaults %s)" % DEFAULT_PREFIX),
                        None, 'store', None),
             'recursive-module-unload': ("Enable generating of modules that unload recursively.",
@@ -659,8 +696,12 @@ class EasyBuildOptions(GeneralOption):
                                         'store', DEFAULT_SEARCH_PATH_CPP_HEADERS, [*SEARCH_PATH["cpp_headers"]]),
             'search-path-linker': ("Search path used at build time by the linker for libraries", 'choice',
                                    'store', DEFAULT_SEARCH_PATH_LINKER, [*SEARCH_PATH["linker"]]),
-            'sourcepath': ("Path(s) to where sources should be downloaded (string, colon-separated)",
+            'sourcepath': ("Path(s) to where software sources should be downloaded (string, colon-separated)",
                            None, 'store', mk_full_default_path('sourcepath')),
+            'sourcepath-data': ("Path(s) to where data sources should be downloaded (string, colon-separated) "
+                                "(same as sourcepath if not specified)", None, 'store', None),
+            'subdir-data': ("Installpath subdir for data",
+                            None, 'store', DEFAULT_PATH_SUBDIRS['subdir_data']),
             'subdir-modules': ("Installpath subdir for modules", None, 'store', DEFAULT_PATH_SUBDIRS['subdir_modules']),
             'subdir-software': ("Installpath subdir for software",
                                 None, 'store', DEFAULT_PATH_SUBDIRS['subdir_software']),
@@ -944,7 +985,7 @@ class EasyBuildOptions(GeneralOption):
         # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
         # see https://developer.nvidia.com/cuda-gpus
         if self.options.cuda_compute_capabilities:
-            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+$')
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+a?$')
             faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
             if faulty_cuda_ccs:
                 error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"
@@ -1234,7 +1275,7 @@ class EasyBuildOptions(GeneralOption):
         #   (see also https://github.com/easybuilders/easybuild-framework/issues/3892);
         path_opt_names = ['buildpath', 'containerpath', 'failed_install_build_dirs_path', 'failed_install_logs_path',
                           'git_working_dirs_path', 'installpath', 'installpath_modules', 'installpath_software',
-                          'prefix', 'packagepath', 'robot_paths', 'sourcepath']
+                          'installpath_data', 'prefix', 'packagepath', 'robot_paths', 'sourcepath', 'sourcepath_data']
 
         for opt_name in path_opt_names:
             self._ensure_abs_path(opt_name)
@@ -1244,7 +1285,7 @@ class EasyBuildOptions(GeneralOption):
             # repository has to be reinitialised to take new repositorypath in account;
             # in the legacy-style configuration, repository is initialised in configuration file itself;
             path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath']
+                         'sourcepath', 'sourcepath_data']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
