@@ -43,7 +43,7 @@ class LFoss(Lompi, FlexiBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with GCC, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
     NAME = 'lfoss'
     SUBTOOLCHAIN = [
-        Lompi.NAME, 
+        Lompi.NAME,
         Lolf.NAME,
         Lfbf.NAME
     ]

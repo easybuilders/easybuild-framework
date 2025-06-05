@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for Clang + Flang compiler toolchain. 
+EasyBuild support for Clang + Flang compiler toolchain.
 
 Authors:
 
