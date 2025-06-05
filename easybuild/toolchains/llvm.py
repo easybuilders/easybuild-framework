@@ -34,49 +34,12 @@ Authors:
 """
 
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.toolchains.compiler.clang import Clang
-from easybuild.toolchains.compiler.flang import Flang
+from easybuild.toolchains.compiler.llvm import LLVM
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
-# Using `...tc` to distinguish toolchain from package
-TC_CONSTANT_LLVMTC = "LLVMtc"
 
-
-class LLVMtc(Clang, Flang):
-    """Compiler toolchain with Clang and GFortran compilers."""
-    NAME = 'LLVMtc'
+class LLVMtc(LLVM):
+    """Compiler toolchain with Clang and Flang compilers."""
+    NAME = 'LLVMtc'  # Using `...tc` to distinguish toolchain from package
     COMPILER_MODULE_NAME = [NAME]
-    COMPILER_FAMILY = TC_CONSTANT_LLVMTC
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
-
-    COMPILER_UNIQUE_OPTS = {
-        **Clang.COMPILER_UNIQUE_OPTS,
-        **Flang.COMPILER_UNIQUE_OPTS,
-        # https://github.com/madler/zlib/issues/856
-        'lld_undefined_version': (True, "-Wl,--undefined-version - Allow unused version in version script"),
-        'no_unused_args': (
-            True,
-            (
-                "-Wno-unused-command-line-argument - Avoid some failures in CMake correctly recognizing "
-                "feature due to linker warnings"
-            )
-        ),
-    }
-
-    COMPILER_UNIQUE_OPTION_MAP = {
-        **Clang.COMPILER_UNIQUE_OPTION_MAP,
-        **Flang.COMPILER_UNIQUE_OPTION_MAP,
-        'lld_undefined_version': ['-Wl,--undefined-version',],
-        'no_unused_args': ['-Wno-unused-command-line-argument'],
-    }
-
-    COMPILER_C_OPTIONS = [
-        'lld_undefined_version',
-        'no_unused_args',
-    ]
-
-    COMPILER_F_OPTIONS = [
-        # These are not yet available in Flang
-        # 'lld_undefined_version',
-        # 'no_unused_args',
-    ]
