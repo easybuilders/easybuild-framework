@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for Clang + Flang compiler toolchain. 
+EasyBuild support for Clang + Flang compiler toolchain.
 
 Authors:
 
@@ -117,7 +117,7 @@ class LLVM(Compiler):
         'vectorize': {False: '-fno-vectorize', True: '-fvectorize'},
         DEFAULT_OPT_LEVEL: ['-O2'],
 
-        'lld_undefined_version': ['-Wl,--undefined-version',],
+        'lld_undefined_version': ['-Wl,--undefined-version'],
         'no_unused_args': ['-Wno-unused-command-line-argument'],
     }
 
