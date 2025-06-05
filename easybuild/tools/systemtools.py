@@ -108,7 +108,7 @@ AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
 RISCV32 = 'RISC-V-32'
-RISCV64 = 'RISC-V-64'
+RISCV64 = 'RISCV64'
 
 # known values for ARCH constant (determined by _get_arch_constant in easybuild.framework.easyconfig.constants)
 KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
