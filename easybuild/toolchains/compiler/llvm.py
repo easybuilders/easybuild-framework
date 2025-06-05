@@ -26,7 +26,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-Support for Flang as toolchain compiler.
+EasyBuild support for Clang + Flang compiler toolchain. 
 
 Authors:
 
@@ -34,27 +34,54 @@ Authors:
 * Davide Grassano (CECAM EPFL)
 """
 
+from easybuild.tools import LooseVersion
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler, DEFAULT_OPT_LEVEL
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+
+TC_CONSTANT_LLVM = "LLVM"
 
 
-TC_CONSTANT_FLANG = "Flang"
+class LLVM(Compiler):
+    """Compiler toolchain with Clang and GFortran compilers."""
+    # NAME = 'LLVMcore'
+    # COMPILER_MODULE_NAME = [NAME]
+    COMPILER_FAMILY = TC_CONSTANT_LLVM
+    SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
 
+    # List of flags that are supported by Clang but not yet by Flang and should be filtered out
+    # The element of the list are tuples with the following structure:
+    # (min_version, max_version, [list of flags])
+    # Where min_version and max_version are strings representing a left-inclusive and right-exclusive version range,
+    # [min_version, max_version) respectively.
+    # This is used to specify general `clang`-accepted flags and remove them from `flang` compiler flags if
+    # not supported for a particular version of LLVM
+    FLANG_UNSUPPORTED_VARS = [
+        ('19', '21', [
+            '-fslp-vectorize',
+            '-fvectorize',
+            '-fno-vectorize',
+            '-fno-unsafe-math-optimizations',
+        ])
+    ]
 
-class Flang(Compiler):
-    """Clang compiler class"""
-
-    COMPILER_MODULE_NAME = ['Flang']
-    COMPILER_FAMILY = TC_CONSTANT_FLANG
-
-    # Don't set COMPILER_FAMILY in this class because Clang does not have
-    # Fortran support, and thus it is not a complete compiler as far as
-    # EasyBuild is concerned.
+    FORTRAN_FLAGS = ['FCFLAGS', 'FFLAGS', 'F90FLAGS']
 
     COMPILER_UNIQUE_OPTS = {
         'loop-vectorize': (False, "Loop vectorization"),
         'basic-block-vectorize': (False, "Basic block vectorization"),
+
+        # https://github.com/madler/zlib/issues/856
+        'lld_undefined_version': (True, "-Wl,--undefined-version - Allow unused version in version script"),
+        'no_unused_args': (
+            True,
+            (
+                "-Wno-unused-command-line-argument - Avoid some failures in CMake correctly recognizing "
+                "feature due to linker warnings"
+            )
+        ),
     }
+
     COMPILER_UNIQUE_OPTION_MAP = {
         'unroll': '-funroll-loops',
         'loop-vectorize': ['-fvectorize'],
@@ -89,7 +116,22 @@ class Flang(Compiler):
         'veryloose': ['-ffast-math'],
         'vectorize': {False: '-fno-vectorize', True: '-fvectorize'},
         DEFAULT_OPT_LEVEL: ['-O2'],
+
+        'lld_undefined_version': ['-Wl,--undefined-version',],
+        'no_unused_args': ['-Wno-unused-command-line-argument'],
     }
+
+    COMPILER_OPTIONS = [
+        'lld_undefined_version',
+    ]
+
+    # Options only available for Clang compiler
+    COMPILER_C_OPTIONS = [
+        'no_unused_args',
+    ]
+
+    # Options only available for Flang compiler
+    COMPILER_F_OPTIONS = []
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
@@ -105,17 +147,35 @@ class Flang(Compiler):
         (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
     }
 
-    # COMPILER_CC = 'clang'
-    # COMPILER_CXX = 'clang++'
-    # COMPILER_C_UNIQUE_OPTIONS = []
+    COMPILER_CC = 'clang'
+    COMPILER_CXX = 'clang++'
+    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = 'flang'
     COMPILER_F90 = 'flang'
     COMPILER_FC = 'flang'
-    COMPILER_F_UNIQUE_OPTIONS = [
-        # 'lld_undefined_version'
-    ]
     COMPILER_F_UNIQUE_OPTIONS = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
+
+    def _set_compiler_flags(self):
+        super()._set_compiler_flags()
+
+        unsupported_fortran_flags = None
+        for v_min, v_max, flags in self.FLANG_UNSUPPORTED_VARS:
+            if LooseVersion(self.version) >= LooseVersion(v_min) and LooseVersion(self.version) < LooseVersion(v_max):
+                unsupported_fortran_flags = flags
+                break
+        else:
+            self.log.debug("No unsupported flags found for LLVM version %s", self.version)
+
+        if unsupported_fortran_flags is not None:
+            self.log.debug(
+                f"Ensuring usupported Fortran flags `{unsupported_fortran_flags}` are removed from variables"
+            )
+            for key, lst in self.variables.items():
+                if key not in self.FORTRAN_FLAGS:
+                    continue
+                for item in lst:
+                    item.try_remove(unsupported_fortran_flags)
