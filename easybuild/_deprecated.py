@@ -31,6 +31,7 @@ Authors:
 """
 import contextlib
 import functools
+import json
 import os
 import re
 import signal
@@ -94,6 +95,12 @@ def run_cmd_cache(func):
     cache_aware_func.update_cache = cache.update
 
     return cache_aware_func
+
+
+def json_loads(body):
+    """Deprecated wrapper for json.loads"""
+    _log.deprecated("json_loads is deprecated, use json.loads", '6.0')
+    return json.loads(body)
 
 
 def get_output_from_process(proc, read_size=None, asynchronous=False, print_deprecation_warning=True):

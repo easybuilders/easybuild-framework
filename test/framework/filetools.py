@@ -933,10 +933,7 @@ class FileToolsTest(EnhancedTestCase):
 
         utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
         txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
-        if sys.version_info[0] == 3:
-            txt_decoded = txt.decode('utf-8')
-        else:
-            txt_decoded = txt
+        txt_decoded = txt.decode('utf-8')
         # Must work as binary and string
         ft.write_file(utf8_file, txt)
         self.assertEqual(ft.read_file(utf8_file), txt_decoded)
@@ -1631,9 +1628,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(testfile, testtxt)
         ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
         txt = ft.read_file(testfile)
-        if sys.version_info[0] == 3:
-            testtxt = testtxt.decode('utf-8')
-        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
+        self.assertEqual(txt, testtxt.decode('utf-8').replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -3379,7 +3374,7 @@ class FileToolsTest(EnhancedTestCase):
         reference_checksum_txz = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
         reference_checksum_tar = "6e902e77925ab2faeef8377722434d4482f1fcc74af958c984c3f22509ae5084"
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+        if sys.version_info >= (3, 9):
             # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
             # due to changes introduced in python/cpython#90021
             self.assertNotEqual(unreprod_txz_chksum, reference_checksum_txz)
