@@ -42,7 +42,7 @@ import sys
 import easybuild.tools.toolchain
 from easybuild.tools.entrypoints import (
     get_toolchain_entrypoints, validate_toolchain_entrypoints,
-    TOOLCHAIN_ENTRYPOINT_MARK, TOOLCHAIN_ENTRYPOINT_PREPEND
+    TOOLCHAIN_ENTRYPOINT_PREPEND
 )
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError

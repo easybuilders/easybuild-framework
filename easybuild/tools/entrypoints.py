@@ -13,7 +13,9 @@ from typing import Callable
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
+
 _log = fancylogger.getLogger('entrypoints', fname=False)
+
 
 def get_group_entrypoints(group: str) -> set[EntryPoint]:
     """Get all entrypoints for a group"""
@@ -23,8 +25,8 @@ def get_group_entrypoints(group: str) -> set[EntryPoint]:
         return set()
     return set(ep for ep in entry_points(group=group))
 
-# EASYCONFIG_ENTRYPOINT = "easybuild.easyconfig"
 
+# EASYCONFIG_ENTRYPOINT = "easybuild.easyconfig"
 EASYBLOCK_ENTRYPOINT = "easybuild.easyblock"
 EASYBLOCK_ENTRYPOINT_MARK = "_is_easybuild_easyblock"
 
@@ -39,7 +41,8 @@ HOOKS_ENTRYPOINT_POST_STEP = "_post_step"
 HOOKS_ENTRYPOINT_MARK = "_is_easybuild_hook"
 HOOKS_ENTRYPOINT_PRIORITY = "_priority"
 
-#########################################################################################3
+
+#########################################################################################
 # Easyblock entrypoints
 def register_easyblock_entrypoint():
     """Decorator to register an easyblock entrypoint."""
@@ -77,7 +80,7 @@ def validate_easyblock_entrypoints() -> list[str]:
     return invalid_easyblocks
 
 
-def get_easyblock_entrypoints(name = None) -> dict:
+def get_easyblock_entrypoints(name=None) -> dict:
     """Get all easyblock entrypoints.
 
     Returns:
@@ -97,9 +100,6 @@ def get_easyblock_entrypoints(name = None) -> dict:
             'loc': mod.__file__,
         }
         easyblocks[f'{ep.module}'] = ptr
-    # print('--' * 80)
-    # print(easyblocks)
-    # print('--' * 80)
     if name is not None:
         for key, value in easyblocks.items():
             if value['class'] == name:
@@ -109,6 +109,7 @@ def get_easyblock_entrypoints(name = None) -> dict:
         return {}
 
     return easyblocks
+
 
 #########################################################################################
 # Hooks entrypoints
@@ -183,9 +184,7 @@ def validate_entrypoint_hooks(known_hooks: list[str], pre_prefix: str, post_pref
 def find_entrypoint_hooks(label, pre_step_hook=False, post_step_hook=False) -> list[Callable]:
     """Get all hooks defined in entry points."""
     hooks = []
-    # print(f"--- Searching for entry point hooks with label: {label}, pre_step_hook: {pre_step_hook}, post_step_hook: {post_step_hook}")
     for ep in get_group_entrypoints(HOOKS_ENTRYPOINT):
-        # print(f"--- Processing entry point: {ep.name}")
         try:
             hook = ep.load()
         except Exception as e:
@@ -201,6 +200,7 @@ def find_entrypoint_hooks(label, pre_step_hook=False, post_step_hook=False) -> l
             hooks.append(hook)
 
     return hooks
+
 
 #########################################################################################
 # Toolchain entrypoints
@@ -228,8 +228,6 @@ def get_toolchain_entrypoints() -> set[EntryPoint]:
             _log.error(f"Error loading toolchain entry point {ep.name}: {e}")
             raise EasyBuildError(f"Error loading toolchain entry point {ep.name}: {e}")
         toolchains.append(tc)
-    # print(f"Found {len(toolchains)} toolchain entry points")
-    # print(f"Toolchain entry points: {toolchains}")
     return toolchains
 
 
