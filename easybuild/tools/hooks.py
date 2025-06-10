@@ -31,11 +31,9 @@ Authors:
 """
 import difflib
 import os
-from functools import wraps
 
 from easybuild.tools.entrypoints import (
     find_entrypoint_hooks, validate_entrypoint_hooks,
-    HOOKS_ENTRYPOINT_MARK, HOOKS_ENTRYPOINT_STEP, HOOKS_ENTRYPOINT_PRE_STEP, HOOKS_ENTRYPOINT_POST_STEP,
     HOOKS_ENTRYPOINT_PRIORITY
 )
 
@@ -269,7 +267,10 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
             key=lambda x: (-getattr(x, HOOKS_ENTRYPOINT_PRIORITY, 0), x.__name__),
             )
         for hook in entrypoint_hooks:
-            _log.info("Running entry point '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
+            _log.info(
+                "Running entry point '%s' hook function (args: %s, keyword args: %s)...",
+                hook.__name__, args, kwargs
+            )
             try:
                 res = hook(*args, **kwargs)
             except Exception as e:
