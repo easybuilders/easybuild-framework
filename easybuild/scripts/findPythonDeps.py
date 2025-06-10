@@ -85,8 +85,7 @@ def can_run(cmd, *arguments):
 def run_shell_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
     """Run the command and return the return code and output"""
     extra_args = kwargs or {}
-    if sys.version_info[0] >= 3:
-        extra_args['universal_newlines'] = True
+    extra_args['universal_newlines'] = True
     stderr = subprocess.STDOUT if capture_stderr else subprocess.PIPE
     p = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=stderr, **extra_args)
     out, err = p.communicate()
