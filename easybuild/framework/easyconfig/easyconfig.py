@@ -65,6 +65,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
+from easybuild.tools.entrypoints import get_easyblock_entrypoints, validate_easyblock_entrypoints
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -2128,6 +2129,14 @@ def get_module_path(name, generic=None, decode=True):
 
     if generic is None:
         generic = filetools.is_generic_easyblock(name)
+
+    invalid_eps = validate_easyblock_entrypoints()
+    if invalid_eps:
+        _log.error("Invalid easyblock entrypoints found: %s", invalid_eps)
+        raise EasyBuildError("Invalid easyblock entrypoints found: %s", invalid_eps)
+    eb_from_eps = get_easyblock_entrypoints(name)
+    if eb_from_eps:
+        return list(eb_from_eps.keys())[0]
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:

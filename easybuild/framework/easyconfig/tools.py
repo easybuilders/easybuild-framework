@@ -54,6 +54,7 @@ from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_inf
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
+from easybuild.tools.entrypoints import validate_easyblock_entrypoints, get_easyblock_entrypoints
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
@@ -798,6 +799,12 @@ def avail_easyblocks():
                                              easyblock_loc, class_names)
                     else:
                         raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
+
+    invalid_eps = validate_easyblock_entrypoints()
+    if invalid_eps:
+        _log.error("Found invalid easyblock entry points: %s", invalid_eps)
+        raise EasyBuildError("Found invalid easyblock entry points: %s", invalid_eps)
+    easyblocks.update(get_easyblock_entrypoints())
 
     return easyblocks
 
