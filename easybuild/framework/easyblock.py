@@ -4221,6 +4221,13 @@ class EasyBlock:
         """
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
+        sanitycheck_deps = self.cfg['sanitycheck_dependencies']
+        if sanitycheck_deps:
+            self.log.info("Sanity check dependencies enabled, loading dependencies before sanity check...")
+            # load dependencies (if any) before running sanity check commands
+            mod_names = [d['short_mod_name'] for d in sanitycheck_deps]
+            self.modules_tool.load(mod_names, allow_reload=True)
+
         # helper function to sanity check (alternatives for) one particular path
         def check_path(xs, typ, check_fn):
             """Sanity check for one particular path."""

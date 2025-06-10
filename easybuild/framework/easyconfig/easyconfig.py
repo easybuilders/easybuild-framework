@@ -816,6 +816,10 @@ class EasyConfig:
                 builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
             self['builddependencies'] = remove_false_versions(builddeps)
 
+            sanitycheck_deps = self['sanitycheck_dependencies']
+            self['sanitycheck_dependencies'] = remove_false_versions(
+                self._parse_dependency(dep, sanity_only=True) for dep in sanitycheck_deps)
+
             # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
             self.multi_deps = self.get_parsed_multi_deps()
 
@@ -1611,7 +1615,7 @@ class EasyConfig:
         return multi_deps
 
     # private method
-    def _parse_dependency(self, dep, hidden=False, build_only=False):
+    def _parse_dependency(self, dep, hidden=False, build_only=False, sanity_only=False):
         """
         parses the dependency into a usable dict with a common format
         dep can be a dict, a tuple or a list.
@@ -1625,6 +1629,7 @@ class EasyConfig:
 
         :param hidden: indicate whether corresponding module file should be installed hidden ('.'-prefixed)
         :param build_only: indicate whether this is a build-only dependency
+        :param sanity_only: indicate whether this is a sanity-only dependency
         """
         # convert tuple to string otherwise python might complain about the formatting
         self.log.debug("Parsing %s as a dependency" % str(dep))
@@ -1646,6 +1651,8 @@ class EasyConfig:
             'hidden': hidden,
             # boolean indicating whether this this a build-only dependency
             'build_only': build_only,
+            # boolean indicating whether this is a sanity-only dependency
+            'sanity_only': sanity_only,
             # boolean indicating whether this dependency should be resolved via an external module
             'external_module': False,
             # metadata in case this is an external module;
