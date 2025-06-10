@@ -303,6 +303,9 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', EXTRACT_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
+            'use-entrypoints': (
+                "Use entry points for easyblocks, toolchains, and hooks", None, 'store_true', False,
+            ),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))

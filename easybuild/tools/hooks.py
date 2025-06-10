@@ -31,6 +31,13 @@ Authors:
 """
 import difflib
 import os
+from functools import wraps
+
+from easybuild.tools.entrypoints import (
+    find_entrypoint_hooks, validate_entrypoint_hooks,
+    HOOKS_ENTRYPOINT_MARK, HOOKS_ENTRYPOINT_STEP, HOOKS_ENTRYPOINT_PRE_STEP, HOOKS_ENTRYPOINT_POST_STEP,
+    HOOKS_ENTRYPOINT_PRIORITY
+)
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -76,6 +83,7 @@ RUN_SHELL_CMD = 'run_shell_cmd'
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
+ENTRYPOINT_PRE = 'entrypoint_'
 
 # list of names for steps in installation procedure (in order of execution)
 STEP_NAMES = [FETCH_STEP, READY_STEP, EXTRACT_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
@@ -176,6 +184,8 @@ def verify_hooks(hooks):
     """Check whether obtained hooks only includes known hooks."""
     unknown_hooks = [key for key in sorted(hooks) if key not in KNOWN_HOOKS]
 
+    unknown_hooks.extend(validate_entrypoint_hooks(KNOWN_HOOKS, PRE_PREF, POST_PREF, HOOK_SUFF))
+
     if unknown_hooks:
         error_lines = ["Found one or more unknown hooks:"]
 
@@ -231,14 +241,12 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
+    # print(f"Running hook '{label}' {pre_step_hook=} {post_step_hook=}")
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     res = None
+    args = args or []
+    kwargs = kwargs or {}
     if hook:
-        if args is None:
-            args = []
-        if kwargs is None:
-            kwargs = {}
-
         if pre_step_hook:
             label = 'pre-' + label
         elif post_step_hook:
@@ -251,4 +259,21 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
         res = hook(*args, **kwargs)
+
+    entrypoint_hooks = find_entrypoint_hooks(label=label, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    if entrypoint_hooks:
+        msg = "Running entry point %s hook..." % label
+        if build_option('debug') and not build_option('silence_hook_trigger'):
+            print_msg(msg)
+        entrypoint_hooks.sort(
+            key=lambda x: (-getattr(x, HOOKS_ENTRYPOINT_PRIORITY, 0), x.__name__),
+            )
+        for hook in entrypoint_hooks:
+            _log.info("Running entry point '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
+            try:
+                res = hook(*args, **kwargs)
+            except Exception as e:
+                _log.error("Error running entry point '%s' hook: %s", hook.__name__, e)
+                raise EasyBuildError("Error running entry point '%s' hook: %s", hook.__name__, e) from e
+
     return res
