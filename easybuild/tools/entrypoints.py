@@ -91,7 +91,7 @@ def get_easyblock_entrypoints(name=None) -> dict:
         try:
             eb = ep.load()
         except Exception as e:
-            _log.error(f"Error loading easyblock entry point {ep.name}: {e}")
+            _log.warning(f"Error loading easyblock entry point {ep.name}: {e}")
             raise EasyBuildError(f"Error loading easyblock entry point {ep.name}: {e}")
         mod = importlib.import_module(eb.__module__)
 
@@ -188,7 +188,7 @@ def find_entrypoint_hooks(label, pre_step_hook=False, post_step_hook=False) -> l
         try:
             hook = ep.load()
         except Exception as e:
-            _log.error(f"Error loading entry point {ep.name}: {e}")
+            _log.warning(f"Error loading entry point {ep.name}: {e}")
             raise EasyBuildError(f"Error loading entry point {ep.name}: {e}")
 
         cond = all([
@@ -225,7 +225,7 @@ def get_toolchain_entrypoints() -> set[EntryPoint]:
         try:
             tc = ep.load()
         except Exception as e:
-            _log.error(f"Error loading toolchain entry point {ep.name}: {e}")
+            _log.warning(f"Error loading toolchain entry point {ep.name}: {e}")
             raise EasyBuildError(f"Error loading toolchain entry point {ep.name}: {e}")
         toolchains.append(tc)
     return toolchains
