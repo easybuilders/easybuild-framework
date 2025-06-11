@@ -2132,7 +2132,7 @@ def get_module_path(name, generic=None, decode=True):
 
     invalid_eps = validate_easyblock_entrypoints()
     if invalid_eps:
-        _log.error("Invalid easyblock entrypoints found: %s", invalid_eps)
+        _log.warning("Invalid easyblock entrypoints found: %s", invalid_eps)
         raise EasyBuildError("Invalid easyblock entrypoints found: %s", invalid_eps)
     eb_from_eps = get_easyblock_entrypoints(name)
     if eb_from_eps:

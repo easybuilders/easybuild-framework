@@ -802,7 +802,7 @@ def avail_easyblocks():
 
     invalid_eps = validate_easyblock_entrypoints()
     if invalid_eps:
-        _log.error("Found invalid easyblock entry points: %s", invalid_eps)
+        _log.warning("Found invalid easyblock entry points: %s", invalid_eps)
         raise EasyBuildError("Found invalid easyblock entry points: %s", invalid_eps)
     easyblocks.update(get_easyblock_entrypoints())
 
