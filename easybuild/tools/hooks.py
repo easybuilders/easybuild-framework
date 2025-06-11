@@ -274,7 +274,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
             try:
                 res = hook(*args, **kwargs)
             except Exception as e:
-                _log.error("Error running entry point '%s' hook: %s", hook.__name__, e)
+                _log.warning("Error running entry point '%s' hook: %s", hook.__name__, e)
                 raise EasyBuildError("Error running entry point '%s' hook: %s", hook.__name__, e) from e
 
     return res
