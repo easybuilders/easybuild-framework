@@ -13,7 +13,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
 try:
-    from importlib.metadata import entry_points
+    from importlib.metadata import entry_points, EntryPoints
 except ModuleNotFoundError:
     HAVE_ENTRY_POINTS = False
 else:
@@ -25,15 +25,31 @@ _log = fancylogger.getLogger('entrypoints', fname=False)
 
 def get_group_entrypoints(group: str):
     """Get all entrypoints for a group"""
-    # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
-    if not build_option('use_entrypoints', default=True):
-        return set()
-    if not HAVE_ENTRY_POINTS:
-        msg = "Python importlib.metadata requires Python >= 3.8"
-        _log.warning(msg)
-        raise EasyBuildError(msg)
-    # Can't use the group keyword argument in entry_points() for Python < 3.10
-    return set(ep for ep in entry_points() if ep.group == group)
+    strict_python = True
+    use_eps = build_option('use_entrypoints', default=None)
+    if use_eps is None:
+        # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
+        use_eps = True
+        # Needed to work with older Python versions: do not raise errors when entry points are default enabled
+        strict_python = False
+    res = set()
+    if use_eps:
+        if not HAVE_ENTRY_POINTS and strict_python:
+            msg = "`--use-entrypoints` requires importlib.metadata (Python >= 3.8)"
+            _log.warning(msg)
+            raise EasyBuildError(msg)
+        # Can't use the group keyword argument in entry_points() for Python < 3.10
+        try:
+            eps = entry_points()
+            if isinstance(eps, EntryPoints):
+                # Python >= 3.10
+                res = set(ep for ep in eps if ep.group == group)
+            elif isinstance(eps, dict):
+                # Python < 3.10
+                res = set(eps.get(group, []))
+        except NameError:
+            _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
+    return res
 
 
 # EASYCONFIG_ENTRYPOINT = "easybuild.easyconfig"
