@@ -2387,7 +2387,8 @@ class EasyBlock:
                     self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
-                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                print_msg(f"starting iteration number {self.iter_idx + 1}/{self.iter_cnt} ...", log=self.log,
+                          silent=self.silent)
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
@@ -4794,7 +4795,8 @@ class EasyBlock:
         if self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        self.iter_cnt = self.det_iter_cnt()
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.iter_cnt)
 
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
