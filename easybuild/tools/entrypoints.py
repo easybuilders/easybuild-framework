@@ -32,7 +32,8 @@ def get_group_entrypoints(group: str) -> Set[EntryPoint]:
         msg = "Python importlib.metadata requires Python >= 3.8"
         _log.warning(msg)
         raise EasyBuildError(msg)
-    return set(ep for ep in entry_points(group=group))
+    # Can't use the group keyword argument in entry_points() for Python < 3.10
+    return set(ep for ep in entry_points() if ep.group == group)
 
 
 # EASYCONFIG_ENTRYPOINT = "easybuild.easyconfig"
