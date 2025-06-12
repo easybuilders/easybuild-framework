@@ -7,13 +7,13 @@ Authors:
 
 import importlib
 from easybuild.tools.config import build_option
-from typing import Callable, List, Set
+from typing import Callable, List
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
 try:
-    from importlib.metadata import entry_points, EntryPoint
+    from importlib.metadata import entry_points
 except ModuleNotFoundError:
     HAVE_ENTRY_POINTS = False
 else:
@@ -23,7 +23,7 @@ else:
 _log = fancylogger.getLogger('entrypoints', fname=False)
 
 
-def get_group_entrypoints(group: str) -> Set[EntryPoint]:
+def get_group_entrypoints(group: str):
     """Get all entrypoints for a group"""
     # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
     if not build_option('use_entrypoints', default=True):
@@ -227,7 +227,7 @@ def register_toolchain_entrypoint(prepend=False):
     return decorator
 
 
-def get_toolchain_entrypoints() -> Set[EntryPoint]:
+def get_toolchain_entrypoints():
     """Get all toolchain entrypoints."""
     toolchains = []
     for ep in get_group_entrypoints(TOOLCHAIN_ENTRYPOINT):
