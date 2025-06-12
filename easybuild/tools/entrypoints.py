@@ -6,23 +6,32 @@ Authors:
 """
 
 import importlib
-from importlib.metadata import EntryPoint, entry_points
 from easybuild.tools.config import build_option
-from typing import Callable
+from typing import Callable, List, Set
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+
+try:
+    from importlib.metadata import entry_points, EntryPoint
+except ModuleNotFoundError:
+    HAVE_ENTRY_POINTS = False
+else:
+    HAVE_ENTRY_POINTS = True
 
 
 _log = fancylogger.getLogger('entrypoints', fname=False)
 
 
-def get_group_entrypoints(group: str) -> set[EntryPoint]:
+def get_group_entrypoints(group: str) -> Set[EntryPoint]:
     """Get all entrypoints for a group"""
-    # print(f"--- Getting entry points for group: {group}")
     # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
     if not build_option('use_entrypoints', default=True):
         return set()
+    if not HAVE_ENTRY_POINTS:
+        msg = "Python importlib.metadata requires Python >= 3.8"
+        _log.warning(msg)
+        raise EasyBuildError(msg)
     return set(ep for ep in entry_points(group=group))
 
 
@@ -56,7 +65,7 @@ def register_easyblock_entrypoint():
     return decorator
 
 
-def validate_easyblock_entrypoints() -> list[str]:
+def validate_easyblock_entrypoints() -> List[str]:
     """Validate all easyblock entrypoints.
 
     Returns:
@@ -125,7 +134,6 @@ def register_entrypoint_hooks(step, pre_step=False, post_step=False, priority=0)
         setattr(func, HOOKS_ENTRYPOINT_POST_STEP, post_step)
         setattr(func, HOOKS_ENTRYPOINT_PRIORITY, priority)
 
-        # Register the function as an entry point
         _log.info(
             "Registering entry point hook '%s' 'pre=%s' 'post=%s' with priority %d",
             func.__name__, pre_step, post_step, priority
@@ -134,7 +142,7 @@ def register_entrypoint_hooks(step, pre_step=False, post_step=False, priority=0)
     return decorator
 
 
-def validate_entrypoint_hooks(known_hooks: list[str], pre_prefix: str, post_prefix: str, suffix: str) -> list[str]:
+def validate_entrypoint_hooks(known_hooks: List[str], pre_prefix: str, post_prefix: str, suffix: str) -> List[str]:
     """Validate all entrypoints hooks.
 
     Args:
@@ -181,7 +189,7 @@ def validate_entrypoint_hooks(known_hooks: list[str], pre_prefix: str, post_pref
     return invalid_hooks
 
 
-def find_entrypoint_hooks(label, pre_step_hook=False, post_step_hook=False) -> list[Callable]:
+def find_entrypoint_hooks(label, pre_step_hook=False, post_step_hook=False) -> List[Callable]:
     """Get all hooks defined in entry points."""
     hooks = []
     for ep in get_group_entrypoints(HOOKS_ENTRYPOINT):
@@ -218,7 +226,7 @@ def register_toolchain_entrypoint(prepend=False):
     return decorator
 
 
-def get_toolchain_entrypoints() -> set[EntryPoint]:
+def get_toolchain_entrypoints() -> Set[EntryPoint]:
     """Get all toolchain entrypoints."""
     toolchains = []
     for ep in get_group_entrypoints(TOOLCHAIN_ENTRYPOINT):
@@ -231,7 +239,7 @@ def get_toolchain_entrypoints() -> set[EntryPoint]:
     return toolchains
 
 
-def validate_toolchain_entrypoints() -> list[str]:
+def validate_toolchain_entrypoints() -> List[str]:
     """Validate all toolchain entrypoints."""
     invalid_toolchains = []
     for ep in get_group_entrypoints(TOOLCHAIN_ENTRYPOINT):
