@@ -40,6 +40,7 @@ import re
 import shutil
 import stat
 import sys
+import tarfile
 import tempfile
 import textwrap
 import time
@@ -2499,6 +2500,14 @@ class FileToolsTest(EnhancedTestCase):
         foo = os.path.join(self.test_prefix, 'foo')
         self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)
 
+    def create_new_tarball(self, folder):
+        """Create new tarball with contents of folder and return path"""
+        tarball = tempfile.mktemp(suffix='.tar.gz')
+        with tarfile.open(tarball, "w:gz") as tar:
+            for name in glob.glob(os.path.join(folder, '*')):
+                tar.add(name, arcname=os.path.basename(name))
+        return tarball
+
     def test_extract_file(self):
         """Test extract_file"""
         cwd = os.getcwd()
@@ -2575,6 +2584,50 @@ class FileToolsTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertFalse(stderr)
         self.assertFalse(stdout)
+
+        # Test tarball with multiple folders
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'multi-1.0'))
+        ft.write_file(os.path.join(test_src, 'multi-1.0', 'src.c'), 'content')
+        ft.mkdir(os.path.join(test_src, 'multi-bonus'))
+        ft.write_file(os.path.join(test_src, 'multi-bonus', 'src.c'), 'content')
+        test_tarball = self.create_new_tarball(test_src)
+        # Start fresh
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(test_tarball, extraction_path, change_into_dir=True)
+        self.assertTrue(os.path.samefile(path, extraction_path))
+        self.assertTrue(os.path.samefile(os.getcwd(), extraction_path))  # NOT a subfolder
+        self.assertExists(os.path.join(extraction_path, 'multi-1.0'))
+        self.assertExists(os.path.join(extraction_path, 'multi-bonus'))
+
+        # Extract multiple files with single folder to same folder, and file only
+        bar_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'extensions', 'bar-0.0.tar.gz')
+        patch_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, toy_path))
+            path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
+            # Contains no folder
+            path = ft.extract_file(patch_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+
+        # Folder and file
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'multi-1.0'))
+        ft.write_file(os.path.join(test_src, 'multi-1.0', 'src.c'), 'content')
+        ft.write_file(os.path.join(test_src, 'main.c'), 'content')
+        test_tarball = self.create_new_tarball(test_src)
+        # When there is only a file or a file next to the folder the parent dir is returned
+        for tarball in (patch_tarball, test_tarball):
+            ft.remove_dir(extraction_path)
+            with self.mocked_stdout_stderr():
+                path = ft.extract_file(tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -2858,7 +2911,7 @@ class FileToolsTest(EnhancedTestCase):
         # to avoid accidental matches in other files already present (log files, etc.)
         ec_dir = tempfile.mkdtemp()
         test_ec = os.path.join(ec_dir, 'netCDF-C++-4.2-foss-2019a.eb')
-        ft.write_file(test_ec, ''),
+        ft.write_file(test_ec, '')
         for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
             var_defs, hits = ft.search_file([ec_dir], pattern, terse=True, filename_only=True)
             self.assertEqual(var_defs, [], msg='For pattern ' + pattern)
