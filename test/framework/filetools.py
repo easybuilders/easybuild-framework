@@ -2510,6 +2510,7 @@ class FileToolsTest(EnhancedTestCase):
 
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        multi_tarball = os.path.join(testdir, 'sandbox', 'sources', 'multi-1.0.tar.gz')
 
         extraction_path = os.path.join(self.test_prefix, 'extraction')  # New directory
         toy_path = os.path.join(extraction_path, 'toy-0.0')
@@ -2580,6 +2581,40 @@ class FileToolsTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertFalse(stderr)
         self.assertFalse(stdout)
+
+        # Test tarball with multiple folders
+        # Start fresh
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(multi_tarball, extraction_path, change_into_dir=True)
+        self.assertTrue(os.path.samefile(path, extraction_path))
+        self.assertTrue(os.path.samefile(os.getcwd(), extraction_path))  # NOT a subfolder
+        self.assertExists(os.path.join(extraction_path, 'multi-1.0'))
+        self.assertExists(os.path.join(extraction_path, 'multi-bonus'))
+
+        # Extract multiple files with single folder to same folder, and file only
+        bar_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'extensions', 'bar-0.0.tar.gz')
+        patch_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, toy_path))
+            path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
+            # Contains no folder
+            path = ft.extract_file(patch_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+
+        # Folder and file
+        multi_file_tarball = os.path.join(testdir, 'sandbox', 'sources', 'multi-1.0.tar.gz')
+        # When there is only a file or a file next to the folder the parent dir is returned
+        for tarball in (patch_tarball, multi_file_tarball):
+            ft.remove_dir(extraction_path)
+            with self.mocked_stdout_stderr():
+                path = ft.extract_file(tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
