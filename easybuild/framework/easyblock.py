@@ -2433,7 +2433,7 @@ class EasyBlock:
 
         # we need to take into account that builddependencies is always a list
         # we're only iterating over it if it's a list of lists
-        builddeps = self.cfg['builddependencies']
+        builddeps = self.cfg.get_ref('builddependencies')
         if all(isinstance(x, list) for x in builddeps):
             iter_opt_counts.append(len(builddeps))
 
