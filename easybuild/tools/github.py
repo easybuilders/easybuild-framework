@@ -430,8 +430,10 @@ def download_repo(repo=GITHUB_EASYCONFIGS_REPO, branch=None, commit=None, accoun
     else:
         _log.debug("%s downloaded to %s, extracting now", base_name, path)
 
-    base_dir = extract_file(target_path, path, forced=True, change_into_dir=False, trace=False)
-    extracted_path = os.path.join(base_dir, extracted_dir_name)
+    extracted_path = extract_file(target_path, path, forced=True, change_into_dir=False, trace=False)
+    if extracted_path != expected_path:
+        raise EasyBuildError(f"Unexpected directory '{extracted_path} for extracted repo. Expected: {expected_path}",
+                             exit_code=EasyBuildExit.FAIL_EXTRACT)
 
     # check if extracted_path exists
     if not os.path.isdir(extracted_path):
