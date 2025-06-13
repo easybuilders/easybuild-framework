@@ -2506,24 +2506,26 @@ class FileToolsTest(EnhancedTestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
         toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
 
-        self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
+        extraction_path = os.path.join(self.test_prefix, 'extraction')  # New directory
+        toy_path = os.path.join(extraction_path, 'toy-0.0')
+        self.assertNotExists(os.path.join(toy_path, 'toy.source'))
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
         # still in same directory as before if change_into_dir is set to False
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
-        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+        ft.remove_dir(toy_path)
 
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+            path = ft.extract_file(toy_tarball_renamed, extraction_path, cmd="tar xfvz %s", change_into_dir=False)
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
+        ft.remove_dir(toy_path)
 
         # also test behaviour of extract_file under --dry-run
         build_options = {
@@ -2533,42 +2535,42 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
+        path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
+        self.assertTrue(os.path.samefile(path, extraction_path))
+        self.assertNotExists(toy_path)
         self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
+            path = ft.extract_file(toy_tarball, extraction_path, forced=True, change_into_dir=False)
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         build_options['extended_dry_run'] = False
         init_config(build_options=build_options)
 
-        ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
+        ft.remove_dir(toy_path)
 
         ft.change_dir(cwd)
-        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertFalse(os.path.samefile(os.getcwd(), extraction_path))
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=True)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
 
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertTrue(os.path.samefile(path, toy_path))
+        self.assertTrue(os.path.samefile(os.getcwd(), toy_path))
         self.assertFalse(stderr)
         self.assertTrue("running shell command" in stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True, trace=False)
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=True, trace=False)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
         self.assertFalse(stderr)
