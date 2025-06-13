@@ -27,7 +27,7 @@ Support for NVHPCX as toolchain MPI library.
 
 Authors:
 
-* AlexDomingo (Vrije Universiteit Brussel)
+* Alex Domingo (Vrije Universiteit Brussel)
 """
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 from easybuild.tools.toolchain.constants import MPI_COMPILER_VARIABLES

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -23,21 +23,27 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for NVHPC compiler toolchain with support for MPI
+Support for BLAS and LAPACK libraries in NVHPC as toolchain linear algebra library.
 
 Authors:
 
-* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-* Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
-from easybuild.toolchains.linalg.nvblas import NVBLAS
-from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
-from easybuild.toolchains.mpi.nvhpcx import NVHPCX
-from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
+
+from easybuild.tools.toolchain.linalg import LinAlg
 
 
-class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
-    """Toolchain with Nvidia compilers and NVHPCX."""
-    NAME = 'NVHPC'
-    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
+class NVBLAS(LinAlg):
+    """
+    NVIDIA HPC SDK distributes its own BLAS and LAPACK libraries based on a custom OpenBLAS
+    see https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#lapack-blas-and-ffts
+    """
+    BLAS_MODULE_NAME = ['NVHPC']
+    BLAS_LIB = ['blas']
+    BLAS_LIB_MT = ['blas']
+    BLAS_FAMILY = 'OpenBLAS'
+
+    LAPACK_IS_BLAS = False
+    LAPACK_MODULE_NAME = ['NVHPC']
+    LAPACK_LIB = ['lapack']
+    LAPACK_FAMILY = 'LAPACK'

@@ -23,21 +23,35 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for NVHPC compiler toolchain with support for MPI
+Support for ScaLAPACK libraries in NVHPC as toolchain linear algebra library.
 
 Authors:
 
-* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-* Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
-from easybuild.toolchains.linalg.nvblas import NVBLAS
-from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
-from easybuild.toolchains.mpi.nvhpcx import NVHPCX
-from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
+
+from easybuild.tools.toolchain.linalg import LinAlg
 
 
-class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
-    """Toolchain with Nvidia compilers and NVHPCX."""
-    NAME = 'NVHPC'
-    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
+class NVScaLAPACK(LinAlg):
+    """
+    NVIDIA HPC SDK distributes its own ScaLAPACK libraries
+    see https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#linking-with-scalapack
+    """
+    # the following emulates the `-Mscalapack` macro as defined in $NVHPC/compilers/bin/rcfiles/lin86rc
+    SCALAPACK_MODULE_NAME = ['NVHPC']
+    SCALAPACK_LIB_MAP = {'lp64_sc': '_lp64'}
+    SCALAPACK_LIB = ["scalapack%(lp64_sc)s", "lapack%(lp64_sc)s", "blas%(lp64_sc)s"]
+    SCALAPACK_LIB_MT = ["scalapack%(lp64_sc)s", "lapack%(lp64_sc)s", "blas%(lp64_sc)s"]
+    SCALAPACK_REQUIRES = ['LIBLAPACK', 'LIBBLAS']
+
+    def _set_scalapack_variables(self):
+        if self.options.get('i8', None):
+            # ilp64/i8
+            self.SCALAPACK_LIB_MAP.update({"lp64_sc": '_ilp64'})
+
+        super()._set_scalapack_variables()
+
+    def _set_blacs_variables(self):
+        """Skip setting BLACS related variables"""
+        pass
