@@ -2555,12 +2555,24 @@ class FileToolsTest(EnhancedTestCase):
         """Test remove_file, remove_dir and join remove functions."""
         testfile = os.path.join(self.test_prefix, 'foo')
         test_dir = os.path.join(self.test_prefix, 'test123')
+        test_link = os.path.join(self.test_prefix, 'foolink')
 
         for remove_file_function in (ft.remove_file, ft.remove):
             ft.write_file(testfile, 'bar')
             self.assertExists(testfile)
+            # remove symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
+            # remove file
             remove_file_function(testfile)
             self.assertNotExists(testfile)
+            # remove broken symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
 
         for remove_dir_function in (ft.remove_dir, ft.remove):
             ft.mkdir(test_dir)

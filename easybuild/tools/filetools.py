@@ -418,7 +418,7 @@ def remove(paths):
     _log.info("Removing %d files & directories", len(paths))
 
     for path in paths:
-        if os.path.isfile(path):
+        if os.path.isfile(path) or os.path.islink(path):
             remove_file(path)
         elif os.path.isdir(path):
             remove_dir(path)
