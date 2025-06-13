@@ -1894,7 +1894,7 @@ class FileToolsTest(EnhancedTestCase):
         for with_backup in (True, False):
             update_build_option('backup_patched_files', with_backup)
             self.assertTrue(ft.apply_patch(toy_patch, path))
-            src_file = os.path.join(path, 'toy-0.0', 'toy.source')
+            src_file = os.path.join(path, 'toy.source')
             backup_file = src_file + '.orig'
             patched = ft.read_file(src_file)
             pattern = "I'm a toy, and very proud of it"
@@ -1911,7 +1911,7 @@ class FileToolsTest(EnhancedTestCase):
         toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
         with self.mocked_stdout_stderr():
             self.assertTrue(ft.apply_patch(toy_patch_gz, path))
-        patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        patched_gz = ft.read_file(os.path.join(path, 'toy.source'))
         pattern = "I'm a toy, and very very proud of it"
         self.assertIn(pattern, patched_gz)
 
@@ -1922,7 +1922,7 @@ class FileToolsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             ft.apply_patch(toy_patch_gz, path, options=' --reverse')
         # Change was really removed
-        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy.source')))
 
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
