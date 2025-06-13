@@ -537,10 +537,19 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = f"{cmd} {extra_options}"
 
+    previous_paths = set(_get_paths_purged(abs_dest))
     run_shell_cmd(cmd, in_dry_run=forced, hidden=not trace)
-
-    # note: find_base_dir also changes into the base dir!
-    base_dir = find_base_dir()
+    new_paths = set(_get_paths_purged(abs_dest)) - previous_paths
+    if len(new_paths) == 1:
+        new_path = new_paths.pop()
+        if os.path.isdir(new_path):
+            # note: find_base_dir also changes into the base dir!
+            base_dir = find_base_dir(new_path)
+        else:
+            base_dir = abs_dest
+    else:
+        base_dir = abs_dest
+        _log.debug(f"Multiple new folder/files found after extraction: {new_paths}. Using {base_dir} as base dir.")
 
     # if changing into obtained directory is not desired,
     # change back to where we came from (unless that was a non-existing directory)
@@ -1464,7 +1473,7 @@ def find_base_dir(path=None):
     It recurses into subfolders as long as that subfolder is the only child (file or folder)
     and returns the current(ly processed) folder if multiple or no childs exist in it.
     """
-    new_dir = get_cwd() if path is None else path
+    new_dir = get_cwd() if path is None else os.path.abspath(path)
     lst = _get_paths_purged(new_dir)
     while len(lst) == 1:
         new_dir = os.path.join(new_dir, lst[0])
