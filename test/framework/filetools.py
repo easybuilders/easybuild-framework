@@ -166,11 +166,39 @@ class FileToolsTest(EnhancedTestCase):
 
         foodir = os.path.join(tmpdir, 'foo')
         os.mkdir(foodir)
-        os.mkdir(os.path.join(tmpdir, '.bar'))
-        os.mkdir(os.path.join(tmpdir, 'easybuild'))
-
+        # No files
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+        # Uses specified path
+        os.chdir(self.test_prefix)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir(tmpdir)))
+
+        # Only ignored files/folders
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir(tmpdir)))
+
+        # Subfolder
+        bardir = os.path.join(foodir, 'bar')
+        os.mkdir(bardir)
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
+        # With ignored folder in subfolder
+        os.mkdir(os.path.join(bardir, '.bar'))
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
+
+        # Test recursiveness
+        subdir = os.path.join(bardir, 'sub')
+        os.mkdir(subdir)
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+        # Only file(s) in subfolder
+        ft.write_file(os.path.join(subdir, 'src.c'), 'code')
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+        ft.write_file(os.path.join(subdir, 'src2.c'), 'code')
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+
+        # Files and folders in subfolder
+        os.mkdir(os.path.join(bardir, 'subdir'))
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
 
     def test_find_glob_pattern(self):
         """test find_glob_pattern function"""
