@@ -57,6 +57,9 @@ class HooksTest(EnhancedTestCase):
             'def pre_build_and_install_loop_hook(ecs):',
             '    print("About to start looping for %d easyconfigs!" % len(ecs))',
             '',
+            'def pre_easyblock_hook(self):',
+            '    print(f"Starting installation of {self.name} {self.version}")',
+            '',
             'def foo():',
             '    print("running foo helper method")',
             '',
@@ -77,6 +80,9 @@ class HooksTest(EnhancedTestCase):
             '        print("this is run before running command \'%s\'" % cmd)',
             '        if cmd == "make install":',
             '            return "sudo " + cmd',
+            '',
+            'def post_easyblock_hook(self):',
+            '    print(f"Done with installation of {self.name} {self.version}")',
             '',
             'def fail_hook(err):',
             '    print("EasyBuild FAIL: %s" % err)',
@@ -101,13 +107,15 @@ class HooksTest(EnhancedTestCase):
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        self.assertEqual(len(hooks), 9)
+        self.assertEqual(len(hooks), 11)
         expected = [
             'crash_hook',
             'fail_hook',
             'parse_hook',
             'post_configure_hook',
+            'post_easyblock_hook',
             'pre_build_and_install_loop_hook',
+            'pre_easyblock_hook',
             'pre_install_hook',
             'pre_run_shell_cmd_hook',
             'pre_single_extension_hook',
@@ -197,12 +205,18 @@ class HooksTest(EnhancedTestCase):
 
         init_config(build_options={'debug': True})
 
+        class FakeEasyBlock():
+            def __init__(self, *args, **kwargs):
+                self.name = 'fake'
+                self.version = '1.2.3'
+
         def run_hooks():
             self.mock_stdout(True)
             self.mock_stderr(True)
             run_hook('start', hooks)
             run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
             run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
+            run_hook('easyblock', hooks, args=[FakeEasyBlock()], pre_step_hook=True)
             run_hook('configure', hooks, pre_step_hook=True, args=[None])
             run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
             run_hook('configure', hooks, post_step_hook=True, args=[None])
@@ -220,6 +234,7 @@ class HooksTest(EnhancedTestCase):
             run_hook('extensions', hooks, post_step_hook=True, args=[None])
             run_hook('fail', hooks, args=[EasyBuildError('oops')])
             run_hook('crash', hooks, args=[RuntimeError('boom!')])
+            run_hook('easyblock', hooks, args=[FakeEasyBlock()], post_step_hook=True)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
             self.mock_stdout(False)
@@ -236,6 +251,8 @@ class HooksTest(EnhancedTestCase):
             "Parse hook with argument <EasyConfig instance>",
             "== Running pre-build_and_install_loop hook...",
             "About to start looping for 2 easyconfigs!",
+            "== Running pre-easyblock hook...",
+            "Starting installation of fake 1.2.3",
             "== Running pre-run_shell_cmd hook...",
             "this is run before running interactive command 'configure.sh'",
             "== Running post-configure hook...",
@@ -257,6 +274,8 @@ class HooksTest(EnhancedTestCase):
             "EasyBuild FAIL: 'oops'",
             "== Running crash hook...",
             "EasyBuild CRASHED, oh no! => boom!",
+            "== Running post-easyblock hook...",
+            "Done with installation of fake 1.2.3",
         ]
         expected_stdout = '\n'.join(expected_stdout_lines)
 
