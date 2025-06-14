@@ -999,6 +999,9 @@ class EasyBuildOptions(GeneralOption):
         # Support accelerators using the gfx[...] naming scheme.
         # This applies to all AMD GPUs since Southern Islands (2013)
         # For more information: https://llvm.org/docs/AMDGPUUsage.html#processors
+        # Allow users to pass --amdgcn-capabilities=, which will be mapped to not passing any
+        if self.options.amdgcn_capabilities == ['']:
+            self.options.amdgcn_capabilities = None
         if self.options.amdgcn_capabilities:
             # General accelerator naming convention
             amdgcn_cc_regex = re.compile(r'gfx[0-9]+[a-z]?$')
