@@ -3662,7 +3662,7 @@ class ToyBuildTest(EnhancedTestCase):
                print(ec['postinstallcmds'][-1])
 
             def pre_build_and_install_loop_hook(ecs):
-                print(f"installing {len(ecs)} easyconfigs: {' '.join(ec['full_mod_name'] for ec in ecs)}")
+                print(f"installing {len(ecs)} easyconfigs: {' '.join(ec[1]['full_mod_name'] for ec in ecs)}")
 
             def pre_easyblock_hook(self):
                 print(f'starting installation of {self.name} {self.version}')
@@ -3715,7 +3715,7 @@ class ToyBuildTest(EnhancedTestCase):
                 print(f'done with installation of {self.name} {self.version}')
 
             def post_build_and_install_loop_hook(ecs):
-                print(f"done with installing {len(ecs)} easyconfigs: {' '.join(ec['full_mod_name'] for ec in ecs)}")
+                print(f"done with installing {len(ecs)} easyconfigs: {' '.join(ec[1]['full_mod_name'] for ec in ecs)}")
         """)
         write_file(hooks_file, hooks_file_txt)
 
