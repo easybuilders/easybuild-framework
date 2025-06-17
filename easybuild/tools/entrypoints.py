@@ -47,11 +47,9 @@ def get_group_entrypoints(group: str):
                 _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
         else:
             if HAVE_ENTRY_POINTS_CLS:
-                eps = entry_points(group=group)
-                res = set(eps)
+                res = set(entry_points(group=group))
             else:
-                eps = entry_points()
-                res = set(eps.get(group, []))
+                res = set(entry_points().get(group, []))
 
     return res
 

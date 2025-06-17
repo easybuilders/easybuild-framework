@@ -42,7 +42,7 @@ import sys
 import easybuild.tools.toolchain
 from easybuild.tools.entrypoints import (
     get_toolchain_entrypoints, validate_toolchain_entrypoints,
-    TOOLCHAIN_ENTRYPOINT_PREPEND
+    TOOLCHAIN_ENTRYPOINT_PREPEND, TOOLCHAIN_ENTRYPOINT_MARK
 )
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -112,6 +112,10 @@ def search_toolchain(name):
 
     # obtain all subclasses of toolchain
     found_tcs = nub(get_subclasses(Toolchain))
+
+    # Getting all subclasses will also include toolchains that are registered as entrypoints even if we are not
+    # using the `--use-entrypoints` option, so we filter them out here and re-add them later if needed.
+    found_tcs = [x for x in found_tcs if not hasattr(x, TOOLCHAIN_ENTRYPOINT_MARK)]
 
     invalid_eps = validate_toolchain_entrypoints()
     if invalid_eps:

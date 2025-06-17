@@ -66,6 +66,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME, is_system
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import INDENT_2SPACES, INDENT_4SPACES
 from easybuild.tools.utilities import import_available_modules, mk_md_table, mk_rst_table, nub, quote_str
+from easybuild.tools.entrypoints import EASYBLOCK_ENTRYPOINT_MARK
 
 
 _log = fancylogger.getLogger('tools.docs')
@@ -724,6 +725,9 @@ def gen_list_easyblocks(list_easyblocks, format_strings):
     def add_class(classes, cls):
         """Add a new class, and all of its subclasses."""
         children = cls.__subclasses__()
+        # Filter out possible sublcasses coming from entrypoints as they will be readded letter
+        if not build_option('use_entrypoints', default=False):
+            children = [c for c in children if not hasattr(c, EASYBLOCK_ENTRYPOINT_MARK)]
         classes.update({cls.__name__: {
             'module': cls.__module__,
             'children': sorted([c.__name__ for c in children], key=lambda x: x.lower())
