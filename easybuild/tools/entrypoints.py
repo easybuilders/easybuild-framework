@@ -4,7 +4,7 @@ Authors:
 
 * Davide Grassano (CECAM)
 """
-
+import sys
 import importlib
 from easybuild.tools.config import build_option
 from typing import Callable, List
@@ -12,12 +12,16 @@ from typing import Callable, List
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 
-try:
-    from importlib.metadata import entry_points, EntryPoints
-except ModuleNotFoundError:
-    HAVE_ENTRY_POINTS = False
-else:
+
+HAVE_ENTRY_POINTS = False
+HAVE_ENTRY_POINTS_CLS = False
+if sys.version_info >= (3, 8):
     HAVE_ENTRY_POINTS = True
+    from importlib.metadata import entry_points
+
+if sys.version_info >= (3, 10):
+    # Python >= 3.10 uses importlib.metadata.EntryPoints as a type for entry_points()
+    HAVE_ENTRY_POINTS_CLS = True
 
 
 _log = fancylogger.getLogger('entrypoints', fname=False)
@@ -34,21 +38,21 @@ def get_group_entrypoints(group: str):
         strict_python = False
     res = set()
     if use_eps:
-        if not HAVE_ENTRY_POINTS and strict_python:
-            msg = "`--use-entrypoints` requires importlib.metadata (Python >= 3.8)"
-            _log.warning(msg)
-            raise EasyBuildError(msg)
-        # Can't use the group keyword argument in entry_points() for Python < 3.10
-        try:
-            eps = entry_points()
-            if isinstance(eps, EntryPoints):
-                # Python >= 3.10
-                res = set(ep for ep in eps if ep.group == group)
-            elif isinstance(eps, dict):
-                # Python < 3.10
+        if not HAVE_ENTRY_POINTS:
+            if strict_python:
+                msg = "`--use-entrypoints` requires importlib.metadata (Python >= 3.8)"
+                _log.warning(msg)
+                raise EasyBuildError(msg)
+            else:
+                _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
+        else:
+            if HAVE_ENTRY_POINTS_CLS:
+                eps = entry_points(group=group)
+                res = set(eps)
+            else:
+                eps = entry_points()
                 res = set(eps.get(group, []))
-        except NameError:
-            _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
+
     return res
 
 
