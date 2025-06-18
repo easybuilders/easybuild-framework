@@ -170,12 +170,17 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up the test environment."""
+        super().tearDown()
+
         if self.tmpdir and os.path.isdir(self.tmpdir):
             shutil.rmtree(self.tmpdir)
 
         if HAVE_ENTRY_POINTS:
             # Remove the entry point from the working set
             torm = []
+            dirname, _ = os.path.split(self.tmpdir)
+            if dirname in sys.path:
+                sys.path.remove(dirname)
             for idx, cls in enumerate(sys.meta_path):
                 if isinstance(cls, MockDistributionFinder):
                     torm.append(idx)
