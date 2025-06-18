@@ -29,7 +29,6 @@ Unit tests for EasyBuild configuration.
 """
 
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -39,20 +38,13 @@ from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import ERROR, IGNORE, WARN, BuildOptions, ConfigurationVariables
-from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
-from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
-from easybuild.tools.config import update_build_option, update_build_options
-from easybuild.tools.config import DEFAULT_PATH_SUBDIRS, init_build_options
-from easybuild.tools.filetools import copy_dir, mkdir, write_file
-from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX
-from easybuild.tools.docs import list_easyblocks, list_software, list_toolchains
+from easybuild.tools.filetools import write_file
+from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
     get_group_entrypoints, HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT,
     HAVE_ENTRY_POINTS
 )
 from easybuild.framework.easyconfig.easyconfig import get_module_path
-from easybuild.framework.easyblock import EasyBlock
 
 
 if HAVE_ENTRY_POINTS:
@@ -68,7 +60,7 @@ MOCK_EASYBLOCK = "TestEasyBlock"
 MOCK_TOOLCHAIN = "MockTc"
 
 
-MOCK_EP_FILE=f"""
+MOCK_EP_FILE = f"""
 from easybuild.tools.entrypoints import register_entrypoint_hooks
 from easybuild.tools.hooks import CONFIGURE_STEP, START
 
@@ -114,7 +106,6 @@ class {MOCK_TOOLCHAIN}(MockCompiler):
 """
 
 
-
 MOCK_EP_META_FILE = f"""
 [{HOOKS_ENTRYPOINT}]
 {MOCK_HOOK_EP_NAME} = {{module}}:hello_world
@@ -138,6 +129,7 @@ class MockDistribution(Distribution):
 
         if filename == "METADATA":
             return "Name: mock_hook\nVersion: 0.1.0\n"
+
 
 class MockDistributionFinder(DistributionFinder):
     """Mock distribution finder for testing entry points."""
@@ -180,7 +172,7 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         if HAVE_ENTRY_POINTS:
             # Remove the entry point from the working set
             torm = []
-            for idx,cls in enumerate(sys.meta_path):
+            for idx, cls in enumerate(sys.meta_path):
                 if isinstance(cls, MockDistributionFinder):
                     torm.append(idx)
             for idx in reversed(torm):
