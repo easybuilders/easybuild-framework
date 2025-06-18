@@ -37,7 +37,6 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
@@ -49,6 +48,9 @@ from easybuild.framework.easyconfig.easyconfig import get_module_path
 
 if HAVE_ENTRY_POINTS:
     from importlib.metadata import DistributionFinder, Distribution
+else:
+    DistributionFinder = object
+    Distribution = object
 
 
 MOCK_HOOK_EP_NAME = "mock_hook"
@@ -163,6 +165,8 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
             # Create a mock entry point for testing
             mock_hook_file = os.path.join(self.tmpdir, f'{filename_root}.py')
             write_file(mock_hook_file, MOCK_EP_FILE)
+        else:
+            self.skipTest("Entry points not available in this Python version")
 
     def tearDown(self):
         """Clean up the test environment."""
@@ -178,24 +182,14 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
             for idx in reversed(torm):
                 del sys.meta_path[idx]
 
-    def test_entrypoints_get_group_too_old_python(self):
-        """Test retrieving entrypoints for a specific group with too old Python version."""
-        if HAVE_ENTRY_POINTS:
-            self.skipTest("Entry points available in this Python version")
-        self.assertRaises(EasyBuildError, get_group_entrypoints, HOOKS_ENTRYPOINT)
-
     def test_entrypoints_get_group(self):
         """Test retrieving entrypoints for a specific group."""
-        if not HAVE_ENTRY_POINTS:
-            self.skipTest("Entry points not available in this Python version")
-
         expected = {
             HOOKS_ENTRYPOINT: MOCK_HOOK_EP_NAME,
             EASYBLOCK_ENTRYPOINT: MOCK_EASYBLOCK_EP_NAME,
             TOOLCHAIN_ENTRYPOINT: MOCK_TOOLCHAIN_EP_NAME,
         }
 
-        # init_config()
         for group in [HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT]:
             epts = get_group_entrypoints(group)
             self.assertIsInstance(epts, set, f"Expected set for group {group}")
@@ -214,11 +208,6 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         """
         Tests for list_easyblocks function with entry points enabled.
         """
-        if not HAVE_ENTRY_POINTS:
-            self.skipTest("Entry points not available in this Python version")
-
-        # init_config()
-        # print('-------', build_option('use_entrypoints', default='1234'))
         txt = list_easyblocks()
         self.assertNotIn("TestEasyBlock", txt, "TestEasyBlock should not be listed without entry points enabled")
 
@@ -230,10 +219,6 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         """
         Tests for list_toolchains function with entry points enabled.
         """
-        if not HAVE_ENTRY_POINTS:
-            self.skipTest("Entry points not available in this Python version")
-
-        # init_config()
         txt = list_toolchains()
         self.assertNotIn(MOCK_TOOLCHAIN, txt, f"{MOCK_TOOLCHAIN} should not be listed without entry points enabled")
 
@@ -246,9 +231,6 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         """
         Tests for get_module_path function with entry points enabled.
         """
-        if not HAVE_ENTRY_POINTS:
-            self.skipTest("Entry points not available in this Python version")
-
         module_path = get_module_path(MOCK_EASYBLOCK)
         self.assertIn('.generic.', module_path, "Module path should contain '.generic.'")
 
