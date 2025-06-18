@@ -2830,8 +2830,6 @@ class EasyBlock:
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
-            # patch source at specified index (first source if not specified)
-            srcind = patch.get('source', 0)
             # if patch level is specified, use that (otherwise let apply_patch derive patch level)
             level = patch.get('level', None)
             # determine suffix of source path to apply patch in (if any)
@@ -2840,16 +2838,14 @@ class EasyBlock:
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
             options = patch.get('opts', None)  # Extra options for patch command
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
-                           srcind, level, srcpathsuffix, copy_patch, options)
+            self.log.debug("Patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
+                           level, srcpathsuffix, copy_patch, options)
 
             if beginpath is None:
-                try:
-                    beginpath = self.src[srcind]['finalpath']
-                    self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
-                except IndexError as err:
-                    raise EasyBuildError("Can't apply patch %s to source at index %s of list %s: %s",
-                                         patch['name'], srcind, self.src, err)
+                if not self.src:
+                    raise EasyBuildError("Can't apply patch %s to source if no sources are given", patch['name'])
+                beginpath = self.src[0]['finalpath']
+                self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
