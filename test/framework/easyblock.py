@@ -1191,7 +1191,7 @@ class EasyBlockTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.assertEqual(eb.iter_idx, 0)
-        self.assertEqual(stdout, "== starting iteration number 1/3 ...\n")
+        self.assertEqual(stdout, "== starting iteration 1/3 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
