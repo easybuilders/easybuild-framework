@@ -168,6 +168,7 @@ DEFAULT_CONFIG = {
 
     # DEPENDENCIES easyconfig parameters
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
+    'sanitycheck_dependencies': [[], "List of dependencies required for the sanity checks", DEPENDENCIES],
     'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
     'dependencies': [[], "List of dependencies", DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
