@@ -2500,9 +2500,12 @@ class FileToolsTest(EnhancedTestCase):
         foo = os.path.join(self.test_prefix, 'foo')
         self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)
 
-    def create_new_tarball(self, folder):
+    def create_new_tarball(self, folder, filename=None):
         """Create new tarball with contents of folder and return path"""
-        tarball = tempfile.mktemp(suffix='.tar.gz')
+        if filename is None:
+            tarball = tempfile.mktemp(suffix='.tar.gz')
+        else:
+            tarball = os.path.join(tempfile.mkdtemp(), filename)
         with tarfile.open(tarball, "w:gz") as tar:
             for name in glob.glob(os.path.join(folder, '*')):
                 tar.add(name, arcname=os.path.basename(name))
@@ -2512,8 +2515,10 @@ class FileToolsTest(EnhancedTestCase):
         """Test extract_file"""
         cwd = os.getcwd()
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'toy-0.0'))
+        ft.write_file(os.path.join(test_src, 'toy-0.0', 'toy.source'), 'content')
+        toy_tarball = self.create_new_tarball(test_src, filename='toy-0.0.tar.gz')
 
         extraction_path = os.path.join(self.test_prefix, 'extraction')  # New directory
         toy_path = os.path.join(extraction_path, 'toy-0.0')
@@ -2603,8 +2608,15 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(os.path.join(extraction_path, 'multi-bonus'))
 
         # Extract multiple files with single folder to same folder, and file only
-        bar_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'extensions', 'bar-0.0.tar.gz')
-        patch_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'bar-0.0'))
+        ft.write_file(os.path.join(test_src, 'bar-0.0', 'bar.source'), 'content')
+        bar_tarball = self.create_new_tarball(test_src)
+
+        test_src = tempfile.mkdtemp()
+        ft.write_file(os.path.join(test_src, 'main.source'), 'content')
+        file_tarball = self.create_new_tarball(test_src)
+
         ft.remove_dir(extraction_path)
         ft.change_dir(cwd)
         with self.mocked_stdout_stderr():
@@ -2613,7 +2625,7 @@ class FileToolsTest(EnhancedTestCase):
             path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
             # Contains no folder
-            path = ft.extract_file(patch_tarball, extraction_path, change_into_dir=False)
+            path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, extraction_path))
 
         # Folder and file
@@ -2623,7 +2635,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(test_src, 'main.c'), 'content')
         test_tarball = self.create_new_tarball(test_src)
         # When there is only a file or a file next to the folder the parent dir is returned
-        for tarball in (patch_tarball, test_tarball):
+        for tarball in (file_tarball, test_tarball):
             ft.remove_dir(extraction_path)
             with self.mocked_stdout_stderr():
                 path = ft.extract_file(tarball, extraction_path, change_into_dir=False)
