@@ -1128,8 +1128,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
             msg = "When only adding new easyconfigs usually a PR commit msg (--pr-commit-msg) should not be used, as "
             msg += "the PR title will be automatically generated."
             if build_option('force'):
-                 print_msg(msg)
-                 print_msg("Using the specified --pr-commit-msg As the force build option was specified.")
+                print_msg(msg)
+                print_msg("Using the specified --pr-commit-msg As the force build option was specified.")
             else:
                 raise EasyBuildError(msg)
         cnt = len(file_info['paths_in_repo'])
