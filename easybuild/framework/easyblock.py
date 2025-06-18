@@ -2390,7 +2390,7 @@ class EasyBlock:
                     self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
-                print_msg(f"starting iteration number {self.iter_idx + 1}/{self.iter_cnt} ...", log=self.log,
+                print_msg(f"starting iteration {self.iter_idx + 1}/{self.iter_cnt} ...", log=self.log,
                           silent=self.silent)
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
