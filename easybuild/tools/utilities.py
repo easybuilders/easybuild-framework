@@ -33,7 +33,8 @@ import datetime
 import glob
 import os
 import re
-import sys
+import importlib
+
 from string import ascii_letters, digits
 
 from easybuild.base import fancylogger
@@ -132,9 +133,15 @@ def import_available_modules(namespace):
     :param namespace: The namespace to import modules from.
     """
     modules = []
-    for path in sys.path:
 
-        cand_modpath_glob = os.path.sep.join([path] + namespace.split('.') + ['*.py'])
+    try:
+        mod = importlib.import_module(namespace)
+    except ImportError as err:
+        raise EasyBuildError("import_available_modules: Failed to import %s: %s", namespace, err)
+
+    for path in mod.__path__:
+
+        cand_modpath_glob = os.path.sep.join([path] + ['*.py'])
 
         # if sys.path entry being considered is the empty string
         # (which corresponds to Python packages/modules in current working directory being considered),
