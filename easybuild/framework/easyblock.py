@@ -98,9 +98,9 @@ from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_a
 from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, symlink, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import (
-    BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
-    MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
-    SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
+    BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EASYBLOCK, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP,
+    MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
+    READY_STEP, SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
 )
 from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -448,7 +448,7 @@ class EasyBlock:
         if checksum and chksum_input_git is not None:
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # tarballs made for git repos are not reproducible when created with Python < 3.9
-            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            if sys.version_info < (3, 9):
                 print_warning(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
                     f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used."
@@ -2830,8 +2830,6 @@ class EasyBlock:
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
-            # patch source at specified index (first source if not specified)
-            srcind = patch.get('source', 0)
             # if patch level is specified, use that (otherwise let apply_patch derive patch level)
             level = patch.get('level', None)
             # determine suffix of source path to apply patch in (if any)
@@ -2840,16 +2838,14 @@ class EasyBlock:
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
             options = patch.get('opts', None)  # Extra options for patch command
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
-                           srcind, level, srcpathsuffix, copy_patch, options)
+            self.log.debug("Patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
+                           level, srcpathsuffix, copy_patch, options)
 
             if beginpath is None:
-                try:
-                    beginpath = self.src[srcind]['finalpath']
-                    self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
-                except IndexError as err:
-                    raise EasyBuildError("Can't apply patch %s to source at index %s of list %s: %s",
-                                         patch['name'], srcind, self.src, err)
+                if not self.src:
+                    raise EasyBuildError("Can't apply patch %s to source if no sources are given", patch['name'])
+                beginpath = self.src[0]['finalpath']
+                self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
@@ -4662,8 +4658,11 @@ class EasyBlock:
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
+            # step_method is a lambda function that takes an EasyBlock instance as an argument,
+            # and returns the actual method
+            current_method = step_method(self)
             # Remove leading underscore from e.g. "_test_step"
-            method_name = '_'.join(step_method.__code__.co_names).lstrip('_')
+            method_name = current_method.__name__.lstrip('_')
             self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
@@ -4671,9 +4670,7 @@ class EasyBlock:
 
                 # if an known possible error occurs, just report it and continue
                 try:
-                    # step_method is a lambda function that takes an EasyBlock instance as an argument,
-                    # and returns the actual method, so use () to execute it
-                    step_method(self)()
+                    current_method()
                 except Exception as err:
                     if build_option('extended_dry_run_ignore_errors'):
                         dry_run_warning("ignoring error %s" % err, silent=self.silent)
@@ -4682,9 +4679,7 @@ class EasyBlock:
                         raise
                 self.dry_run_msg('')
             else:
-                # step_method is a lambda function that takes an EasyBlock instance as an argument,
-                # and returns the actual method, so use () to execute it
-                step_method(self)()
+                current_method()
 
         run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
@@ -5001,6 +4996,8 @@ def build_and_install_one(ecdict, init_env):
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
 
+    hooks = load_hooks(build_option('hooks'))
+
     # build easyconfig
     error_msg = '(no error)'
     exit_code = None
@@ -5021,6 +5018,8 @@ def build_and_install_one(ecdict, init_env):
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
             else:
                 enabled_write_permissions = False
+
+        run_hook(EASYBLOCK, hooks, pre_step_hook=True, args=[app])
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
@@ -5126,6 +5125,8 @@ def build_and_install_one(ecdict, init_env):
                 del repo
             except EasyBuildError as err:
                 _log.warning("Unable to commit easyconfig to repository: %s", err)
+
+        run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
 
         # cleanup logs
         app.close_log()

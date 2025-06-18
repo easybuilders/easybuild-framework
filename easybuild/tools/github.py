@@ -44,6 +44,7 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from http.client import HTTPException
 from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
 
@@ -281,7 +282,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror as err:
+    except (socket.gaierror, HTTPException) as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 

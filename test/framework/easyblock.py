@@ -42,7 +42,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
-from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance
+from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance, BUILD_STEP
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
@@ -1955,13 +1955,13 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         checksums = ["00000000"]
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+        if sys.version_info < (3, 9):
             self.allow_deprecated_behaviour()
 
         with self.mocked_stdout_stderr():
             eb.fetch_sources(sources, checksums=checksums)
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+        if sys.version_info < (3, 9):
             self.disallow_deprecated_behaviour()
 
         self.assertEqual(len(eb.src), 1)
@@ -1970,7 +1970,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.src[0]['cmd'], None)
 
         reference_checksum = "00000000"
-        if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+        if sys.version_info[0] < (3, 9):
             # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
             # due to changes introduced in python/cpython#90021
             reference_checksum = None
@@ -3554,6 +3554,43 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
 
         os.remove(eb.logfile)
+
+    def test_report_current_step_method(self):
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        class MockEasyBlock(EasyBlock):
+            # Mock methods
+            def build_step(self):
+                self.log.info('Ran build')
+
+            def test_step(self):
+                self.log.info('Ran test')
+
+            # New method for easy detection
+            def custom_step(self):
+                self.log.info('Ran custom')
+
+        eb = MockEasyBlock(EasyConfig(toy_ec))
+        # Part of run_all_steps
+        steps = [step for step in eb.get_steps() if step[0] == BUILD_STEP]
+        for step_name, _, step_methods, _ in steps:
+            with self.log_to_testlogfile():
+                eb.run_step(step_name, step_methods)
+        logtxt = read_file(self.logfile)
+        self.assertIn('Running method build_step', logtxt)
+        self.assertIn('Ran build', logtxt)
+
+        method_name = 'custom_step'
+        step_name = 'new name'
+        # Run multiple methods in one step, the custom step uses getattr similar to the Bundle easyblock
+        with self.log_to_testlogfile():
+            eb.run_step(step_name, [lambda x: x.test_step, lambda x: getattr(x, method_name)])
+        logtxt = read_file(self.logfile)
+        self.assertRegex(logtxt, f'Running method test_step .* {step_name}')
+        self.assertIn('Ran test', logtxt)
+        self.assertRegex(logtxt, f'Running method {method_name} .* {step_name}')
+        self.assertIn('Ran custom', logtxt)
 
 
 def suite():
