@@ -39,15 +39,13 @@ Authors:
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
-
 TC_CONSTANT_NVHPC = "NVHPC"
 
 
-class NVHPC(Compiler):
-    """NVHPC compiler class
-    """
+class NvidiaCompilers(Compiler):
+    "NVHPC compiler class"
 
-    COMPILER_MODULE_NAME = ['NVHPC']
+    COMPILER_MODULE_NAME = ['nvidia-compilers']
 
     COMPILER_FAMILY = TC_CONSTANT_NVHPC
 

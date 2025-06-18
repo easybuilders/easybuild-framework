@@ -1,11 +1,10 @@
 ##
-# Copyright 2016-2025 Ghent University
-# Copyright 2016-2025 Forschungszentrum Juelich
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
-# the Flemish Supercomputer Centre (VSC) (https://vscentrum.be),
+# the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
 # Flemish Research Foundation (FWO) (http://www.fwo.be/en)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
@@ -24,19 +23,33 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for nvsmpi compiler toolchain (includes NVHPC and ParaStationMPI).
+Support for NVHPCX as toolchain MPI library.
 
 Authors:
 
-* Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
+* Alex Domingo (Vrije Universiteit Brussel)
 """
+from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.tools.toolchain.constants import MPI_COMPILER_VARIABLES
 
-from easybuild.toolchains.mpi.psmpi import Psmpi
-from easybuild.toolchains.nvhpc import NvidiaCompilersToolchain
+TC_CONSTANT_OPENMPI = "OpenMPI"
+TC_CONSTANT_MPI_TYPE_OPENMPI = "MPI_TYPE_OPENMPI"
 
 
-# Order matters!
-class NVpsmpi(NvidiaCompilersToolchain, Psmpi):
-    """Compiler toolchain with NVHPC and ParaStationMPI."""
-    NAME = 'nvpsmpi'
-    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
+class NVHPCX(OpenMPI):
+    """NVHPCX MPI class"""
+    MPI_MODULE_NAME = ['NVHPC']
+    MPI_FAMILY = TC_CONSTANT_OPENMPI
+    MPI_TYPE = TC_CONSTANT_MPI_TYPE_OPENMPI
+
+    MPI_LIBRARY_NAME = 'mpi'
+
+    # version-dependent, so defined at runtime
+    MPI_COMPILER_MPIF77 = None
+    MPI_COMPILER_MPIF90 = None
+    MPI_COMPILER_MPIFC = None
+
+    # OpenMPI reads from CC etc env variables
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
+
+    MPI_LINK_INFO_OPTION = '-showme:link'

@@ -32,14 +32,14 @@ Authors:
 * Sebastian Achilles (Forschungszentrum Juelich)
 """
 
-from easybuild.toolchains.nvhpc import NVHPCToolchain
 # We pull in MPI and CUDA at once so this maps nicely to HMNS
-from easybuild.toolchains.mpi.psmpi import Psmpi
 from easybuild.toolchains.compiler.cuda import Cuda
+from easybuild.toolchains.mpi.psmpi import Psmpi
+from easybuild.toolchains.nvhpc import NvidiaCompilersToolchain
 
 
 # Order matters!
-class NVpsmpic(NVHPCToolchain, Cuda, Psmpi):
+class NVpsmpic(NvidiaCompilersToolchain, Cuda, Psmpi):
     """Compiler toolchain with NVHPC and ParaStationMPI, with CUDA as dependency."""
     NAME = 'nvpsmpic'
-    SUBTOOLCHAIN = NVHPCToolchain.NAME
+    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
