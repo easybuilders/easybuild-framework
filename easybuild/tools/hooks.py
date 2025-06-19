@@ -32,10 +32,7 @@ Authors:
 import difflib
 import os
 
-from easybuild.tools.entrypoints import (
-    find_entrypoint_hooks, validate_entrypoint_hooks,
-    HOOKS_ENTRYPOINT_PRIORITY
-)
+from easybuild.tools.entrypoints import EntrypointHook
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -182,8 +179,6 @@ def verify_hooks(hooks):
     """Check whether obtained hooks only includes known hooks."""
     unknown_hooks = [key for key in sorted(hooks) if key not in KNOWN_HOOKS]
 
-    unknown_hooks.extend(validate_entrypoint_hooks(KNOWN_HOOKS, PRE_PREF, POST_PREF, HOOK_SUFF))
-
     if unknown_hooks:
         error_lines = ["Found one or more unknown hooks:"]
 
@@ -258,23 +253,25 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
         res = hook(*args, **kwargs)
 
-    entrypoint_hooks = find_entrypoint_hooks(label=label, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    entrypoint_hooks = EntrypointHook.get_entrypoints(
+        step=label, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook
+    )
     if entrypoint_hooks:
         msg = "Running entry point %s hook..." % label
         if build_option('debug') and not build_option('silence_hook_trigger'):
             print_msg(msg)
         entrypoint_hooks.sort(
-            key=lambda x: (-getattr(x, HOOKS_ENTRYPOINT_PRIORITY, 0), x.__name__),
+            key=lambda x: (-x.priority, x.name),
             )
         for hook in entrypoint_hooks:
             _log.info(
                 "Running entry point '%s' hook function (args: %s, keyword args: %s)...",
-                hook.__name__, args, kwargs
+                hook.name, args, kwargs
             )
             try:
                 res = hook(*args, **kwargs)
             except Exception as e:
-                _log.warning("Error running entry point '%s' hook: %s", hook.__name__, e)
-                raise EasyBuildError("Error running entry point '%s' hook: %s", hook.__name__, e) from e
+                _log.warning("Error running entry point '%s' hook: %s", hook.name, e)
+                raise EasyBuildError("Error running entry point '%s' hook: %s", hook.name, e) from e
 
     return res
