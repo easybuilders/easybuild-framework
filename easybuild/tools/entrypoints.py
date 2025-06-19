@@ -122,7 +122,7 @@ class EasybuildEntrypoint:
                 ep.load()
             except Exception as e:
                 msg = f"Error loading entrypoint {ep}: {e}"
-                _log.error(msg)
+                _log.warning(msg)
                 raise EasyBuildError(msg) from e
 
         entrypoints = []

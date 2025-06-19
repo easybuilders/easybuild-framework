@@ -1666,28 +1666,17 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
         if build_option('use_entrypoints', default=True):
-            hook_epts = EntrypointHook.get_entrypoints()
-            eb_epts = EntrypointEasyblock.get_entrypoints()
-            tc_epts = EntrypointToolchain.get_entrypoints()
-
-            if hook_epts:
-                print()
-                print("Hooks from entrypoints (%d):" % len(hook_epts))
-                for hook in hook_epts:
-                    print('-', hook)
-
-            if eb_epts:
-                print()
-                print("Easyblocks from entrypoints (%d):" % len(eb_epts))
-                for eb in eb_epts:
-                    print('-', eb)
-
-            if tc_epts:
-                print()
-                print("Toolchains from entrypoints (%d):" % len(tc_epts))
-                for tc in tc_epts:
-                    print('-', tc)
-
+            for prefix, cls in [
+                ('Hook', EntrypointHook),
+                ('Easyblock', EntrypointEasyblock),
+                ('Toolchain', EntrypointToolchain),
+            ]:
+                ept_list = cls.get_entrypoints()
+                if ept_list:
+                    print()
+                    print("%ss from entrypoints (%d):" % (prefix, len(ept_list)))
+                    for ept in ept_list:
+                        print('-', ept)
 
 
 def parse_options(args=None, with_include=True):
