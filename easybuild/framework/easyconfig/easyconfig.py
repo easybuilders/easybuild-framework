@@ -65,7 +65,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
-from easybuild.tools.entrypoints import get_easyblock_entrypoints, validate_easyblock_entrypoints
+from easybuild.tools.entrypoints import EntrypointEasyblock
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -2041,9 +2041,15 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                           class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
-                modulepath = get_module_path(easyblock)
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+                eb_from_eps = EntrypointEasyblock.get_entrypoints(name=easyblock)
+                if eb_from_eps:
+                    ep = eb_from_eps[0]
+                    cls = ep.wrapped
+                    _log.info("Obtained easyblock class '%s' from entrypoint '%s'", easyblock, str(ep))
+                else:
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
+                    _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
@@ -2129,14 +2135,6 @@ def get_module_path(name, generic=None, decode=True):
 
     if generic is None:
         generic = filetools.is_generic_easyblock(name)
-
-    invalid_eps = validate_easyblock_entrypoints()
-    if invalid_eps:
-        _log.warning("Invalid easyblock entrypoints found: %s", invalid_eps)
-        raise EasyBuildError("Invalid easyblock entrypoints found: %s", invalid_eps)
-    eb_from_eps = get_easyblock_entrypoints(name)
-    if eb_from_eps:
-        return list(eb_from_eps.keys())[0]
 
     # example: 'EB_VSC_minus_tools' should result in 'vsc_tools'
     if decode:

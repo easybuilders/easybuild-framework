@@ -110,6 +110,7 @@ from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, g
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
+from easybuild.tools.entrypoints import EntrypointHook, EntrypointEasyblock, EntrypointToolchain
 
 
 try:
@@ -1663,6 +1664,30 @@ class EasyBuildOptions(GeneralOption):
                     opts_dict[opt] = (cur_opt_val, loc)
 
         pretty_print_opts(opts_dict)
+
+        if build_option('use_entrypoints', default=True):
+            hook_epts = EntrypointHook.get_entrypoints()
+            eb_epts = EntrypointEasyblock.get_entrypoints()
+            tc_epts = EntrypointToolchain.get_entrypoints()
+
+            if hook_epts:
+                print()
+                print("Hooks from entrypoints (%d):" % len(hook_epts))
+                for hook in hook_epts:
+                    print('-', hook)
+
+            if eb_epts:
+                print()
+                print("Easyblocks from entrypoints (%d):" % len(eb_epts))
+                for eb in eb_epts:
+                    print('-', eb)
+
+            if tc_epts:
+                print()
+                print("Toolchains from entrypoints (%d):" % len(tc_epts))
+                for tc in tc_epts:
+                    print('-', tc)
+
 
 
 def parse_options(args=None, with_include=True):

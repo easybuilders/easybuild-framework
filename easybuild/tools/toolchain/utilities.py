@@ -40,10 +40,7 @@ import re
 import sys
 
 import easybuild.tools.toolchain
-from easybuild.tools.entrypoints import (
-    get_toolchain_entrypoints, validate_toolchain_entrypoints,
-    TOOLCHAIN_ENTRYPOINT_PREPEND, TOOLCHAIN_ENTRYPOINT_MARK
-)
+from easybuild.tools.entrypoints import EntrypointToolchain
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
@@ -73,12 +70,10 @@ def search_toolchain(name):
 
         # make sure all defined toolchain constants are available in toolchain module
         tc_const_re = re.compile('^%s(.*)$' % TC_CONST_PREFIX)
-        # print(f'!! TC_MODULES: {tc_modules}')
         for tc_mod in tc_modules:
             # determine classes imported in this module
             mod_classes = []
             for elem in [getattr(tc_mod, x) for x in dir(tc_mod)]:
-                # print('-----', elem)
                 if hasattr(elem, '__module__'):
                     # exclude the toolchain class defined in that module
                     if not tc_mod.__file__ == sys.modules[elem.__module__].__file__:
@@ -115,19 +110,11 @@ def search_toolchain(name):
 
     # Getting all subclasses will also include toolchains that are registered as entrypoints even if we are not
     # using the `--use-entrypoints` option, so we filter them out here and re-add them later if needed.
-    found_tcs = [x for x in found_tcs if not hasattr(x, TOOLCHAIN_ENTRYPOINT_MARK)]
+    all_eps_names = [ep.wrapped.NAME for ep in EntrypointToolchain.get_entrypoints()]
+    found_tcs = [x for x in found_tcs if x.NAME not in all_eps_names]
 
-    invalid_eps = validate_toolchain_entrypoints()
-    if invalid_eps:
-        _log.warning("Invalid toolchain entrypoints found: %s", ', '.join(invalid_eps))
-        raise EasyBuildError("Invalid toolchain entrypoints found: %s", ', '.join(invalid_eps))
-    prepend_eps = []
-    append_eps = []
-    for tc in get_toolchain_entrypoints():
-        if getattr(tc, TOOLCHAIN_ENTRYPOINT_PREPEND):
-            prepend_eps.append(tc)
-        else:
-            append_eps.append(tc)
+    prepend_eps = [_.wrapped for _ in EntrypointToolchain.get_entrypoints(prepend=True)]
+    append_eps = [_.wrapped for _ in EntrypointToolchain.get_entrypoints(prepend=False)]
     found_tcs = prepend_eps + found_tcs + append_eps
 
     # filter found toolchain subclasses based on whether they can be used a toolchains
