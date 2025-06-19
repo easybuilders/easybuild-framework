@@ -78,7 +78,7 @@ class EasybuildEntrypoint:
             check = False
             try:
                 check = isinstance(wrap, self.expected_type) or issubclass(wrap, self.expected_type)
-            except:
+            except Exception:
                 pass
             if not check:
                 raise EasyBuildError(
@@ -176,6 +176,7 @@ class EntrypointHook(EasybuildEntrypoint):
             msg = f"Attempting to register unknown hook '{hook_name}'"
             _log.warning(msg)
             raise EasyBuildError(msg)
+
 
 class EntrypointEasyblock(EasybuildEntrypoint):
     """Class to represent an easyblock entrypoint."""

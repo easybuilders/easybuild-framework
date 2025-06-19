@@ -196,7 +196,6 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         super().setUp()
         self.tmpdir = tempfile.mkdtemp(prefix='easybuild_test_')
 
-
         if HAVE_ENTRY_POINTS:
             filename_root = "mock"
             dirname, dirpath = os.path.split(self.tmpdir)
@@ -217,7 +216,7 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
         try:
             shutil.rmtree(self.tmpdir)
-        except OSError as err:
+        except OSError:
             pass
         tempfile.tempdir = None
 
@@ -237,7 +236,9 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
     def test_entrypoints_register_hook(self):
         """Test registering entry point hooks with both valid and invalid hook names."""
-        func = lambda: None  # Dummy function
+        # Dummy function
+        def func():
+            return
 
         decorator = EntrypointHook('123')
         with self.assertRaises(EasyBuildError):
@@ -258,11 +259,13 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         with self.assertRaises(EasyBuildError):
             decorator(123)
 
-        class MOCK(): pass
+        class MOCK():
+            pass
         with self.assertRaises(EasyBuildError):
             decorator(MOCK)
 
-        class MOCK(EasyBlock): pass
+        class MOCK(EasyBlock):
+            pass
         decorator(MOCK)
 
     def test_entrypoints_register_toolchain(self):
@@ -273,11 +276,13 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         with self.assertRaises(EasyBuildError):
             decorator(123)
 
-        class MOCK(): pass
+        class MOCK():
+            pass
         with self.assertRaises(EasyBuildError):
             decorator(MOCK)
 
-        class MOCK(Toolchain): pass
+        class MOCK(Toolchain):
+            pass
         decorator(MOCK)
 
     def test_entrypoints_get_group(self):
