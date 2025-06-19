@@ -405,6 +405,7 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
     def test_entrypoints_run_hook(self):
         """Ensure that entry point hooks are run in the correct order."""
         cnt = 0
+
         @EntrypointHook(START, priority=50)
         def func2_2():
             nonlocal cnt
