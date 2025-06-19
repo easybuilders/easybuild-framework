@@ -78,7 +78,6 @@ RUN_SHELL_CMD = 'run_shell_cmd'
 PRE_PREF = 'pre_'
 POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
-ENTRYPOINT_PRE = 'entrypoint_'
 
 # list of names for steps in installation procedure (in order of execution)
 STEP_NAMES = [FETCH_STEP, READY_STEP, EXTRACT_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
@@ -234,7 +233,6 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
-    # print(f"Running hook '{label}' {pre_step_hook=} {post_step_hook=}")
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     res = None
     args = args or []
@@ -253,9 +251,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
         res = hook(*args, **kwargs)
 
-    entrypoint_hooks = EntrypointHook.get_entrypoints(
-        step=label, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook
-    )
+    entrypoint_hooks = EntrypointHook.get_entrypoints(step=label, pre_step=pre_step_hook, post_step=post_step_hook)
     if entrypoint_hooks:
         msg = "Running entry point %s hook..." % label
         if build_option('debug') and not build_option('silence_hook_trigger'):
@@ -269,7 +265,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
                 hook.name, args, kwargs
             )
             try:
-                res = hook(*args, **kwargs)
+                res = hook.wrapped(*args, **kwargs)
             except Exception as e:
                 _log.warning("Error running entry point '%s' hook: %s", hook.name, e)
                 raise EasyBuildError("Error running entry point '%s' hook: %s", hook.name, e) from e

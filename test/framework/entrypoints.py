@@ -38,14 +38,14 @@ from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import write_file
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
     get_group_entrypoints, HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT,
     HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain,
 )
+from easybuild.tools.filetools import write_file
+from easybuild.tools.hooks import run_hook, START, CONFIGURE_STEP
 from easybuild.framework.easyconfig.easyconfig import get_easyblock_class
-from easybuild.tools.hooks import START
 
 
 if HAVE_ENTRY_POINTS:
@@ -387,6 +387,88 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         for name in ['Hooks', 'Easyblocks', 'Toolchains']:
             pattern = f"{name} from entrypoints ("
             self.assertIn(pattern, stdout, f"Expected {name} in configuration output")
+
+    def test_entrypoints_register_invalid_hook(self):
+        """Test that registering an invalid hook steps raises an error."""
+        # Invalid step name
+        with self.assertRaises(EasyBuildError):
+            EntrypointHook('invalid_hook_name')(lambda: None)
+
+        # START does not have the pre/post prefixes
+        with self.assertRaises(EasyBuildError):
+            EntrypointHook(START, pre_step=True)(lambda: None)
+
+        # CONFIGURE_STEP must have a pre/post prefix
+        with self.assertRaises(EasyBuildError):
+            EntrypointHook(CONFIGURE_STEP)(lambda: None)
+
+    def test_entrypoints_run_hook(self):
+        """Ensure that entry point hooks are run in the correct order."""
+        cnt = 0
+        @EntrypointHook(START, priority=50)
+        def func2_2():
+            nonlocal cnt
+            self.assertEqual(cnt, 2, "This hook should be run third because of name ordering")
+            cnt += 1
+
+        @EntrypointHook(START, priority=50)
+        def func2_1():
+            nonlocal cnt
+            self.assertEqual(cnt, 1, "This hook should be run second because of name ordering")
+            cnt += 1
+
+        @EntrypointHook(START, priority=10)
+        def func3():
+            nonlocal cnt
+            self.assertEqual(cnt, 3, "This hook should be run last")
+            cnt += 1
+
+        @EntrypointHook(START, priority=100)
+        def func1():
+            nonlocal cnt
+            self.assertEqual(cnt, 0, "This hook should be run first")
+            cnt += 1
+
+        @EntrypointHook(CONFIGURE_STEP, pre_step=True)
+        def func_configure_pre():
+            nonlocal cnt
+            self.assertEqual(cnt, 4, "This hook should be run after all START hooks")
+            cnt += 1
+
+        run_hook(START, {})
+
+        self.assertEqual(cnt, 4, "All hooks should have been run in the correct order")
+
+    def test_entrypoints_run_hook_onlyreq(self):
+        """Ensure that only the hooks required for a step are run."""
+        tpl_flags = {'start': False, 'pre_cfg': False, 'post_cfg': False}
+
+        @EntrypointHook(START)
+        def func_start():
+            flags['start'] = True
+
+        @EntrypointHook(CONFIGURE_STEP, pre_step=True)
+        def func_configure_pre():
+            flags['pre_cfg'] = True
+
+        @EntrypointHook(CONFIGURE_STEP, post_step=True)
+        def func_configure_post():
+            flags['post_cfg'] = True
+
+        flags = tpl_flags.copy()
+        run_hook(START, {})
+        for key, val in flags.items():
+            self.assertEqual(val, key == 'start', "Should only run START hooks")
+
+        flags = tpl_flags.copy()
+        run_hook(CONFIGURE_STEP, {}, pre_step_hook=True)
+        for key, val in flags.items():
+            self.assertEqual(val, key == 'pre_cfg', "Should only run pre-configure hooks")
+
+        flags = tpl_flags.copy()
+        run_hook(CONFIGURE_STEP, {}, post_step_hook=True)
+        for key, val in flags.items():
+            self.assertEqual(val, key == 'post_cfg', "Should only run post-configure hooks")
 
 
 def suite():
