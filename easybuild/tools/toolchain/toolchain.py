@@ -168,7 +168,7 @@ class Toolchain:
     CLASS_CONSTANTS_TO_RESTORE = None
     CLASS_CONSTANT_COPIES = {}
 
-    # class method
+    @classmethod
     def _is_toolchain_for(cls, name):
         """see if this class can provide support for toolchain named name"""
         # TODO report later in the initialization the found version
@@ -180,8 +180,6 @@ class Toolchain:
         else:
             # is no name is supplied, check whether class can be used as a toolchain
             return bool(getattr(cls, 'NAME', None))
-
-    _is_toolchain_for = classmethod(_is_toolchain_for)
 
     def __init__(self, name=None, version=None, mns=None, class_constants=None, tcdeps=None, modtool=None,
                  hidden=False):
