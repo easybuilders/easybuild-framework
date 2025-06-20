@@ -110,11 +110,11 @@ def search_toolchain(name):
 
     # Getting all subclasses will also include toolchains that are registered as entrypoints even if we are not
     # using the `--use-entrypoints` option, so we filter them out here and re-add them later if needed.
-    all_eps_names = [ep.wrapped.NAME for ep in EntrypointToolchain.get_entrypoints()]
+    all_eps_names = [ep.wrapped.NAME for ep in EntrypointToolchain.get_loaded_entrypoints()]
     found_tcs = [x for x in found_tcs if x.NAME not in all_eps_names]
 
-    prepend_eps = [_.wrapped for _ in EntrypointToolchain.get_entrypoints(prepend=True)]
-    append_eps = [_.wrapped for _ in EntrypointToolchain.get_entrypoints(prepend=False)]
+    prepend_eps = [_.wrapped for _ in EntrypointToolchain.get_loaded_entrypoints(prepend=True)]
+    append_eps = [_.wrapped for _ in EntrypointToolchain.get_loaded_entrypoints(prepend=False)]
     found_tcs = prepend_eps + found_tcs + append_eps
 
     # filter found toolchain subclasses based on whether they can be used a toolchains

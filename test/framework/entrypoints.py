@@ -40,8 +40,7 @@ import easybuild.tools.options as eboptions
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
-    get_group_entrypoints, HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT,
-    HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain,
+    HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain, EasybuildEntrypoint
 )
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import run_hook, START, CONFIGURE_STEP
@@ -120,15 +119,15 @@ class {MOCK_TOOLCHAIN}_invalid(MockCompiler):
 
 
 MOCK_EP_META_FILE = f"""
-[{HOOKS_ENTRYPOINT}]
+[{EntrypointHook.group}]
 {MOCK_HOOK_EP_NAME} = {{module}}:{MOCK_HOOK}
 {{invalid_hook}}
 
-[{EASYBLOCK_ENTRYPOINT}]
+[{EntrypointEasyblock.group}]
 {MOCK_EASYBLOCK_EP_NAME} = {{module}}:{MOCK_EASYBLOCK}
 {{invalid_easyblock}}
 
-[{TOOLCHAIN_ENTRYPOINT}]
+[{EntrypointToolchain.group}]
 {MOCK_TOOLCHAIN_EP_NAME} = {{module}}:{MOCK_TOOLCHAIN}
 {{invalid_toolchain}}
 """
@@ -234,22 +233,27 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
             EntrypointHook.clear()
 
+    def test_entrypoints_baseclass_raises(self):
+        """Test that attempting to register an entry point with the base class raises an error."""
+        with self.assertRaises(EasyBuildError):
+            EasybuildEntrypoint()(lambda: None)
+
     def test_entrypoints_register_hook(self):
         """Test registering entry point hooks with both valid and invalid hook names."""
         # Dummy function
         def func():
             return
 
-        decorator = EntrypointHook('123')
+        # Invalid step name
         with self.assertRaises(EasyBuildError):
-            decorator(func)
+            EntrypointHook('123')(func)
 
-        decorator = EntrypointHook(START, pre_step=True)
+        # Valid name but invalid combination of step and pre/post
         with self.assertRaises(EasyBuildError):
-            decorator(func)
+            EntrypointHook(START, pre_step=True)(func)
 
-        decorator = EntrypointHook(START)
-        decorator(func)
+        # Valid hook registration
+        EntrypointHook(START)(func)
 
     def test_entrypoints_register_easyblock(self):
         """Test registering entry point easyblocks with both valid and invalid easyblock names."""
@@ -288,24 +292,27 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
     def test_entrypoints_get_group(self):
         """Test retrieving entrypoints for a specific group."""
         expected = {
-            HOOKS_ENTRYPOINT: MOCK_HOOK_EP_NAME,
-            EASYBLOCK_ENTRYPOINT: MOCK_EASYBLOCK_EP_NAME,
-            TOOLCHAIN_ENTRYPOINT: MOCK_TOOLCHAIN_EP_NAME,
+            EntrypointHook: MOCK_HOOK_EP_NAME,
+            EntrypointEasyblock: MOCK_EASYBLOCK_EP_NAME,
+            EntrypointToolchain: MOCK_TOOLCHAIN_EP_NAME,
         }
 
-        for group in [HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT]:
-            epts = get_group_entrypoints(group)
+        for ep_type in [EntrypointHook, EntrypointEasyblock, EntrypointToolchain]:
+            group = ep_type.group
+            epts = ep_type.retrieve_entrypoints()
             self.assertIsInstance(epts, set, f"Expected set for group {group}")
             self.assertEqual(len(epts), 0, f"Expected non-empty set for group {group}")
 
         init_config(build_options={'use_entrypoints': True})
-        for group in [HOOKS_ENTRYPOINT, EASYBLOCK_ENTRYPOINT, TOOLCHAIN_ENTRYPOINT]:
-            epts = get_group_entrypoints(group)
+        for ep_type in [EntrypointHook, EntrypointEasyblock, EntrypointToolchain]:
+            group = ep_type.group
+            epts = ep_type.retrieve_entrypoints()
             self.assertIsInstance(epts, set, f"Expected set for group {group}")
             self.assertGreater(len(epts), 0, f"Expected non-empty set for group {group}")
 
             loaded_names = [ep.name for ep in epts]
-            self.assertIn(expected[group], loaded_names, f"Expected entry point {expected[group]} in group {group}")
+            expt = expected[ep_type]
+            self.assertIn(expt, loaded_names, f"Expected entry point {expt} in group {group}")
 
     def test_entrypoints_exclude_invalid(self):
         """Check that invalid entry points are excluded from the get_entrypoints function."""
@@ -317,19 +324,19 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         FORMAT_DCT['invalid_easyblock'] = f"{MOCK_EASYBLOCK_EP_NAME}_invalid = {self.module}:{MOCK_EASYBLOCK}_invalid"
         FORMAT_DCT['invalid_toolchain'] = f"{MOCK_TOOLCHAIN_EP_NAME}_invalid = {self.module}:{MOCK_TOOLCHAIN}_invalid"
 
-        hooks = EntrypointHook.get_entrypoints()
+        hooks = EntrypointHook.get_loaded_entrypoints()
         self.assertNotIn(
             MOCK_HOOK + '_invalid', [ep.name for ep in hooks], "Invalid hook should not be registered"
         )
 
         # Check that the invalid easyblock is not registered
-        easyblocks = EntrypointEasyblock.get_entrypoints()
+        easyblocks = EntrypointEasyblock.get_loaded_entrypoints()
         self.assertNotIn(
             MOCK_EASYBLOCK + '_invalid', [ep.name for ep in easyblocks], "Invalid easyblock should not be registered"
         )
 
         # Check that the invalid toolchain is not registered
-        toolchains = EntrypointToolchain.get_entrypoints()
+        toolchains = EntrypointToolchain.get_loaded_entrypoints()
         self.assertNotIn(
             MOCK_TOOLCHAIN + '_invalid', [ep.name for ep in toolchains], "Invalid toolchain should not be registered"
         )

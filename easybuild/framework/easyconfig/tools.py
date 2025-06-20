@@ -800,7 +800,7 @@ def avail_easyblocks():
                     else:
                         raise EasyBuildError("Failed to determine easyblock class name for %s", easyblock_loc)
 
-    ept_eb_lst = EntrypointEasyblock.get_entrypoints()
+    ept_eb_lst = EntrypointEasyblock.get_loaded_entrypoints()
 
     for ept_eb in ept_eb_lst:
         easyblocks[ept_eb.module] = {

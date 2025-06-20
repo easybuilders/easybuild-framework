@@ -10,61 +10,39 @@ from easybuild.tools.config import build_option
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
+from typing import TypeVar, List, Callable, Set, Any
+
+_T = TypeVar('_T')
 
 
 HAVE_ENTRY_POINTS = False
 HAVE_ENTRY_POINTS_CLS = False
 if sys.version_info >= (3, 8):
     HAVE_ENTRY_POINTS = True
-    from importlib.metadata import entry_points
+    from importlib.metadata import entry_points, EntryPoint
+else:
+    EntryPoint = Any
 
 if sys.version_info >= (3, 10):
     # Python >= 3.10 uses importlib.metadata.EntryPoints as a type for entry_points()
     HAVE_ENTRY_POINTS_CLS = True
 
 
-EASYBLOCK_ENTRYPOINT = "easybuild.easyblock"
-TOOLCHAIN_ENTRYPOINT = "easybuild.toolchain"
-HOOKS_ENTRYPOINT = "easybuild.hooks"
-
 _log = fancylogger.getLogger('entrypoints', fname=False)
 
 
-def get_group_entrypoints(group: str):
-    """Get all entrypoints for a group"""
-    strict_python = True
-    use_eps = build_option('use_entrypoints', default=None)
-    if use_eps is None:
-        # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
-        use_eps = True
-        # Needed to work with older Python versions: do not raise errors when entry points are default enabled
-        strict_python = False
-    res = set()
-    if use_eps:
-        if not HAVE_ENTRY_POINTS:
-            if strict_python:
-                msg = "`--use-entrypoints` requires importlib.metadata (Python >= 3.8)"
-                _log.warning(msg)
-                raise EasyBuildError(msg)
-            else:
-                _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
-        else:
-            if HAVE_ENTRY_POINTS_CLS:
-                res = set(entry_points(group=group))
-            else:
-                res = set(entry_points().get(group, []))
-
-    return res
-
-
 class EasybuildEntrypoint:
-    _group = None
+    group = None
     expected_type = None
     registered = {}
 
     def __init__(self):
-        self.wrapped = None
+        if self.group is None:
+            raise EasyBuildError(
+                "Cannot use <EasybuildEntrypoint> drirectly. Please use a subclass that defines `group`",
+            )
 
+        self.wrapped = None
         self.module = None
         self.name = None
         self.file = None
@@ -72,7 +50,7 @@ class EasybuildEntrypoint:
     def __repr__(self):
         return f"{self.__class__.__name__} <{self.module}:{self.name}>"
 
-    def __call__(self, wrap):
+    def __call__(self, wrap: _T) -> _T:
         """Use an instance of this class as a decorator to register an entrypoint."""
         if self.expected_type is not None:
             check = False
@@ -108,16 +86,39 @@ class EasybuildEntrypoint:
 
         return wrap
 
-    @property
-    def group(self):
-        if self._group is None:
-            raise EasyBuildError("Entrypoint group not set for %s", self.__class__.__name__)
-        return self._group
+    @classmethod
+    def retrieve_entrypoints(cls) -> Set[EntryPoint]:
+        """"Get all entrypoints in this group."""
+        strict_python = True
+        use_eps = build_option('use_entrypoints', default=None)
+        if use_eps is None:
+            # Default True needed to work with commands like --list-toolchains that do not initialize the BuildOptions
+            use_eps = True
+            # Needed to work with older Python versions: do not raise errors when entry points are default enabled
+            strict_python = False
+        res = set()
+        if use_eps:
+            if not HAVE_ENTRY_POINTS:
+                if strict_python:
+                    msg = "`--use-entrypoints` requires importlib.metadata (Python >= 3.8)"
+                    _log.warning(msg)
+                    raise EasyBuildError(msg)
+                else:
+                    _log.debug("`get_group_entrypoints` called before BuildOptions initialized, with python < 3.8")
+            else:
+                if HAVE_ENTRY_POINTS_CLS:
+                    res = set(entry_points(group=cls.group))
+                else:
+                    res = set(entry_points().get(cls.group, []))
+
+        return res
 
     @classmethod
-    def get_entrypoints(cls, name=None, **filter_params):
-        """Get all entrypoints in this group."""
-        for ep in get_group_entrypoints(cls._group):
+    def load_entrypoints(cls):
+        """Load all the entrypoints in this group. This is needed for the modules contining the entrypoints to be
+        actually imported in order to process the function decorators that will register them in the
+        `registered` dict."""
+        for ep in cls.retrieve_entrypoints():
             try:
                 ep.load()
             except Exception as e:
@@ -125,8 +126,13 @@ class EasybuildEntrypoint:
                 _log.warning(msg)
                 raise EasyBuildError(msg) from e
 
+    @classmethod
+    def get_loaded_entrypoints(cls: _T, name: str = None, **filter_params) -> List[_T]:
+        """Get all entrypoints in this group."""
+        cls.load_entrypoints()
+
         entrypoints = []
-        for ep in cls.registered.get(cls._group, []):
+        for ep in cls.registered.get(cls.group, []):
             cond = name is None or ep.name == name
             for key, value in filter_params.items():
                 cond = cond and getattr(ep, key, None) == value
@@ -149,7 +155,7 @@ class EasybuildEntrypoint:
 
 class EntrypointHook(EasybuildEntrypoint):
     """Class to represent a hook entrypoint."""
-    _group = HOOKS_ENTRYPOINT
+    group = 'easybuild.hooks'
 
     def __init__(self, step, pre_step=False, post_step=False, priority=0):
         """Initialize the EntrypointHook."""
@@ -180,7 +186,7 @@ class EntrypointHook(EasybuildEntrypoint):
 
 class EntrypointEasyblock(EasybuildEntrypoint):
     """Class to represent an easyblock entrypoint."""
-    _group = EASYBLOCK_ENTRYPOINT
+    group = 'easybuild.easyblock'
 
     def __init__(self):
         super().__init__()
@@ -191,7 +197,7 @@ class EntrypointEasyblock(EasybuildEntrypoint):
 
 class EntrypointToolchain(EasybuildEntrypoint):
     """Class to represent a toolchain entrypoint."""
-    _group = TOOLCHAIN_ENTRYPOINT
+    group = 'easybuild.toolchain'
 
     def __init__(self, prepend=False):
         super().__init__()
