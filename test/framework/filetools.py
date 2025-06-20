@@ -557,6 +557,21 @@ class FileToolsTest(EnhancedTestCase):
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)
 
+        ft.remove_file(target_location)
+
+        # with max attempts set to 0, nothing gets downloaded
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=0)
+        self.assertEqual(res, None)
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 0)
+
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=3, initial_wait_time=5)
+        self.assertEqual(res, target_location, "'download' of local file works")
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 1)
+
         # non-existing files result in None return value
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
@@ -918,10 +933,7 @@ class FileToolsTest(EnhancedTestCase):
 
         utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
         txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
-        if sys.version_info[0] == 3:
-            txt_decoded = txt.decode('utf-8')
-        else:
-            txt_decoded = txt
+        txt_decoded = txt.decode('utf-8')
         # Must work as binary and string
         ft.write_file(utf8_file, txt)
         self.assertEqual(ft.read_file(utf8_file), txt_decoded)
@@ -1616,9 +1628,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(testfile, testtxt)
         ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
         txt = ft.read_file(testfile)
-        if sys.version_info[0] == 3:
-            testtxt = testtxt.decode('utf-8')
-        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
+        self.assertEqual(txt, testtxt.decode('utf-8').replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -1878,6 +1888,12 @@ class FileToolsTest(EnhancedTestCase):
 
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+        # Passing an option works
+        with self.mocked_stdout_stderr():
+            ft.apply_patch(toy_patch_gz, path, options=' --reverse')
+        # Change was really removed
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
 
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
@@ -2534,12 +2550,24 @@ class FileToolsTest(EnhancedTestCase):
         """Test remove_file, remove_dir and join remove functions."""
         testfile = os.path.join(self.test_prefix, 'foo')
         test_dir = os.path.join(self.test_prefix, 'test123')
+        test_link = os.path.join(self.test_prefix, 'foolink')
 
         for remove_file_function in (ft.remove_file, ft.remove):
             ft.write_file(testfile, 'bar')
             self.assertExists(testfile)
+            # remove symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
+            # remove file
             remove_file_function(testfile)
             self.assertNotExists(testfile)
+            # remove broken symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
 
         for remove_dir_function in (ft.remove_dir, ft.remove):
             ft.mkdir(test_dir)
@@ -3358,7 +3386,7 @@ class FileToolsTest(EnhancedTestCase):
         reference_checksum_txz = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
         reference_checksum_tar = "6e902e77925ab2faeef8377722434d4482f1fcc74af958c984c3f22509ae5084"
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+        if sys.version_info >= (3, 9):
             # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
             # due to changes introduced in python/cpython#90021
             self.assertNotEqual(unreprod_txz_chksum, reference_checksum_txz)

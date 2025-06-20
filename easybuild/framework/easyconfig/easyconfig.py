@@ -842,7 +842,7 @@ class EasyConfig:
 
         # No need to resolve templates as we only need a count not the names
         with self.disable_templating():
-            cnt = len(self['sources']) + len(self['patches'])
+            cnt = sum(len(self[k]) for k in ['data_sources', 'sources', 'patches'])
             exts = self['exts_list']
 
         for ext in exts:
@@ -1975,17 +1975,22 @@ class EasyConfig:
                 res[key] = value
         return res
 
-    def get_cuda_cc_template_value(self, key):
+    def get_cuda_cc_template_value(self, key, required=True):
         """
         Get template value based on --cuda-compute-capabilities EasyBuild configuration option
         and cuda_compute_capabilities easyconfig parameter.
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
+
+        :param required: If False and the key is not found, return an empty string instead of raising an error.
         """
         if key.startswith('cuda_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
             try:
                 return self.template_values[key]
             except KeyError:
+                if not required:
+                    self.log.debug(f'Key {key} not found in template values, returning empty value')
+                    return ''
                 error_msg = "Template value '%s' is not defined!\n"
                 error_msg += "Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
                 error_msg += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."

@@ -4197,10 +4197,10 @@ class EasyConfigTest(EnhancedTestCase):
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_sha256, toy_ec_txt)
-        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
+        passing_test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-ok.eb')
-        write_file(test_ec, test_ec_txt)
+        write_file(test_ec, passing_test_ec_txt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
         ecs = [ec['ec'] for ec in ecs]
 
@@ -4235,6 +4235,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
         self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
+
+        # Extension with nosource: True
+        test_ec_txt = passing_test_ec_txt + "exts_list = [('bar', '0.0', { 'nosource': True })]"
+        toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-nosource.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+        self.assertEqual(check_sha256_checksums(ecs), [])
 
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
@@ -5081,6 +5090,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)

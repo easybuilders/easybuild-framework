@@ -2068,7 +2068,9 @@ class RunTest(EnhancedTestCase):
                     print("pre-run hook '%s' in %s" % (cmd, work_dir))
                     import sys
                     sys.stderr.write('pre-run hook done\\n')
-                if not cmd.startswith('echo'):
+                print("command is allowed to fail: %s" % kwargs.get('fail_on_error', 'NOT AVAILABLE'))
+                print("command is hidden: %s" % kwargs.get('hidden', 'NOT AVAILABLE'))
+                if cmd != 'false' and not cmd.startswith('echo'):
                     cmds = cmd.split(';')
                     return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
 
@@ -2081,6 +2083,8 @@ class RunTest(EnhancedTestCase):
                 else:
                     msg = "post-run hook '%s'" % cmd
                 msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                msg += "\\ncommand was allowed to fail: %s" % kwargs.get('fail_on_error', 'NOT AVAILABLE')
+                msg += "\\ncommand was hidden: %s" % kwargs.get('hidden', 'NOT AVAILABLE')
                 print(msg)
         """)
         write_file(hooks_file, hooks_file_txt)
@@ -2095,7 +2099,11 @@ class RunTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             f"pre-run hook 'make' in {cwd}",
+            "command is allowed to fail: True",
+            "command is hidden: False",
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            "command was allowed to fail: True",
+            "command was hidden: False",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
@@ -2109,6 +2117,8 @@ class RunTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             "pre-run hook 'make' in %s" % cwd,
+            "command is allowed to fail: True",
+            "command is hidden: False",
             '  running shell command "echo make"',
             '  (in %s)' % cwd,
             '',
@@ -2125,6 +2135,24 @@ class RunTest(EnhancedTestCase):
 
         regex = re.compile('>> running shell command:\n\techo make', re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        with self.mocked_stdout_stderr():
+            # run_shell_cmd will raise RunShellCmdError which we don't care about here,
+            # we just want to verify that the post_run_shell_cmd_hook has run
+            try:
+                run_shell_cmd("false")
+            except RunShellCmdError:
+                pass
+            stdout = self.get_stdout()
+
+        expected_end = '\n'.join([
+            '',
+            "post-run hook 'false' (exit code: 1, output: '')",
+            "command was allowed to fail: True",
+            "command was hidden: False",
+            '',
+        ])
+        self.assertTrue(stdout.endswith(expected_end), f"Stdout should end with '{expected_end}': {stdout}")
 
     def test_run_shell_cmd_delete_cwd(self):
         """

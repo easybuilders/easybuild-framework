@@ -62,7 +62,7 @@ GROUPED_PARAMS = [
     ['name', 'version', 'versionprefix', 'versionsuffix'],
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
-    ['source_urls', 'sources', 'patches', 'checksums'],
+    ['source_urls', 'sources', 'data_sources', 'patches', 'checksums'],
     DEPENDENCY_PARAMETERS + ['multi_deps'],
     ['osdependencies'],
     ['preconfigopts', 'configopts'],

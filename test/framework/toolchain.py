@@ -54,7 +54,7 @@ from easybuild.tools.modules import EnvironmentModules
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
-from easybuild.tools.toolchain.toolchain import env_vars_external_module
+from easybuild.tools.toolchain.toolchain import env_vars_external_module, RPATH_WRAPPERS_SUBDIR
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.toolchains.compiler.clang import Clang
 
@@ -3136,6 +3136,33 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
+
+    def test_toolchain_prepare_rpath_external(self):
+        """Test toolchain.prepare under --rpath with rpath_wrappers_dir argument"""
+
+        # put fake 'g++' command in place that just echos its arguments
+        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
+        write_file(fake_gxx, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gxx, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+
+        # export the wrappers to a target location
+        target_wrapper_dir = os.path.abspath(os.path.join(self.test_prefix, 'target'))
+        # enable --rpath for a toolchain so we test against it
+        init_config(build_options={'rpath': True, 'silent': True})
+        tc = self.get_toolchain('gompi', version='2018a')
+        tc.set_options({'rpath': True})
+        # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
+        with self.mocked_stdout_stderr():
+            tc.prepare(rpath_wrappers_dir=target_wrapper_dir)
+
+        # check that wrapper was created
+        target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
+        self.assertTrue(os.path.exists(target_wrapper))
+        # Make sure it is a wrapper
+        self.assertTrue(b'rpath_args.py $CMD' in read_file(target_wrapper, mode='rb'))
+        # Make sure it wraps our fake 'g++'
+        self.assertTrue(fake_gxx.encode(encoding="utf-8") in read_file(target_wrapper, mode='rb'))
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
