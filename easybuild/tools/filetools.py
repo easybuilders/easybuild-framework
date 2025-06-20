@@ -376,6 +376,40 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove file %s: %s", path, err)
 
 
+def empty_dir(path):
+    """Empty directory at specified path, keeping directory itself intact."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                for item in os.listdir(path):
+                    subpath = os.path.join(path, item)
+                    if os.path.isfile(subpath) or os.path.islink(subpath):
+                        os.remove(subpath)
+                    elif os.path.isdir(subpath):
+                        shutil.rmtree(subpath)
+                ok = True
+            except OSError as err:
+                _log.debug("Failed to empty path %s at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True, ignore_root=True)
+        if ok:
+            _log.info("Path %s successfully emptied." % path)
+        else:
+            raise EasyBuildError("Failed to empty directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
+
+
 def remove_dir(path):
     """Remove directory at specified path."""
     # early exit in 'dry run' mode
@@ -1858,7 +1892,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False):
+                       group_id=None, relative=True, ignore_errors=False, ignore_root=False):
     """
     Change permissions for specified path, using specified permission bits
 
@@ -1870,16 +1904,24 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     :param relative: add/remove permissions relative to current permissions (if False, hard set specified permissions)
     :param ignore_errors: ignore errors that occur when changing permissions
                           (up to a maximum ratio specified by --max-fail-ratio-adjust-permissions configuration option)
+    :param ignore_root: don’t change the permissions of the root path (provided_path)
 
     Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
 
+    if not recursive and ignore_root:
+        _log.info("Not adjusting permissions for %s (no recursion and ignoring root)", provided_path)
+        return
+
     provided_path = os.path.abspath(provided_path)
 
     if recursive:
         _log.info("Adjusting permissions recursively for %s", provided_path)
-        allpaths = [provided_path]
+        if ignore_root:
+            allpaths = []
+        else:
+            allpaths = [provided_path]
         for root, dirs, files in os.walk(provided_path):
             paths = []
             if not onlydirs:
@@ -1952,7 +1994,7 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     if failed_paths:
         raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err_msg)
 
-    # we ignore some errors, but if there are to many, something is definitely wrong
+    # we ignore some errors, but if there are too many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
     if fail_ratio > max_fail_ratio:
