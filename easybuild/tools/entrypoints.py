@@ -10,7 +10,7 @@ from easybuild.tools.config import build_option
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from typing import TypeVar, List, Callable, Set, Any
+from typing import TypeVar, List, Set, Any
 
 _T = TypeVar('_T')
 
@@ -169,6 +169,9 @@ class EntrypointHook(EasybuildEntrypoint):
         """Validate the hook entrypoint."""
         from easybuild.tools.hooks import KNOWN_HOOKS, HOOK_SUFF, PRE_PREF, POST_PREF
         super().validate()
+
+        if not callable(self.wrapped):
+            raise EasyBuildError("Hook entrypoint `%s` is not callable", self.wrapped)
 
         prefix = ''
         if self.pre_step:

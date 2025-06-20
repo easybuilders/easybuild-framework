@@ -251,7 +251,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
         res = hook(*args, **kwargs)
 
-    entrypoint_hooks = EntrypointHook.get_loaded_entrypoints(step=label, pre_step=pre_step_hook, post_step=post_step_hook)
+    entrypoint_hooks = EntrypointHook.get_loaded_entrypoints(
+        step=label, pre_step=pre_step_hook, post_step=post_step_hook
+    )
     if entrypoint_hooks:
         msg = "Running entry point %s hook..." % label
         if build_option('debug') and not build_option('silence_hook_trigger'):
