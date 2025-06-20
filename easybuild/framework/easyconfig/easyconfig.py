@@ -2041,7 +2041,7 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                           class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
-                eb_from_eps = EntrypointEasyblock.get_entrypoints(name=easyblock)
+                eb_from_eps = EntrypointEasyblock.get_loaded_entrypoints(name=easyblock)
                 if eb_from_eps:
                     ep = eb_from_eps[0]
                     cls = ep.wrapped

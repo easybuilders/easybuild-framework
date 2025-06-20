@@ -1671,7 +1671,7 @@ class EasyBuildOptions(GeneralOption):
                 ('Easyblock', EntrypointEasyblock),
                 ('Toolchain', EntrypointToolchain),
             ]:
-                ept_list = cls.get_entrypoints()
+                ept_list = cls.retrieve_entrypoints()
                 if ept_list:
                     print()
                     print("%ss from entrypoints (%d):" % (prefix, len(ept_list)))
