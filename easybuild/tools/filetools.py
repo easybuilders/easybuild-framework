@@ -402,7 +402,7 @@ def empty_dir(path):
                 errors.append(err)
                 time.sleep(2)
                 # make sure write permissions are enabled on entire directory
-                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True, ignore_root=True)
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
         if ok:
             _log.info("Path %s successfully emptied." % path)
         else:
@@ -1892,7 +1892,7 @@ def convert_name(name, upper=False):
 
 
 def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False, onlydirs=False, recursive=True,
-                       group_id=None, relative=True, ignore_errors=False, ignore_root=False):
+                       group_id=None, relative=True, ignore_errors=False):
     """
     Change permissions for specified path, using specified permission bits
 
@@ -1904,24 +1904,16 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     :param relative: add/remove permissions relative to current permissions (if False, hard set specified permissions)
     :param ignore_errors: ignore errors that occur when changing permissions
                           (up to a maximum ratio specified by --max-fail-ratio-adjust-permissions configuration option)
-    :param ignore_root: don’t change the permissions of the root path (provided_path)
 
     Add or remove (if add is False) permission_bits from all files (if onlydirs is False)
     and directories (if onlyfiles is False) in path
     """
 
-    if not recursive and ignore_root:
-        _log.info("Not adjusting permissions for %s (no recursion and ignoring root)", provided_path)
-        return
-
     provided_path = os.path.abspath(provided_path)
 
     if recursive:
         _log.info("Adjusting permissions recursively for %s", provided_path)
-        if ignore_root:
-            allpaths = []
-        else:
-            allpaths = [provided_path]
+        allpaths = [provided_path]
         for root, dirs, files in os.walk(provided_path):
             paths = []
             if not onlydirs:
