@@ -376,6 +376,40 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove file %s: %s", path, err)
 
 
+def empty_dir(path):
+    """Empty directory at specified path, keeping directory itself intact."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        return
+
+    if os.path.exists(path):
+        ok = False
+        errors = []
+        # Try multiple times to cater for temporary failures on e.g. NFS mounted paths
+        max_attempts = 3
+        for i in range(0, max_attempts):
+            try:
+                for item in os.listdir(path):
+                    subpath = os.path.join(path, item)
+                    if os.path.isfile(subpath) or os.path.islink(subpath):
+                        os.remove(subpath)
+                    elif os.path.isdir(subpath):
+                        shutil.rmtree(subpath)
+                ok = True
+            except OSError as err:
+                _log.debug("Failed to empty path %s at attempt %d: %s" % (path, i, err))
+                errors.append(err)
+                time.sleep(2)
+                # make sure write permissions are enabled on entire directory
+                adjust_permissions(path, stat.S_IWUSR, add=True, recursive=True)
+        if ok:
+            _log.info("Path %s successfully emptied." % path)
+        else:
+            raise EasyBuildError("Failed to empty directory %s even after %d attempts.\nReasons: %s",
+                                 path, max_attempts, errors)
+
+
 def remove_dir(path):
     """Remove directory at specified path."""
     # early exit in 'dry run' mode
@@ -1952,7 +1986,7 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     if failed_paths:
         raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err_msg)
 
-    # we ignore some errors, but if there are to many, something is definitely wrong
+    # we ignore some errors, but if there are too many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
     if fail_ratio > max_fail_ratio:
