@@ -1251,6 +1251,7 @@ class EasyBlock:
                     # empty the installation directory, but never remove it
                     empty_dir(dir_name)
                     self.log.info("Emptied old directory %s", dir_name)
+                    set_gid_sticky_bits(dir_name, set_gid, sticky, recursive=True)
                 else:
                     remove_dir(dir_name)
                     self.log.info("Removed old directory %s", dir_name)
