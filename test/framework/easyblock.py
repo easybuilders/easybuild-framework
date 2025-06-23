@@ -1970,7 +1970,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.src[0]['cmd'], None)
 
         reference_checksum = "00000000"
-        if sys.version_info[0] < (3, 9):
+        if sys.version_info < (3, 9):
             # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
             # due to changes introduced in python/cpython#90021
             reference_checksum = None
