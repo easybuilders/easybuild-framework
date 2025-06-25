@@ -115,15 +115,15 @@ TEMPLATE_NAMES_DYNAMIC = {
 TEMPLATE_CONSTANTS = {
     # source url constants
     'APACHE_SOURCE': ('https://archive.apache.org/dist/%(namelower)s',
-                      'apache.org source url'),
+                      'apache.org source URL'),
     'BITBUCKET_SOURCE': ('https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/get',
-                         'bitbucket.org source url '
+                         'bitbucket.org source URL '
                          '(namelower is used if bitbucket_account easyconfig parameter is not specified)'),
     'BITBUCKET_DOWNLOADS': ('https://bitbucket.org/%(bitbucket_account)s/%(namelower)s/downloads',
-                            'bitbucket.org downloads url '
+                            'bitbucket.org downloads URL '
                             '(namelower is used if bitbucket_account easyconfig parameter is not specified)'),
     'CRAN_SOURCE': ('https://cran.r-project.org/src/contrib',
-                    'CRAN (contrib) source url'),
+                    'CRAN (contrib) source URL'),
     'FTPGNOME_SOURCE': ('https://ftp.gnome.org/pub/GNOME/sources/%(namelower)s/%(version_major_minor)s',
                         'http download for gnome ftp server'),
     'GITHUB_SOURCE': ('https://github.com/%(github_account)s/%(name)s/archive',
@@ -139,33 +139,36 @@ TEMPLATE_CONSTANTS = {
                              'GitHub release URL with lowercase name (if github_account easyconfig '
                              'parameter is not specified, namelower is used in its place)'),
     'GNU_SAVANNAH_SOURCE': ('https://download-mirror.savannah.gnu.org/releases/%(namelower)s',
-                            'download.savannah.gnu.org source url'),
-    'GNU_SOURCE': ('https://ftpmirror.gnu.org/gnu/%(namelower)s',
-                   'gnu.org source url (ftp mirror)'),
-    'GNU_FTP_SOURCE': ('https://ftp.gnu.org/gnu/%(namelower)s',
-                       'gnu.org source url (main ftp)'),
+                            'download.savannah.gnu.org source URL'),
+    'GNU_FTP_URLS': (['https://ftpmirror.gnu.org/gnu/%(namelower)s', 'https://ftp.gnu.org/gnu/%(namelower)s'],
+                     'gnu.org source URLs (ftp mirror and main)'),
     'GOOGLECODE_SOURCE': ('http://%(namelower)s.googlecode.com/files',
-                          'googlecode.com source url'),
+                          'googlecode.com source URL'),
     'LAUNCHPAD_SOURCE': ('https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
-                         'launchpad.net source url'),
+                         'launchpad.net source URL'),
     'PYPI_SOURCE': ('https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
-                    'pypi source url'),  # e.g., Cython, Sphinx
+                    'pypi source URL'),  # e.g., Cython, Sphinx
     'PYPI_LOWER_SOURCE': ('https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
-                          'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
+                          'pypi source URL (lowercase name)'),  # e.g., Greenlet, PyZMQ
     'R_SOURCE': ('https://cran.r-project.org/src/base/R-%(version_major)s',
-                 'cran.r-project.org (base) source url'),
+                 'cran.r-project.org (base) source URL'),
     'SOURCEFORGE_SOURCE': ('https://download.sourceforge.net/%(namelower)s',
-                           'sourceforge.net source url'),
-    'XORG_DATA_SOURCE': ('https://xorg.freedesktop.org/archive/individual/data/',
-                         'xorg data source url'),
-    'XORG_LIB_SOURCE': ('https://xorg.freedesktop.org/archive/individual/lib/',
-                        'xorg lib source url'),
-    'XORG_PROTO_SOURCE': ('https://xorg.freedesktop.org/archive/individual/proto/',
-                          'xorg proto source url'),
-    'XORG_UTIL_SOURCE': ('https://xorg.freedesktop.org/archive/individual/util/',
-                         'xorg util source url'),
-    'XORG_XCB_SOURCE': ('https://xorg.freedesktop.org/archive/individual/xcb/',
-                        'xorg xcb source url'),
+                           'sourceforge.net source URL'),
+    'XORG_DATA_URLS': (['https://www.x.org/archive/individual/data/',
+                        'https://xorg.freedesktop.org/archive/individual/data/'],
+                       'xorg data source URLs'),
+    'XORG_LIB_URLS': (['https://www.x.org/archive/individual/lib/',
+                       'https://xorg.freedesktop.org/archive/individual/lib/'],
+                      'xorg lib source URLs'),
+    'XORG_PROTO_URLS': (['https://www.x.org/archive/individual/proto/',
+                         'https://xorg.freedesktop.org/archive/individual/proto/'],
+                        'xorg proto source URLs'),
+    'XORG_UTIL_URLS': (['https://www.x.org/archive/individual/util/',
+                        'https://xorg.freedesktop.org/archive/individual/util/'],
+                       'xorg util source URLs'),
+    'XORG_XCB_URLS': (['https://www.x.org/archive/individual/xcb/',
+                       'https://xorg.freedesktop.org/archive/individual/xcb/'],
+                      'xorg xcb source URLs'),
 
     # TODO, not urgent, yet nice to have:
     # CPAN_SOURCE GNOME KDE_I18N XCONTRIB DEBIAN KDE GENTOO TEX_CTAN MOZILLA_ALL
@@ -224,19 +227,12 @@ ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
     'GITHUB_RELEASE_URL': 'GITHUB_RELEASE',
     'GITHUB_RELEASE_URL_LOWER': 'GITHUB_LOWER_RELEASE',
     'GNU_SAVANNAH_URL': 'GNU_SAVANNAH_SOURCE',
-    'GNU_FTP_URL': 'GNU_FTP_SOURCE',
-    'GNU_URL': 'GNU_SOURCE',
     'GOOGLECODE_URL': 'GOOGLECODE_SOURCE',
     'LAUNCHPAD_URL': 'LAUNCHPAD_SOURCE',
     'PYPI_URL': 'PYPI_SOURCE',
     'PYPI_URL_LOWER': 'PYPI_LOWER_SOURCE',
     'R_URL': 'R_SOURCE',
     'SOURCEFORGE_URL': 'SOURCEFORGE_SOURCE',
-    'XORG_DATA_URL': 'XORG_DATA_SOURCE',
-    'XORG_LIB_URL': 'XORG_LIB_SOURCE',
-    'XORG_PROTO_URL': 'XORG_PROTO_SOURCE',
-    'XORG_UTIL_URL': 'XORG_UTIL_SOURCE',
-    'XORG_XCB_URL': 'XORG_XCB_SOURCE',
     'SOURCE_LOWER_TAR_GZ': 'SOURCELOWER_TAR_GZ',
     'SOURCE_LOWER_TAR_XZ': 'SOURCELOWER_TAR_XZ',
     'SOURCE_LOWER_TAR_BZ2': 'SOURCELOWER_TAR_BZ2',
@@ -257,6 +253,13 @@ ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
 # deprecated template constants, and their replacements
 DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS = {
     # <old_template_constant>: (<new_template_constant>, <deprecation_version>),
+    'GNU_FTP_SOURCE': ('GNU_FTP_URLS', '6.0'),
+    'GNU_SOURCE': ('GNU_FTP_URLS', '6.0'),
+    'XORG_DATA_SOURCE': ('XORG_DATA_URLS', '6.0'),
+    'XORG_LIB_SOURCE': ('XORG_LIB_URLS', '6.0'),
+    'XORG_PROTO_SOURCE': ('XORG_PROTO_URLS', '6.0'),
+    'XORG_UTIL_SOURCE': ('XORG_PROTO_URLS', '6.0'),
+    'XORG_XCB_SOURCE': ('XORG_XCB_SOURCE', '6.0'),
 }
 
 EXTENSIONS = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
