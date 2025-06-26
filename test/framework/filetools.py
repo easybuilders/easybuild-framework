@@ -2546,6 +2546,40 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(stderr)
         self.assertFalse(stdout)
 
+    def test_empty_dir(self):
+        """Test empty_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.empty_dir(test_dir)
+        self.assertExists(test_dir)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+
+        # also test behaviour under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        ft.mkdir(test_dir)
+        ft.empty_dir(test_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile("^directory [^ ]* emptied$")
+        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' found in: {txt}")
+
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
         testfile = os.path.join(self.test_prefix, 'foo')

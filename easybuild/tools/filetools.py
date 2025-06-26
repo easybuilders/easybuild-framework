@@ -380,7 +380,7 @@ def empty_dir(path):
     """Empty directory at specified path, keeping directory itself intact."""
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
-        dry_run_msg("directory %s removed" % path, silent=build_option('silent'))
+        dry_run_msg("directory %s emptied" % path, silent=build_option('silent'))
         return
 
     if os.path.exists(path):
