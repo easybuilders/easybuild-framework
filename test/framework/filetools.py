@@ -2554,7 +2554,7 @@ class FileToolsTest(EnhancedTestCase):
         test_link = os.path.join(test_dir, 'foolink')
         test_subdir = os.path.join(test_dir, 'foodir')
 
-        ft.mkdir(test_subdir)
+        ft.mkdir(test_subdir, parents=True)
         ft.write_file(testfile, 'bar')
         ft.write_file(testfile_hidden, 'bar')
         ft.symlink(testfile, test_link)
