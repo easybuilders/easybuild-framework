@@ -5126,8 +5126,6 @@ def build_and_install_one(ecdict, init_env):
             except EasyBuildError as err:
                 _log.warning("Unable to commit easyconfig to repository: %s", err)
 
-        run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
-
         # cleanup logs
         app.close_log()
 
@@ -5200,6 +5198,8 @@ def build_and_install_one(ecdict, init_env):
 
     if not success:
         copy_build_dirs_logs_failed_install(application_log, silent, app, ecdict['ec'])
+
+    run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
 
     del app
 
