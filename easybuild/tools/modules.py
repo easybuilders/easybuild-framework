@@ -1120,12 +1120,12 @@ class ModulesTool:
             if allow_reload or mod not in loaded_modules:
                 self.run_module('load', mod)
 
-    def unload(self, modules=None):
+    def unload(self, modules, silent=False):
         """
         Unload all requested modules.
         """
         for mod in modules:
-            self.run_module('unload', mod)
+            self.run_module('unload', mod, silent=silent)
 
     def purge(self):
         """
@@ -1188,9 +1188,9 @@ class ModulesTool:
 
         return modpath
 
-    def set_path_env_var(self, key, paths):
+    def set_path_env_var(self, key, paths, silent=False):
         """Set path environment variable to the given list of paths."""
-        setvar(key, os.pathsep.join(paths), verbose=False)
+        setvar(key, os.pathsep.join(paths), verbose=False, log_changes=not silent)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1249,6 +1249,7 @@ class ModulesTool:
                 self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                                key, old_value, new_value)
 
+        silent = kwargs.get('silent', False)
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
