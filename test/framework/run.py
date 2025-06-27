@@ -448,9 +448,10 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         regex_start_cmd = re.compile("Running shell command 'echo hello' in /")
-        regex_cmd_exit = re.compile(r"Shell command completed successfully \(see output above\): echo hello")
+        regex_cmd_exit = re.compile(r"Shell command completed successfully: echo hello")
+        regex_cmd_output = re.compile(r"Output of 'echo \.\.\.' shell command \(stdout \+ stderr\):\nhello", re.M)
 
-        # command output is always logged
+        # command output is logged
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("echo hello")
@@ -460,6 +461,30 @@ class RunTest(EnhancedTestCase):
         logtxt = read_file(logfile)
         self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
         self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 1)
+        write_file(logfile, '')
+
+        # command output can be suppressed
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello", hide_output_on_success=True)
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 0)
+        write_file(logfile, '')
+        # But is shown on error
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello && false", hide_output_on_success=True, fail_on_error=False)
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 1)
+        self.assertEqual(res.output, 'hello\n')
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 1)
         write_file(logfile, '')
 
         # with debugging enabled, exit code and output of command should only get logged once
@@ -473,6 +498,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
         self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_output.findall(read_file(logfile))), 1)
         write_file(logfile, '')
 
     def test_run_cmd_negative_exit_code(self):
