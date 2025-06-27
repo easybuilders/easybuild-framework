@@ -5144,7 +5144,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
                 # copy patches
-                for patch in app.patches:
+                patches = app.patches
+                for ext in app.exts:
+                    patches += ext.get('patches', [])
+                for patch in patches:
                     target = os.path.join(new_log_dir, os.path.basename(patch['path']))
                     copy_file(patch['path'], target)
                     _log.debug("Copied patch %s to %s", patch['path'], target)
