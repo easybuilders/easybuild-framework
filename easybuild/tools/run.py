@@ -360,7 +360,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100):
+                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100, hide_output_on_success=False):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
@@ -607,15 +607,18 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     # always log command output
     cmd_name = cmd_str.split(' ')[0]
     if split_stderr:
-        _log.info(f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}")
-        _log.info(f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}")
+        log_msg = f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}\n"
+        log_msg += f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}"
     else:
-        _log.info(f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}")
+        log_msg = f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}"
 
     if res.exit_code == EasyBuildExit.SUCCESS:
-        _log.info(f"Shell command completed successfully (see output above): {cmd_str}")
+        _log.info(f"Shell command completed successfully: {cmd_str}")
+        if not hide_output_on_success:
+            _log.info(log_msg)
     else:
-        _log.warning(f"Shell command FAILED (exit code {res.exit_code}, see output above): {cmd_str}")
+        _log.warning(f"Shell command FAILED (exit code {res.exit_code}): {cmd_str}")
+        _log.info(log_msg)
         if fail_on_error:
             raise_run_shell_cmd_error(res)
 
