@@ -5119,7 +5119,10 @@ def build_and_install_one(ecdict, init_env):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                for patch in app.patches:
+                patches = app.patches
+                for ext in app.exts:
+                    patches += ext.get('patches', [])
+                for patch in patches:
                     repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
@@ -5142,7 +5145,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
                 # copy patches
-                for patch in app.patches:
+                patches = app.patches
+                for ext in app.exts:
+                    patches += ext.get('patches', [])
+                for patch in patches:
                     target = os.path.join(new_log_dir, os.path.basename(patch['path']))
                     copy_file(patch['path'], target)
                     _log.debug("Copied patch %s to %s", patch['path'], target)
