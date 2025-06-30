@@ -1129,9 +1129,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'boegel')
+        self.assertEqual(repo, 'easybuild-easyconfigs')
         self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
 
         init_config(build_options={

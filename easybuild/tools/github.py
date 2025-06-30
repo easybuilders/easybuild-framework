@@ -2190,11 +2190,12 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
     account = pr_data['head']['label'].split(':')[0]
+    repo = pr_data['head']['repo']['name']
     branch = ':'.join(pr_data['head']['label'].split(':')[1:])
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr_id, branch), log=_log)
 
-    return account, branch
+    return account, repo, branch
 
 
 def det_pr_target_repo(paths):
@@ -2291,7 +2292,7 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
             exit_code=EasyBuildExit.OPTION_ERROR
         )
 
-    github_account, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
+    github_account, _, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
 
     update_branch(branch_name, paths, ecs, github_account=github_account, commit_msg=commit_msg)
 
@@ -2883,18 +2884,18 @@ def sync_pr_with_develop(pr_id):
     target_account = build_option('pr_target_account')
     target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_account, pr_branch = det_account_branch_for_pr(pr_id)
+    pr_account, pr_repo, pr_branch = det_account_branch_for_pr(pr_id)
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, target_repo)
 
-    setup_repo(git_repo, pr_account, target_repo, pr_branch)
+    setup_repo(git_repo, pr_account, pr_repo, pr_branch)
 
     sync_with_develop(git_repo, pr_branch, target_account, target_repo)
 
     # push updated branch back to GitHub (unless we're doing a dry run)
-    return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)
+    return push_branch_to_github(git_repo, pr_account, pr_repo, pr_branch)
 
 
 def sync_branch_with_develop(branch_name):
