@@ -5032,7 +5032,9 @@ def build_and_install_one(ecdict, init_env):
             except EasyBuildError as err:
                 _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
 
-            # also add any extension easyblocks used during the build for reproducibility
+            # also add any component/extension easyblocks used during the build for reproducibility
+            if app.comp_instances:
+                copy_easyblocks_for_reprod([comp for cfg, comp in app.comp_instances], reprod_dir)
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
             # If not already done remove the granted write permissions if we did so
