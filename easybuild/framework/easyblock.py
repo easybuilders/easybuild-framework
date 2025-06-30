@@ -5123,7 +5123,8 @@ def build_and_install_one(ecdict, init_env):
                 for ext in app.exts:
                     patches += ext.get('patches', [])
                 for patch in patches:
-                    repo.add_patch(patch['path'], app.name)
+                    if 'path' in patch:
+                        repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError as err:
@@ -5149,9 +5150,10 @@ def build_and_install_one(ecdict, init_env):
                 for ext in app.exts:
                     patches += ext.get('patches', [])
                 for patch in patches:
-                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                    copy_file(patch['path'], target)
-                    _log.debug("Copied patch %s to %s", patch['path'], target)
+                    if 'path' in patch:
+                        target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                        copy_file(patch['path'], target)
+                        _log.debug("Copied patch %s to %s", patch['path'], target)
 
                 if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
