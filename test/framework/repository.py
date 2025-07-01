@@ -170,9 +170,12 @@ class RepositoryTest(EnhancedTestCase):
         shutil.rmtree(self.path, True)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RepositoryTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
