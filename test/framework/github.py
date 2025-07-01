@@ -1142,9 +1142,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-framework/pull/3069
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(repo, 'easybuild-framework')
         self.assertEqual(branch, 'fix_inject_checksums')
 
     def test_github_det_pr_target_repo(self):
