@@ -230,9 +230,12 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(UtilitiesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(UtilitiesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(UtilitiesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

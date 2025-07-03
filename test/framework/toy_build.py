@@ -1387,6 +1387,16 @@ class ToyBuildTest(EnhancedTestCase):
         fn = 'created-via-postinstallcmds.txt'
         self.assertExists(os.path.join(installdir, fn))
 
+        # make sure that patch file for extension was copied to 'easybuild' subdir in installation directory
+        easybuild_subdir = os.path.join(installdir, 'easybuild')
+        patches = sorted(os.path.basename(x) for x in glob.glob(os.path.join(easybuild_subdir, '*.patch')))
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+        ]
+        self.assertEqual(patches, expected_patches)
+
     def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -3654,12 +3664,19 @@ class ToyBuildTest(EnhancedTestCase):
 
             def parse_hook(ec):
                print('%s %s' % (ec.name, ec.version))
-            # print sources value to check that raw untemplated strings are exposed in parse_hook
+               # print sources value to check that raw untemplated strings are exposed in parse_hook
                print(ec['sources'])
-            # try appending to postinstallcmd to see whether the modification is actually picked up
-            # (required templating to be disabled before parse_hook is called)
+               # try appending to postinstallcmd to see whether the modification is actually picked up
+               # (required templating to be disabled before parse_hook is called)
                ec['postinstallcmds'].append('echo toy')
                print(ec['postinstallcmds'][-1])
+
+            def pre_build_and_install_loop_hook(ecs):
+                mod_names = ' '.join(ec['full_mod_name'] for ec in ecs)
+                print(f"installing {len(ecs)} easyconfigs: {mod_names}")
+
+            def pre_easyblock_hook(self):
+                print(f'starting installation of {self.name} {self.version}')
 
             def pre_configure_hook(self):
                 print('pre-configure: toy.source: %s' % os.path.exists('toy.source'))
@@ -3704,6 +3721,13 @@ class ToyBuildTest(EnhancedTestCase):
                     copy_file('toy', 'copy_of_toy')
                     change_dir(cwd)
                     print("'%s' command failed (exit code %s), but I fixed it!" % (cmd, exit_code))
+
+            def post_easyblock_hook(self):
+                print(f'done with installation of {self.name} {self.version}')
+
+            def post_build_and_install_loop_hook(ecs):
+                mod_names = ' '.join(ec[0]['full_mod_name'] for ec in ecs)
+                print(f"done with installing {len(ecs)} easyconfigs: {mod_names}")
         """)
         write_file(hooks_file, hooks_file_txt)
 
@@ -3741,6 +3765,8 @@ class ToyBuildTest(EnhancedTestCase):
             toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
+            installing 1 easyconfigs: toy/0.0
+            starting installation of toy 0.0
             pre-configure: toy.source: True
             post-configure: toy.source: False
             pre_run_shell_cmd_hook triggered for ' gcc toy.c -o toy '
@@ -3764,6 +3790,8 @@ class ToyBuildTest(EnhancedTestCase):
             in module-write hook hook for {mod_name}
             in module-write hook hook for {mod_name}
             in module-write hook hook for {mod_name}
+            done with installation of toy 0.0
+            done with installing 1 easyconfigs: toy/0.0
             end hook triggered, all done!
         """).strip().format(mod_name=os.path.basename(toy_mod_file))
         self.assertEqual(stdout.strip(), expected_output)
@@ -4982,9 +5010,12 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToyBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

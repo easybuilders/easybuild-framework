@@ -797,6 +797,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	start_hook",
             "	parse_hook",
             "	pre_build_and_install_loop_hook",
+            "	pre_easyblock_hook",
             "	pre_fetch_hook",
             "	post_fetch_hook",
             "	pre_ready_hook",
@@ -836,6 +837,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "	post_package_hook",
             "	pre_testcases_hook",
             "	post_testcases_hook",
+            "	post_easyblock_hook",
             "	post_build_and_install_loop_hook",
             "	end_hook",
             "	cancel_hook",
@@ -7461,9 +7463,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(CommandLineOptionsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

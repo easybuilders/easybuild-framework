@@ -730,8 +730,11 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(build_option('pr_target_account'), 'easybuilders')
 
 
-def suite():
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildConfigTest, sys.argv[1:])
+def suite(loader=None):
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBuildConfigTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

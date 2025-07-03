@@ -541,9 +541,12 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(TweakTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(TweakTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
