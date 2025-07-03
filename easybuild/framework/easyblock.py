@@ -4926,7 +4926,7 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
             msg = f"Build directory of failed installation copied to {build_dirs_path}"
 
             def operation(src, dest):
-                copy_dir(src, dest, dirs_exist_ok=True)
+                copy_dir(src, dest, dirs_exist_ok=True, symlinks=True)
 
             operation_args.append((operation, [app.builddir], build_dirs_path, msg))
 
