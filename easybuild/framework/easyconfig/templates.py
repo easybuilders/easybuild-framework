@@ -253,13 +253,13 @@ ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS = {
 # deprecated template constants, and their replacements
 DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS = {
     # <old_template_constant>: (<new_template_constant>, <deprecation_version>),
-    'GNU_FTP_SOURCE': ('GNU_FTP_URLS', '6.0'),
-    'GNU_SOURCE': ('GNU_FTP_URLS', '6.0'),
-    'XORG_DATA_SOURCE': ('XORG_DATA_URLS', '6.0'),
-    'XORG_LIB_SOURCE': ('XORG_LIB_URLS', '6.0'),
-    'XORG_PROTO_SOURCE': ('XORG_PROTO_URLS', '6.0'),
-    'XORG_UTIL_SOURCE': ('XORG_PROTO_URLS', '6.0'),
-    'XORG_XCB_SOURCE': ('XORG_XCB_SOURCE', '6.0'),
+    # 'GNU_FTP_SOURCE': ('GNU_FTP_URLS', '6.0'),
+    # 'GNU_SOURCE': ('GNU_FTP_URLS', '6.0'),
+    # 'XORG_DATA_SOURCE': ('XORG_DATA_URLS', '6.0'),
+    # 'XORG_LIB_SOURCE': ('XORG_LIB_URLS', '6.0'),
+    # 'XORG_PROTO_SOURCE': ('XORG_PROTO_URLS', '6.0'),
+    # 'XORG_UTIL_SOURCE': ('XORG_PROTO_URLS', '6.0'),
+    # 'XORG_XCB_SOURCE': ('XORG_XCB_SOURCE', '6.0'),
 }
 
 EXTENSIONS = ['tar.gz', 'tar.xz', 'tar.bz2', 'tgz', 'txz', 'tbz2', 'tb2', 'gtgz', 'zip', 'tar', 'xz', 'tar.Z']
