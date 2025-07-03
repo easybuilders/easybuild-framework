@@ -2043,15 +2043,16 @@ class EasyBlock:
                 # If parallel extension install is not supported for this type of extension then install sequentially
                 msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
                 self.log.info(msg)
-                self.install_extensions_sequential(install=install)
+                self.install_extensions_sequential(install=install, started_in_parallel=True)
         else:
             self.install_extensions_sequential(install=install)
 
-    def install_extensions_sequential(self, install=True):
+    def install_extensions_sequential(self, install=True, started_in_parallel=False):
         """
         Install extensions sequentially.
 
         :param install: actually install extensions, don't just prepare environment for installing
+        :param started_in_parallel: was install_extensions_parallel attempted before the sequential install
         """
         self.log.info("Installing extensions sequentially...")
 
@@ -2084,12 +2085,15 @@ class EasyBlock:
             if install and not self.dry_run:
                 with self.fake_module_environment(with_build_deps=True):
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-                    # don't reload modules for toolchain, there is no need
-                    # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs,
-                                          rpath_include_dirs=self.rpath_include_dirs,
-                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
+                    # we started setting up the environment for a parallel extension install
+                    # so redoing the prepare will break some extension installs
+                    if not started_in_parallel:
+                        # don't reload modules for toolchain, there is no need
+                        # since they will be loaded already by the fake module
+                        ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                              rpath_filter_dirs=self.rpath_filter_dirs,
+                                              rpath_include_dirs=self.rpath_include_dirs,
+                                              rpath_wrappers_dir=self.rpath_wrappers_dir)
                     try:
                         ext.install_extension_substep("pre_install_extension")
                         with self.module_generator.start_module_creation():
