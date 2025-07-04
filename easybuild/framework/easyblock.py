@@ -312,7 +312,7 @@ class EasyBlock:
         self._init_log()
 
         # number of iterations
-        self.iter_cnt = self.det_iter_cnt()
+        self.iter_cnt = -1
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -4793,6 +4793,7 @@ class EasyBlock:
         if self.cfg['stop'] == 'cfg':
             return True
 
+        self.iter_cnt = self.det_iter_cnt()
         steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.iter_cnt)
 
         # figure out how many steps will actually be run (not be skipped)
