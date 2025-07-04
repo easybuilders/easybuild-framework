@@ -38,6 +38,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 # At GCCcore level we do not allow OpenMP
 GCCCORE_BANNED_LIBRARIES = ['libgomp.so']
 
+
 class GCCcore(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
     NAME = 'GCCcore'
