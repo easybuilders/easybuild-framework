@@ -1542,13 +1542,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test with only one ec in the PR (final argument is taken as a filename)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        args = ['--copy-ec', '--from-pr', '22380', test_ec]
-        ec_pr22380 = "PySide2-5.14.2.3-GCCcore-10.2.0.eb"
+        args = ['--copy-ec', '--from-pr', '21465', test_ec]
+        ec_pr21465 = "EasyBuild-4.9.4.eb"
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/%s copied to %s' % (ec_pr22380, test_ec))
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr21465, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertExists(test_ec)
-        self.assertIn("name = 'PySide2'", read_file(test_ec))
+        self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
 
     def test_copy_ec_from_commit(self):
