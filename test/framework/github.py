@@ -254,11 +254,11 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(22380)
+        gh.add_pr_labels(21465)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
+        self.assertIn("Could not determine any missing labels for PR #21465", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
