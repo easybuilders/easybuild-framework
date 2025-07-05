@@ -4726,6 +4726,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=boegel',  # used to determine account to grab branch from (no GitHub token needed)
             toy_ec,
             '--pr-commit-msg="this is just a test"',
+            '--force',  # force required because we're using --pr-commit-msg when only adding new easyconfigs
             '-D',
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
