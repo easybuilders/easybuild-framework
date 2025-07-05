@@ -4878,19 +4878,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # modifying an existing easyconfig requires a custom PR title
+        # modifying an existing easyconfig requires a custom PR title;
+        # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
         gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
-        self.assertExists(gcc_ec)
+        gcc_new_ec = os.path.join(self.test_prefix, 'GCC-14.3.0.eb')
+        gcc_new_txt = read_file(gcc_ec).replace('10.2.0', '14.3.0')
+        write_file(gcc_new_ec, gcc_new_txt)
 
         args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
-            gcc_ec,
+            gcc_new_ec,
             '-D',
         ]
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
-        error_msg += "Modified: " + os.path.basename(gcc_ec)
+        error_msg += "Modified: " + os.path.basename(gcc_new_ec)
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
