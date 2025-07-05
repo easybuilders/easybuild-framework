@@ -4921,7 +4921,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
 
-        args.append('--pr-commit-msg="just a test"')
+        # force required because we're using --pr-commit-msg when only adding new easyconfigs
+        args.extend(['--pr-commit-msg="just a test"', '--force'])
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
