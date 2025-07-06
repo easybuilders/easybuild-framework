@@ -98,9 +98,9 @@ from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_a
 from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
 from easybuild.tools.filetools import remove_file, remove_lock, symlink, verify_checksum, weld_paths, write_file
 from easybuild.tools.hooks import (
-    BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP, MODULE_STEP,
-    MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP, READY_STEP,
-    SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
+    BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EASYBLOCK, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP,
+    MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
+    READY_STEP, SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
 )
 from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
@@ -311,6 +311,9 @@ class EasyBlock:
         # initialize logger
         self._init_log()
 
+        # number of iterations
+        self.iter_cnt = -1
+
         # try and use the specified group (if any)
         group_name = build_option('group')
         group_spec = self.cfg['group']
@@ -448,7 +451,7 @@ class EasyBlock:
         if checksum and chksum_input_git is not None:
             # ignore any checksum for given filename due to changes in https://github.com/python/cpython/issues/90021
             # tarballs made for git repos are not reproducible when created with Python < 3.9
-            if sys.version_info[0] >= 3 and sys.version_info[1] < 9:
+            if sys.version_info < (3, 9):
                 print_warning(
                     "Reproducible tarballs of Git repos are only possible when using Python 3.9+ to run EasyBuild. "
                     f"Skipping checksum verification of {chksum_input} since Python < 3.9 is used."
@@ -2387,7 +2390,8 @@ class EasyBlock:
                     self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
-                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                print_msg(f"starting iteration {self.iter_idx + 1}/{self.iter_cnt} ...", log=self.log,
+                          silent=self.silent)
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
@@ -2429,7 +2433,7 @@ class EasyBlock:
 
         # we need to take into account that builddependencies is always a list
         # we're only iterating over it if it's a list of lists
-        builddeps = self.cfg['builddependencies']
+        builddeps = self.cfg.get_ref('builddependencies')
         if all(isinstance(x, list) for x in builddeps):
             iter_opt_counts.append(len(builddeps))
 
@@ -2830,8 +2834,6 @@ class EasyBlock:
             self.log.info("Applying patch %s" % patch['name'])
             trace_msg("applying patch %s" % patch['name'])
 
-            # patch source at specified index (first source if not specified)
-            srcind = patch.get('source', 0)
             # if patch level is specified, use that (otherwise let apply_patch derive patch level)
             level = patch.get('level', None)
             # determine suffix of source path to apply patch in (if any)
@@ -2840,16 +2842,14 @@ class EasyBlock:
             copy_patch = 'copy' in patch and 'sourcepath' not in patch
             options = patch.get('opts', None)  # Extra options for patch command
 
-            self.log.debug("Source index: %s; patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
-                           srcind, level, srcpathsuffix, copy_patch, options)
+            self.log.debug("Patch level: %s; source path suffix: %s; copy patch: %s; options: %s",
+                           level, srcpathsuffix, copy_patch, options)
 
             if beginpath is None:
-                try:
-                    beginpath = self.src[srcind]['finalpath']
-                    self.log.debug("Determine begin path for patch %s: %s" % (patch['name'], beginpath))
-                except IndexError as err:
-                    raise EasyBuildError("Can't apply patch %s to source at index %s of list %s: %s",
-                                         patch['name'], srcind, self.src, err)
+                if not self.src:
+                    raise EasyBuildError("Can't apply patch %s to source if no sources are given", patch['name'])
+                beginpath = self.src[0]['finalpath']
+                self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
             else:
                 self.log.debug("Using specified begin path for patch %s: %s" % (patch['name'], beginpath))
 
@@ -4662,8 +4662,11 @@ class EasyBlock:
         run_hook(step, self.hooks, pre_step_hook=True, args=[self])
 
         for step_method in step_methods:
+            # step_method is a lambda function that takes an EasyBlock instance as an argument,
+            # and returns the actual method
+            current_method = step_method(self)
             # Remove leading underscore from e.g. "_test_step"
-            method_name = '_'.join(step_method.__code__.co_names).lstrip('_')
+            method_name = current_method.__name__.lstrip('_')
             self.log.info("Running method %s part of step %s", method_name, step)
 
             if self.dry_run:
@@ -4671,9 +4674,7 @@ class EasyBlock:
 
                 # if an known possible error occurs, just report it and continue
                 try:
-                    # step_method is a lambda function that takes an EasyBlock instance as an argument,
-                    # and returns the actual method, so use () to execute it
-                    step_method(self)()
+                    current_method()
                 except Exception as err:
                     if build_option('extended_dry_run_ignore_errors'):
                         dry_run_warning("ignoring error %s" % err, silent=self.silent)
@@ -4682,9 +4683,7 @@ class EasyBlock:
                         raise
                 self.dry_run_msg('')
             else:
-                # step_method is a lambda function that takes an EasyBlock instance as an argument,
-                # and returns the actual method, so use () to execute it
-                step_method(self)()
+                current_method()
 
         run_hook(step, self.hooks, post_step_hook=True, args=[self])
 
@@ -4794,7 +4793,8 @@ class EasyBlock:
         if self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        self.iter_cnt = self.det_iter_cnt()
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.iter_cnt)
 
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
@@ -4927,7 +4927,7 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
             msg = f"Build directory of failed installation copied to {build_dirs_path}"
 
             def operation(src, dest):
-                copy_dir(src, dest, dirs_exist_ok=True)
+                copy_dir(src, dest, dirs_exist_ok=True, symlinks=True)
 
             operation_args.append((operation, [app.builddir], build_dirs_path, msg))
 
@@ -5001,6 +5001,8 @@ def build_and_install_one(ecdict, init_env):
         _log.debug("Skip set to %s" % skip)
         app.cfg['skip'] = skip
 
+    hooks = load_hooks(build_option('hooks'))
+
     # build easyconfig
     error_msg = '(no error)'
     exit_code = None
@@ -5022,6 +5024,8 @@ def build_and_install_one(ecdict, init_env):
             else:
                 enabled_write_permissions = False
 
+        run_hook(EASYBLOCK, hooks, pre_step_hook=True, args=[app])
+
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
         if not dry_run:
@@ -5033,7 +5037,9 @@ def build_and_install_one(ecdict, init_env):
             except EasyBuildError as err:
                 _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
 
-            # also add any extension easyblocks used during the build for reproducibility
+            # also add any component/extension easyblocks used during the build for reproducibility
+            if hasattr(app, 'comp_instances'):
+                copy_easyblocks_for_reprod([comp for cfg, comp in app.comp_instances], reprod_dir)
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
             # If not already done remove the granted write permissions if we did so
@@ -5120,8 +5126,12 @@ def build_and_install_one(ecdict, init_env):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                for patch in app.patches:
-                    repo.add_patch(patch['path'], app.name)
+                patches = app.patches
+                for ext in app.exts:
+                    patches += ext.get('patches', [])
+                for patch in patches:
+                    if 'path' in patch:
+                        repo.add_patch(patch['path'], app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError as err:
@@ -5143,10 +5153,14 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
                 # copy patches
-                for patch in app.patches:
-                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                    copy_file(patch['path'], target)
-                    _log.debug("Copied patch %s to %s", patch['path'], target)
+                patches = app.patches
+                for ext in app.exts:
+                    patches += ext.get('patches', [])
+                for patch in patches:
+                    if 'path' in patch:
+                        target = os.path.join(new_log_dir, os.path.basename(patch['path']))
+                        copy_file(patch['path'], target)
+                        _log.debug("Copied patch %s to %s", patch['path'], target)
 
                 if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
@@ -5199,6 +5213,8 @@ def build_and_install_one(ecdict, init_env):
 
     if not success:
         copy_build_dirs_logs_failed_install(application_log, silent, app, ecdict['ec'])
+
+    run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
 
     del app
 

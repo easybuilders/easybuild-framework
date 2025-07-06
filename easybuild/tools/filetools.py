@@ -137,7 +137,7 @@ def _hashlib_md5():
     to set usedforsecurity to False when supported (Python >= 3.9)
     """
     kwargs = {}
-    if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+    if sys.version_info >= (3, 9):
         kwargs = {'usedforsecurity': False}
     return hashlib.md5(**kwargs)
 
@@ -219,10 +219,10 @@ def is_readable(path):
 
 
 def open_file(path, mode):
-    """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used for Python 3.x"""
+    """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used"""
     # This is required for text files in Python 3, especially until Python 3.7 which implements PEP 540.
     # This PEP opens files in UTF-8 mode if the C locale is used, see https://www.python.org/dev/peps/pep-0540
-    if sys.version_info[0] >= 3 and 'b' not in mode:
+    if 'b' not in mode:
         return open(path, mode, encoding='utf-8')
     else:
         return open(path, mode)
@@ -281,8 +281,8 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
 
     data_is_file_obj = hasattr(data, 'read')
 
-    # special care must be taken with binary data in Python 3
-    if sys.version_info[0] >= 3 and (isinstance(data, bytes) or data_is_file_obj):
+    # special care must be taken with binary data
+    if isinstance(data, bytes) or data_is_file_obj:
         mode += 'b'
 
     # don't bother showing a progress bar for small files (< 10MB)
@@ -418,7 +418,7 @@ def remove(paths):
     _log.info("Removing %d files & directories", len(paths))
 
     for path in paths:
-        if os.path.isfile(path):
+        if os.path.isfile(path) or os.path.islink(path):
             remove_file(path)
         elif os.path.isdir(path):
             remove_dir(path)

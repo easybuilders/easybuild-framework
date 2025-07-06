@@ -5090,6 +5090,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)
@@ -5256,9 +5257,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertRegex(stderr.getvalue(), regex)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
