@@ -4,7 +4,7 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
-v5.1.1 (5 July 2025)
+v5.1.1 (6 July 2025)
 --------------------
 
 update/bugfix release
@@ -32,6 +32,7 @@ update/bugfix release
   - enhance `LooseVersion` test to add cases with leading alphabetical characters (#4901)
   - prefer using `importlib.metadata` over the deprecated `pkg_resources` in `det_pypkg_version` + switch container tests to Rocky Linux 8.10 (#4904)
   - fix `TypeError` for Python version comparison in `test_fetch_sources_git` (#4934)
+  - fix broken tests for GitHub integration features (#4954)
 - other changes:
   - change value of architectures constants RISCV32 and RISCV64 (#4915)
   - remove some superflous Python 2 checks (#4917)
