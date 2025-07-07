@@ -5140,7 +5140,7 @@ class EasyConfigTest(EnhancedTestCase):
         for key, expected in cuda_template_values.items():
             self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
-    def test_get_amgcn_cc_template_value(self):
+    def test_get_amdgcn_cc_template_value(self):
         """
         Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
         """
