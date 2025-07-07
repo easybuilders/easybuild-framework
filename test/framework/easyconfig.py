@@ -5181,6 +5181,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         for key in amdgcn_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
 
         self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
         self.prep()
