@@ -3390,6 +3390,45 @@ class EasyConfigTest(EnhancedTestCase):
         res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
         self.assertEqual(res, ['toy-0.0-deps.eb'])
 
+        # Expected order:
+        # 1. Same toolchain & version
+        # 2. Same toolchain, different version
+        # 3. Any toolchain
+        # For each:
+        #   exact version, major/minor version, major version, any version
+        ec['version'] = '1.2.3'
+        ec['toolchain'] = {'name': 'GCC', 'version': '12'}
+
+        # Use an empty folder to have full control over existing files
+        tmp_ec_dir = tempfile.mkdtemp()
+        files = []
+        # Create list of files in desired order,
+        # so we can remove them one by one to check that the search still finds the correct one
+        # 1. Same toolchain incl. version
+        # 2. Same toolchain, different version
+        # 3. Different toolchain
+        for toolchain in ('GCC-12', 'GCC-11', 'Clang-12'):
+            # Secondary criteria:
+            # a. Same version
+            # b. Same major.minor version
+            # c. Same major version
+            # d. Different version
+            for version in ('1.2.3', '1.2', '1', '4'):
+                filepath = os.path.join(tmp_ec_dir, '-'.join((ec['name'], version, toolchain)) + '.eb')
+                write_file(filepath, f"name = '{ec['name']}'")
+                files.append(filepath)
+
+        ec_name = f'{ec.name}-{ec.version}-{ec["toolchain"]["name"]}-{ec["toolchain"]["version"]}'
+        while files:
+            result = find_related_easyconfigs(tmp_ec_dir, ec)
+            # Only show basenames in error
+            result, expected, files_b = [[os.path.basename(f) for f in cur_files]
+                                         for cur_files in (result, [files[0]], files)]
+            self.assertEqual(result, expected,
+                             msg='Found %s but expected %s when searching for "%s" in %s'
+                             % (result, expected, ec_name, files_b))
+            remove_file(files.pop(0))
+
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
         self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
