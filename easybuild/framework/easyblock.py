@@ -5005,6 +5005,9 @@ def build_and_install_one(ecdict, init_env):
 
     hooks = load_hooks(build_option('hooks'))
 
+    # Don't touch installdir when doing a module-only build
+    module_only = build_option('module_only') or app.cfg['module_only']
+
     # build easyconfig
     error_msg = '(no error)'
     exit_code = None
@@ -5013,7 +5016,7 @@ def build_and_install_one(ecdict, init_env):
     try:
         run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
 
-        if not dry_run:
+        if not dry_run and not module_only:
             # create our reproducibility files before carrying out the easyblock steps
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
@@ -5030,7 +5033,7 @@ def build_and_install_one(ecdict, init_env):
 
         result = app.run_all_steps(run_test_cases=run_test_cases)
 
-        if not dry_run:
+        if not dry_run and not module_only:
             # Copy over the build environment used during the configuraton
             reprod_spec = os.path.join(reprod_dir, app.cfg.filename())
             try:
@@ -5094,7 +5097,8 @@ def build_and_install_one(ecdict, init_env):
         # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
             _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
-
+        elif module_only:  # Same fore module-only
+            _log.info("Only creating module, so skipping build stats, easyconfigs archive, reprod files...")
         else:
             new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             ensure_writable_log_dir(new_log_dir)
@@ -5105,20 +5109,14 @@ def build_and_install_one(ecdict, init_env):
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
-            try:
-                # move the reproducibility files to the final log directory
-                archive_reprod_dir = os.path.join(new_log_dir, REPROD)
-                if os.path.exists(archive_reprod_dir):
-                    backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                    move_file(archive_reprod_dir, backup_dir)
-                    _log.info("Existing reproducibility directory %s backed up to %s", archive_reprod_dir, backup_dir)
-                move_file(reprod_dir, archive_reprod_dir)
-                _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
-            except EasyBuildError as error:
-                if build_option('module_only'):
-                    _log.info("Using --module-only so can recover from error: %s", error)
-                else:
-                    raise error
+            # move the reproducibility files to the final log directory
+            archive_reprod_dir = os.path.join(new_log_dir, REPROD)
+            if os.path.exists(archive_reprod_dir):
+                backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                move_file(archive_reprod_dir, backup_dir)
+                _log.info("Existing reproducibility directory %s backed up to %s", archive_reprod_dir, backup_dir)
+            move_file(reprod_dir, archive_reprod_dir)
+            _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -5140,6 +5138,8 @@ def build_and_install_one(ecdict, init_env):
 
         if build_option('sanity_check_only'):
             _log.info("Only running sanity check, so not copying anything to software install directory...")
+        elif module_only:  # Same fore module-only
+            _log.info("Only creating module, so not copying anything to software install directory...")
         else:
             log_fn = os.path.basename(get_log_filename(app.name, app.version))
             try:
