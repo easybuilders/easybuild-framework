@@ -5128,7 +5128,9 @@ def build_and_install_one(ecdict, init_env):
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
                 patches = app.patches
                 for ext in app.exts:
-                    patches += ext.get('patches', [])
+                    for patch in ext.get('patches', []):
+                        if patch not in patches:
+                            patches.append(patch)
                 for patch in patches:
                     if 'path' in patch:
                         repo.add_patch(patch['path'], app.name)
@@ -5145,9 +5147,6 @@ def build_and_install_one(ecdict, init_env):
         else:
             log_fn = os.path.basename(get_log_filename(app.name, app.version))
             try:
-                application_log = os.path.join(new_log_dir, log_fn)
-                move_logs(app.logfile, application_log)
-
                 newspec = os.path.join(new_log_dir, app.cfg.filename())
                 copy_file(spec, newspec)
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
@@ -5155,12 +5154,17 @@ def build_and_install_one(ecdict, init_env):
                 # copy patches
                 patches = app.patches
                 for ext in app.exts:
-                    patches += ext.get('patches', [])
+                    for patch in ext.get('patches', []):
+                        if patch not in patches:
+                            patches.append(patch)
                 for patch in patches:
                     if 'path' in patch:
                         target = os.path.join(new_log_dir, os.path.basename(patch['path']))
                         copy_file(patch['path'], target)
                         _log.debug("Copied patch %s to %s", patch['path'], target)
+
+                application_log = os.path.join(new_log_dir, log_fn)
+                move_logs(app.logfile, application_log)
 
                 if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
