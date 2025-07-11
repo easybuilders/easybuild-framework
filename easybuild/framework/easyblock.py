@@ -67,7 +67,6 @@ from textwrap import indent
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
-from easybuild.base.frozendict import FrozenDict
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
@@ -189,7 +188,7 @@ class EasyBlock:
 
         # list of patch/source files, along with checksums
         self.patches = []
-        self.all_patches = set()  # set of all patches (including patches of extensions)
+        self.all_patches_paths = set()  # set of paths to all patches (including patches of extensions)
         self.src = []
         self.data_src = []
         self.checksums = []
@@ -603,7 +602,7 @@ class EasyBlock:
                 patch_info['path'] = path
                 patch_info['checksum'] = self.get_checksum_for(checksums, filename=patch_info['name'], index=index)
 
-                self.all_patches.add(FrozenDict(patch_info))
+                self.all_patches_paths.add(path)
                 if extension:
                     patches.append(patch_info)
                 else:
@@ -5129,9 +5128,8 @@ def build_and_install_one(ecdict, init_env):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                for patch in app.all_patches:
-                    if 'path' in patch:
-                        repo.add_patch(patch['path'], app.name)
+                for patch_path in app.all_patches_paths:
+                    repo.add_patch(patch_path, app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError as err:
@@ -5153,11 +5151,10 @@ def build_and_install_one(ecdict, init_env):
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
                 # copy patches
-                for patch in app.all_patches:
-                    if 'path' in patch:
-                        target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                        copy_file(patch['path'], target)
-                        _log.debug("Copied patch %s to %s", patch['path'], target)
+                for patch_path in app.all_patches_paths:
+                    target = os.path.join(new_log_dir, os.path.basename(patch_path))
+                    copy_file(patch_path, target)
+                    _log.debug("Copied patch %s to %s", patch_path, target)
 
                 if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
