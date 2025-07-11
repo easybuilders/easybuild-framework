@@ -67,6 +67,7 @@ from textwrap import indent
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
+from easybuild.base.frozendict import FrozenDict
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
@@ -188,7 +189,7 @@ class EasyBlock:
 
         # list of patch/source files, along with checksums
         self.patches = []
-        self.all_patches = []  # also includes patches of extensions
+        self.all_patches = set()  # set of all patches (including patches of extensions)
         self.src = []
         self.data_src = []
         self.checksums = []
@@ -602,7 +603,7 @@ class EasyBlock:
                 patch_info['path'] = path
                 patch_info['checksum'] = self.get_checksum_for(checksums, filename=patch_info['name'], index=index)
 
-                self.all_patches.append(patch_info)
+                self.all_patches.add(FrozenDict(patch_info))
                 if extension:
                     patches.append(patch_info)
                 else:
