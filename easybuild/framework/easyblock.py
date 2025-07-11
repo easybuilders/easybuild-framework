@@ -188,7 +188,7 @@ class EasyBlock:
 
         # list of patch/source files, along with checksums
         self.patches = []
-        self.all_patches = [] # also includes patches of extensions
+        self.all_patches = []  # also includes patches of extensions
         self.src = []
         self.data_src = []
         self.checksums = []
