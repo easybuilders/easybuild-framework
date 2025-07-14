@@ -80,6 +80,10 @@ class LLVM(Compiler):
                 "feature due to linker warnings"
             )
         ),
+        'no_int_conversion_error': (
+            True,
+            "-Wno-error=int-conversion - Avoid some failures that are normally ignored by GCC"
+        ),
     }
 
     COMPILER_UNIQUE_OPTION_MAP = {
@@ -119,6 +123,7 @@ class LLVM(Compiler):
 
         'lld_undefined_version': ['-Wl,--undefined-version'],
         'no_unused_args': ['-Wno-unused-command-line-argument'],
+        'no_int_conversion_error': ['-Wno-error=int-conversion'],
     }
 
     COMPILER_OPTIONS = [
@@ -128,6 +133,7 @@ class LLVM(Compiler):
     # Options only available for Clang compiler
     COMPILER_C_OPTIONS = [
         'no_unused_args',
+        'no_int_conversion_error'
     ]
 
     # Options only available for Flang compiler
