@@ -111,6 +111,7 @@ implement support for installing particular (groups of) software packages.""",
     package_data={'test.framework': find_rel_test()},
     scripts=[
         'eb',
+        'eb2',
         # bash completion
         'optcomplete.bash',
         'minimal_bash_completion.bash',
