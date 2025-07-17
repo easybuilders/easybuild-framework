@@ -26,11 +26,6 @@ class OptionExtracter(EasyBuildOptions):
 
 extracter = OptionExtracter(go_args=[])
 
-def register_hidden_param(ctx, param, value):
-    """Register a hidden parameter in the context."""
-    if not hasattr(ctx, 'hidden_params'):
-        ctx.hidden_params = {}
-    ctx.hidden_params[param.name] = value
 
 @dataclass
 class OptionData:
@@ -75,9 +70,16 @@ class OptionData:
         return click.option(
             *decls,
             expose_value=False,
-            callback=register_hidden_param,
+            callback=self.register_hidden_param,
             **kwargs
         )
+
+    @staticmethod
+    def register_hidden_param(ctx, param, value):
+        """Register a hidden parameter in the context."""
+        if not hasattr(ctx, 'hidden_params'):
+            ctx.hidden_params = {}
+        ctx.hidden_params[param.name] = value
 
 class EasyBuildCliOption():
     OPTIONS: list[OptionData] = []
