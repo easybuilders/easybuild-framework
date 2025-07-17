@@ -111,7 +111,6 @@ implement support for installing particular (groups of) software packages.""",
     package_data={'test.framework': find_rel_test()},
     scripts=[
         'eb',
-        'eb2',
         # bash completion
         'optcomplete.bash',
         'minimal_bash_completion.bash',
@@ -120,6 +119,11 @@ implement support for installing particular (groups of) software packages.""",
         # utility scripts
         'easybuild/scripts/install_eb_dep.sh',
     ],
+    entry_points={
+        'console_scripts': [
+            'eb2 = easybuild.cli:eb',
+        ]
+    },
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),
