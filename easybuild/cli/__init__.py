@@ -28,7 +28,7 @@ from easybuild.main import main_with_hooks
 def eb(ctx, other_args):
     """EasyBuild command line interface."""
     args = []
-    for key, value in ctx.hidden_params.items():
+    for key, value in getattr(ctx, 'hidden_params', {}).items():
         key = key.replace('_', '-')
         if isinstance(value, bool):
             if value:
