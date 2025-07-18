@@ -16,7 +16,7 @@ else:
         click, original_click
     ])
 
-from .options import EasyBuildCliOption
+from .options import EasyBuildCliOption, EasyconfigParam
 
 from easybuild.main import main_with_hooks
 
@@ -24,17 +24,19 @@ from easybuild.main import main_with_hooks
 @click.command()
 @EasyBuildCliOption.apply_options
 @click.pass_context
-@click.argument('other_args', nargs=-1, type=click.UNPROCESSED, required=False)
+@click.argument('other_args', nargs=-1, type=EasyconfigParam(), required=False)
 def eb(ctx, other_args):
     """EasyBuild command line interface."""
     args = []
     for key, value in getattr(ctx, 'hidden_params', {}).items():
         key = key.replace('_', '-')
+        opt = EasyBuildCliOption.OPTIONS_MAP[key]
+        if value in ['False', 'True']:
+            value = value == 'True'
         if isinstance(value, bool):
             if value:
                 args.append(f"--{key}")
         else:
-            opt = EasyBuildCliOption.OPTIONS_MAP[key]
             if value and value != opt.default:
                 if isinstance(value, (list, tuple)) and value:
                     if isinstance(value[0], list):
