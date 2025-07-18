@@ -37,10 +37,15 @@ def eb(ctx, other_args):
             if value:
                 args.append(f"--{key}")
         else:
+            if isinstance(value, (list, tuple)) and value:
+                # Flatten nested lists if necessary
+                if isinstance(value[0], list):
+                    value = sum(value, [])
+            # Match the type of the option with the default to see if we need to add it
+            if isinstance(value, list) and isinstance(opt.default, tuple):
+                value = tuple(value)
             if value and value != opt.default:
-                if isinstance(value, (list, tuple)) and value:
-                    if isinstance(value[0], list):
-                        value = sum(value, [])
+                if isinstance(value, (list, tuple)):
                     if 'path' in opt.type:
                         delim = os.pathsep
                     elif 'str' in opt.type:
@@ -50,7 +55,8 @@ def eb(ctx, other_args):
                     else:
                         raise ValueError(f"Unsupported type for {key}: {opt.type}")
                     value = delim.join(value)
-                print(f"--Adding {key}={value} to args")
+
+                # print(f"--Adding {key}={value} to args")
                 args.append(f"--{key}={value}")
 
     args.extend(other_args)
