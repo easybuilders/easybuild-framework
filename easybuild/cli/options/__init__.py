@@ -42,11 +42,16 @@ class DelimitedPathList(click.Path):
         self.resolve_full = resolve_full
 
     def convert(self, value, param, ctx):
-        if not isinstance(value, str):
+        # logging.warning(f"{param=} convert called with `{value=}`, `{type(value)=}`")
+        if isinstance(value, str):
+            res = value.split(self.delimiter)
+        elif isinstance(value, (list, tuple)):
+            res = value
+        else:
             raise click.BadParameter(f"Expected a comma-separated string, got {value}")
-        res = value.split(self.delimiter)
         if self.resolve_full:
             res = [os.path.abspath(v) for v in res]
+        # logging.warning(f"{param=} convert returning `{res=}`")
         return res
 
     def shell_complete(self, ctx, param, incomplete):
@@ -83,8 +88,12 @@ class DelimitedString(click.ParamType):
 
     def convert(self, value, param, ctx):
         if isinstance(value, str):
-            return value.split(self.delimiter)
-        raise click.BadParameter(f"Expected a string or a comma-separated string, got {value}")
+            res = value.split(self.delimiter)
+        elif isinstance(value, (list, tuple)):
+            res = value
+        else:
+            raise click.BadParameter(f"Expected a string or a comma-separated string, got {value}")
+        return res
 
     def shell_complete(self, ctx, param, incomplete):
         last = incomplete.rsplit(self.delimiter, 1)[-1]
@@ -124,13 +133,15 @@ class OptionData:
 
     def to_click_option_dec(self):
         """Convert OptionData to a click.Option."""
-        decls = [f"--{self.name}"]
+        decl = f"--{self.name}"
+        other_decls = []
         if self.short:
-            decls.insert(0, f"-{self.short}")
+            other_decls.insert(0, f"-{self.short}")
 
         kwargs = {
             'help': self.description,
             'default': self.default,
+            'is_flag': False,
             'show_default': True,
             'type': None
         }
@@ -139,7 +150,6 @@ class OptionData:
             kwargs['type'] = DelimitedString(delimiter=',')
             kwargs['multiple'] = True
         elif self.type in ['pathlist', 'pathtuple']:
-            # kwargs['type'] = DelimitedPathList(delimiter=os.pathsep)
             kwargs['type'] = DelimitedPathList(delimiter=',')
             kwargs['multiple'] = True
         elif self.type in ['urllist', 'urltuple']:
@@ -148,7 +158,7 @@ class OptionData:
         elif self.type == 'choice':
             if self.lst is None:
                 raise ValueError(f"Choice type requires a list of choices for option {self.name}")
-            kwargs['type'] = click.Choice(self.lst, case_sensitive=False)
+            kwargs['type'] = click.Choice(self.lst, case_sensitive=True)
         elif self.type in ['int', int]:
             kwargs['type'] = click.INT
         elif self.type in ['float', float]:
@@ -159,9 +169,17 @@ class OptionData:
             if self.default is False or self.default is True:
                 kwargs['is_flag'] = True
                 kwargs['type'] = click.BOOL
+                if self.action in ['store_true', 'store_false']:
+                    decl = f"--{self.name}/--disable-{self.name}"
             elif isinstance(self.default, (list, tuple)):
                 kwargs['multiple'] = True
                 kwargs['type'] = click.STRING
+
+        if self.action == 'store_or_None':
+            kwargs['default'] = None
+            kwargs['flag_value'] = self.default
+
+        decls = other_decls + [decl]
 
         return click.option(
             *decls,
