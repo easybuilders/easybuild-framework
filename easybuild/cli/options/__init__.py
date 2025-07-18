@@ -5,7 +5,9 @@ from typing import Callable, Any
 from dataclasses import dataclass
 
 from click.shell_completion import CompletionItem
-from easybuild.tools.options import EasyBuildOptions
+from easybuild.tools.options import EasyBuildOptions, set_up_configuration
+from easybuild.tools.robot import search_easyconfigs
+
 
 opt_group = {}
 try:
@@ -87,6 +89,17 @@ class DelimitedString(click.ParamType):
     def shell_complete(self, ctx, param, incomplete):
         last = incomplete.rsplit(self.delimiter, 1)[-1]
         return super().shell_complete(ctx, param, last)
+
+
+class EasyconfigParam(click.ParamType):
+    """Custom Click parameter type for easyconfig parameters."""
+    name = 'easyconfig'
+
+    def shell_complete(self, ctx, param, incomplete):
+        if not incomplete:
+            return []
+        set_up_configuration(args=["--ignore-index"], silent=True, reconfigure=True)
+        return [CompletionItem(ec) for ec in search_easyconfigs(fr'^{incomplete}.*\.eb$', filename_only=True)]
 
 
 @dataclass
