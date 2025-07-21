@@ -58,9 +58,9 @@ class LLVM(Compiler):
     # not supported for a particular version of LLVM
     FLANG_UNSUPPORTED_VARS = [
         ('19', '21', [
+            '-fmath-errno', '-fno-math-errno',
             '-fslp-vectorize',
-            '-fvectorize',
-            '-fno-vectorize',
+            '-fvectorize', '-fno-vectorize',
             '-fno-unsafe-math-optimizations',
         ])
     ]
