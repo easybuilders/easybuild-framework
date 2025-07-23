@@ -33,14 +33,14 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Kenneth Hoste (Ghent University)
 """
-import re
+import os
 import platform
+import re
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
+from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
-
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
@@ -85,6 +85,10 @@ TEMPLATE_SOFTWARE_VERSIONS = {
     'Python': 'py',
     'R': 'r',
 }
+TEMPLATE_CUDA_VERSION_NVHPC = [
+    'nvidia_compilers',
+    'NVHPC',
+]
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
@@ -424,6 +428,17 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                 if len(dep_version_parts) > 1:
                     template_values['%sminver' % pref] = dep_version_parts[1]
                 template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
+
+    # step 2.1: CUDA templates in NVHPC
+    if toolchain is not None and hasattr(toolchain, 'name') and toolchain.name in TEMPLATE_CUDA_VERSION_NVHPC:
+        cuda_version = os.getenv("EBNVHPCCUDAVER", None)
+        if cuda_version:
+            cuda_version_parts = cuda_version.split('.')
+            template_values['cudaver'] = cuda_version
+            template_values['cudamajver'] = cuda_version_parts[0]
+            if len(cuda_version_parts) > 1:
+                template_values['cudaminver'] = cuda_version_parts[1]
+            template_values['cudashortver'] = '.'.join(cuda_version_parts[:2])
 
     # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
