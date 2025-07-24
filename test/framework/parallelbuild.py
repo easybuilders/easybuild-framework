@@ -389,9 +389,12 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(jobs[1].job_specs, expected)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ParallelBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ParallelBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

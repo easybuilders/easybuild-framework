@@ -1387,6 +1387,16 @@ class ToyBuildTest(EnhancedTestCase):
         fn = 'created-via-postinstallcmds.txt'
         self.assertExists(os.path.join(installdir, fn))
 
+        # make sure that patch file for extension was copied to 'easybuild' subdir in installation directory
+        easybuild_subdir = os.path.join(installdir, 'easybuild')
+        patches = sorted(os.path.basename(x) for x in glob.glob(os.path.join(easybuild_subdir, '*.patch')))
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+        ]
+        self.assertEqual(patches, expected_patches)
+
     def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -5000,9 +5010,12 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToyBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

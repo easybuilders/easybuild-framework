@@ -44,6 +44,7 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from http.client import HTTPException
 from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
 
@@ -281,7 +282,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror as err:
+    except (socket.gaierror, HTTPException) as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
@@ -1124,6 +1125,14 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
+            msg = "When only adding new easyconfigs usually a PR commit msg (--pr-commit-msg) should not be used, as "
+            msg += "the PR title will be automatically generated."
+            if build_option('force'):
+                print_msg(msg)
+                print_msg("Using the specified --pr-commit-msg as the force build option was specified.")
+            else:
+                raise EasyBuildError(msg)
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
     elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
@@ -2164,7 +2173,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                        pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
 
-def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
+def det_account_repo_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
     """Determine account & branch corresponding to pull request with specified id."""
 
     if github_user is None:
@@ -2181,9 +2190,18 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
     account = pr_data['head']['label'].split(':')[0]
+    repo = pr_data['head']['repo']['name']
     branch = ':'.join(pr_data['head']['label'].split(':')[1:])
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr_id, branch), log=_log)
+
+    return account, repo, branch
+
+
+def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
+    """Deprecated version of `det_account_repo_branch_for_pr`"""
+    _log.deprecated("`det_account_branch_for_pr` is deprecated, use `det_account_repo_branch_for_pr` instead", "6.0")
+    account, _, branch = det_account_repo_branch_for_pr(pr_id, github_user=github_user, pr_target_repo=pr_target_repo)
 
     return account, branch
 
@@ -2282,7 +2300,7 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
             exit_code=EasyBuildExit.OPTION_ERROR
         )
 
-    github_account, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
+    github_account, _, branch_name = det_account_repo_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
 
     update_branch(branch_name, paths, ecs, github_account=github_account, commit_msg=commit_msg)
 
@@ -2874,18 +2892,18 @@ def sync_pr_with_develop(pr_id):
     target_account = build_option('pr_target_account')
     target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_account, pr_branch = det_account_branch_for_pr(pr_id)
+    pr_account, pr_repo, pr_branch = det_account_repo_branch_for_pr(pr_id)
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, target_repo)
 
-    setup_repo(git_repo, pr_account, target_repo, pr_branch)
+    setup_repo(git_repo, pr_account, pr_repo, pr_branch)
 
     sync_with_develop(git_repo, pr_branch, target_account, target_repo)
 
     # push updated branch back to GitHub (unless we're doing a dry run)
-    return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)
+    return push_branch_to_github(git_repo, pr_account, pr_repo, pr_branch)
 
 
 def sync_branch_with_develop(branch_name):

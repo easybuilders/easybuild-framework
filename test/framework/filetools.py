@@ -4159,9 +4159,12 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_dir(test_root)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(FileToolsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -1542,13 +1542,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test with only one ec in the PR (final argument is taken as a filename)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        args = ['--copy-ec', '--from-pr', '22380', test_ec]
-        ec_pr22380 = "PySide2-5.14.2.3-GCCcore-10.2.0.eb"
+        args = ['--copy-ec', '--from-pr', '21465', test_ec]
+        ec_pr21465 = "EasyBuild-4.9.4.eb"
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/%s copied to %s' % (ec_pr22380, test_ec))
+        regex = re.compile(r'.*/%s copied to %s' % (ec_pr21465, test_ec))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
         self.assertExists(test_ec)
-        self.assertIn("name = 'PySide2'", read_file(test_ec))
+        self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
 
     def test_copy_ec_from_commit(self):
@@ -4726,6 +4726,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--github-user=boegel',  # used to determine account to grab branch from (no GitHub token needed)
             toy_ec,
             '--pr-commit-msg="this is just a test"',
+            '--force',  # force required because we're using --pr-commit-msg when only adding new easyconfigs
             '-D',
         ]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
@@ -4877,19 +4878,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
             regex = re.compile(regex, re.M)
             self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
-        # modifying an existing easyconfig requires a custom PR title
+        # modifying an existing easyconfig requires a custom PR title;
+        # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
         gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
-        self.assertExists(gcc_ec)
+        gcc_new_ec = os.path.join(self.test_prefix, 'GCC-14.3.0.eb')
+        gcc_new_txt = read_file(gcc_ec).replace('10.2.0', '14.3.0')
+        write_file(gcc_new_ec, gcc_new_txt)
 
         args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
             toy_ec,
-            gcc_ec,
+            gcc_new_ec,
             '-D',
         ]
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
-        error_msg += "Modified: " + os.path.basename(gcc_ec)
+        error_msg += "Modified: " + os.path.basename(gcc_new_ec)
         self.mock_stdout(True)
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
@@ -4917,7 +4921,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
 
-        args.append('--pr-commit-msg="just a test"')
+        # force required because we're using --pr-commit-msg when only adding new easyconfigs
+        args.extend(['--pr-commit-msg="just a test"', '--force'])
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
@@ -7463,9 +7468,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(opts_dict_to_eb_opts(opts_dict), expected)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(CommandLineOptionsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(CommandLineOptionsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
