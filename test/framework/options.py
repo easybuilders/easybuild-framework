@@ -4784,6 +4784,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             git_working_dir = dirs[0]
         else:
             self.fail("Failed to find temporary git working dir: %s" % dirs)
+        args.append(f'--git-working-dirs-path={git_working_dir}')
 
         remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
         regexs = [
@@ -4806,10 +4807,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         ec_name = 'bzip2-1.0.8.eb'
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
-        args.extend([
-            '--git-working-dirs-path=%s' % git_working_dir,
-            f':{ec_name}',
-        ])
+        args.append(f':{ec_name}')
         error_msg = f"A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: {ec_name}"
 
         self.mock_stdout(True)
@@ -4838,7 +4836,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         GITHUB_TEST_ORG = 'test-organization'
         args.extend([
-            '--git-working-dirs-path=%s' % git_working_dir,
             '--pr-branch-name=branch_name_for_new_pr_test',
             '--pr-commit-msg="this is a commit message. really!"',
             '--pr-descr="moar letters foar teh lettre box"',
