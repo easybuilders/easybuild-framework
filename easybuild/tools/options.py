@@ -1007,7 +1007,7 @@ class EasyBuildOptions(GeneralOption):
             amdgcn_cc_regex = re.compile(r'gfx[0-9]+[a-z]?$')
             # Generic convention.
             # Regex is not perfect, as it doesn't catch gfx[...]--generic
-            amdgcn_generic_regex = re.compile(r'gfx[0-9]+[-]?[0-9]?-generic$')
+            amdgcn_generic_regex = re.compile(r'gfx[0-9]+(\-[0-9])?-generic$')
             faulty_amdgcn_ccs = [x for x in self.options.amdgcn_capabilities
                                  if not amdgcn_cc_regex.match(x) and not amdgcn_generic_regex.match(x)]
             if faulty_amdgcn_ccs:
