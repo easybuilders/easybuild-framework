@@ -38,7 +38,7 @@ import platform
 import re
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
