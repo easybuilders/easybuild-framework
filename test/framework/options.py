@@ -199,8 +199,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         error_msg = "ERROR.* Please provide one or multiple easyconfig files,"
         error_msg += " or use software build options to make EasyBuild search for easyconfigs"
-        regex = re.compile(error_msg)
-        self.assertRegex(outtxt, regex)
+        self.assertRegex(outtxt, error_msg)
 
     def test_debug(self):
         """Test enabling debug logging."""
@@ -844,9 +843,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
-        regex = re.compile(r"INFO List of known toolchains \(toolchain name: module\[, module, \.\.\.\]\):")
         logtxt = read_file(self.logfile)
-        self.assertRegex(logtxt, regex)
+        self.assertRegex(logtxt, r"INFO List of known toolchains \(toolchain name: module\[, module, \.\.\.\]\):")
         # toolchain elements should be in alphabetical order
         tcs = {
             'system': [],
@@ -1149,8 +1147,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             self.assertRegex(txt, re.compile(r'^CFGS\d+=', re.M))
             for ec in ["toy-0.0.eb", "toy-0.0-multiple.eb"]:
-                regex = re.compile(r" \* \$CFGS\d+/*%s" % ec, re.M)
-                self.assertRegex(txt, regex)
+                self.assertRegex(txt, r" \* \$CFGS\d+/*%s" % ec)
 
         # combining --search with --try-* should not cause trouble; --try-* should just be ignored
         args = [
@@ -1295,8 +1292,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         args = ['--copy-ec', 'toy-0.0.eb', test_ec]
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_ec)
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r'.*/toy-0.0.eb copied to %s' % test_ec)
 
         self.assertExists(test_ec)
         self.assertEqual(toy_ec_txt, read_file(test_ec))
@@ -1310,8 +1306,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = ['--copy-ec', 'toy-0.0.eb', target_fn]
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/toy-0.0.eb copied to test.eb')
-        self.assertRegex(stdout, regex)
+        self.assertIn(r'/toy-0.0.eb copied to test.eb', stdout)
 
         change_dir(cwd)
 
@@ -1323,8 +1318,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mkdir(test_target_dir)
         args = ['--copy-ec', 'toy-0.0.eb', test_target_dir]
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/toy-0.0.eb copied to %s' % test_target_dir)
-        self.assertRegex(stdout, regex)
+        self.assertIn('/toy-0.0.eb copied to %s' % test_target_dir, stdout)
 
         copied_toy_ec = os.path.join(test_target_dir, 'toy-0.0.eb')
         self.assertExists(copied_toy_ec)
@@ -1411,8 +1405,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '22345']
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"2 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"2 file\(s\) copied to .*/%s" % os.path.basename(test_working_dir))
 
         # check that the files exist
         for pr_file in all_files_pr22345:
@@ -1424,8 +1417,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '22345', test_target_dir]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"2 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"2 file\(s\) copied to .*/%s" % os.path.basename(test_target_dir))
 
         for pr_file in all_files_pr22345:
             self.assertExists(os.path.join(test_target_dir, pr_file))
@@ -1437,8 +1429,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '22345', ec_filename, test_target_dir]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_target_dir)))
 
         self.assertEqual(os.listdir(test_target_dir), [ec_filename])
         self.assertIn("name = 'QuantumESPRESSO'", read_file(os.path.join(test_target_dir, ec_filename)))
@@ -1449,8 +1440,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[-1] = environ_ec
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/QuantumESPRESSO.eb" % ec_filename)
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"%s copied to .*/QuantumESPRESSO.eb" % ec_filename)
 
         self.assertExists(environ_ec)
         self.assertIn("name = 'QuantumESPRESSO'", read_file(environ_ec))
@@ -1476,8 +1466,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '22345', ec_filename]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"%s copied to .*/%s" % (ec_filename, os.path.basename(test_working_dir)))
 
         self.assertEqual(os.listdir(test_working_dir), [ec_filename])
         self.assertIn("name = 'QuantumESPRESSO'", read_file(os.path.join(test_working_dir, ec_filename)))
@@ -1487,8 +1476,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '22345', patch_fn]
         stdout = self.mocked_main(args)
 
-        regex = re.compile(r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r"%s copied to .*/%s" % (patch_fn, os.path.basename(test_working_dir)))
 
         self.assertEqual(sorted(os.listdir(test_working_dir)), sorted([ec_filename, patch_fn]))
         self.assertTrue(is_patch_file(os.path.join(test_working_dir, patch_fn)))
@@ -1501,8 +1489,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '21465', test_ec]
         ec_pr21465 = "EasyBuild-4.9.4.eb"
         stdout = self.mocked_main(args)
-        regex = re.compile(r'.*/%s copied to %s' % (ec_pr21465, test_ec))
-        self.assertRegex(stdout, regex)
+        self.assertRegex(stdout, r'.*/%s copied to %s' % (ec_pr21465, test_ec))
         self.assertExists(test_ec)
         self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
@@ -2651,7 +2638,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        error_regex = re.compile("ERROR .*pattern .* not found in defined 'module' function")
+        error_regex = "ERROR .*pattern .* not found in defined 'module' function"
         self.assertRegex(outtxt, error_regex, "Found error w.r.t. module function mismatch: %s" % outtxt[-600:])
 
         # check that --allow-modules-tool-mispatch transforms this error into a warning
@@ -2665,7 +2652,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        warn_regex = re.compile("WARNING .*pattern .* not found in defined 'module' function")
+        warn_regex = "WARNING .*pattern .* not found in defined 'module' function"
         self.assertRegex(outtxt, warn_regex, "Found warning w.r.t. module function mismatch: %s" % outtxt[-600:])
 
         # check whether match between 'module' function and selected modules tool is detected
@@ -2679,7 +2666,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main(args, do_build=True)
         outtxt = read_file(self.logfile)
-        found_regex = re.compile("DEBUG Found pattern .* in defined 'module' function")
+        found_regex = "DEBUG Found pattern .* in defined 'module' function"
         self.assertRegex(outtxt, found_regex, "Found debug message w.r.t. module function: %s" % outtxt[-600:])
 
         # restore 'module' function
@@ -4204,8 +4191,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr(mock_stderr=False):
             self.eb_main(args, raise_error=True)
             txt = self.get_stdout()
-        regex = re.compile(r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.8")
-        self.assertRegex(txt, regex)
+        self.assertRegex(txt, r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.8")
 
     def test_github_review_pr(self):
         """Test --review-pr."""
@@ -4222,8 +4208,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main(args, raise_error=True)
             txt = self.get_stdout()
-        regex = re.compile(r"^Comparing bwidget-1.10.1-\S* with bwidget-")
-        self.assertRegex(txt, regex)
+        self.assertRegex(txt, r"^Comparing bwidget-1.10.1-\S* with bwidget-")
 
         # closed PR for gzip 1.2.8 easyconfig,
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/5365
@@ -4912,8 +4897,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
             r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
         ])
-        regex = re.compile(pattern)
-        self.assertTrue(regex.match(txt), "Pattern '%s' doesn't match: %s" % (regex.pattern, txt))
+        self.assertTrue(re.match(pattern, txt), "Pattern '%s' doesn't match: %s" % (pattern, txt))
 
     def test_github_sync_branch_with_develop(self):
         """Test use of --sync-branch-with-develop (dry run only)."""
@@ -4942,8 +4926,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
             r"== pushing branch '%s' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % (test_branch, github_path),
         ])
-        regex = re.compile(pattern)
-        self.assertTrue(regex.match(stdout), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+        self.assertTrue(re.match(pattern, stdout), "Pattern '%s' doesn't match: %s" % (pattern, stdout))
 
     def test_github_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
@@ -5518,9 +5501,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r"^== COMPLETED: Installation STOPPED successfully \(took .* secs?\)$",
             ]
             self._assert_regexs(patterns, stdout)
-
-            regex = re.compile(r"^== creating build dir, resetting environment\.\.\.$")
-            self.assertNotRegex(stdout, regex)
+            self.assertNotRegex(stdout, r"^== creating build dir, resetting environment\.\.\.$")
 
         # --fetch should also verify the checksums
         tmpdir = tempfile.mkdtemp(prefix='easybuild-sources')
@@ -6198,19 +6179,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         bar_patch_patterns = [
             r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch, bar_patch_sha256),
             r"^[ ]*{'%s':\n[ ]*'%s'},$" % (bar_patch_bis, bar_patch_bis_sha256),
-        ]
-        for pattern in bar_patch_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertRegex(ec_txt, regex)
-
-        # no single-line entry for bar patches themselves, since line would be too long
-        bar_patch_patterns = [
             r"^[ ]*'%s',$" % bar_patch,
             r"^[ ]*'%s',$" % bar_patch_bis,
         ]
-        for pattern in bar_patch_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertRegex(ec_txt, regex)
+        self._assert_regexs(bar_patch_patterns, ec_txt)
 
         # name/version of toy should NOT be hardcoded in exts_list, 'name'/'version' parameters should be used
         self.assertIn('    (name, version, {', ec_txt)
@@ -6663,9 +6635,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"Sanity check failed",
             r'command "ls -l lib/libbarbar\.a" failed',
         ]
-        for error_pattern in error_patterns:
-            regex = re.compile(error_pattern)
-            self.assertRegex(error_msg, regex)
+        self._assert_regexs(error_patterns, error_msg)
 
         # failing sanity check for extension can be bypassed via --skip-extensions
         with self.mocked_stdout_stderr():
