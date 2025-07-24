@@ -1012,7 +1012,9 @@ class EasyBuildOptions(GeneralOption):
                                  if not amdgcn_cc_regex.match(x) and not amdgcn_generic_regex.match(x)]
             if faulty_amdgcn_ccs:
                 error_msg = "Incorrect values in --amdgcn-capabilities (expected pattern: '%s' or '%s'): %s"
-                error_msgs.append(error_msg % (amdgcn_cc_regex.pattern, amdgcn_generic_regex.pattern, ', '.join(faulty_amdgcn_ccs)))
+                error_msgs.append(error_msg % (amdgcn_cc_regex.pattern,
+                                               amdgcn_generic_regex.pattern,
+                                               ', '.join(faulty_amdgcn_ccs)))
 
         if error_msgs:
             raise EasyBuildError(
