@@ -4801,9 +4801,30 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self._assert_regexs(regexs, txt)
 
+        # Commit message must not be specified for only new ECs
+        args_new_pr = args + ['--pr-commit-msg=just a test']
+        error_msg = r"PR commit msg \(--pr-commit-msg\) should not be used"
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args_new_pr, raise_error=True, testing=False)
+
+        # But commit message can still be specified when using --force
+        args_new_pr.append('--force')
+        txt, _ = self._run_mock_eb(args_new_pr, do_build=True, raise_error=True, testing=False)
+        regexs_with_msg = [
+            error_msg,  # Still shown as a warning
+            r'== Using the specified --pr-commit-msg',
+            r'\* title: "just a test"',
+        ]
+        self._assert_regexs(regexs_with_msg, txt)
+
         # add unstaged file to git working dir, to check on later
         unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
         write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
+        # Remove other temporary git working dirs
+        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+        res = [d for d in res if d != git_working_dir]
+        for d in res:
+            remove_dir(d)
 
         ec_name = 'bzip2-1.0.8.eb'
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
@@ -4816,7 +4837,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # check whether unstaged file in git working dir was copied (it shouldn't)
         res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
-        res = [d for d in res if os.path.basename(d) != os.path.basename(git_working_dir)]
+        res = [d for d in res if d != git_working_dir]
         if len(res) == 1:
             unstaged_file_full = os.path.join(res[0], unstaged_file)
             self.assertNotExists(unstaged_file_full)
@@ -4918,8 +4939,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
         self.mock_stdout(False)
 
-        # force required because we're using --pr-commit-msg when only adding new easyconfigs
-        args.extend(['--pr-commit-msg="just a test"', '--force'])
+        args.append('--pr-commit-msg=just a test')
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         regexs = [
