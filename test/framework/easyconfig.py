@@ -4807,6 +4807,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
+    def test_amdgcn_capabilities(self):
+        self.contents = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'test'
+            version = '0.2'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            amdgcn_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
+            buildopts = ('comma="%(amdgcn_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
+                         'semi="%(amdgcn_cc_semicolon_sep)s"')
+            installopts = '%(amdgcn_capabilities)s'
+        """)
+        self.prep()
+
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101,gfx11-generic,gfx10-3-generic" '
+                                          'space="gfx90a gfx1101 gfx11-generic gfx10-3-generic" '
+                                          'semi="gfx90a;gfx1101;gfx11-generic;gfx10-3-generic"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101,gfx11-generic,gfx10-3-generic')
+
+        # build options overwrite it
+        init_config(build_options={'amdgcn_capabilities': ['gfx90a', 'gfx1101']})
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101" '
+                                          'space="gfx90a gfx1101" '
+                                          'semi="gfx90a;gfx1101"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101')
+
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
 
@@ -5110,6 +5139,56 @@ class EasyConfigTest(EnhancedTestCase):
 
         for key, expected in cuda_template_values.items():
             self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
+
+    def test_get_amdgcn_cc_template_value(self):
+        """
+        Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = ("foobar is not a template value based on "
+                         "--amdgcn-capabilities/amdgcn_capabilities")
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
+        amdgcn_template_values = {
+            'amdgcn_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
+            'amdgcn_cc_space_sep': 'gfx90a gfx1100 gfx10-3-generic',
+            'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
+        }
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+
+        update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
+
+        update_build_option('amdgcn_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
+
+        self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
