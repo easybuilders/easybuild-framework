@@ -998,48 +998,47 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.eb_main(args, logfile=dummylogfn, raise_error=True)
             logtxt = read_file(self.logfile)
 
-            expected = '\n'.join([
-                "EasyBlock",
-                "|-- bar",
-                "|-- ConfigureMake",
-                "|   |-- MakeCp",
-                "|-- EB_EasyBuildMeta",
-                "|-- EB_FFTW",
-                "|-- EB_foo",
-                "|   |-- EB_foofoo",
-                "|-- EB_GCC",
-                "|-- EB_HPL",
-                "|-- EB_libtoy",
-                "|-- EB_OpenBLAS",
-                "|-- EB_OpenMPI",
-                "|-- EB_ScaLAPACK",
-                "|-- EB_toy_buggy",
-                "|-- ExtensionEasyBlock",
-                "|   |-- DummyExtension",
-                "|   |   |-- CustomDummyExtension",
-                "|   |   |   |-- ChildCustomDummyExtension",
-                "|   |   |-- DeprecatedDummyExtension",
-                "|   |   |   |-- ChildDeprecatedDummyExtension",
-                "|   |-- EB_toy",
-                "|   |   |-- EB_toy_eula",
-                "|   |   |-- EB_toytoy",
-                "|   |-- Toy_Extension",
-                "|-- ModuleRC",
-                "|-- PythonBundle",
-                "|-- Toolchain",
-                "Extension",
-                "|-- ExtensionEasyBlock",
-                "|   |-- DummyExtension",
-                "|   |   |-- CustomDummyExtension",
-                "|   |   |   |-- ChildCustomDummyExtension",
-                "|   |   |-- DeprecatedDummyExtension",
-                "|   |   |   |-- ChildDeprecatedDummyExtension",
-                "|   |-- EB_toy",
-                "|   |   |-- EB_toy_eula",
-                "|   |   |-- EB_toytoy",
-                "|   |-- Toy_Extension",
-                "",
-            ])
+            expected = textwrap.dedent("""
+                EasyBlock
+                |-- bar
+                |-- ConfigureMake
+                |   |-- MakeCp
+                |-- EB_EasyBuildMeta
+                |-- EB_FFTW
+                |-- EB_foo
+                |   |-- EB_foofoo
+                |-- EB_GCC
+                |-- EB_HPL
+                |-- EB_libtoy
+                |-- EB_OpenBLAS
+                |-- EB_OpenMPI
+                |-- EB_ScaLAPACK
+                |-- EB_toy_buggy
+                |-- ExtensionEasyBlock
+                |   |-- DummyExtension
+                |   |   |-- CustomDummyExtension
+                |   |   |   |-- ChildCustomDummyExtension
+                |   |   |-- DeprecatedDummyExtension
+                |   |   |   |-- ChildDeprecatedDummyExtension
+                |   |-- EB_toy
+                |   |   |-- EB_toy_eula
+                |   |   |-- EB_toytoy
+                |   |-- Toy_Extension
+                |-- ModuleRC
+                |-- PythonBundle
+                |-- Toolchain
+                Extension
+                |-- ExtensionEasyBlock
+                |   |-- DummyExtension
+                |   |   |-- CustomDummyExtension
+                |   |   |   |-- ChildCustomDummyExtension
+                |   |   |-- DeprecatedDummyExtension
+                |   |   |   |-- ChildDeprecatedDummyExtension
+                |   |-- EB_toy
+                |   |   |-- EB_toy_eula
+                |   |   |-- EB_toytoy
+                |   |-- Toy_Extension
+            """).lstrip()
             self.assertIn(expected, logtxt)
 
         # clear log
