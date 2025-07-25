@@ -844,7 +844,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         logtxt = read_file(self.logfile)
-        self.assertRegex(logtxt, r"INFO List of known toolchains \(toolchain name: module\[, module, \.\.\.\]\):")
+        self.assertIn("INFO List of known toolchains (toolchain name: module[, module, ...]):", logtxt, )
         # toolchain elements should be in alphabetical order
         tcs = {
             'system': [],
@@ -1040,8 +1040,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 "|   |-- Toy_Extension",
                 "",
             ])
-            regex = re.compile(expected, re.M)
-            self.assertRegex(logtxt, regex)
+            self.assertIn(expected, logtxt)
 
         # clear log
         write_file(self.logfile, '')
@@ -1158,7 +1157,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr(mock_stderr=False):
             self.eb_main(args, testing=False, raise_error=True)
             txt = self.get_stdout()
-        self.assertRegex(txt, 'GCC-4.9.2')
+        self.assertIn('GCC-4.9.2', txt)
 
         # test using a search pattern that includes special characters like '+', '(', or ')' (should not crash)
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2966
@@ -1489,7 +1488,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', '--from-pr', '21465', test_ec]
         ec_pr21465 = "EasyBuild-4.9.4.eb"
         stdout = self.mocked_main(args)
-        self.assertRegex(stdout, r'.*/%s copied to %s' % (ec_pr21465, test_ec))
+        self.assertIn(r'/%s copied to %s' % (ec_pr21465, test_ec), stdout)
         self.assertExists(test_ec)
         self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
@@ -2039,8 +2038,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertRegex(outtxt, regex)
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
-            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
-            self.assertRegex(outtxt, regex)
+            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
             shutil.rmtree(tmpdir)
@@ -2072,8 +2070,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             for pr in ('22227', '19834'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
-                regex = re.compile(r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir, re.M)
-                self.assertRegex(outtxt, regex)
+                self.assertRegex(outtxt, r"Extended list of robot search paths with .*%s.*:" % pr_tmpdir)
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
@@ -2231,8 +2228,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
-            self.assertRegex(outtxt, regex)
+            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
             shutil.rmtree(tmpdir)
@@ -2276,8 +2272,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            regex = re.compile(r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir, re.M)
-            self.assertRegex(outtxt, regex)
+            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
             shutil.rmtree(tmpdir)
@@ -2498,12 +2493,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Checking OS dependencies")
-        self.assertRegex(outtxt, regex, "OS dependencies are checked, outtxt: %s" % outtxt)
+        self.assertIn("Checking OS dependencies", outtxt)
         msg = "One or more OS dependencies were not found: "
-        msg += r"\[\('nosuchosdependency',\), \('nosuchdep_option1', 'nosuchdep_option2'\)\]"
-        regex = re.compile(msg, re.M)
-        self.assertRegex(outtxt, regex, "OS dependencies are honored, outtxt: %s" % outtxt)
+        msg += "[('nosuchosdependency',), ('nosuchdep_option1', 'nosuchdep_option2')]"
+        self.assertIn(msg, outtxt, "OS dependencies are honored, outtxt: %s" % outtxt)
 
         # check whether OS dependencies are effectively ignored
         args = [
@@ -2514,8 +2507,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("Not checking OS dependencies", re.M)
-        self.assertRegex(outtxt, regex, "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
+        self.assertIn("Not checking OS dependencies", outtxt,
+                      "OS dependencies are ignored with --ignore-osdeps, outtxt: %s" % outtxt)
 
         txt += "\nstop = 'notavalidstop'"
         write_file(eb_file, txt)
@@ -2526,8 +2519,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True)
 
-        regex = re.compile("stop provided 'notavalidstop' is not valid", re.M)
-        self.assertRegex(outtxt, regex, "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
+        self.assertIn("stop provided 'notavalidstop' is not valid", outtxt,
+                      "Validations are performed with --ignore-osdeps, outtxt: %s" % outtxt)
 
     def test_experimental(self):
         """Test the experimental option"""
@@ -3093,8 +3086,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args)
-        self.assertRegex(outtxt, r'module: GCC/\.4\.9\.2')
-        self.assertRegex(outtxt, r'module: gzip/1\.6-GCC-4\.9\.2')
+        self.assertIn(r'module: GCC/.4.9.2', outtxt)
+        self.assertIn(r'module: gzip/1.6-GCC-4.9.2', outtxt)
 
     def test_parse_http_header_fields_urlpat(self):
         """Test function parse_http_header_fields_urlpat"""
@@ -3316,8 +3309,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # default: no filtering
         test_report_txt = toy()
-        self.assertRegex(test_report_txt, test_var_secret_ondemand)
-        self.assertRegex(test_report_txt, test_var_public)
+        self.assertIn(test_var_secret_ondemand, test_report_txt)
+        self.assertIn(test_var_public, test_report_txt)
         self._assert_regexs([test_var_secret_always, test_var_secret_always2], test_report_txt, assert_true=False)
 
         # filter out env vars that match specified regex pattern
@@ -3415,19 +3408,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
-        toy_regex = re.compile('module: toy/0.0')
+        toy_mod_txt = 'module: toy/0.0'
 
         # works fine is directory exists
         args = ['toy-0.0.eb', '-r', self.test_prefix, '--dry-run']
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True)
-        self.assertRegex(outtxt, toy_regex)
+        self.assertIn(toy_mod_txt, outtxt)
 
         # no error when name of an easyconfig file is specified to --robot (even if it doesn't exist)
         args = ['--dry-run', '--robot', 'toy-0.0.eb']
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True)
-        self.assertRegex(outtxt, toy_regex)
+        self.assertIn(toy_mod_txt, outtxt)
 
         # different error when a non-existing easyconfig file is specified to --robot
         args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
@@ -3439,14 +3432,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = ['toy-0.0.eb', '--dry-run', robot]
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, raise_error=True)
-            self.assertRegex(outtxt, toy_regex)
+            self.assertIn(toy_mod_txt, outtxt)
 
         # no problem with using combos of single-letter options with -r included, no matter the order
         for arg in ['-Dr', '-rD', '-frkD', '-rfDk']:
             args = ['toy-0.0.eb', arg]
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, raise_error=True)
-            self.assertRegex(outtxt, toy_regex)
+            self.assertIn(toy_mod_txt, outtxt)
 
         # unknown options are still recognized, even when used in single-letter combo arguments
         for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
@@ -3962,9 +3955,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertRegex(logtxt, ec_regex)
 
         # easyblock included from pr is found
-        eb_regex = re.compile(
-            r"Derived full easyblock module path for CMakeMake: easybuild.easyblocks.generic.cmakemake", re.M)
-        self.assertRegex(logtxt, eb_regex)
+
+        self.assertIn("Derived full easyblock module path for CMakeMake: easybuild.easyblocks.generic.cmakemake",
+                      logtxt)
 
         # easyblock is found via get_easyblock_class
         klass = get_easyblock_class('CMakeMake')
