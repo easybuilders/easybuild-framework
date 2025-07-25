@@ -1001,19 +1001,36 @@ class CommandLineOptionsTest(EnhancedTestCase):
             expected = textwrap.dedent("""
                 EasyBlock
                 |-- bar
+                |-- Bundle
+                |-- CMakeMake
+                |-- CmdCp
                 |-- ConfigureMake
                 |   |-- MakeCp
+                |-- EB_binutils
+                |-- EB_BLIS
+                |-- EB_bzip2
+                |-- EB_CMake
                 |-- EB_EasyBuildMeta
                 |-- EB_FFTW
+                |-- EB_FFTW_period_MPI
+                |-- EB_flex
                 |-- EB_foo
                 |   |-- EB_foofoo
+                |-- EB_freetype
                 |-- EB_GCC
                 |-- EB_HPL
                 |-- EB_libtoy
+                |-- EB_libxml2
+                |-- EB_LLVM
+                |-- EB_Mesa
                 |-- EB_OpenBLAS
                 |-- EB_OpenMPI
+                |-- EB_OpenSSL_wrapper
+                |-- EB_Perl
+                |-- EB_Python
                 |-- EB_ScaLAPACK
                 |-- EB_toy_buggy
+                |-- EB_XCrySDen
                 |-- ExtensionEasyBlock
                 |   |-- DummyExtension
                 |   |   |-- CustomDummyExtension
@@ -1021,11 +1038,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 |   |   |-- DeprecatedDummyExtension
                 |   |   |   |-- ChildDeprecatedDummyExtension
                 |   |-- EB_toy
+                |   |   |-- EB_toy_deprecated
                 |   |   |-- EB_toy_eula
                 |   |   |-- EB_toytoy
                 |   |-- Toy_Extension
+                |-- MesonNinja
                 |-- ModuleRC
+                |-- PerlBundle
                 |-- PythonBundle
+                |-- PythonPackage
+                |-- Tarball
                 |-- Toolchain
                 Extension
                 |-- ExtensionEasyBlock
@@ -1035,6 +1057,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 |   |   |-- DeprecatedDummyExtension
                 |   |   |   |-- ChildDeprecatedDummyExtension
                 |   |-- EB_toy
+                |   |   |-- EB_toy_deprecated
                 |   |   |-- EB_toy_eula
                 |   |   |-- EB_toytoy
                 |   |-- Toy_Extension
