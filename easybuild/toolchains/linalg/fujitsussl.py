@@ -80,13 +80,13 @@ class FujitsuSSL(LinAlg):
             else:
                 self.log.debug("Obtained install prefix for %s via $%s: %s", name, env_var, root)
         else:
-            root = super(FujitsuSSL, self)._get_software_root(name, required=required)
+            root = super()._get_software_root(name, required=required)
 
         return root
 
     def _set_blas_variables(self):
         """Setting FujitsuSSL specific BLAS related variables"""
-        super(FujitsuSSL, self)._set_blas_variables()
+        super()._set_blas_variables()
         if self.options.get('openmp', None):
             for flags_var, _ in COMPILER_FLAGS:
                 self.variables.nappend(flags_var, ['SSL2BLAMP'])
@@ -96,7 +96,7 @@ class FujitsuSSL(LinAlg):
 
     def _set_scalapack_variables(self):
         """Setting FujitsuSSL specific SCALAPACK related variables"""
-        super(FujitsuSSL, self)._set_scalapack_variables()
+        super()._set_scalapack_variables()
         for flags_var, _ in COMPILER_FLAGS:
             self.variables.nappend(flags_var, ['SCALAPACK'])
 
@@ -106,7 +106,7 @@ class FujitsuSSL(LinAlg):
         The SSL2 module is loaded indirectly (and versionless) via the lang module,
         and thus is not a direct toolchain component.
         """
-        tc_def = super(FujitsuSSL, self).definition()
+        tc_def = super().definition()
         tc_def['BLAS'] = []
         tc_def['LAPACK'] = []
         tc_def['SCALAPACK'] = []
@@ -120,4 +120,4 @@ class FujitsuSSL(LinAlg):
 
         self.log.devel('set_variables: LinAlg variables %s', self.variables)
 
-        super(FujitsuSSL, self).set_variables()
+        super().set_variables()

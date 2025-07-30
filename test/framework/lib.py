@@ -51,7 +51,7 @@ class EasyBuildLibTest(TestCase):
 
     def setUp(self):
         """Prepare for running test."""
-        super(EasyBuildLibTest, self).setUp()
+        super().setUp()
 
         # make sure BuildOptions instance is re-created
         if BuildOptions in BuildOptions._instances:
@@ -61,7 +61,7 @@ class EasyBuildLibTest(TestCase):
 
     def tearDown(self):
         """Cleanup after running test."""
-        super(EasyBuildLibTest, self).tearDown()
+        super().tearDown()
 
         shutil.rmtree(self.tmpdir)
 
@@ -135,8 +135,11 @@ class EasyBuildLibTest(TestCase):
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
 
 
-def suite():
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildLibTest, sys.argv[1:])
+def suite(loader=None):
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBuildLibTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildLibTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

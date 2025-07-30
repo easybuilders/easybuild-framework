@@ -110,27 +110,39 @@ except EasyBuildError as err:
     sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
     sys.exit(1)
 
-# initialize logger for all the unit tests
-fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
-os.close(fd)
-os.remove(log_fn)
-fancylogger.logToFile(log_fn)
-log = fancylogger.getLogger()
-
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, d, bl, o, r, ef, ev, ebco, ep, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
          tw, p, i, pkg, env, et, st, h, ct, lib, u, es, ou]
 
-SUITE = unittest.TestSuite([x.suite() for x in tests])
-res = unittest.TextTestRunner().run(SUITE)
 
-fancylogger.logToFile(log_fn, enable=False)
+class EasyBuildFrameworkTestSuite(unittest.TestSuite):
+    def __init__(self, loader):
+        super().__init__([x.suite(loader) for x in tests])
 
-if not res.wasSuccessful():
-    sys.stderr.write("ERROR: Not all tests were successful.\n")
-    print("Log available at %s" % log_fn)
-    sys.exit(2)
-else:
-    for fn in glob.glob('%s*' % log_fn):
-        os.remove(fn)
+    def run(self, *args, **kwargs):
+        # initialize logger for all the unit tests
+        fd, log_fn = tempfile.mkstemp(prefix='easybuild-tests-', suffix='.log')
+        os.close(fd)
+        os.remove(log_fn)
+        fancylogger.logToFile(log_fn)
+        res = super().run(*args, **kwargs)
+        fancylogger.logToFile(log_fn, enable=False)
+        if not res.wasSuccessful():
+            sys.stderr.write("ERROR: Not all tests were successful.\n")
+            print("Log available at %s" % log_fn)
+        else:
+            for fn in glob.glob('%s*' % log_fn):
+                os.remove(fn)
+        return res
+
+
+def load_tests(loader, tests, pattern):
+    return EasyBuildFrameworkTestSuite(loader)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
+        unittest.main()
+    else:
+        unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))

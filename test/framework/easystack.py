@@ -48,7 +48,7 @@ class EasyStackTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(EasyStackTest, self).setUp()
+        super().setUp()
         self.orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         # easystack files are an experimental feature
         easybuild.tools.build_log.EXPERIMENTAL = True
@@ -56,7 +56,7 @@ class EasyStackTest(EnhancedTestCase):
     def tearDown(self):
         """Clean up after test."""
         easybuild.tools.build_log.EXPERIMENTAL = self.orig_experimental
-        super(EasyStackTest, self).tearDown()
+        super().tearDown()
 
     def test_easystack_basic(self):
         """Test for basic easystack files."""
@@ -204,9 +204,12 @@ class EasyStackTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyStackTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyStackTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyStackTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
