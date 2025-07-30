@@ -84,7 +84,7 @@ class FlexiBLAS(LinAlg):
         List of shared libraries (names, file names, paths) which are
         not allowed to be linked in any installed binary/library.
         """
-        banned_libs = super(FlexiBLAS, self).banned_linked_shared_libs()
+        banned_libs = super().banned_linked_shared_libs()
 
         # register backends are banned shared libraries,
         # to avoid that anything links to them directly (rather than to libflexiblas.so)

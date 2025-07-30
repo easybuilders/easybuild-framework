@@ -50,7 +50,7 @@ class Fft(Toolchain):
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
-        super(Fft, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_fft_variables(self):
         """Set FFT variables"""
@@ -87,4 +87,4 @@ class Fft(Toolchain):
 
         self.log.devel('set_variables: FFT variables %s', self.variables)
 
-        super(Fft, self).set_variables()
+        super().set_variables()

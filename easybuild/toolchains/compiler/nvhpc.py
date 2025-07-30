@@ -100,8 +100,8 @@ class NVHPC(Compiler):
         """Set -tp=x64 if optarch is set to False."""
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
-        super(NVHPC, self)._set_compiler_flags()
+        super()._set_compiler_flags()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        super(NVHPC, self)._set_compiler_vars()
+        super()._set_compiler_vars()

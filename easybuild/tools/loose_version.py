@@ -15,7 +15,7 @@ import re
 from itertools import zip_longest
 
 
-class LooseVersion(object):
+class LooseVersion:
     """Version numbering for anarchists and software realists.
 
     A version number consists of a series of numbers,

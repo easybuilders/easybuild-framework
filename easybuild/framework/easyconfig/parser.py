@@ -135,7 +135,7 @@ def fetch_parameters_from_easyconfig(rawtxt, params):
     return param_values
 
 
-class EasyConfigParser(object):
+class EasyConfigParser:
     """Read the easyconfig file, return a parsed config object
         Can contain references to multiple version and toolchain/toolchain versions
     """

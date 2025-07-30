@@ -74,7 +74,7 @@ class Fftw(Fft):
     def _set_fft_variables(self):
         self._set_fftw_variables()
 
-        super(Fftw, self)._set_fft_variables()
+        super()._set_fft_variables()
 
         # TODO can these be replaced with the FFT ones?
         self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')

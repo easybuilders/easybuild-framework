@@ -148,7 +148,7 @@ class HgRepository(FileRepository):
         :param previous_stats: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(HgRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super().add_easyconfig(cfg, name, version, stats, previous_stats)
         self.stage_file(path)
         return path
 
@@ -160,7 +160,7 @@ class HgRepository(FileRepository):
         :param name: software name
         :return: location of archived patch
         """
-        path = super(HgRepository, self).add_patch(patch, name)
+        path = super().add_patch(patch, name)
         self.stage_file(path)
         return path
 

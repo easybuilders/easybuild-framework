@@ -66,9 +66,12 @@ class LicenseTest(EnhancedTestCase):
             self.assertTrue(issubclass(lics[lic], License))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(LicenseTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(LicenseTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(LicenseTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

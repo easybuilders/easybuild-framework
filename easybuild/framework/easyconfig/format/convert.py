@@ -41,7 +41,7 @@ class Dependency(Convert):
 
     def __init__(self, obj, name=None):
         """Convert pass object to a dependency, use specified name if provided."""
-        super(Dependency, self).__init__(obj)
+        super().__init__(obj)
         if name is not None:
             self['name'] = name
 

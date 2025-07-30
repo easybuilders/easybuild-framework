@@ -45,4 +45,4 @@ class Psmpi(Mpich):
         self.MPI_COMPILER_MPIF90 = 'mpif90'
         self.MPI_COMPILER_MPIFC = 'mpif90'
 
-        super(Psmpi, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

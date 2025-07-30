@@ -159,7 +159,7 @@ class SvnRepository(FileRepository):
         :param previous_stats: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(SvnRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super().add_easyconfig(cfg, name, version, stats, previous_stats)
         self.stage_file(path)
         return path
 
@@ -171,7 +171,7 @@ class SvnRepository(FileRepository):
         :param name: software name
         :return: location of archived patch
         """
-        path = super(SvnRepository, self).add_patch(patch, name)
+        path = super().add_patch(patch, name)
         self.stage_file(path)
         return path
 

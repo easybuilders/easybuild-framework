@@ -89,7 +89,7 @@ class PbsPython(JobBackend):
         """Constructor."""
         pbs_server = kwargs.pop('pbs_server', None)
 
-        super(PbsPython, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.pbs_server = pbs_server or build_option('job_target_resource') or pbs.pbs_default()
         self.conn = None
@@ -188,7 +188,7 @@ class PbsPython(JobBackend):
         return PbsJob(self, script, name, env_vars=env_vars, hours=hours, cores=cores, conn=self.conn, ppn=self.ppn)
 
 
-class PbsJob(object):
+class PbsJob:
     """Interaction with TORQUE"""
 
     def __init__(self, server, script, name, env_vars=None,

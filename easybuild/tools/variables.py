@@ -101,7 +101,7 @@ class StrList(list):
     JOIN_BEGIN_END = False
 
     def __init__(self, *args, **kwargs):
-        super(StrList, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def str_convert(self, x):
@@ -133,7 +133,7 @@ class StrList(list):
         elif attr_name == 'nextend_el':
             return self.extend
         else:
-            return super(StrList, self).__getattribute__(attr_name)
+            return super().__getattribute__(attr_name)
 
     def copy(self):
         """Return copy of self"""
@@ -221,7 +221,7 @@ class ListOfLists(list):
     JOIN_BEGIN_END = False
 
     def __init__(self, *args, **kwargs):
-        super(ListOfLists, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self._first = None
 
@@ -457,7 +457,7 @@ class Variables(dict):
     MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
 
     def __init__(self, *args, **kwargs):
-        super(Variables, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
     def get_list_class(self, name):
@@ -522,7 +522,7 @@ class Variables(dict):
         else:
             if default is None:
                 default = self.get_instance(name)
-            super(Variables, self).__setitem__(name, default)
+            super().__setitem__(name, default)
 
         if len(default) == 0:
             self.log.devel("setdefault: name %s initialising.", name)
@@ -566,4 +566,4 @@ class Variables(dict):
                 return res
             return _passthrough
         else:
-            return super(Variables, self).__getattribute__(attr_name)
+            return super().__getattribute__(attr_name)

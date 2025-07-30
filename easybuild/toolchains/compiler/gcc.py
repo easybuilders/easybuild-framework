@@ -121,7 +121,7 @@ class Gcc(Compiler):
     LIB_MATH = ['m']
 
     def _set_compiler_vars(self):
-        super(Gcc, self)._set_compiler_vars()
+        super()._set_compiler_vars()
 
         # to get rid of lots of problems with libgfortranbegin
         # or remove the system gcc-gfortran
@@ -158,7 +158,7 @@ class Gcc(Compiler):
                 # so try to guess a proper default optarch if none was specified
                 default_optarch = self._guess_aarch64_default_optarch()
 
-        super(Gcc, self)._set_optimal_architecture(default_optarch=default_optarch)
+        super()._set_optimal_architecture(default_optarch=default_optarch)
 
     def _guess_aarch64_default_optarch(self):
         """

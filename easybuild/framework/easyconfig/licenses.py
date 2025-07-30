@@ -40,7 +40,7 @@ from easybuild.tools.utilities import get_subclasses
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
 
-class License(object):
+class License:
     """EasyBuild easyconfig license class
         This is also the default restrictive license
     """

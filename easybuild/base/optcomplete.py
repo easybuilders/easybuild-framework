@@ -149,7 +149,7 @@ class CompleterMissingCallArgument(Exception):
     """Exception to raise when call arg is missing"""
 
 
-class Completer(object):
+class Completer:
     """Base class to derive all other completer classes from.
     It generates an empty completion list
     """
@@ -605,7 +605,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
     sys.exit(1)
 
 
-class CmdComplete(object):
+class CmdComplete:
 
     """Simple default base class implementation for a subcommand that supports
     command completion.  This class is assuming that there might be a method

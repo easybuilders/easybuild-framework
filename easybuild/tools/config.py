@@ -71,6 +71,10 @@ WARN = 'warn'
 
 EMPTY_LIST = 'empty_list'
 
+DATA = 'data'
+MODULES = 'modules'
+SOFTWARE = 'software'
+
 PKG_TOOL_FPM = 'fpm'
 PKG_TYPE_RPM = 'rpm'
 
@@ -92,6 +96,8 @@ CONT_TYPES = [CONT_TYPE_APPTAINER, CONT_TYPE_DOCKER, CONT_TYPE_SINGULARITY]
 DEFAULT_CONT_TYPE = CONT_TYPE_SINGULARITY
 
 DEFAULT_BRANCH = 'develop'
+DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME = 10
+DEFAULT_DOWNLOAD_MAX_ATTEMPTS = 6
 DEFAULT_DOWNLOAD_TIMEOUT = 10
 DEFAULT_ENV_FOR_SHEBANG = '/usr/bin/env'
 DEFAULT_ENVVAR_USERS_MODULES = 'HOME'
@@ -112,8 +118,10 @@ DEFAULT_PATH_SUBDIRS = {
     'packagepath': 'packages',
     'repositorypath': 'ebfiles_repo',
     'sourcepath': 'sources',
-    'subdir_modules': 'modules',
-    'subdir_software': 'software',
+    'sourcepath_data': 'sources',
+    'subdir_data': DATA,
+    'subdir_modules': MODULES,
+    'subdir_software': SOFTWARE,
 }
 DEFAULT_PKG_RELEASE = '1'
 DEFAULT_PKG_TOOL = PKG_TOOL_FPM
@@ -202,7 +210,7 @@ class Singleton(ABCMeta):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
@@ -220,6 +228,7 @@ def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
 BUILD_OPTIONS_CMDLINE = {
     None: [
         'aggregate_regtest',
+        'amdgcn_capabilities',
         'backup_modules',
         'banned_linked_shared_libs',
         'checksum_priority',
@@ -297,6 +306,10 @@ BUILD_OPTIONS_CMDLINE = {
         'backup_patched_files',
         'consider_archived_easyconfigs',
         'container_build_image',
+        'cuda_sanity_check_accept_ptx_as_devcode',
+        'cuda_sanity_check_accept_missing_ptx',
+        'cuda_sanity_check_error_on_failed_checks',
+        'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
         'dump_autopep8',
@@ -364,6 +377,7 @@ BUILD_OPTIONS_CMDLINE = {
     EMPTY_LIST: [
         'accept_eula_for',
         'from_pr',
+        'ignore_pip_unversioned_pkgs',
         'include_easyblocks_from_pr',
         'robot',
         'search_paths',
@@ -478,6 +492,7 @@ DEFAULT_MODULECLASSES = [
     ('chem', "Chemistry, Computational Chemistry and Quantum Chemistry"),
     ('compiler', "Compilers"),
     ('data', "Data management & processing tools"),
+    ('dataset', "Datasets"),
     ('debugger', "Debuggers"),
     ('devel', "Development tools"),
     ('geo', "Earth Sciences"),
@@ -512,6 +527,7 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'failed_install_build_dirs_path',
         'failed_install_logs_path',
         'installpath',
+        'installpath_data',
         'installpath_modules',
         'installpath_software',
         'job_backend',
@@ -526,6 +542,8 @@ class ConfigurationVariables(BaseConfigurationVariables):
         'repository',
         'repositorypath',
         'sourcepath',
+        'sourcepath_data',
+        'subdir_data',
         'subdir_modules',
         'subdir_software',
         'tmp_logdir',
@@ -569,16 +587,20 @@ def init(options, config_options_dict):
     """
     tmpdict = copy.deepcopy(config_options_dict)
 
-    # make sure source path is a list
-    sourcepath = tmpdict['sourcepath']
-    if isinstance(sourcepath, str):
-        tmpdict['sourcepath'] = sourcepath.split(':')
-        _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict['sourcepath']))
-    elif not isinstance(sourcepath, (tuple, list)):
-        raise EasyBuildError(
-            "Value for sourcepath has invalid type (%s): %s", type(sourcepath), sourcepath,
-            exit_code=EasyBuildExit.OPTION_ERROR
-        )
+    if tmpdict['sourcepath_data'] is None:
+        tmpdict['sourcepath_data'] = tmpdict['sourcepath'][:]
+
+    for srcpath in ['sourcepath', 'sourcepath_data']:
+        # make sure source path is a list
+        sourcepath = tmpdict[srcpath]
+        if isinstance(sourcepath, str):
+            tmpdict[srcpath] = sourcepath.split(':')
+            _log.debug("Converted source path ('%s') to a list of paths: %s" % (sourcepath, tmpdict[srcpath]))
+        elif not isinstance(sourcepath, (tuple, list)):
+            raise EasyBuildError(
+                "Value for %s has invalid type (%s): %s", srcpath, type(sourcepath), sourcepath,
+                exit_code=EasyBuildExit.OPTION_ERROR
+            )
 
     # initialize configuration variables (any future calls to ConfigurationVariables() will yield the same instance
     variables = ConfigurationVariables(tmpdict, ignore_unknown_keys=True)
@@ -704,9 +726,16 @@ def build_path():
 
 def source_paths():
     """
-    Return the list of source paths
+    Return the list of source paths for software
     """
     return ConfigurationVariables()['sourcepath']
+
+
+def source_paths_data():
+    """
+    Return the list of source paths for data
+    """
+    return ConfigurationVariables()['sourcepath_data']
 
 
 def source_path():
@@ -717,15 +746,16 @@ def source_path():
 def install_path(typ=None):
     """
     Returns the install path
-    - subdir 'software' for actual installation (default)
+    - subdir 'software' for actual software installation (default)
     - subdir 'modules' for environment modules (typ='mod')
+    - subdir 'data' for data installation (typ='data')
     """
     if typ is None:
-        typ = 'software'
+        typ = SOFTWARE
     elif typ == 'mod':
-        typ = 'modules'
+        typ = MODULES
 
-    known_types = ['modules', 'software']
+    known_types = [MODULES, SOFTWARE, DATA]
     if typ not in known_types:
         raise EasyBuildError(
             "Unknown type specified in install_path(): %s (known: %s)", typ, ', '.join(known_types),

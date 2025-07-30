@@ -69,7 +69,7 @@ class IccIfort(IntelIccIfort):
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        res = super(IccIfort, self).is_dep_in_toolchain_module(name)
+        res = super().is_dep_in_toolchain_module(name)
 
         # icc & ifort do not need to be actual dependencies in iccifort module,
         # since they could also be installed together in a single directory;

@@ -55,7 +55,7 @@ class Convert(Wrapper):
             self.data = self._from_string(obj)
         else:
             raise EasyBuildError("unsupported type %s for %s: %s", type(obj), self.__class__.__name__, obj)
-        super(Convert, self).__init__(self.data)
+        super().__init__(self.data)
 
     def _split_string(self, txt, sep=None, max=0):
         """Split using sep, return list with results.

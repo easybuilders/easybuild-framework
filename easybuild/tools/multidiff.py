@@ -67,7 +67,7 @@ MAX_DIFF_GROUPS = 3
 _log = fancylogger.getLogger('multidiff', fname=False)
 
 
-class MultiDiff(object):
+class MultiDiff:
     """
     Class representing a multi-diff.
     """

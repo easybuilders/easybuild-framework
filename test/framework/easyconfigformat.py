@@ -46,9 +46,12 @@ class EasyConfigFormatTest(EnhancedTestCase):
         self.assertEqual(version['minor'], int(res['minor']))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigFormatTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

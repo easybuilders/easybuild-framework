@@ -61,4 +61,4 @@ class FujitsuMPI(Mpi):
         for var, _ in COMPILER_VARIABLES:
             self.variables.nappend('OMPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
-        super(FujitsuMPI, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

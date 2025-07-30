@@ -59,7 +59,7 @@ sanity_check_paths = {
     'dirs': [],
 }
 
-modextrapaths = {'TOY_EXAMPLES': 'examples'}
+modextravars = {'TOY_EXAMPLES': 'examples'}
 
 postinstallcmds = ["echo TOY > %(installdir)s/README"]
 

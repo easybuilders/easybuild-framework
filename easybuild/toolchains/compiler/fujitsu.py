@@ -89,7 +89,7 @@ class FujitsuCompiler(Compiler):
     }
 
     def prepare(self, *args, **kwargs):
-        super(FujitsuCompiler, self).prepare(*args, **kwargs)
+        super().prepare(*args, **kwargs)
 
         # fcc doesn't accept e.g. -std=c++11 or -std=gnu++11, only -std=c11 or -std=gnu11
         pattern = r'-std=(gnu|c)\+\+(\d+)'
@@ -106,7 +106,7 @@ class FujitsuCompiler(Compiler):
             env.setvar('LIBRARY_PATH', os.pathsep.join([library_path, libdir]))
 
     def _set_compiler_vars(self):
-        super(FujitsuCompiler, self)._set_compiler_vars()
+        super()._set_compiler_vars()
 
         # enable clang compatibility mode
         self.variables.nappend('CFLAGS', ['-Nclang'])

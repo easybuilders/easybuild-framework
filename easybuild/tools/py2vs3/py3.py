@@ -33,8 +33,6 @@ Authors:
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
-import json
-import sys
 import urllib.request as std_urllib  # noqa
 from collections.abc import Mapping  # noqa
 from functools import cmp_to_key
@@ -59,6 +57,7 @@ try:
 except ImportError:
     HAVE_DISTUTILS = False
 
+from easybuild._deprecated import json_loads # noqa
 from easybuild.base.wrapper import mk_wrapper_baseclass  # noqa
 from easybuild.tools.run import subprocess_popen_text, subprocess_terminate  # noqa
 
@@ -73,18 +72,6 @@ def load_source(filename, path):
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def json_loads(body):
-    """Wrapper for json.loads that takes into account that Python versions older than 3.6 require a string value."""
-
-    if isinstance(body, bytes) and sys.version_info[0] == 3 and sys.version_info[1] < 6:
-        # decode bytes string as regular string with UTF-8 encoding for Python 3.5.x and older
-        # only Python 3.6 and newer have support for passing bytes string to json.loads
-        # cfr. https://docs.python.org/2/library/json.html#json.loads
-        body = body.decode('utf-8', 'ignore')
-
-    return json.loads(body)
 
 
 def raise_with_traceback(exception_class, message, traceback):

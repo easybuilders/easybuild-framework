@@ -112,14 +112,14 @@ class RobotTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RobotTest, self).setUp()
+        super().setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.orig_experimental = easybuild.framework.easyconfig.tools._log.experimental
         self.orig_modtool = self.modtool
 
     def tearDown(self):
         """Test cleanup."""
-        super(RobotTest, self).tearDown()
+        super().tearDown()
 
         # restore log.experimental
         easybuild.framework.easyconfig.tools._log.experimental = self.orig_experimental
@@ -1620,9 +1620,12 @@ class RobotTest(EnhancedTestCase):
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RobotTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

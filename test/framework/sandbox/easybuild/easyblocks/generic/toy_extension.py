@@ -64,10 +64,10 @@ class Toy_Extension(ExtensionEasyBlock):
         """
         Prepare installation of toy extension.
         """
-        super(Toy_Extension, self).pre_install_extension()
+        super().pre_install_extension()
 
         if self.src:
-            super(Toy_Extension, self).install_extension(unpack_src=True)
+            super().install_extension(unpack_src=True)
             EB_toy.configure_step(self.master, name=self.name, cfg=self.cfg)
 
     def install_extension(self, *args, **kwargs):
@@ -99,7 +99,7 @@ class Toy_Extension(ExtensionEasyBlock):
         """
         Wrap up installation of toy extension.
         """
-        super(Toy_Extension, self).post_install_extension()
+        super().post_install_extension()
 
         EB_toy.install_step(self.master, name=self.name)
 
@@ -112,4 +112,4 @@ class Toy_Extension(ExtensionEasyBlock):
         }
         if self.src:
             custom_paths['files'].extend(['bin/%s' % self.name, 'lib/lib%s.a' % self.name])
-        return super(Toy_Extension, self).sanity_check_step(custom_paths=custom_paths)
+        return super().sanity_check_step(custom_paths=custom_paths)

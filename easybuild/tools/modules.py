@@ -50,7 +50,8 @@ from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path
 from easybuild.tools.environment import ORIG_OS_ENVIRON, restore_env, setvar, unset_env_vars
-from easybuild.tools.filetools import convert_name, mkdir, normalize_path, path_matches, read_file, which, write_file
+from easybuild.tools.filetools import convert_name, dir_contains_files, mkdir, normalize_path, path_matches, read_file
+from easybuild.tools.filetools import which, write_file
 from easybuild.tools.module_naming_scheme.mns import DEVEL_MODULE_SUFFIX
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -144,8 +145,10 @@ class ModEnvVarType(Enum):
       one or more files
     - PATH_WITH_TOP_FILES: (list of) of paths to existing directories
       containing one or more files in its top directory
+    - STRICT_PATH_WITH_FILES: (list of) of paths to existing directories
+      containing one or more files, given paths must correspond to real paths
     - """
-    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES = range(0, 4)
+    STRING, PATH, PATH_WITH_FILES, PATH_WITH_TOP_FILES, STRICT_PATH_WITH_FILES = range(0, 5)
 
 
 class ModuleEnvironmentVariable:
@@ -235,12 +238,89 @@ class ModuleEnvironmentVariable:
 
     @property
     def is_path(self):
+        """Return True for any ModEnvVarType that is a path"""
         path_like_types = [
             ModEnvVarType.PATH,
             ModEnvVarType.PATH_WITH_FILES,
             ModEnvVarType.PATH_WITH_TOP_FILES,
+            ModEnvVarType.STRICT_PATH_WITH_FILES,
         ]
         return self.type in path_like_types
+
+    def expand_paths(self, parent):
+        """
+        Expand path glob into list of unique corresponding real paths.
+        General behaviour:
+        - Only expand path-like variables
+        - Paths must point to existing files/directories
+        - Resolve paths following symlinks into real paths to avoid duplicate
+          paths through symlinks
+        - Relative paths are expanded on given parent folder and are kept
+          relative after expansion
+        - Absolute paths are kept as absolute paths after expansion
+        Follow requirements based on current type (ModEnvVarType):
+          - PATH: no requirements, must exist but can be empty
+          - PATH_WITH_FILES: must contain at least one file anywhere in subtree
+          - PATH_WITH_TOP_FILES: must contain files in top level directory of path
+          - STRICT_PATH_WITH_FILES: given path must expand into its real path and
+            contain files anywhere in subtree
+        """
+        if not self.is_path:
+            return None
+
+        populated_path_types = (
+            ModEnvVarType.PATH_WITH_FILES,
+            ModEnvVarType.PATH_WITH_TOP_FILES,
+            ModEnvVarType.STRICT_PATH_WITH_FILES,
+        )
+
+        retained_expanded_paths = []
+        real_parent = os.path.realpath(parent)
+
+        for path_glob in self.contents:
+            abs_glob = path_glob
+            if not os.path.isabs(path_glob):
+                abs_glob = os.path.join(real_parent, path_glob)
+
+            expanded_paths = glob.glob(abs_glob, recursive=True)
+
+            for exp_path in expanded_paths:
+                real_path = os.path.realpath(exp_path)
+
+                if self.type is ModEnvVarType.STRICT_PATH_WITH_FILES and exp_path != real_path:
+                    # avoid going through symlink for strict path types
+                    self.log.debug(
+                        f"Discarded search path '{exp_path} of type '{self.type}' as it does not correspond "
+                        f"to its real path: {real_path}"
+                    )
+                    continue
+
+                if os.path.isdir(exp_path) and self.type in populated_path_types:
+                    # only retain paths to directories that contain at least one file
+                    recursive = self.type in (ModEnvVarType.PATH_WITH_FILES, ModEnvVarType.STRICT_PATH_WITH_FILES)
+                    if not dir_contains_files(exp_path, recursive=recursive):
+                        self.log.debug(f"Discarded search path '{exp_path}' of type '{self.type}' to empty directory.")
+                        continue
+
+                retain_path = exp_path  # no discards, we got a keeper
+
+                if not os.path.isabs(path_glob):
+                    # recover relative path
+                    retain_path = os.path.relpath(real_path, start=real_parent)
+                    # modules use empty string to represent root of install dir
+                    if retain_path == '.':
+                        retain_path = ''
+
+                if retain_path.startswith('..' + os.path.sep):
+                    raise EasyBuildError(
+                        f"Expansion of search path glob pattern '{path_glob}' resulted in a relative path "
+                        f"pointing outside of parent directory: {retain_path}"
+                    )
+
+                if retain_path not in retained_expanded_paths:
+                    retained_expanded_paths.append(retain_path)
+
+        return retained_expanded_paths
 
 
 class ModuleLoadEnvironment:
@@ -286,7 +366,8 @@ class ModuleLoadEnvironment:
         self._env_vars = {}
         self.ACLOCAL_PATH = [os.path.join('share', 'aclocal')]
         self.CLASSPATH = ['*.jar']
-        self.CMAKE_LIBRARY_PATH = ['lib64']  # only needed for installations with standalone lib64
+        # CMAKE_LIBRARY_PATH only needed for installations outside of 'lib'
+        self.CMAKE_LIBRARY_PATH = {'contents': ['lib64'], 'var_type': "STRICT_PATH_WITH_FILES"}
         self.CMAKE_PREFIX_PATH = ['']
         self.GI_TYPELIB_PATH = [os.path.join(x, 'girepository-*') for x in SEARCH_PATH_LIB_DIRS]
         self.LD_LIBRARY_PATH = SEARCH_PATH_LIB_DIRS
@@ -374,7 +455,7 @@ class ModuleLoadEnvironment:
         if not self.regex['env_var_name'].match(name):
             raise EasyBuildError(
                 "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules, "
-                f"it must only have upper-case letters and underscores: '{name}'"
+                f"it must only have upper-case letters, numbers and underscores: '{name}'"
             )
 
         if not isinstance(value, dict):
@@ -484,7 +565,7 @@ class ModuleLoadEnvironment:
             raise EasyBuildError(f"Unknown search path alias: {alias}") from err
 
 
-class ModulesTool(object):
+class ModulesTool:
     """An abstract interface to a tool that deals with modules."""
     # name of this modules tool (used in log/warning/error messages)
     NAME = None
@@ -1561,7 +1642,7 @@ class EnvironmentModulesC(ModulesTool):
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
-        return super(EnvironmentModulesC, self).run_module(*args, **kwargs)
+        return super().run_module(*args, **kwargs)
 
     def update(self):
         """Update after new modules were added."""
@@ -1604,7 +1685,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
     def set_path_env_var(self, key, paths):
         """Set environment variable with given name to the given list of paths."""
-        super(EnvironmentModulesTcl, self).set_path_env_var(key, paths)
+        super().set_path_env_var(key, paths)
         # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
@@ -1630,7 +1711,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
             tweak_stdout_fn = tweak_stdout
         kwargs.update({'tweak_stdout': tweak_stdout_fn})
 
-        return super(EnvironmentModulesTcl, self).run_module(*args, **kwargs)
+        return super().run_module(*args, **kwargs)
 
     def available(self, mod_name=None, extra_args=None):
         """
@@ -1639,7 +1720,7 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
 
         :param mod_name: a (partial) module name for filtering (default: None)
         """
-        mods = super(EnvironmentModulesTcl, self).available(mod_name=mod_name, extra_args=extra_args)
+        mods = super().available(mod_name=mod_name, extra_args=extra_args)
         # strip off slash at beginning, if it's there
         # under certain circumstances, 'modulecmd.tcl avail' (DEISA variant) spits out available modules like this
         clean_mods = [mod.lstrip(os.path.sep) for mod in mods]
@@ -1702,7 +1783,7 @@ class EnvironmentModules(ModulesTool):
         # ensure only module names are returned on list (MODULES_LIST_TERSE_OUTPUT added in v4.7)
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
 
-        super(EnvironmentModules, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
@@ -1732,7 +1813,7 @@ class EnvironmentModules(ModulesTool):
         else:
             self.log.debug("Pattern '%s' not found in '_module_raw' function, falling back to 'module' function",
                            mod_cmd_re.pattern)
-            super(EnvironmentModules, self).check_module_function(allow_mismatch, regex)
+            super().check_module_function(allow_mismatch, regex)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1754,7 +1835,7 @@ class EnvironmentModules(ModulesTool):
         if LooseVersion(self.version) >= LooseVersion('4.6.0'):
             extra_args.append(self.SHOW_HIDDEN_OPTION)
 
-        return super(EnvironmentModules, self).available(mod_name=mod_name, extra_args=extra_args)
+        return super().available(mod_name=mod_name, extra_args=extra_args)
 
     def get_setenv_value_from_modulefile(self, mod_name, var_name):
         """
@@ -1834,7 +1915,7 @@ class Lmod(ModulesTool):
         # (introduced in Lmod 8.8, see also https://github.com/TACC/Lmod/issues/690)
         setvar('LMOD_TERSE_DECORATIONS', 'no', verbose=False)
 
-        super(Lmod, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
 
         self.supports_depends_on = True
@@ -1848,7 +1929,7 @@ class Lmod(ModulesTool):
         """Check whether selected module tool matches 'module' function definition."""
         if 'regex' not in kwargs:
             kwargs['regex'] = r".*(%s|%s)" % (self.COMMAND, self.COMMAND_ENVIRONMENT)
-        super(Lmod, self).check_module_function(*args, **kwargs)
+        super().check_module_function(*args, **kwargs)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1876,7 +1957,7 @@ class Lmod(ModulesTool):
             opts.append((0, self.SHOW_HIDDEN_OPTION))
             args = [a for a in args if a != self.SHOW_HIDDEN_OPTION]
 
-        return super(Lmod, self).compose_cmd_list(args, opts=opts)
+        return super().compose_cmd_list(args, opts=opts)
 
     def available(self, mod_name=None):
         """
@@ -1888,7 +1969,7 @@ class Lmod(ModulesTool):
         # make hidden modules visible (requires Lmod 5.7.5)
         extra_args = [self.SHOW_HIDDEN_OPTION]
 
-        mods = super(Lmod, self).available(mod_name=mod_name, extra_args=extra_args)
+        mods = super().available(mod_name=mod_name, extra_args=extra_args)
 
         # only retain actual modules, exclude module directories (which end with a '/')
         real_mods = [mod for mod in mods if not mod.endswith('/')]
@@ -1997,12 +2078,12 @@ class Lmod(ModulesTool):
         First check for wrapper defined in .modulerc.lua, fall back to also checking .modulerc (Tcl syntax).
         """
         mod_wrapper_regex_template = r'^module_version\("(?P<wrapped_mod>.*)", "%s"\)$'
-        res = super(Lmod, self).module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
-                                                      mod_wrapper_regex_template=mod_wrapper_regex_template)
+        res = super().module_wrapper_exists(mod_name, modulerc_fn='.modulerc.lua',
+                                            mod_wrapper_regex_template=mod_wrapper_regex_template)
 
         # fall back to checking for .modulerc in Tcl syntax
         if res is None:
-            res = super(Lmod, self).module_wrapper_exists(mod_name)
+            res = super().module_wrapper_exists(mod_name)
 
         return res
 

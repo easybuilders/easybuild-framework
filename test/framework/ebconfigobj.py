@@ -42,7 +42,7 @@ class TestEBConfigObj(EnhancedTestCase):
 
     def setUp(self):
         """Set some convenience attributes"""
-        super(TestEBConfigObj, self).setUp()
+        super().setUp()
 
         _, tcs = search_toolchain('')
         self.tc_names = [x.NAME for x in tcs]
@@ -279,9 +279,12 @@ class TestEBConfigObj(EnhancedTestCase):
         self.assertEqual(res, {'foo': 'bar'})
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(TestEBConfigObj)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(TestEBConfigObj, sys.argv[1:])
 
 
 if __name__ == '__main__':

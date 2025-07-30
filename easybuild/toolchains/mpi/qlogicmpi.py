@@ -52,4 +52,4 @@ class QLogicMPI(Mpich2):
 
         self.variables.nappend("MPICH_CCC", str(self.variables['CXX'].get_first()), var_class=CommandFlagList)
 
-        super(QLogicMPI, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

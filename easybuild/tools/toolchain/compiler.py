@@ -158,13 +158,13 @@ class Compiler(Toolchain):
         self.cpu_family = systemtools.get_cpu_family()
         # list of compiler prefixes
         self.prefixes = []
-        super(Compiler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_options(self, options):
         """Process compiler toolchain options."""
         self._set_compiler_toolchainoptions()
         self.log.devel('_compiler_set_options: compiler toolchain options %s', self.options)
-        super(Compiler, self).set_options(options)
+        super().set_options(options)
 
     def set_variables(self):
         """Set the variables"""
@@ -173,7 +173,7 @@ class Compiler(Toolchain):
         self._set_compiler_flags()
 
         self.log.devel('set_variables: compiler variables %s', self.variables)
-        super(Compiler, self).set_variables()
+        super().set_variables()
 
     def _set_compiler_toolchainoptions(self):
         """Set the compiler related toolchain options"""
