@@ -37,6 +37,7 @@ Authors:
 """
 import copy
 import os
+import re
 import sys
 from datetime import datetime
 from time import gmtime, strftime
@@ -57,6 +58,48 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 
 _log = fancylogger.getLogger('testing', fname=False)
+
+DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES = [
+    'KEY',
+    'SECRET',
+    'TOKEN',
+    'PASSWORD',
+    'API',
+    'AUTH',
+    'CREDENTIAL',
+    'PRIVATE',
+    'LICENSE',
+    'LICENCE',
+]
+DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX = [
+    # From PR comments https://github.com/easybuilders/easybuild-framework/pull/4877
+    r'AKIA[0-9A-Z]{16}',  # AWS access key
+    r'[A-Za-z0-9/+=]{40}',  # AWS secret key
+    r'eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+',  # JWT token
+    r'gh[pousr]_[A-Za-z0-9_]{36,}',  # GitHub token
+    r'xox[baprs]-[A-Za-z0-9-]+',  # Slack token
+
+    # https://github.com/odomojuli/regextokens
+    # This is too aggressive and can end up excluding any alphanumeric string with length multiple of 4
+    # r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$',  # Base64
+    r'[1-9][0-9]+-[0-9a-zA-Z]{40}',  # Twitter token
+    r'EAACEdEose0cBA[0-9A-Za-z]+',  # Facebook token
+    r'[0-9a-fA-F]{7}.[0-9a-fA-F]{32}',  # Instagram token
+    r'AIza[0-9A-Za-z-_]{35}',  # Google API key
+    r'4/[0-9A-Za-z-_]+',  # Google OAuth 2.0 Auth code
+    r'ya29.[0-9A-Za-z-_]+',  # Google OAuth 2.0 access token
+    r'[rs]k_live_[0-9a-z]{32}',  # Picatic/Stripe API key
+    r'sqOatp-[0-9A-Za-z-_]{22}',  # Square Access token
+    r'access_token,production$[0-9a-z]{161[0-9a,]{32}',  # PayPal token
+    r'55[0-9a-fA-F]{32}',  # Twilio token
+    r'key-[0-9a-zA-Z]{32}',  # Mailgun API key
+    r'[0-9a-f]{32}-us[0-9]{1,2}',  # Mailchimp API key
+    r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',  # Google Cloud Oauth 2.0 token
+    r'[A-Za-z0-9_]{21}--[A-Za-z0-9_]{8}',  # Google Cloud API key
+    r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',  # Heroku token
+    r'sk-(.*-)?[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}',  # OpenAI API key
+    r'waka_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',  # WakaTime API key
+]
 
 
 def regtest(easyconfig_paths, modtool, build_specs=None):
@@ -265,8 +308,12 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     for key in sorted(environ_dump.keys()):
         if env_filter is not None and env_filter.search(key):
             continue
-        else:
-            environment += ["%s = %s" % (key, environ_dump[key])]
+        if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES):
+            continue
+        value = environ_dump[key]
+        if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
+            continue
+        environment += ["%s = %s" % (key, value)]
 
     test_report.extend(["#### Environment", "```"] + environment + ["```"])
 

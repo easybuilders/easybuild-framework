@@ -222,9 +222,12 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ecdict['version'], '1.4')
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigParserTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigParserTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigParserTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

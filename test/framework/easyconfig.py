@@ -104,7 +104,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up everything for running a unit test."""
-        super(EasyConfigTest, self).setUp()
+        super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
 
         self.cwd = os.getcwd()
@@ -134,7 +134,7 @@ class EasyConfigTest(EnhancedTestCase):
         """ make sure to remove the temporary file """
         st.get_cpu_architecture = self.orig_get_cpu_architecture
 
-        super(EasyConfigTest, self).tearDown()
+        super().tearDown()
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
 
@@ -4197,10 +4197,10 @@ class EasyConfigTest(EnhancedTestCase):
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
         test_ec_txt = checksums_regex.sub('checksums = ["%s"]' % toy_sha256, toy_ec_txt)
-        test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
+        passing_test_ec_txt = re.sub(r'patches = \[(.|\n)*\]', '', test_ec_txt)
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0-ok.eb')
-        write_file(test_ec, test_ec_txt)
+        write_file(test_ec, passing_test_ec_txt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
         ecs = [ec['ec'] for ec in ecs]
 
@@ -4235,6 +4235,15 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
         self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
+
+        # Extension with nosource: True
+        test_ec_txt = passing_test_ec_txt + "exts_list = [('bar', '0.0', { 'nosource': True })]"
+        toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+        test_ec = os.path.join(self.test_prefix, 'toy-0.0-nosource.eb')
+        write_file(test_ec, test_ec_txt)
+        ecs, _ = parse_easyconfigs([(test_ec, False)])
+        ecs = [ec['ec'] for ec in ecs]
+        self.assertEqual(check_sha256_checksums(ecs), [])
 
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
@@ -4705,7 +4714,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_resolve_exts_filter_template(self):
         """Test for resolve_exts_filter_template function."""
-        class TestExtension(object):
+        class TestExtension:
             def __init__(self, values):
                 self.name = values['name']
                 self.version = values.get('version')
@@ -4797,6 +4806,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['prebuildopts'], '4.2;6.3')
         self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
+
+    def test_amdgcn_capabilities(self):
+        self.contents = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'test'
+            version = '0.2'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            amdgcn_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
+            buildopts = ('comma="%(amdgcn_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
+                         'semi="%(amdgcn_cc_semicolon_sep)s"')
+            installopts = '%(amdgcn_capabilities)s'
+        """)
+        self.prep()
+
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101,gfx11-generic,gfx10-3-generic" '
+                                          'space="gfx90a gfx1101 gfx11-generic gfx10-3-generic" '
+                                          'semi="gfx90a;gfx1101;gfx11-generic;gfx10-3-generic"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101,gfx11-generic,gfx10-3-generic')
+
+        # build options overwrite it
+        init_config(build_options={'amdgcn_capabilities': ['gfx90a', 'gfx1101']})
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101" '
+                                          'space="gfx90a gfx1101" '
+                                          'semi="gfx90a;gfx1101"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101')
 
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
@@ -5037,7 +5075,7 @@ class EasyConfigTest(EnhancedTestCase):
         # and a local variable with a list of imported modules, to check clean error handling
         test_ec_txt += '\n' + '\n'.join([
             "import logging",
-            "class _TestClass(object):",
+            "class _TestClass:",
             "    def __init__(self):",
             "        self.log = logging.Logger('alogger')",
             "local_test = _TestClass()",
@@ -5081,6 +5119,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
         ec = EasyConfig(self.eb_file)
@@ -5100,6 +5139,56 @@ class EasyConfigTest(EnhancedTestCase):
 
         for key, expected in cuda_template_values.items():
             self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
+
+    def test_get_amdgcn_cc_template_value(self):
+        """
+        Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = ("foobar is not a template value based on "
+                         "--amdgcn-capabilities/amdgcn_capabilities")
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
+        amdgcn_template_values = {
+            'amdgcn_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
+            'amdgcn_cc_space_sep': 'gfx90a gfx1100 gfx10-3-generic',
+            'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
+        }
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+
+        update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
+
+        update_build_option('amdgcn_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
+
+        self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
@@ -5265,9 +5354,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertRegex(stderr.getvalue(), regex)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

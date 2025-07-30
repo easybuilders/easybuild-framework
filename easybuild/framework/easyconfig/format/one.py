@@ -104,7 +104,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
     def __init__(self, *args, **kwargs):
         """FormatOneZero constructor."""
-        super(FormatOneZero, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
         self.strict_sanity_check_paths_keys = True
@@ -155,7 +155,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         Pre-process txt to extract header, docstring and pyheader, with non-indented section markers enforced.
         """
         self.rawcontent = txt
-        super(FormatOneZero, self).parse(self.rawcontent, strict_section_markers=True)
+        super().parse(self.rawcontent, strict_section_markers=True)
 
     def _reformat_line(self, param_name, param_val, outer=False, addlen=0):
         """
