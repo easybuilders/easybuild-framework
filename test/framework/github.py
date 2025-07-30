@@ -97,7 +97,7 @@ class GithubTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(GithubTest, self).setUp()
+        super().setUp()
 
         self.github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
 
@@ -116,7 +116,7 @@ class GithubTest(EnhancedTestCase):
         """Cleanup after running test."""
         easybuild.tools.testing.create_gist = self.orig_testing_create_gist
 
-        super(GithubTest, self).tearDown()
+        super().tearDown()
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""
@@ -254,11 +254,11 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(22380)
+        gh.add_pr_labels(21465)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
+        self.assertIn("Could not determine any missing labels for PR #21465", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -406,17 +406,16 @@ class GithubTest(EnhancedTestCase):
             'pr_target_account': gh.GITHUB_EB_MAIN,
         })
 
-        # TODO: no 5.x PRs for new easyblocks
         # PR with new easyblock plus non-easyblock file
-        # all_ebs_pr1964 = ['lammps.py']
+        all_ebs_pr1964 = ['lammps.py']
 
         # PR with changed easyblock
-        all_ebs_pr3631 = ['root.py']
+        all_ebs_pr3674 = ['llvm.py']
 
         # PR with more than one easyblock
-        all_ebs_pr3596 = ['wps.py', 'wrf.py']
+        all_ebs_pr1949 = ['configuremake.py', 'rpackage.py']
 
-        for pr, all_ebs in [(3631, all_ebs_pr3631), (3596, all_ebs_pr3596)]:
+        for pr, all_ebs in [(1964, all_ebs_pr1964), (3674, all_ebs_pr3674), (1949, all_ebs_pr1949)]:
             try:
                 tmpdir = os.path.join(self.test_prefix, 'pr%s' % pr)
                 with self.mocked_stdout_stderr():
@@ -549,7 +548,7 @@ class GithubTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
 
         # test downloading of non-existing commit
-        error_pattern = r"Failed to download diff for commit c0ff33c0ff33 of easybuilders/easybuild-easyconfigs"
+        error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
     def test_fetch_easyconfigs_from_commit(self):
@@ -1117,7 +1116,7 @@ class GithubTest(EnhancedTestCase):
         gist_id = gist_url.split('/')[-1]
         gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
 
-    def test_github_det_account_branch_for_pr(self):
+    def test_github_det_account_repo_branch_for_pr(self):
         """Test det_account_branch_for_pr."""
         if self.skip_github_tests:
             print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
@@ -1130,9 +1129,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'boegel')
+        self.assertEqual(repo, 'easybuild-easyconfigs')
         self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
 
         init_config(build_options={
@@ -1142,9 +1142,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-framework/pull/3069
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(repo, 'easybuild-framework')
         self.assertEqual(branch, 'fix_inject_checksums')
 
     def test_github_det_pr_target_repo(self):
@@ -1318,25 +1319,82 @@ class GithubTest(EnhancedTestCase):
                 'log_file': logfile,
             }),
         ]
+        environ = {
+            'USER': 'test',
+        }
+        JWT_HDR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+        JWT_PLD = 'eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNzA4MzQ1MTIzLCJleHAiOjE3MDgzNTUxMjN9'
+        JWT_SIG = 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+        secret_environ = {
+            # Test default removal based on variable value
+            'TOTALLYPUBLICVAR1': 'AKIAIOSFODNN7EXAMPLE',  # AWS_ACCESS_KEY
+            'TOTALLYPUBLICVAR2': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',  # AWS_SECRET_KEY
+            'TOTALLYPUBLICVAR3': '.'.join([JWT_HDR, JWT_PLD, JWT_SIG]),  # JWT
+            'TOTALLYPUBLICVAR4': 'ghp_123456789_ABCDEFGHIJKlmnopqrstuvwxyz',  # GH_TOKEN
+            'TOTALLYPUBLICVAR5': 'xoxb-1234567890-1234567890123-ABCDEFabcdef',  # SLACK_TOKEN
+
+            # Test default removal based on variable name
+            'API_SOMETHING': '1234567890',
+            'MY_PASSWORD': '1234567890',
+            'ABC_TOKEN': '1234567890',
+            'AUTH_XXX': '1234567890',
+            'LICENSE': '1234567890',
+            'WORLD_KEY': '1234567890',
+            'PRIVATE_INFO': '1234567890',
+            'SECRET_SECRET': '1234567890',
+            'INFO_CREDENTIALS': '1234567890',
+        }
         init_session_state = {
             'easybuild_configuration': ['EASYBUILD_DEBUG=1'],
-            'environment': {'USER': 'test'},
+            'environment': {**environ, **secret_environ},
             'module_list': [{'mod_name': 'test'}],
             'system_info': {'name': 'test'},
             'time': gmtime(0),
         }
+
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
             "**FAIL (build issue)** _fail.eb_",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
+            "USER = test",
         ]
         for pattern in patterns:
             self.assertIn(pattern, res['full'])
 
-        for pattern in patterns[:2]:
+        # Test that known token regexes for ENV vars are excluded by default
+        exclude_patterns = [
+            'TOTALLYPUBLICVAR1',
+            'TOTALLYPUBLICVAR2',
+            'TOTALLYPUBLICVAR3',
+            'TOTALLYPUBLICVAR4',
+            'TOTALLYPUBLICVAR5',
+
+            'API_SOMETHING',
+            'MY_PASSWORD',
+            'ABC_TOKEN',
+            'AUTH_XXX',
+            'LICENSE',
+            'WORLD_KEY',
+            'PRIVATE_INFO',
+            'SECRET_SECRET',
+            'INFO_CREDENTIALS',
+        ]
+        for pattern in exclude_patterns:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
+
+        res = create_test_report("just a test", ecs_with_res, init_session_state)
+        for pattern in patterns:
             self.assertIn(pattern, res['full'])
+
+        for pattern in patterns[:2]:
+            self.assertIn(pattern, res['overview'])
+
+        for pattern in exclude_patterns:
+            # .lower() test that variable name is not case sensitive for excluding
+            self.assertNotIn(pattern.lower(), res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
         def fake_create_gist(*args, **kwargs):
@@ -1354,7 +1412,7 @@ class GithubTest(EnhancedTestCase):
             self.assertIn(pattern, res['full'])
 
         for pattern in patterns[:3]:
-            self.assertIn(pattern, res['full'])
+            self.assertIn(pattern, res['overview'])
 
         self.assertIn("**SUCCESS** _test.eb_", res['overview'])
 
@@ -1382,7 +1440,8 @@ class GithubTest(EnhancedTestCase):
         self.assertFalse(is_patch_for('pi.patch', ec))
         self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
-        ec['patches'] = []
+        ec['patches'] = [{'name': '%(name)s-%(version)s.patch'}]
+        self.assertTrue(is_patch_for('pi-3.14.patch', ec))
 
         for patch_fn in ('foo.patch', '%(name)s.patch', '%(namelower)s.patch'):
             ec['exts_list'] = [('foo', '1.2.3', {'patches': [patch_fn]})]
@@ -1392,13 +1451,22 @@ class GithubTest(EnhancedTestCase):
         ec['components'] = None
         self.assertFalse(is_patch_for('pi.patch', ec))
 
-        ec['components'] = [('foo', '1.2.3', {'patches': ['pi.patch']})]
+        ec['components'] = [('foo', '1.2.3',
+                             {'patches': [
+                                 'pi.patch',
+                                 {'name': 'ext_%(name)s-%(version)s.patch'},
+                                 ],
+                              })]
         self.assertTrue(is_patch_for('pi.patch', ec))
+        self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(GithubTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
