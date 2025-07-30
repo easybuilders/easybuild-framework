@@ -49,6 +49,7 @@ LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
 |-- ConfigureMake
 |   |-- MakeCp
 |-- EB_binutils
+|-- EB_BLIS
 |-- EB_bzip2
 |-- EB_CMake
 |-- EB_EasyBuildMeta
@@ -111,6 +112,7 @@ LIST_EASYBLOCKS_DETAILED_TXT = """EasyBlock (easybuild.framework.easyblock)
 |-- ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
 |   |-- MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
 |-- EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+|-- EB_BLIS (easybuild.easyblocks.blis @ %(topdir)s/b/blis.py)
 |-- EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
 |-- EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
 |-- EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
@@ -176,6 +178,7 @@ LIST_EASYBLOCKS_SIMPLE_RST = """* **EasyBlock**
     * MakeCp
 
   * EB_binutils
+  * EB_BLIS
   * EB_bzip2
   * EB_CMake
   * EB_EasyBuildMeta
@@ -266,6 +269,7 @@ LIST_EASYBLOCKS_DETAILED_RST = """* **EasyBlock** (easybuild.framework.easyblock
     * MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
 
   * EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+  * EB_BLIS (easybuild.easyblocks.blis @ %(topdir)s/b/blis.py)
   * EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
   * EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
   * EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
@@ -353,6 +357,7 @@ LIST_EASYBLOCKS_SIMPLE_MD = """- **EasyBlock**
   - ConfigureMake
     - MakeCp
   - EB_binutils
+  - EB_BLIS
   - EB_bzip2
   - EB_CMake
   - EB_EasyBuildMeta
@@ -415,6 +420,7 @@ LIST_EASYBLOCKS_DETAILED_MD = """- **EasyBlock** (easybuild.framework.easyblock)
   - ConfigureMake (easybuild.easyblocks.generic.configuremake @ %(topdir)s/generic/configuremake.py)
     - MakeCp (easybuild.easyblocks.generic.makecp @ %(topdir)s/generic/makecp.py)
   - EB_binutils (easybuild.easyblocks.binutils @ %(topdir)s/b/binutils.py)
+  - EB_BLIS (easybuild.easyblocks.blis @ %(topdir)s/b/blis.py)
   - EB_bzip2 (easybuild.easyblocks.bzip2 @ %(topdir)s/b/bzip2.py)
   - EB_CMake (easybuild.easyblocks.cmake @ %(topdir)s/c/cmake.py)
   - EB_EasyBuildMeta (easybuild.easyblocks.easybuildmeta @ %(topdir)s/e/easybuildmeta.py)
@@ -1407,9 +1413,12 @@ class DocsTest(EnhancedTestCase):
             self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
 
-def suite():
+def suite(loader=None):
     """ returns all test cases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(DocsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(DocsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -66,8 +66,9 @@ for key in os.environ.keys():
     if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
+# Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
-go = EasyBuildOptions(go_useconfigfiles=False)
+go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
@@ -85,7 +86,7 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        super(EnhancedTestCase, self).setUp()
+        super().setUp()
 
         # make sure option parser doesn't pick up any cmdline arguments/options
         while len(sys.argv) > 1:
@@ -115,7 +116,9 @@ class EnhancedTestCase(TestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
+        self.test_sourcepath_data = os.path.join(testdir, 'sandbox', 'data_sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
@@ -232,7 +235,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
-        super(EnhancedTestCase, self).tearDown()
+        super().tearDown()
 
         self.log.info("Cleaning up for test %s", self.id())
 
@@ -478,6 +481,8 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
 
     cleanup(clear_caches=clear_caches)
 
+    if args is None:
+        args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
