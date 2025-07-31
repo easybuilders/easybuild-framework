@@ -2037,22 +2037,27 @@ class EasyBlock:
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
         if build_option('parallel_extensions_install'):
-            try:
+            # check to see if parallel extension install is supported for all extensions
+            # if it is not then we'll fallback to sequential install
+            all_exts_parallel = True
+            for ext in self.ext_instances:
+                if Extension.install_extension_async.__code__.co_code == ext.install_extension_async.__code__.co_code:
+                    all_exts_parallel = False
+
+            if all_exts_parallel:
                 self.install_extensions_parallel(install=install)
-            except NotImplementedError:
-                # If parallel extension install is not supported for this type of extension then install sequentially
+            else:
                 msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
                 self.log.info(msg)
-                self.install_extensions_sequential(install=install, started_in_parallel=True)
+                self.install_extensions_sequential(install=install)
         else:
             self.install_extensions_sequential(install=install)
 
-    def install_extensions_sequential(self, install=True, started_in_parallel=False):
+    def install_extensions_sequential(self, install=True):
         """
         Install extensions sequentially.
 
         :param install: actually install extensions, don't just prepare environment for installing
-        :param started_in_parallel: was install_extensions_parallel attempted before the sequential install
         """
         self.log.info("Installing extensions sequentially...")
 
@@ -2085,15 +2090,12 @@ class EasyBlock:
             if install and not self.dry_run:
                 with self.fake_module_environment(with_build_deps=True):
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-                    # we started setting up the environment for a parallel extension install
-                    # so redoing the prepare will break some extension installs
-                    if not started_in_parallel:
-                        # don't reload modules for toolchain, there is no need
-                        # since they will be loaded already by the fake module
-                        ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
-                                              rpath_filter_dirs=self.rpath_filter_dirs,
-                                              rpath_include_dirs=self.rpath_include_dirs,
-                                              rpath_wrappers_dir=self.rpath_wrappers_dir)
+                    # don't reload modules for toolchain, there is no need
+                    # since they will be loaded already by the fake module
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                                          rpath_filter_dirs=self.rpath_filter_dirs,
+                                          rpath_include_dirs=self.rpath_include_dirs,
+                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     try:
                         ext.install_extension_substep("pre_install_extension")
                         with self.module_generator.start_module_creation():
