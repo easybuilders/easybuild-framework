@@ -106,6 +106,9 @@ implement support for installing particular (groups of) software packages.""",
             'eb2 = easybuild.cli:eb',
         ]
     },
+    extras_require={
+        'eb2': ['click', 'rich', 'rich_click'],
+    },
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),
