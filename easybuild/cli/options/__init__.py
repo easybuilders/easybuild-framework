@@ -41,7 +41,6 @@ KNOWN_DIRPATH_OPTS = [
     'buildpath',
     'containerpath',
     'installpath',
-    'repositorypath',
     'sourcepath',
 ]
 
@@ -63,13 +62,14 @@ class DelimitedPathList(click.Path):
     """Custom Click parameter type for delimited lists."""
     name = 'pathlist'
 
-    def __init__(self, *args, delimiter=',', resolve_full: bool = False, **kwargs):
+    def __init__(self, *args, delimiter=',', **kwargs):
+        self.resolve_full = kwargs.setdefault('resolve_path', False)
         super().__init__(*args, **kwargs)
         self.delimiter = delimiter
-        self.resolve_full = resolve_full
+        name = self.name
+        self.name = f'[{name}[{self.delimiter}{name}]]'
 
     def convert(self, value, param, ctx):
-        # logging.warning(f"{param=} convert called with `{value=}`, `{type(value)=}`")
         if isinstance(value, str):
             res = value.split(self.delimiter)
         elif isinstance(value, (list, tuple)):
@@ -78,12 +78,10 @@ class DelimitedPathList(click.Path):
             raise click.BadParameter(f"Expected a comma-separated string, got {value}")
         if self.resolve_full:
             res = [os.path.abspath(v) for v in res]
-        # logging.warning(f"{param=} convert returning `{res=}`")
         return res
 
     def shell_complete(self, ctx, param, incomplete):
         others, last = ([None] + incomplete.rsplit(self.delimiter, 1))[-2:]
-        # logging.warning(f"Shell completion for delimited path list: others={others}, last={last}")
         dir_path, prefix = os.path.split(last)
         dir_path = dir_path or '.'
         # logging.warning(f"Shell completion for delimited path list: dir_path={dir_path}, prefix={prefix}")
@@ -107,11 +105,10 @@ class DelimitedPathList(click.Path):
 
 class DelimitedString(click.ParamType):
     """Custom Click parameter type for delimited strings."""
-    name = 'strlist'
-
     def __init__(self, *args, delimiter=',', **kwargs):
         super().__init__(*args, **kwargs)
         self.delimiter = delimiter
+        self.name = f'[STR[{self.delimiter}STR]]'
 
     def convert(self, value, param, ctx):
         if isinstance(value, str):
@@ -173,20 +170,20 @@ class OptionData:
 
         # Manually enforced FILE types
         if self.name in KNOWN_FILEPATH_OPTS:
-            kwargs['type'] = click.Path(exists=True, dir_okay=False, file_okay=True)
+            kwargs['type'] = click.Path(dir_okay=False, file_okay=True)
         # Manually enforced DIRECTORY types
         elif self.name in KNOWN_DIRPATH_OPTS:
-            kwargs['type'] = click.Path(exists=True, dir_okay=True, file_okay=False)
+            kwargs['type'] = click.Path(dir_okay=True, file_okay=False)
         # Convert options from easybuild.tools.options
         elif self.type in ['strlist', 'strtuple']:
             kwargs['type'] = DelimitedString(delimiter=',')
-            kwargs['multiple'] = True
+            # kwargs['multiple'] = True
         elif self.type in ['pathlist', 'pathtuple']:
             kwargs['type'] = DelimitedPathList(delimiter=os.pathsep)
-            kwargs['multiple'] = True
+            # kwargs['multiple'] = True
         elif self.type in ['urllist', 'urltuple']:
             kwargs['type'] = DelimitedString(delimiter='|')
-            kwargs['multiple'] = True
+            # kwargs['multiple'] = True
         elif self.type == 'choice':
             if self.lst is None:
                 raise ValueError(f"Choice type requires a list of choices for option {self.name}")
@@ -202,7 +199,7 @@ class OptionData:
             if self.default is False or self.default is True:
                 kwargs['is_flag'] = True
                 kwargs['type'] = click.BOOL
-                if self.action in ['store_true', 'store_false']:
+                if self.default is True:
                     decl = f"--{self.name}/--disable-{self.name}"
             elif isinstance(self.default, (list, tuple)):
                 kwargs['multiple'] = True
