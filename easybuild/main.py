@@ -838,6 +838,7 @@ def main_with_hooks(args=None):
     except EasyBuildError as err:
         print_error(err.msg, exit_code=err.exit_code)
     else:
+        # Avoid running double initialization in `main` afterward if `prepare_main` succeeded
         args = None
 
     hooks = load_hooks(eb_go.options.hooks)

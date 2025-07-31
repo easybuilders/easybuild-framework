@@ -5,9 +5,10 @@ try:
 except ImportError:
     def eb():
         """Placeholder function to inform the user that `click` is required."""
-        print("Using `eb2` requires `click` to be installed. Either use `eb` or install `click` with `pip install click`.")
-        print("`eb2` also uses `rich` and `rich_click` as optional dependencies for enhanced CLI experience.")
-        print("Exiting...")
+        print('Using `eb2` requires `click` to be installed.')
+        print('Either use `eb` or install `click` with `pip install click`.')
+        print('`eb2` also uses `rich` and `rich_click` as optional dependencies for enhanced CLI experience.')
+        print('Exiting...')
         sys.exit(0)
 else:
     try:
