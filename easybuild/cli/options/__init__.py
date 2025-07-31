@@ -18,6 +18,34 @@ else:
     opt_group.clear()  # Clear existing groups to avoid conflicts
 
 
+KNOWN_FILEPATH_OPTS = [
+    'hooks',
+    'modules-footer',
+    'modules-header',
+]
+
+KNOWN_DIRPATH_OPTS = [
+    'locks-dir',
+
+    'failed-install-build-dirs-path',
+    'failed-install-logs-path',
+    'installpath-data',
+    'installpath-modules',
+    'installpath-software',
+    'prefix',
+    'sourcepath-data',
+    'testoutput',
+    'tmp-logdir',
+    'tmpdir',
+
+    'buildpath',
+    'containerpath',
+    'installpath',
+    'repositorypath',
+    'sourcepath',
+]
+
+
 class OptionExtracter(EasyBuildOptions):
     def __init__(self, *args, **kwargs):
         self._option_dicts = {}
@@ -143,7 +171,14 @@ class OptionData:
             'type': None
         }
 
-        if self.type in ['strlist', 'strtuple']:
+        # Manually enforced FILE types
+        if self.name in KNOWN_FILEPATH_OPTS:
+            kwargs['type'] = click.Path(exists=True, dir_okay=False, file_okay=True)
+        # Manually enforced DIRECTORY types
+        elif self.name in KNOWN_DIRPATH_OPTS:
+            kwargs['type'] = click.Path(exists=True, dir_okay=True, file_okay=False)
+        # Convert options from easybuild.tools.options
+        elif self.type in ['strlist', 'strtuple']:
             kwargs['type'] = DelimitedString(delimiter=',')
             kwargs['multiple'] = True
         elif self.type in ['pathlist', 'pathtuple']:
@@ -162,6 +197,7 @@ class OptionData:
             kwargs['type'] = click.FLOAT
         elif self.type in ['str', str]:
             kwargs['type'] = click.STRING
+        # If type is None assume type based on default value
         elif self.type is None:
             if self.default is False or self.default is True:
                 kwargs['is_flag'] = True
@@ -172,6 +208,7 @@ class OptionData:
                 kwargs['multiple'] = True
                 kwargs['type'] = click.STRING
 
+        # store_or_None implies that the option can be used as a flag with no value
         if self.action == 'store_or_None':
             kwargs['default'] = None
             kwargs['flag_value'] = self.default
