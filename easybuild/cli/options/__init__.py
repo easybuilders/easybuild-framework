@@ -36,7 +36,7 @@ class DelimitedPathList(click.Path):
     """Custom Click parameter type for delimited lists."""
     name = 'pathlist'
 
-    def __init__(self, *args, delimiter=',', resolve_full: bool = True, **kwargs):
+    def __init__(self, *args, delimiter=',', resolve_full: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
         self.delimiter = delimiter
         self.resolve_full = resolve_full
