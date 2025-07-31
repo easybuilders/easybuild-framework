@@ -1,4 +1,3 @@
-# import logging
 import os
 
 from typing import Callable, Any
@@ -55,7 +54,7 @@ class DelimitedPathList(click.Path):
         return res
 
     def shell_complete(self, ctx, param, incomplete):
-        others, last = ([''] + incomplete.rsplit(self.delimiter, 1))[-2:]
+        others, last = ([None] + incomplete.rsplit(self.delimiter, 1))[-2:]
         # logging.warning(f"Shell completion for delimited path list: others={others}, last={last}")
         dir_path, prefix = os.path.split(last)
         dir_path = dir_path or '.'
@@ -72,7 +71,7 @@ class DelimitedPathList(click.Path):
             elif os.path.isfile(full_path):
                 if self.file_okay:
                     possibles.append(full_path)
-        start = f'{others}{self.delimiter}' if others else ''
+        start = f'{others}{self.delimiter}' if others is not None else ''
         res = [CompletionItem(f"{start}{path}") for path in possibles]
         # logging.warning(f"Shell completion for delimited path list: res={possibles}")
         return res
@@ -105,10 +104,8 @@ class EasyconfigParam(click.ParamType):
     name = 'easyconfig'
 
     def shell_complete(self, ctx, param, incomplete):
-        if not incomplete:
-            return []
         set_up_configuration(args=["--ignore-index"], silent=True, reconfigure=True)
-        return [CompletionItem(ec) for ec in search_easyconfigs(fr'^{incomplete}.*\.eb$', filename_only=True)]
+        return [CompletionItem(ec, help='') for ec in search_easyconfigs(fr'^{incomplete}.*\.eb$', filename_only=True)]
 
 
 @dataclass
@@ -150,7 +147,7 @@ class OptionData:
             kwargs['type'] = DelimitedString(delimiter=',')
             kwargs['multiple'] = True
         elif self.type in ['pathlist', 'pathtuple']:
-            kwargs['type'] = DelimitedPathList(delimiter=',')
+            kwargs['type'] = DelimitedPathList(delimiter=os.pathsep)
             kwargs['multiple'] = True
         elif self.type in ['urllist', 'urltuple']:
             kwargs['type'] = DelimitedString(delimiter='|')
