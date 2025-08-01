@@ -2277,7 +2277,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_from_commit(self):
         """Test for --from-commit."""
-        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+        # --from-commit does not involve using GitHub API, so no GitHub token required;
+        # however, because we easily hit GitHub rate limits when using --from-commit
+        # (see also https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/),
+        # we only run this test when a GitHub token is available,
+        # which is only the case for a limited number of test configurations (see .github/workflows/unit_tests.yml)
+        if self.github_token is None:
+            print("Skipping test_from_commit (no GitHub token available)")
+            return
 
         # easyconfigs commit to add EasyBuild-4.8.2.eb
         test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
@@ -2362,7 +2369,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
     # cleaning up the imported easyblocks is quite difficult...
     def test_xxx_include_easyblocks_from_commit(self):
         """Test for --include-easyblocks-from-commit."""
-        # note: --include-easyblocks-from-commit does not involve using GitHub API, so no GitHub token required
+        # --from-commit does not involve using GitHub API, so no GitHub token required;
+        # however, because we easily hit GitHub rate limits when using --from-commit
+        # (see also https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/),
+        # we only run this test when a GitHub token is available,
+        # which is only the case for a limited number of test configurations (see .github/workflows/unit_tests.yml)
+        if self.github_token is None:
+            print("Skipping test_xxx_include_easyblocks_from_commit (no GitHub token available)")
+            return
 
         orig_local_sys_path = sys.path[:]
         # easyblocks commit only touching Binary easyblock
