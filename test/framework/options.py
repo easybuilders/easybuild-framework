@@ -2206,11 +2206,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 stdout = self.get_stdout()
 
             msg_regexs = [
-                re.compile(r"^== Build succeeded for 1 out of 1", re.M),
-                re.compile(r"^\*\*\* DRY RUN using 'EB_XCrySDen' easyblock", re.M),
-                re.compile(r"^== building and installing XCrySDen/1.6.2-foss-2024a\.\.\.", re.M),
-                re.compile(r"^building... \[DRY RUN\]", re.M),
-                re.compile(r"^== COMPLETED: Installation ended successfully \(took .* secs?\)", re.M),
+                r"^== Build succeeded for 1 out of 1",
+                r"^\*\*\* DRY RUN using 'EB_XCrySDen' easyblock",
+                r"^== building and installing XCrySDen/1.6.2-foss-2024a\.\.\.",
+                r"^building... \[DRY RUN\]",
+                r"^== COMPLETED: Installation ended successfully \(took .* secs?\)",
             ]
 
             self._assert_regexs(msg_regexs, stdout)
