@@ -1096,8 +1096,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if start_account is None:
         start_account = build_option('pr_target_account')
 
-    if start_branch is None:
-        # if start branch is not specified, we're opening a new PR
+    # if start branch is not specified, we're opening a new PR
+    # else, we're updating an existing PR
+    is_new_pr = start_branch is None
+    if is_new_pr:
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
 
@@ -1106,7 +1108,6 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 "--github-org or --github-user must be specified!", exit_code=EasyBuildExit.OPTION_ERROR
             )
 
-        # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
         # account to target is the one that owns the branch used to open PR
@@ -1125,8 +1126,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
-        if pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
-            msg = "When only adding new easyconfigs usually a PR commit msg (--pr-commit-msg) should not be used, as "
+        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']
+                and is_new_pr):  # Only if opening a new PR
+            msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
             msg += "the PR title will be automatically generated."
             if build_option('force'):
                 print_msg(msg)
