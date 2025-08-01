@@ -4351,7 +4351,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, raise_error=True, testing=False)
             txt = self.get_stdout()
         comp = 'Compiler/GCC/6.4.0-2.28'
-        sqlite_regex = re.compile(r"hwloc-1.11.8-GCC-6.4.0-2.28.eb \(module: %s \| hwloc/" % comp, re.M)
         sqlite_regex = re.compile(r"SQLite-3.8.10.2-GCC-6.4.0-2.28.eb \(module: %s \| SQLite/" % comp, re.M)
         self.assertRegex(txt, sqlite_regex)
 
