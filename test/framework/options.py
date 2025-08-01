@@ -4697,8 +4697,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Remove other temporary git working dirs
         res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
         res = [d for d in res if d != git_working_dir]
-        for d in res:
-            remove_dir(d)
+        for path in res:
+            remove_dir(path)
 
         ec_name = 'bzip2-1.0.8.eb'
         # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
