@@ -40,22 +40,17 @@ import sys
 
 def is_new_existing_path(new_path, paths):
     """
-    Check whether specified path exists and is a new path compared to provided list of paths.
+    Check whether specified path exists and is a new path compared to provided list of paths (that surely exist as they
+    were checked before).
     """
+    if not os.path.exists(new_path):
+        return False
 
-    # assume path is new, until proven otherwise
-    res = True
+    for path in paths:
+        if os.path.samefile(new_path, path):
+            return False
 
-    if os.path.exists(new_path):
-        for path in paths:
-            if os.path.exists(path) and os.path.samefile(new_path, path):
-                res = False
-                break
-    else:
-        # path doesn't exist
-        res = False
-
-    return res
+    return True
 
 
 cmd = sys.argv[1]
