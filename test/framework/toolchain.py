@@ -2546,6 +2546,22 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
+        # compiler command, -Xlinker --enable-new-dtags should be replaced with -Wl,--disable-new-dtags
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Xlinker --enable-new-dtags foo.c")
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
         # test passing no arguments
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}'")
