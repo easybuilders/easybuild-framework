@@ -829,6 +829,19 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
 
+        # check if the extensions is missing if 'module_extensions' is disabled
+        init_config(build_options={'module_extensions': False})
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
+
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths

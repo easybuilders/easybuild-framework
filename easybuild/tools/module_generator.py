@@ -1312,6 +1312,8 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
+
+        if build_option('module_extensions'):
             extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
                 extensions_stmt = 'extensions("%s")' % extensions_list
