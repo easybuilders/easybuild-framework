@@ -866,6 +866,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
+        if build_option('module_extensions'):
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=' ')
+            if self.modules_tool.supports_extensions and extensions_list:
+                lines.extend(['', 'extensions %s' % extensions_list])
+
         return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
