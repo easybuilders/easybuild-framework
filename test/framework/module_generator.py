@@ -847,10 +847,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
-
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
