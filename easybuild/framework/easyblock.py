@@ -2043,6 +2043,7 @@ class EasyBlock:
             for ext in self.ext_instances:
                 if Extension.install_extension_async.__code__.co_code == ext.install_extension_async.__code__.co_code:
                     all_exts_parallel = False
+                    break
 
             if all_exts_parallel:
                 self.install_extensions_parallel(install=install)
