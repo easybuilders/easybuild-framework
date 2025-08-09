@@ -847,6 +847,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
+        self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
