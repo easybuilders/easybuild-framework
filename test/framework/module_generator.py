@@ -794,11 +794,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported for Tcl modules
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            return
-
-        # currently requires opt-in via --module-extensions
+        # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -810,14 +806,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        patterns = [
-            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
-            r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
-        ]
-
-        for pattern in patterns:
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r'^extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$'
             regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
+            if self.modtool.supports_extensions:
+                self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
+            else:
+                self.assertFalse(regex.search(desc), "No extensions found in: %s" % desc)
+        else:
+            patterns = [
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
+                r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
+            ]
+
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
 
         # check if the extensions is missing if there are no extensions
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
@@ -827,7 +831,29 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r"^extensions "
+        else:
+            pattern = r"\s*extensions\("
+
+        self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+
+        # check if the extensions is missing if 'module_extensions' is disabled
+        init_config(build_options={'module_extensions': False})
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r'^extensions '
+            self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+        else:
+            for pattern in patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""

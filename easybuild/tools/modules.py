@@ -648,6 +648,7 @@ class ModulesTool:
         self.supports_tcl_getenv = False
         self.supports_tcl_check_group = False
         self.supports_safe_auto_load = False
+        self.supports_extensions = False
 
     def __str__(self):
         """String representation of this ModulesTool instance."""
@@ -1758,6 +1759,7 @@ class EnvironmentModules(ModulesTool):
     DEPR_VERSION = '4.3.0'
     MAX_VERSION = None
     REQ_VERSION_TCL_CHECK_GROUP = '4.6.0'
+    REQ_VERSION_EXTENSIONS = '5.1.0'
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     SHOW_HIDDEN_OPTION = '--all'
@@ -1788,6 +1790,7 @@ class EnvironmentModules(ModulesTool):
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
+        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1897,6 +1900,7 @@ class Lmod(ModulesTool):
     COMMAND_ENVIRONMENT = 'LMOD_CMD'
     REQ_VERSION = '8.0.0'
     DEPR_VERSION = '8.0.0'
+    REQ_VERSION_EXTENSIONS = '8.2.8'
     VERSION_REGEXP = r"^Modules\s+based\s+on\s+Lua:\s+Version\s+(?P<version>\d\S*)\s"
 
     SHOW_HIDDEN_OPTION = '--show-hidden'
@@ -1919,6 +1923,7 @@ class Lmod(ModulesTool):
         version = LooseVersion(self.version)
 
         self.supports_depends_on = True
+        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
         if version >= LooseVersion('8.7.12'):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')

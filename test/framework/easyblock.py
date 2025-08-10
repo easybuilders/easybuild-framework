@@ -1173,9 +1173,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)
+        eb.iter_cnt = eb.det_iter_cnt()
 
         # check initial state
         self.assertEqual(eb.iter_idx, 0)
+        self.assertEqual(eb.iter_cnt, 3)
         self.assertEqual(eb.iter_opts, {})
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg.iterate_options, [])
