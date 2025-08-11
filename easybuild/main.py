@@ -676,17 +676,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
-    # search for easyconfigs, if a query is specified
-    if search_query:
-        results = search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                                     terse=options.terse)
-        clean_exit(logfile, eb_tmpdir, testing, silent=True,
-                   exit_code=EasyBuildExit.SUCCESS if results else EasyBuildExit.MISSING_EASYCONFIG)
-
     if options.check_eb_deps:
         print_checks(check_easybuild_deps(modtool))
 
-    # GitHub options that warrant a silent cleanup & exit
+    # Exitcode to use when exiting directly after any of the following options
+    silent_exit_code = EasyBuildExit.SUCCESS
+
+    # Options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
 
@@ -716,6 +712,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     elif options.list_software:
         print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
+    elif search_query:
+        if not search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                                  terse=options.terse):
+            silent_exit_code = EasyBuildExit.MISSING_EASYCONFIG
+
     elif options.create_index:
         print_msg("Creating index for %s..." % options.create_index, prefix=False)
         index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
@@ -738,9 +739,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         # --missing-modules is processed by process_eb_args,
         # so we can't exit just yet here if it's used in combination with --terse
         options.terse and not options.missing_modules,
+        search_query,
     ]
     if any(early_stop_options):
-        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True, exit_code=silent_exit_code)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
