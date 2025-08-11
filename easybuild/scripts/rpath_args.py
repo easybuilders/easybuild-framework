@@ -47,7 +47,7 @@ def is_new_existing_path(new_path, paths):
         return False
 
     for path in paths:
-        if os.path.samefile(new_path, path):
+        if os.path.exists(path) and os.path.samefile(new_path, path):
             return False
 
     return True
