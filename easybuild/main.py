@@ -49,6 +49,7 @@ import traceback
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildExit
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -243,10 +244,10 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def clean_exit(logfile, tmpdir, testing, silent=False):
+def clean_exit(logfile, tmpdir, testing, silent=False, exit_code=0):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
-    sys.exit(0)
+    sys.exit(exit_code)
 
 
 def process_easystack(easystack_path, args, logfile, testing, init_session_state, do_build):
@@ -677,8 +678,10 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
 
     # search for easyconfigs, if a query is specified
     if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
+        results = search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                                     terse=options.terse)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True,
+                   exit_code=EasyBuildExit.SUCCESS if results else EasyBuildExit.MISSING_EASYCONFIG)
 
     if options.check_eb_deps:
         print_checks(check_easybuild_deps(modtool))
@@ -735,7 +738,6 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         # --missing-modules is processed by process_eb_args,
         # so we can't exit just yet here if it's used in combination with --terse
         options.terse and not options.missing_modules,
-        search_query,
     ]
     if any(early_stop_options):
         clean_exit(logfile, eb_tmpdir, testing, silent=True)
