@@ -3804,7 +3804,7 @@ class EasyBlock:
                     out = get_linked_libs_raw(path)
 
                     if out is None:
-                        msg = "Failed to determine dynamically linked libraries for {path}, "
+                        msg = f"Failed to determine dynamically linked libraries for {path}, "
                         msg += "so skipping it in RPATH sanity check"
                         self.log.debug(msg)
                     else:
