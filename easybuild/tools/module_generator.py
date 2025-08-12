@@ -895,10 +895,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        if build_option('module_extensions'):
+        if build_option('module_extensions') and self.modules_tool.supports_extensions:
             extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=' ')
-            if self.modules_tool.supports_extensions and extensions_list:
-                lines.extend(['', 'extensions %s' % extensions_list])
+            if extensions_list:
+                extensions_stmt = 'extensions %s' % extensions_list
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 

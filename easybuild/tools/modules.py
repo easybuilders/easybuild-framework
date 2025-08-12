@@ -1790,7 +1790,7 @@ class EnvironmentModules(ModulesTool):
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
-        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
+        self.supports_extensions = True
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1923,7 +1923,7 @@ class Lmod(ModulesTool):
         version = LooseVersion(self.version)
 
         self.supports_depends_on = True
-        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
+        self.supports_extensions = True
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
         if version >= LooseVersion('8.7.12'):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
