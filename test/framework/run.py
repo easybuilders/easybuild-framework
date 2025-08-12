@@ -1605,6 +1605,16 @@ class RunTest(EnhancedTestCase):
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
+    def test_run_shell_cmd_list(self):
+        """Test run_shell_cmd with command specified as a list rather than a string"""
+
+        cmd = ['/bin/sh', '-c', "echo hello"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
     def test_run_cmd_script(self):
         """Testing use of run_cmd with shell=False to call external scripts"""
 
