@@ -1202,6 +1202,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 with self.mocked_stdout_stderr():
                     self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
 
+        # test searching for non-existing easyconfig file (should produce non-zero exit code)
+        # 4 corresponds with MISSING_EASYCONFIG in EasyBuildExit (see easybuild/tools/build_log.py)
+        args = ['--search', 'nosuchsoftware-1.2.3.4.5']
+        self.assertErrorRegex(SystemExit, 'MISSING_EASYCONFIG|4', self.eb_main, args,
+                              testing=False, raise_error=True, raise_systemexit=True)
+
     def test_ignore_index(self):
         """
         Test use of --ignore-index.

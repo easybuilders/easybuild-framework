@@ -49,6 +49,7 @@ import traceback
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildExit
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -243,10 +244,10 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def clean_exit(logfile, tmpdir, testing, silent=False):
+def clean_exit(logfile, tmpdir, testing, silent=False, exit_code=0):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
-    sys.exit(0)
+    sys.exit(exit_code)
 
 
 def process_easystack(easystack_path, args, logfile, testing, init_session_state, do_build):
@@ -675,15 +676,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
-    # search for easyconfigs, if a query is specified
-    if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
-
     if options.check_eb_deps:
         print_checks(check_easybuild_deps(modtool))
 
-    # GitHub options that warrant a silent cleanup & exit
+    # Exitcode to use when exiting directly after any of the following options
+    silent_exit_code = EasyBuildExit.SUCCESS
+
+    # Options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
 
@@ -713,6 +712,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     elif options.list_software:
         print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
+    elif search_query:
+        if not search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                                  terse=options.terse):
+            silent_exit_code = EasyBuildExit.MISSING_EASYCONFIG
+
     elif options.create_index:
         print_msg("Creating index for %s..." % options.create_index, prefix=False)
         index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
@@ -738,7 +742,7 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         search_query,
     ]
     if any(early_stop_options):
-        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True, exit_code=silent_exit_code)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)
