@@ -2044,7 +2044,7 @@ class EasyBlock:
             all_exts_parallel = True
             for ext in self.ext_instances:
                 if Extension.install_extension_async.__code__.co_code == ext.install_extension_async.__code__.co_code:
-                    self.log.info(f"Extension {self.name} does not support being installed in parallel with other extensions")
+                    self.log.info(f"Extension {ext.name} does not support asynchronous installation")
                     all_exts_parallel = False
                     break
 
