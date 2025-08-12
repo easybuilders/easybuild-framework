@@ -49,7 +49,8 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
+from easybuild.tools.modules import (ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModules,
+                                     EnvironmentModulesC, Lmod, modules_tool)
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -758,6 +759,34 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE = "module load %(mod_name)s"
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
+
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
+        """
+        minimal_version = "%(maj)s.%(min)s.%(patch)s" % {
+            'maj': minimal_version_maj,
+            'min': minimal_version_min,
+            'patch': minimal_version_patch,
+        }
+
+        if isinstance(self.modules_tool, Lmod):
+            tool_version_var = "::env(LMOD_VERSION)"
+        # cannot test minimal version below 4.7.0 with Environment Modules
+        elif (isinstance(self.modules_tool, EnvironmentModules) and
+              LooseVersion(minimal_version) > LooseVersion('4.7.0')):
+            tool_version_var = "::ModuleToolVersion"
+        else:
+            raise NotImplementedError
+
+        return [
+            f"info exists {tool_version_var}",
+            (f"string equal [lindex [lsort -dictionary [list {minimal_version} "
+             f"${tool_version_var}]] 0] {minimal_version}"),
+        ]
 
     def check_group(self, group, error_msg=None):
         """
