@@ -1325,7 +1325,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 

@@ -814,8 +814,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 self.assertFalse(regex.search(desc), "No extensions found in: %s" % desc)
         else:
+            req_version_pattern = re.escape(self.modtool.REQ_VERSION_EXTENSIONS)
             patterns = [
-                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("%s"\) then\n' % req_version_pattern,
                 r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
             ]
 
