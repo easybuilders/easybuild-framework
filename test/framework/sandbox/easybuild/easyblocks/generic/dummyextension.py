@@ -51,7 +51,7 @@ class DummyExtension(ExtensionEasyBlock):
         if 'modulename' not in self.options:
             self.options['modulename'] = self.name.lower().replace('-', '_')
 
-    def install_extension(self, *args, **kwargs):
+    def install_extension(self, unpack_src=False):
         """Install the dummy extension."""
         ec_unpack_source = self.cfg.get('unpack_source')
         if ec_unpack_source is not None:
