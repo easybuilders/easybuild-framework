@@ -48,6 +48,7 @@ import copy
 import functools
 import glob
 import inspect
+import itertools
 import json
 import os
 import random
@@ -71,7 +72,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig, ALTERNATIVE_EASYCONFIG_PARAMETERS
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
@@ -581,11 +582,17 @@ class EasyBlock:
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
-        post_install_patches = []
         if patch_specs is None:
             # if no patch_specs are specified, use all pre-install and post-install patches
             post_install_patches = self.cfg['postinstallpatches']
             patch_specs = self.cfg['patches'] + post_install_patches
+        elif isinstance(patch_specs, list):
+            post_install_patches = []
+        else:
+            if not isinstance(patch_specs, tuple) or len(patch_specs) != 2:
+                raise EasyBuildError('Patch specs must be a tuple of (patches, post-install patches) or a list')
+            post_install_patches = patch_specs[1]
+            patch_specs = itertools.chain(*patch_specs)
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
@@ -765,11 +772,15 @@ class EasyBlock:
                             )
 
                     # locate extension patches (if any), and verify checksums
-                    ext_patches = resolve_template(ext_options.get('patches', []), template_values)
+                    ext_patch_specs = resolve_template((
+                        ext_options.get('patches', []),
+                        ext_options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                        ext_options.get('post_install_patches', []))
+                        ), template_values)
                     if fetch_files:
-                        ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
+                        ext_patches = self.fetch_patches(patch_specs=ext_patch_specs, extension=True)
                     else:
-                        ext_patches = [create_patch_info(p) for p in ext_patches]
+                        ext_patches = [create_patch_info(p) for p in itertools.chain(*ext_patch_specs)]
 
                     if ext_patches:
                         self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
@@ -3264,11 +3275,12 @@ class EasyBlock:
             # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
             EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
-    def print_post_install_messages(self):
+    def print_post_install_messages(self, msgs=None):
         """
         Print post-install messages that are specified via the 'postinstallmsgs' easyconfig parameter.
         """
-        msgs = self.cfg['postinstallmsgs'] or []
+        if msgs is None:
+            msgs = self.cfg['postinstallmsgs'] or []
         for msg in msgs:
             print_msg(msg, log=self.log)
 
