@@ -90,6 +90,11 @@ while idx < len(args):
         add_rpath_args = False
         cmd_args.append(arg)
 
+    # -c implies no linking is done, so we must not inject -Wl,-rpath
+    elif arg == '-c':
+        add_rpath_args = False
+        cmd_args.append(arg)
+
     # compiler options like "-x c++header" imply no linking is done (similar to -c),
     # so then we must not inject -Wl,-rpath option since they *enable* linking;
     # see https://github.com/easybuilders/easybuild-framework/issues/3371
@@ -133,10 +138,31 @@ while idx < len(args):
     # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
     # In that case, the compiler would erroneously pass the next random argument to the linker.
     elif arg == '-Xlinker' and args[idx+1] == '--enable-new-dtags':  # detect '-Xlinker --enable-new-dtags'
-        cmd_args.append(ldflag_prefix + '--disable-new-dtags')
+        cmd_args_rpath.append(ldflag_prefix + '--disable-new-dtags')
         idx += 1
     elif arg == ldflag_prefix + '--enable-new-dtags':  # detect '--enable-new-dtags' or '-Wl,--enable-new-dtags'
-        cmd_args.append(ldflag_prefix + '--disable-new-dtags')
+        cmd_args_rpath.append(ldflag_prefix + '--disable-new-dtags')
+
+    # detect and retain any -rpath explicitly specified
+    elif arg.startswith(ldflag_prefix + '-rpath='):
+        lib_path = arg.replace(ldflag_prefix + '-rpath=', '')
+        # don't RPATH in empty or relative paths, or paths that are filtered out;
+        if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+            # avoid using duplicate library paths
+            if is_new_existing_path(lib_path, rpath_lib_paths):
+                # inject -rpath flag in front for every -L with an absolute path,
+                rpath_lib_paths.append(lib_path)
+                cmd_args_rpath.append(arg)
+    elif arg.startswith('-Xlinker') and args[idx+1].startswith('-rpath='):
+        lib_path = args[idx+1].replace('-rpath=', '')
+        # don't RPATH in empty or relative paths, or paths that are filtered out;
+        if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+            # avoid using duplicate library paths
+            if is_new_existing_path(lib_path, rpath_lib_paths):
+                # inject -rpath flag in front for every -L with an absolute path,
+                rpath_lib_paths.append(lib_path)
+                cmd_args_rpath.append(ldflag_prefix + '-rpath=' + lib_path)
+        idx += 1
 
     else:
         cmd_args.append(arg)
