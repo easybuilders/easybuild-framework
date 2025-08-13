@@ -5010,9 +5010,12 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToyBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

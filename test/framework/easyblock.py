@@ -1173,9 +1173,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         ec = process_easyconfig(test_ec)[0]
         eb = get_easyblock_instance(ec)
+        eb.iter_cnt = eb.det_iter_cnt()
 
         # check initial state
         self.assertEqual(eb.iter_idx, 0)
+        self.assertEqual(eb.iter_cnt, 3)
         self.assertEqual(eb.iter_opts, {})
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg.iterate_options, [])
@@ -1191,7 +1193,7 @@ class EasyBlockTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.assertEqual(eb.iter_idx, 0)
-        self.assertEqual(stdout, "== starting iteration #0 ...\n")
+        self.assertEqual(stdout, "== starting iteration 1/3 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt1 --anotheropt")
@@ -1205,7 +1207,7 @@ class EasyBlockTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.assertEqual(eb.iter_idx, 1)
-        self.assertEqual(stdout, "== starting iteration #1 ...\n")
+        self.assertEqual(stdout, "== starting iteration 2/3 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         # preconfigopts should have been restored (https://github.com/easybuilders/easybuild-framework/pull/4848)
@@ -1218,7 +1220,7 @@ class EasyBlockTest(EnhancedTestCase):
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.assertEqual(eb.iter_idx, 2)
-        self.assertEqual(stdout, "== starting iteration #2 ...\n")
+        self.assertEqual(stdout, "== starting iteration 3/3 ...\n")
         self.assertEqual(eb.cfg.iterating, True)
         self.assertEqual(eb.cfg.iterate_options, ['configopts'])
         self.assertEqual(eb.cfg['configopts'], "--opt3 --optbis")
@@ -3593,9 +3595,12 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Ran custom', logtxt)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBlockTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBlockTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

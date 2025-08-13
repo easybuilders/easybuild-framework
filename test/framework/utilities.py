@@ -66,8 +66,9 @@ for key in os.environ.keys():
     if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
+# Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
-go = EasyBuildOptions(go_useconfigfiles=False)
+go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
@@ -480,6 +481,8 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
 
     cleanup(clear_caches=clear_caches)
 
+    if args is None:
+        args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))

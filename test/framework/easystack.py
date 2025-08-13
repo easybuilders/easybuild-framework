@@ -204,9 +204,12 @@ class EasyStackTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyStackTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyStackTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyStackTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

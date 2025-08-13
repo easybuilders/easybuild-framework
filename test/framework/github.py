@@ -254,11 +254,11 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(22380)
+        gh.add_pr_labels(21465)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
+        self.assertIn("Could not determine any missing labels for PR #21465", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -1116,7 +1116,7 @@ class GithubTest(EnhancedTestCase):
         gist_id = gist_url.split('/')[-1]
         gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
 
-    def test_github_det_account_branch_for_pr(self):
+    def test_github_det_account_repo_branch_for_pr(self):
         """Test det_account_branch_for_pr."""
         if self.skip_github_tests:
             print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
@@ -1129,9 +1129,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'boegel')
+        self.assertEqual(repo, 'easybuild-easyconfigs')
         self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
 
         init_config(build_options={
@@ -1141,9 +1142,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-framework/pull/3069
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(repo, 'easybuild-framework')
         self.assertEqual(branch, 'fix_inject_checksums')
 
     def test_github_det_pr_target_repo(self):
@@ -1459,9 +1461,12 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(GithubTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -438,9 +438,12 @@ class BuildLogTest(EnhancedTestCase):
                               raise_nosupport, 'foobar', 42)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(BuildLogTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(BuildLogTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

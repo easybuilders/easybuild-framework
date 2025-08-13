@@ -1620,9 +1620,12 @@ class RobotTest(EnhancedTestCase):
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RobotTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

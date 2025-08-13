@@ -4,6 +4,42 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.1.1 (6 July 2025)
+--------------------
+
+update/bugfix release
+
+- enhancements:
+  - don't allow using `--pr-commit-msg` when only adding new files with `--new-pr` (unless `--force` is used) (#4498)
+  - update `install-EasyBuild-develop.sh` script to allow installation without forking (#4899)
+  - add blue, cyan, purple as known colors that can be used in colorize function (#4907)
+  - trigger `post_run_shell_cmd_hook` before raising error if shell command failed + pass down full `RunShellCmdResult` instance (#4908)
+  - also pass value of `fail_on_error` and `hidden` options of `run_shell_cmd` call down to pre/post `run_shell_cmd` hook (#4911)
+  - add configuration option to ignore unversioned (0.0.0) Python packages (#4912)
+  - add `required` option to `EasyConfig.get_cuda_cc_template_value` method (#4913)
+  - add total iteration count to trace output (#4919, #4952)
+  - add support for pre/post `easyblock` hook (#4923, #4938)
+  - catch `HTTPException` when doing GitHub API request (#4926)
+- bug fixes:
+  - fix reporting of method name in `EasyBlock.run_step` (#4920)
+  - fix handling of broken symlinks in `filetools.remove` (#4921)
+  - keep symlinks when copying build dirs of failed installations (#4933)
+  - also copy patches of extensions to easybuild subdirectory of installation directory (#4939, #4946)
+  - also copy easyblocks of bundle components to reprod dir (#4944)
+  - take into account that forked repository may not have same name as origin `--sync-pr-with-develop` (#4947)
+- enhancements and fixes for test suite:
+  - add support for passing valid unittest options to test suite (#3790)
+  - enhance `LooseVersion` test to add cases with leading alphabetical characters (#4901)
+  - prefer using `importlib.metadata` over the deprecated `pkg_resources` in `det_pypkg_version` + switch container tests to Rocky Linux 8.10 (#4904)
+  - fix `TypeError` for Python version comparison in `test_fetch_sources_git` (#4934)
+  - fix broken tests for GitHub integration features (#4954)
+- other changes:
+  - change value of architectures constants RISCV32 and RISCV64 (#4915)
+  - remove some superflous Python 2 checks (#4917)
+  - remove use of unsupported `source` key in patch spec (#4924)
+  - remove super() arguments from mk_tmpl_easyblock_for (#4936)
+
+
 v5.1.0 (26 May 2025)
 --------------------
 

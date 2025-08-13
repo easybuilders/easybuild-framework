@@ -188,6 +188,7 @@ class EasyBlock:
 
         # list of patch/source files, along with checksums
         self.patches = []
+        self.all_patches_paths = set()  # set of paths to all patches (including patches of extensions)
         self.src = []
         self.data_src = []
         self.checksums = []
@@ -310,6 +311,9 @@ class EasyBlock:
 
         # initialize logger
         self._init_log()
+
+        # number of iterations
+        self.iter_cnt = -1
 
         # try and use the specified group (if any)
         group_name = build_option('group')
@@ -598,6 +602,7 @@ class EasyBlock:
                 patch_info['path'] = path
                 patch_info['checksum'] = self.get_checksum_for(checksums, filename=patch_info['name'], index=index)
 
+                self.all_patches_paths.add(path)
                 if extension:
                     patches.append(patch_info)
                 else:
@@ -2035,10 +2040,18 @@ class EasyBlock:
         self.log.debug("List of loaded modules: %s", self.modules_tool.list())
 
         if build_option('parallel_extensions_install'):
-            try:
+            # check to see if parallel extension install is supported for all extensions
+            # if it is not then we'll fallback to sequential install
+            all_exts_parallel = True
+            for ext in self.ext_instances:
+                if Extension.install_extension_async.__code__.co_code == ext.install_extension_async.__code__.co_code:
+                    self.log.info(f"Extension {ext.name} does not support asynchronous installation")
+                    all_exts_parallel = False
+                    break
+
+            if all_exts_parallel:
                 self.install_extensions_parallel(install=install)
-            except NotImplementedError:
-                # If parallel extension install is not supported for this type of extension then install sequentially
+            else:
                 msg = "Parallel extensions install not supported for %s - using sequential install" % self.name
                 self.log.info(msg)
                 self.install_extensions_sequential(install=install)
@@ -2388,7 +2401,8 @@ class EasyBlock:
                     self.log.debug("Iterating opt %s: %s", opt, self.iter_opts[opt])
 
             if self.iter_opts:
-                print_msg("starting iteration #%s ..." % self.iter_idx, log=self.log, silent=self.silent)
+                print_msg(f"starting iteration {self.iter_idx + 1}/{self.iter_cnt} ...", log=self.log,
+                          silent=self.silent)
                 self.log.info("Current iteration index: %s", self.iter_idx)
 
             # pop first element from all iterative easyconfig parameters as next value to use
@@ -2430,7 +2444,7 @@ class EasyBlock:
 
         # we need to take into account that builddependencies is always a list
         # we're only iterating over it if it's a list of lists
-        builddeps = self.cfg['builddependencies']
+        builddeps = self.cfg.get_ref('builddependencies')
         if all(isinstance(x, list) for x in builddeps):
             iter_opt_counts.append(len(builddeps))
 
@@ -4489,11 +4503,11 @@ class EasyBlock:
                 with self.fake_module_environment():
                     try:
                         self.make_devel_module()
-                    except EasyBuildError as error:
+                    except EasyBuildError:
                         if build_option('module_only') or self.cfg['module_only']:
-                            self.log.info("Using --module-only so can recover from error: %s", error)
+                            self.log.info("Using --module-only so can recover from error")
                         else:
-                            raise error
+                            raise
             else:
                 self.log.info("Skipping devel module...")
 
@@ -4790,7 +4804,8 @@ class EasyBlock:
         if self.cfg['stop'] == 'cfg':
             return True
 
-        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.det_iter_cnt())
+        self.iter_cnt = self.det_iter_cnt()
+        steps = self.get_steps(run_test_cases=run_test_cases, iteration_count=self.iter_cnt)
 
         # figure out how many steps will actually be run (not be skipped)
         step_cnt = 0
@@ -4923,7 +4938,7 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
             msg = f"Build directory of failed installation copied to {build_dirs_path}"
 
             def operation(src, dest):
-                copy_dir(src, dest, dirs_exist_ok=True)
+                copy_dir(src, dest, dirs_exist_ok=True, symlinks=True)
 
             operation_args.append((operation, [app.builddir], build_dirs_path, msg))
 
@@ -4999,6 +5014,9 @@ def build_and_install_one(ecdict, init_env):
 
     hooks = load_hooks(build_option('hooks'))
 
+    # Don't touch installdir when doing a module-only build
+    module_only = build_option('module_only') or app.cfg['module_only']
+
     # build easyconfig
     error_msg = '(no error)'
     exit_code = None
@@ -5012,11 +5030,11 @@ def build_and_install_one(ecdict, init_env):
             reprod_dir_root = os.path.dirname(app.logfile)
             reprod_dir = reproduce_build(app, reprod_dir_root)
 
-            if os.path.exists(app.installdir) and build_option('read_only_installdir') and (
-                    build_option('rebuild') or build_option('force')):
-                enabled_write_permissions = True
-                # re-enable write permissions so we can install additional modules
+            # re-enable write permissions so we can install additional modules if not module-only
+            if not module_only and os.path.exists(app.installdir) and build_option('read_only_installdir') and \
+                    (build_option('rebuild') or build_option('force')):
                 adjust_permissions(app.installdir, stat.S_IWUSR, add=True, recursive=True)
+                enabled_write_permissions = True
             else:
                 enabled_write_permissions = False
 
@@ -5033,7 +5051,9 @@ def build_and_install_one(ecdict, init_env):
             except EasyBuildError as err:
                 _log.warning("Failed to create build environment dump for easyconfig %s: %s", reprod_spec, err)
 
-            # also add any extension easyblocks used during the build for reproducibility
+            # also add any component/extension easyblocks used during the build for reproducibility
+            if hasattr(app, 'comp_instances'):
+                copy_easyblocks_for_reprod([comp for cfg, comp in app.comp_instances], reprod_dir)
             if app.ext_instances:
                 copy_easyblocks_for_reprod(app.ext_instances, reprod_dir)
             # If not already done remove the granted write permissions if we did so
@@ -5053,7 +5073,7 @@ def build_and_install_one(ecdict, init_env):
     # make sure we're back in original directory before we finish up
     change_dir(cwd)
 
-    application_log = None
+    application_log = app.logfile
 
     # successful (non-dry-run) build
     if result and not dry_run:
@@ -5082,35 +5102,47 @@ def build_and_install_one(ecdict, init_env):
             else:
                 new_log_dir = os.path.dirname(app.logfile)
             ensure_writable_log_dir(new_log_dir)
-
         # if we're only running the sanity check, we should not copy anything new to the installation directory
         elif build_option('sanity_check_only'):
             _log.info("Only running sanity check, so skipping build stats, easyconfigs archive, reprod files...")
-
         else:
-            new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
-            ensure_writable_log_dir(new_log_dir)
-
             # collect build stats
             _log.info("Collecting build stats...")
 
             buildstats = get_build_stats(app, start_time, build_option('command_line'))
             _log.info("Build stats: %s" % buildstats)
 
+            new_log_dir = os.path.join(app.installdir, config.log_path(ec=app.cfg))
             try:
-                # move the reproducibility files to the final log directory
-                archive_reprod_dir = os.path.join(new_log_dir, REPROD)
-                if os.path.exists(archive_reprod_dir):
-                    backup_dir = find_backup_name_candidate(archive_reprod_dir)
-                    move_file(archive_reprod_dir, backup_dir)
-                    _log.info("Existing reproducibility directory %s backed up to %s", archive_reprod_dir, backup_dir)
-                move_file(reprod_dir, archive_reprod_dir)
-                _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
-            except EasyBuildError as error:
-                if build_option('module_only'):
-                    _log.info("Using --module-only so can recover from error: %s", error)
+                ensure_writable_log_dir(new_log_dir)
+            except EasyBuildError:
+                if module_only:
+                    what = ("make directory %s writeable" if os.path.exists(new_log_dir)
+                            else "create directory %s") % new_log_dir
+                    print_warning("Cannot %s.\n"
+                                  "So logs, easyconfigs, patches and files for reproducibility will not be saved.",
+                                  what, log=_log)
+                    # Don't even try to use this again
+                    new_log_dir = None
                 else:
-                    raise error
+                    raise
+            else:
+                try:
+                    # move the reproducibility files to the final log directory
+                    archive_reprod_dir = os.path.join(new_log_dir, REPROD)
+                    if os.path.exists(archive_reprod_dir):
+                        backup_dir = find_backup_name_candidate(archive_reprod_dir)
+                        move_file(archive_reprod_dir, backup_dir)
+                        _log.info("Existing reproducibility directory %s backed up to %s",
+                                  archive_reprod_dir, backup_dir)
+                    move_file(reprod_dir, archive_reprod_dir)
+                    _log.info("Wrote files for reproducibility to %s", archive_reprod_dir)
+                except EasyBuildError:
+                    if module_only:
+                        print_warning("Could not create files for reproducibility but continuing module-only build",
+                                      log=_log)
+                    else:
+                        raise
 
             try:
                 # upload easyconfig (and patch files) to central repository
@@ -5120,11 +5152,8 @@ def build_and_install_one(ecdict, init_env):
                     block = det_full_ec_version(app.cfg) + ".block"
                     repo.add_easyconfig(ecdict['original_spec'], app.name, block, buildstats, currentbuildstats)
                 repo.add_easyconfig(spec, app.name, det_full_ec_version(app.cfg), buildstats, currentbuildstats)
-                patches = app.patches
-                for ext in app.exts:
-                    patches += ext.get('patches', [])
-                for patch in patches:
-                    repo.add_patch(patch['path'], app.name)
+                for patch_path in app.all_patches_paths:
+                    repo.add_patch(patch_path, app.name)
                 repo.commit("Built %s" % app.full_mod_name)
                 del repo
             except EasyBuildError as err:
@@ -5133,37 +5162,33 @@ def build_and_install_one(ecdict, init_env):
         # cleanup logs
         app.close_log()
 
-        if build_option('sanity_check_only'):
-            _log.info("Only running sanity check, so not copying anything to software install directory...")
-        else:
+        if not build_option('sanity_check_only') and new_log_dir is not None:
             log_fn = os.path.basename(get_log_filename(app.name, app.version))
             try:
-                application_log = os.path.join(new_log_dir, log_fn)
-                move_logs(app.logfile, application_log)
+                # Ensure application_log always points to an existing file
+                new_application_log = os.path.join(new_log_dir, log_fn)
+                move_logs(application_log, new_application_log)
+                application_log = new_application_log
 
                 newspec = os.path.join(new_log_dir, app.cfg.filename())
                 copy_file(spec, newspec)
                 _log.debug("Copied easyconfig file %s to %s", spec, newspec)
 
                 # copy patches
-                patches = app.patches
-                for ext in app.exts:
-                    patches += ext.get('patches', [])
-                for patch in patches:
-                    target = os.path.join(new_log_dir, os.path.basename(patch['path']))
-                    copy_file(patch['path'], target)
-                    _log.debug("Copied patch %s to %s", patch['path'], target)
+                for patch_path in app.all_patches_paths:
+                    target = os.path.join(new_log_dir, os.path.basename(patch_path))
+                    copy_file(patch_path, target)
+                    _log.debug("Copied patch %s to %s", patch_path, target)
 
                 if build_option('read_only_installdir') and not app.cfg['stop']:
                     # take away user write permissions (again)
                     perms = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
                     adjust_permissions(new_log_dir, perms, add=False, recursive=True)
-            except EasyBuildError as error:
-                if build_option('module_only'):
-                    application_log = None
-                    _log.debug("Using --module-only so can recover from error: %s", error)
+            except EasyBuildError:
+                if module_only:
+                    print_warning("Could not copy log files, easyconfig and/or patches to %s", new_log_dir, log=_log)
                 else:
-                    raise error
+                    raise
 
     end_timestamp = datetime.now()
 
@@ -5181,7 +5206,6 @@ def build_and_install_one(ecdict, init_env):
 
         # cleanup logs
         app.close_log()
-        application_log = app.logfile
 
     req_time = time2str(end_timestamp - start_timestamp)
     print_msg("%s: Installation %s %s (took %s)" % (summary, ended, succ, req_time), log=_log, silent=silent)

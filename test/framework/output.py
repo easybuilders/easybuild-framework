@@ -204,9 +204,12 @@ class OutputTest(EnhancedTestCase):
         stop_progress_bar(PROGRESS_BAR_EXTENSIONS)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(OutputTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(OutputTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(OutputTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

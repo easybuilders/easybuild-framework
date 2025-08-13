@@ -2056,9 +2056,12 @@ class ModulesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ModulesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
