@@ -1175,7 +1175,7 @@ class EasyBlock:
         if self.build_in_installdir and self.iter_idx > 0:
             pass
         elif self.build_in_installdir:
-            # building in installation directory, so empty it but don't remove it
+            # building in installation directory, so clean it
             self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], isinstalldir=True)
         else:
             # make sure we no longer sit in the build directory before removing it.
@@ -1248,7 +1248,7 @@ class EasyBlock:
                     copy_dir(dir_name, backupdir)
                     self.log.info("Copied old directory %s to %s", dir_name, backupdir)
                 if isinstalldir:
-                    # empty the installation directory, but never remove it
+                    # clean the installation directory: first try to remove it; if that fails, empty it
                     clean_dir(dir_name)
                     self.log.info("Emptied old directory %s", dir_name)
                 else:

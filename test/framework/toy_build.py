@@ -798,9 +798,6 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertFalse(perms & stat.S_ISVTX, "no sticky bit on %s" % fullpath)
 
         # git/sticky bits are set, but only on (re)created directories
-        # first remove install dir because it is not recreated
-        toy_installdir = os.path.join(self.test_installpath, *subdirs[3][0])
-        remove_dir(toy_installdir)
         self.run_test_toy_build_with_output(extra_args=['--set-gid-bit', '--sticky-bit'])
         for subdir, bits_set in subdirs:
             fullpath = os.path.join(self.test_installpath, *subdir)
