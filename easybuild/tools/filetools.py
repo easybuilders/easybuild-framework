@@ -440,6 +440,18 @@ def remove_dir(path):
                                  path, max_attempts, errors)
 
 
+def clean_dir(path):
+    """
+    Try to remove directory at specified path.
+    If that fails, empty directory instead.
+    """
+    try:
+        remove_dir(path)
+    except EasyBuildError:
+        _log.debug("Failed to remove directory %s, emptying it instead", path)
+        empty_dir(path)
+
+
 def remove(paths):
     """
     Remove single file/directory or list of files and directories

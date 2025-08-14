@@ -93,7 +93,7 @@ from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
 from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import download_file, empty_dir, encode_class_name, extract_file
+from easybuild.tools.filetools import download_file, clean_dir, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
@@ -1249,7 +1249,7 @@ class EasyBlock:
                     self.log.info("Copied old directory %s to %s", dir_name, backupdir)
                 if isinstalldir:
                     # empty the installation directory, but never remove it
-                    empty_dir(dir_name)
+                    clean_dir(dir_name)
                     self.log.info("Emptied old directory %s", dir_name)
                 else:
                     remove_dir(dir_name)
