@@ -2741,7 +2741,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     # input validation of git_config dict
     if git_config:
-        raise EasyBuildError("Found one or more unexpected keys in 'git_config' specification: {git_config}")
+        raise EasyBuildError(f"Found one or more unexpected keys in 'git_config' specification: {git_config}")
 
     if not repo_name:
         raise EasyBuildError("repo_name not specified in git_config parameter")
