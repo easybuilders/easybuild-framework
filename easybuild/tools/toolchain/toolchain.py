@@ -1087,7 +1087,7 @@ class Toolchain:
                 # complete template script and put it in place
                 cmd_wrapper_txt = read_file(rpath_wrapper_template) % {
                     'orig_cmd': orig_cmd,
-                    'python': sys.executable,
+                    'python': 'python3',
                     'rpath_args_py': rpath_args_py,
                     'rpath_filter': rpath_filter,
                     'rpath_include': rpath_include,
