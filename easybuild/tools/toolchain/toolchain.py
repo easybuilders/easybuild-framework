@@ -55,7 +55,6 @@ Authors:
 import copy
 import os
 import stat
-import sys
 import tempfile
 
 from easybuild.base import fancylogger
