@@ -49,7 +49,8 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
+from easybuild.tools.modules import (ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModules,
+                                     EnvironmentModulesC, Lmod, modules_tool)
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -759,6 +760,34 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
 
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
+        """
+        minimal_version = "%(maj)s.%(min)s.%(patch)s" % {
+            'maj': minimal_version_maj,
+            'min': minimal_version_min,
+            'patch': minimal_version_patch,
+        }
+
+        if isinstance(self.modules_tool, Lmod):
+            tool_version_var = "::env(LMOD_VERSION)"
+        # cannot test minimal version below 4.7.0 with Environment Modules
+        elif (isinstance(self.modules_tool, EnvironmentModules) and
+              LooseVersion(minimal_version) > LooseVersion('4.7.0')):
+            tool_version_var = "::ModuleToolVersion"
+        else:
+            raise NotImplementedError
+
+        return [
+            f"info exists {tool_version_var}",
+            (f"string equal [lindex [lsort -dictionary [list {minimal_version} "
+             f"${tool_version_var}]] 0] {minimal_version}"),
+        ]
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -866,10 +895,12 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        if build_option('module_extensions'):
+        if build_option('module_extensions') and self.modules_tool.supports_extensions:
             extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=' ')
-            if self.modules_tool.supports_extensions and extensions_list:
-                lines.extend(['', 'extensions %s' % extensions_list])
+            if extensions_list:
+                extensions_stmt = 'extensions %s' % extensions_list
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 
@@ -1325,7 +1356,8 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 
