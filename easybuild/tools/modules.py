@@ -1790,7 +1790,9 @@ class EnvironmentModules(ModulesTool):
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
-        self.supports_extensions = True
+        # Environment Modules should support "informational extension" to safely handle the
+        # extensions built here (see https://github.com/envmodules/modules/issues/585)
+        self.supports_extensions = False
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
