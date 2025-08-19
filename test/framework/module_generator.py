@@ -794,6 +794,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
+            return
+
         # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
