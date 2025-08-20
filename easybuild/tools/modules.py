@@ -1111,9 +1111,10 @@ class ModulesTool:
             self.check_module_path()
 
         # extend $MODULEPATH if needed
+        curr_mod_paths = curr_module_paths()
         for mod_path in mod_paths:
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
-            if os.path.exists(full_mod_path):
+            if os.path.exists(full_mod_path) and full_mod_path not in curr_mod_paths:
                 self.prepend_module_path(full_mod_path)
 
         loaded_modules = self.loaded_modules()
