@@ -55,7 +55,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 111
+TEST_MODULES_COUNT = 118
 
 
 class ModulesTest(EnhancedTestCase):
@@ -429,7 +429,7 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
         # exclude modules not on the top level of a hierarchy
         ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
-                                    m.startswith('CategorizedHMNS'))]
+                                    m.startswith('CategorizedHMNS') or m.startswith('HierarchicalMNS'))]
 
         for m in ms:
             self.modtool.load([m])
