@@ -30,6 +30,7 @@ Unit tests for easyblock.py
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
+import copy
 import os
 import re
 import shutil
@@ -2473,7 +2474,10 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_patch_step(self):
         """Test patch step."""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        cwd = os.getcwd()
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]['ec']
         orig_sources = ec['sources'][:]
 
@@ -2506,6 +2510,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check again with backup of patched files enabled
         update_build_option('backup_patched_files', True)
+        change_dir(cwd)
         eb = EasyBlock(ec)
         with self.mocked_stdout_stderr():
             eb.fetch_step()
@@ -2920,6 +2925,72 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             check_ext_start_dir(self.test_prefix, parent_startdir=self.test_prefix)
+            self.assertFalse(self.get_stderr())
+
+    def test_extension_patch_step(self):
+        """Test start dir with extensions."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]['ec']
+
+        cwd = os.getcwd()
+        self.assertExists(cwd)
+        # Take environment with test-specific variable set up
+        orig_environ = copy.deepcopy(os.environ)
+
+        def run_extension_step():
+            try:
+                change_dir(cwd)
+                eb = EasyBlock(ec)
+                # Cleanup build directory
+                if os.path.exists(eb.builddir):
+                    remove_dir(eb.builddir)
+                eb.make_builddir()
+                eb.update_config_template_run_step()
+                eb.extensions_step(fetch=True, install=True)
+                return os.path.join(eb.builddir)
+            finally:
+                # restore original environment to continue testing with a clean slate
+                modify_env(os.environ, orig_environ, verbose=False)
+
+        ec['exts_defaultclass'] = 'DummyExtension'
+        ec['exts_list'] = [('toy', '0.0', {'easyblock': 'DummyExtension'})]
+
+        # No patches, no errors
+        with self.mocked_stdout_stderr():
+            run_extension_step()
+            self.assertFalse(self.get_stderr())
+
+        # Patch present, source extracted
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['patches'] = [('toy-extra.txt', 'toy-0.0')]
+            ec['exts_list'][0][2]['unpack_source'] = True
+        with self.mocked_stdout_stderr():
+            builddir = run_extension_step()
+            self.assertTrue(os.path.isfile(os.path.join(builddir, 'toy', 'toy-0.0', 'toy-extra.txt')))
+            self.assertFalse(self.get_stderr())
+
+        # Patch but source not extracted
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['unpack_source'] = False
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'not extracted', run_extension_step)
+            self.assertFalse(self.get_stderr())
+
+        # Patch but no source
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['nosource'] = True
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'no sources', run_extension_step)
+            self.assertFalse(self.get_stderr())
+
+        # Patch without source is possible if the start_dir is set
+        with ec.disable_templating():
+            ec['start_dir'] = '%(builddir)s'
+            ec['exts_list'][0][2]['nosource'] = True
+            ec['exts_list'][0][2]['patches'] = [('toy-extra.txt', '.')]
+        with self.mocked_stdout_stderr():
+            builddir = run_extension_step()
+            self.assertTrue(os.path.isfile(os.path.join(builddir, 'toy-extra.txt')))
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):

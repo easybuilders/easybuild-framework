@@ -2858,6 +2858,13 @@ class EasyBlock:
             if beginpath is None:
                 if not self.src:
                     raise EasyBuildError("Can't apply patch %s to source if no sources are given", patch['name'])
+                # If the src member is a string we have an extension with a single source.
+                # If that did extract the source beginpath would be set.
+                if isinstance(self.src, str):
+                    raise EasyBuildError("Cannot apply patches if sources were not extracted. "
+                                         "Patch file: " + patch['name'])
+                # Use (extracted) location of first source.
+                # Other sources will likely not have a reasonable finalpath set.
                 beginpath = self.src[0]['finalpath']
                 self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
             else:
