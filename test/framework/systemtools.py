@@ -54,7 +54,7 @@ from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_archi
 from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_cpu_model
 from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_os_type
 from easybuild.tools.systemtools import get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_total_memory
+from easybuild.tools.systemtools import get_system_info, get_total_memory, get_linked_libs_raw
 from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
@@ -1452,6 +1452,34 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Restore original environment
         modify_env(os.environ, start_env, verbose=False)
+
+    def test_get_linked_libs_raw(self):
+        """
+        Test get_linked_libs_raw function.
+        """
+        bin_ls = which('ls')
+        linked_libs_out = get_linked_libs_raw(bin_ls)
+        os_type = get_os_type()
+        if os_type == LINUX:
+            libname = 'libc.so.6'
+        elif os_type == DARWIN:
+            libname = 'libSystem.B.dylib'
+        else:
+            self.fail(f"Unknown OS: {os_type}")
+
+        # check whether expected pattern is found
+        self.assertIn(libname, linked_libs_out)
+
+        # when specified path is a symlink or a non-binary file, None is the result
+        symlinked_ls = os.path.join(self.test_prefix, 'ls')
+        symlink(bin_ls, symlinked_ls)
+        res = get_linked_libs_raw(symlinked_ls)
+        self.assertEqual(res, None)
+
+        txt_file = os.path.join(self.test_prefix, 'test.txt')
+        write_file(txt_file, 'not-a-binary')
+        res = get_linked_libs_raw(txt_file)
+        self.assertEqual(res, None)
 
 
 def suite(loader=None):
