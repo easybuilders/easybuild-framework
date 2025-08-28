@@ -62,7 +62,11 @@ class LLVM(Compiler):
             '-fslp-vectorize',
             '-fvectorize', '-fno-vectorize',
             '-fno-unsafe-math-optimizations',
-        ])
+        ]),
+        ('21', '22', [
+            '-fmath-errno', '-fno-math-errno',
+            '-fno-unsafe-math-optimizations',
+        ]),
     ]
 
     FORTRAN_FLAGS = ['FCFLAGS', 'FFLAGS', 'F90FLAGS']
