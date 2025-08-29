@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -55,4 +55,4 @@ class Mpich2(Mpich):
             self.MPI_COMPILER_MPIF90 = 'mpif90'
             self.MPI_COMPILER_MPIFC = 'mpif90'
 
-        super(Mpich2, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

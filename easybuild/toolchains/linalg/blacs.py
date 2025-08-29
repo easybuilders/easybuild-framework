@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -45,4 +45,4 @@ class Blacs(LinAlg):
     def _set_blacs_variables(self):
         """Skip setting BLACS variables if it is not required (e.g., with recent ScaLAPACK versions)."""
         if self.is_required(self.BLACS_MODULE_NAME[0]):
-            super(Blacs, self)._set_blacs_variables()
+            super()._set_blacs_variables()

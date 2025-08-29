@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -74,7 +74,7 @@ class Fftw(Fft):
     def _set_fft_variables(self):
         self._set_fftw_variables()
 
-        super(Fftw, self)._set_fft_variables()
+        super()._set_fft_variables()
 
         # TODO can these be replaced with the FFT ones?
         self.variables.join('FFTW_INC_DIR', 'FFT_INC_DIR')

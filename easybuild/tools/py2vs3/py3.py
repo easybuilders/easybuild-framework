@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2023 Ghent University
+# Copyright 2019-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,9 +33,6 @@ Authors:
 """
 # these are not used here, but imported from here in other places
 import configparser  # noqa
-import json
-import subprocess
-import sys
 import urllib.request as std_urllib  # noqa
 from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
@@ -61,46 +58,21 @@ try:
 except ImportError:
     HAVE_DISTUTILS = False
 
+from easybuild._deprecated import json_loads # noqa
+from easybuild.base.wrapper import mk_wrapper_baseclass  # noqa
+from easybuild.tools.run import subprocess_popen_text, subprocess_terminate  # noqa
+
 # string type that can be used in 'isinstance' calls
 string_type = str
 
 
+# note: also available in easybuild.tools.filetools, should be imported from there!
 def load_source(filename, path):
     """Load file as Python module"""
     spec = spec_from_file_location(filename, path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def json_loads(body):
-    """Wrapper for json.loads that takes into account that Python versions older than 3.6 require a string value."""
-
-    if isinstance(body, bytes) and sys.version_info[0] == 3 and sys.version_info[1] < 6:
-        # decode bytes string as regular string with UTF-8 encoding for Python 3.5.x and older
-        # only Python 3.6 and newer have support for passing bytes string to json.loads
-        # cfr. https://docs.python.org/2/library/json.html#json.loads
-        body = body.decode('utf-8', 'ignore')
-
-    return json.loads(body)
-
-
-def subprocess_popen_text(cmd, **kwargs):
-    """Call subprocess.Popen in text mode with specified named arguments."""
-    # open stdout/stderr in text mode in Popen when using Python 3
-    kwargs.setdefault('stderr', subprocess.PIPE)
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True, **kwargs)
-
-
-def subprocess_terminate(proc, timeout):
-    """Terminate the subprocess if it hasn't finished after the given timeout"""
-    try:
-        proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        for pipe in (proc.stdout, proc.stderr, proc.stdin):
-            if pipe:
-                pipe.close()
-        proc.terminate()
 
 
 def raise_with_traceback(exception_class, message, traceback):
@@ -111,17 +83,6 @@ def raise_with_traceback(exception_class, message, traceback):
 def extract_method_name(method_func):
     """Extract method name from lambda function."""
     return '_'.join(method_func.__code__.co_names)
-
-
-def mk_wrapper_baseclass(metaclass):
-
-    class WrapperBase(object, metaclass=metaclass):
-        """
-        Wrapper class that provides proxy access to an instance of some internal instance.
-        """
-        __wraps__ = None
-
-    return WrapperBase
 
 
 def safe_cmp_looseversions(v1, v2):

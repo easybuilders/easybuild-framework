@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -69,19 +69,17 @@ class Acml(LinAlg):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.extend(['BLAS_LIB', 'BLAS_LIB_MT'])
-        super(Acml, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
-        if self.options.get('32bit', None):
-            raise EasyBuildError("_set_blas_variables: 32bit ACML not (yet) supported")
         try:
             for root in self.get_software_root(self.BLAS_MODULE_NAME):
                 subdirs = self.ACML_SUBDIRS_MAP[self.COMPILER_FAMILY]
                 self.BLAS_LIB_DIR = [os.path.join(x, 'lib') for x in subdirs]
-                self.variables.append_exists('LDFLAGS', root, self.BLAS_LIB_DIR, append_all=True)
+                self._add_dependency_linker_paths(root, extra_dirs=self.BLAS_LIB_DIR)
                 incdirs = [os.path.join(x, 'include') for x in subdirs]
-                self.variables.append_exists('CPPFLAGS', root, incdirs, append_all=True)
+                self._add_dependency_cpp_headers(root, extra_dirs=incdirs)
         except Exception:
             raise EasyBuildError("_set_blas_variables: ACML set LDFLAGS/CPPFLAGS unknown entry in ACML_SUBDIRS_MAP "
                                  "with compiler family %s", self.COMPILER_FAMILY)
@@ -92,4 +90,4 @@ class Acml(LinAlg):
             self.BLAS_LIB.insert(0, "acml_mv")
             self.BLAS_LIB_MT.insert(0, "acml_mv")
 
-        super(Acml, self)._set_blas_variables()
+        super()._set_blas_variables()

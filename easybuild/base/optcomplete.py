@@ -107,7 +107,7 @@ import types
 from optparse import OptionParser, Option
 from pprint import pformat
 
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.filetools import get_cwd
 from easybuild.tools.utilities import shell_quote
 
 debugfn = None  # for debugging only
@@ -149,7 +149,7 @@ class CompleterMissingCallArgument(Exception):
     """Exception to raise when call arg is missing"""
 
 
-class Completer(object):
+class Completer:
     """Base class to derive all other completer classes from.
     It generates an empty completion list
     """
@@ -211,7 +211,7 @@ class FileCompleter(Completer):
     CALL_ARGS_OPTIONAL = ['prefix']
 
     def __init__(self, endings=None):
-        if isinstance(endings, string_type):
+        if isinstance(endings, str):
             endings = [endings]
         elif endings is None:
             endings = []
@@ -282,11 +282,11 @@ class RegexCompleter(Completer):
     def __init__(self, regexlist, always_dirs=True):
         self.always_dirs = always_dirs
 
-        if isinstance(regexlist, string_type):
+        if isinstance(regexlist, str):
             regexlist = [regexlist]
         self.regexlist = []
         for regex in regexlist:
-            if isinstance(regex, string_type):
+            if isinstance(regex, str):
                 regex = re.compile(regex)
             self.regexlist.append(regex)
 
@@ -513,14 +513,15 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
             if option:
                 if option.nargs > 0:
                     optarg = True
-                    if hasattr(option, 'completer'):
+                    try:
                         completer = option.completer
-                    elif option.choices:
-                        completer = ListCompleter(option.choices)
-                    elif option.type in ('string',):
-                        completer = opt_completer
-                    else:
-                        completer = NoneCompleter()
+                    except AttributeError:
+                        if option.choices:
+                            completer = ListCompleter(option.choices)
+                        elif option.type in ('string',):
+                            completer = opt_completer
+                        else:
+                            completer = NoneCompleter()
                 # Warn user at least, it could help him figure out the problem.
                 elif hasattr(option, 'completer'):
                     msg = "Error: optparse option with a completer does not take arguments: %s" % (option)
@@ -537,7 +538,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
         # Note: this will get filtered properly below.
 
     completer_kwargs = {
-        'pwd': os.getcwd(),
+        'pwd': get_cwd(),
         'cline': cline,
         'cpoint': cpoint,
         'prefix': prefix,
@@ -546,7 +547,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
     # File completion.
     if completer and (not prefix or not prefix.startswith('-')):
         # Call appropriate completer depending on type.
-        if isinstance(completer, (string_type, list, tuple)):
+        if isinstance(completer, (str, list, tuple)):
             completer = FileCompleter(completer)
         elif not isinstance(completer, (types.FunctionType, types.LambdaType, types.ClassType, types.ObjectType)):
             # TODO: what to do here?
@@ -554,7 +555,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
 
         completions = completer(**completer_kwargs)
 
-    if isinstance(completions, string_type):
+    if isinstance(completions, str):
         # is a bash command, just run it
         if SHELL in (BASH,):  # TODO: zsh
             print(completions)
@@ -604,7 +605,7 @@ def autocomplete(parser, arg_completer=None, opt_completer=None, subcmd_complete
     sys.exit(1)
 
 
-class CmdComplete(object):
+class CmdComplete:
 
     """Simple default base class implementation for a subcommand that supports
     command completion.  This class is assuming that there might be a method
@@ -616,11 +617,9 @@ class CmdComplete(object):
     def autocomplete(self, completer=None):
         parser = OPTIONPARSER_CLASS(self.__doc__.strip())
         if hasattr(self, 'addopts'):
-            fnc = getattr(self, 'addopts')
-            fnc(parser)
+            self.addopts(parser)
 
-        if hasattr(self, 'completer'):
-            completer = getattr(self, 'completer')
+        completer = getattr(self, 'completer', completer)
 
         return autocomplete(parser, completer)
 

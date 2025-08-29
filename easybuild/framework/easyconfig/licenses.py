@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ from easybuild.tools.utilities import get_subclasses
 _log = fancylogger.getLogger('easyconfig.licenses', fname=False)
 
 
-class License(object):
+class License:
     """EasyBuild easyconfig license class
         This is also the default restrictive license
     """

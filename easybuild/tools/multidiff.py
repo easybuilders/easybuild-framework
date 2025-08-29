@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2023 Ghent University
+# Copyright 2014-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -67,7 +67,7 @@ MAX_DIFF_GROUPS = 3
 _log = fancylogger.getLogger('multidiff', fname=False)
 
 
-class MultiDiff(object):
+class MultiDiff:
     """
     Class representing a multi-diff.
     """
@@ -291,8 +291,8 @@ def multidiff(base, files, colored=True):
                 offset -= 1
 
         # construct the multi-diff based on the constructed dict
-        for line_no in local_diff:
-            for (line, filename) in local_diff[line_no]:
+        for line_no, line_infos in local_diff.items():
+            for (line, filename) in line_infos:
                 mdiff.parse_line(line_no, line.rstrip(), filename, squigly_dict.get(line, '').rstrip())
 
     return str(mdiff)

@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2023 Ghent University
+# Copyright 2011-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -87,7 +87,6 @@ import traceback
 import weakref
 
 from easybuild.tools import LooseVersion
-from easybuild.tools.py2vs3 import raise_with_traceback, string_type
 
 
 def _env_to_boolean(varname, default=False):
@@ -147,10 +146,10 @@ def _env_to_boolean(varname, default=False):
       >>> _env_to_boolean('NO_FOOBAR')
       False
     """
-    if varname not in os.environ:
+    try:
+        return os.environ[varname].lower() in ('1', 'yes', 'true', 'y')
+    except KeyError:
         return default
-    else:
-        return os.environ.get(varname).lower() in ('1', 'yes', 'true', 'y')
 
 
 OPTIMIZED_ANSWER = "not available in optimized mode"
@@ -214,11 +213,11 @@ class MissingLevelName(KeyError):
 
 def getLevelInt(level_name):
     """Given a level name, return the int value"""
-    if not isinstance(level_name, string_type):
+    if not isinstance(level_name, str):
         raise TypeError('Provided name %s is not a string (type %s)' % (level_name, type(level_name)))
 
     level = logging.getLevelName(level_name)
-    if isinstance(level, string_type):
+    if isinstance(level, str):
         raise MissingLevelName('Unknown loglevel name %s' % level_name)
 
     return level
@@ -286,7 +285,7 @@ class FancyLogger(logging.getLoggerClass()):
         overwrite make record to use a fancy record (with more options)
         """
         logrecordcls = logging.LogRecord
-        if hasattr(self, 'fancyrecord') and self.fancyrecord:
+        if getattr(self, 'fancyrecord', None):
             logrecordcls = FancyLogRecord
         try:
             new_msg = str(msg)
@@ -328,7 +327,7 @@ class FancyLogger(logging.getLoggerClass()):
             exception = self.RAISE_EXCEPTION_CLASS
 
         self.RAISE_EXCEPTION_LOG_METHOD(fullmessage)
-        raise_with_traceback(exception, message, tb)
+        raise exception(message).with_traceback(tb)
 
     # pylint: disable=unused-argument
     def deprecated(self, msg, cur_ver, max_ver, depth=2, exception=None, log_callback=None, *args, **kwargs):
@@ -346,7 +345,7 @@ class FancyLogger(logging.getLoggerClass()):
         if loose_cv.version[:depth] >= loose_mv.version[:depth]:
             self.raiseException("DEPRECATED (since v%s) functionality used: %s" % (max_ver, msg), exception=exception)
         else:
-            deprecation_msg = "Deprecated functionality, will no longer work in v%s: %s" % (max_ver, msg)
+            deprecation_msg = "Deprecated functionality, will no longer work in EasyBuild v%s: %s" % (max_ver, msg)
             log_callback(deprecation_msg)
 
     def _handleFunction(self, function, levelno, **kwargs):
@@ -579,8 +578,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
         'maxBytes': max_bytes,
         'backupCount': backup_count,
     }
-    if sys.version_info[0] >= 3:
-        handleropts['encoding'] = 'utf-8'
+    handleropts['encoding'] = 'utf-8'
     # logging to a file is going to create the file later on, so let's try to be helpful and create the path if needed
     directory = os.path.dirname(filename)
     if not os.path.exists(directory):
@@ -588,7 +586,7 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
             os.makedirs(directory)
         except Exception as ex:
             exc, detail, tb = sys.exc_info()
-            raise_with_traceback(exc, "Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail), tb)
+            raise exc("Cannot create logdirectory %s: %s \n detail: %s" % (directory, ex, detail)).with_traceback(tb)
 
     return _logToSomething(
         logging.handlers.RotatingFileHandler,
@@ -741,7 +739,7 @@ def setLogLevel(level):
     """
     Set a global log level for all FancyLoggers
     """
-    if isinstance(level, string_type):
+    if isinstance(level, str):
         level = getLevelInt(level)
     logger = getLogger(fname=False, clsname=False)
     logger.setLevel(level)
@@ -911,16 +909,15 @@ logging.setLoggerClass(FancyLogger)
 _default_logTo = None
 if 'FANCYLOG_SERVER' in os.environ:
     server = os.environ['FANCYLOG_SERVER']
-    port = DEFAULT_UDP_PORT
     if ':' in server:
         server, port = server.split(':')
+    else:
+        port = DEFAULT_UDP_PORT
 
     # maybe the port was specified in the FANCYLOG_SERVER_PORT env var. this takes precedence
-    if 'FANCYLOG_SERVER_PORT' in os.environ:
-        port = int(os.environ['FANCYLOG_SERVER_PORT'])
-    port = int(port)
+    port = os.environ.get('FANCYLOG_SERVER_PORT', port)
 
-    logToUDP(server, port)
+    logToUDP(server, int(port))
     _default_logTo = logToUDP
 else:
     # log to screen by default

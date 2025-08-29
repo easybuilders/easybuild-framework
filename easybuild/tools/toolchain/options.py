@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,7 +39,6 @@ Authors:
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.py2vs3 import string_type
 
 
 class ToolchainOptions(dict):
@@ -105,7 +104,7 @@ class ToolchainOptions(dict):
                 'value': value,
             })
 
-            if isinstance(res, string_type):
+            if isinstance(res, str):
                 # allow for template
                 res = self.options_map[name] % templatedict
             elif isinstance(res, (list, tuple,)):

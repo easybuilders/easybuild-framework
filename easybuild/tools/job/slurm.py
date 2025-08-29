@@ -1,5 +1,5 @@
 ##
-# Copyright 2018-2023 Ghent University
+# Copyright 2018-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Authors:
 
 * Kenneth Hoste (Ghent University)
 """
+import os
 import re
 
 from easybuild.base import fancylogger
@@ -37,7 +38,7 @@ from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.filetools import which
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 
 
 _log = fancylogger.getLogger('slurm', fname=False)
@@ -60,7 +61,7 @@ class Slurm(JobBackend):
             if path is None:
                 raise EasyBuildError("Required command '%s' not found", cmd)
 
-        super(Slurm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         job_deps_type = build_option('job_deps_type')
         if job_deps_type is None:
@@ -78,8 +79,8 @@ class Slurm(JobBackend):
 
     def _check_version(self):
         """Check whether version of Slurm complies with required version."""
-        (out, _) = run_cmd("sbatch --version", trace=False)
-        slurm_ver = out.strip().split(' ')[-1]
+        res = run_shell_cmd("sbatch --version", hidden=True)
+        slurm_ver = res.output.strip().split(' ')[-1]
         self.log.info("Found Slurm version %s", slurm_ver)
 
         if LooseVersion(slurm_ver) < LooseVersion(self.REQ_VERSION):
@@ -116,16 +117,16 @@ class Slurm(JobBackend):
             else:
                 submit_cmd += ' --%s "%s"' % (key, job.job_specs[key])
 
-        (out, _) = run_cmd(submit_cmd, trace=False)
+        cmd_res = run_shell_cmd(submit_cmd, hidden=True)
 
         jobid_regex = re.compile("^Submitted batch job (?P<jobid>[0-9]+)")
 
-        res = jobid_regex.search(out)
-        if res:
-            job.jobid = res.group('jobid')
+        regex_res = jobid_regex.search(cmd_res.output)
+        if regex_res:
+            job.jobid = regex_res.group('jobid')
             self.log.info("Job submitted, got job ID %s", job.jobid)
         else:
-            raise EasyBuildError("Failed to determine job ID from output of submission command: %s", out)
+            raise EasyBuildError("Failed to determine job ID from output of submission command: %s", cmd_res.output)
 
         self._submitted.append(job)
 
@@ -142,7 +143,7 @@ class Slurm(JobBackend):
                 job_ids.append(job.jobid)
 
         if job_ids:
-            run_cmd("scontrol release %s" % ' '.join(job_ids), trace=False)
+            run_shell_cmd("scontrol release %s" % ' '.join(job_ids), hidden=True)
 
         submitted_jobs = '; '.join(["%s (%s): %s" % (job.name, job.module, job.jobid) for job in self._submitted])
         print_msg("List of submitted jobs (%d): %s" % (len(self._submitted), submitted_jobs), log=self.log)
@@ -152,7 +153,7 @@ class Slurm(JobBackend):
         return SlurmJob(script, name, env_vars=env_vars, hours=hours, cores=cores)
 
 
-class SlurmJob(object):
+class SlurmJob:
     """Job class for SLURM jobs."""
 
     def __init__(self, script, name, env_vars=None, hours=None, cores=None):
@@ -162,13 +163,14 @@ class SlurmJob(object):
         self.jobid = None
         self.script = script
         self.name = name
+        self.output_dir = build_option('job_output_dir') or ''
 
         self.job_specs = {
             'job-name': self.name,
             # pattern for output file for submitted job;
             # SLURM replaces %j with job ID (see https://slurm.schedmd.com/sbatch.html#lbAH)
             # %x (job name) replacement needs SLURM >= 17.02.1, thus we add name ourselves
-            'output': '%s-%%j.out' % self.name,
+            'output': '%s-%%j.out' % os.path.join(self.output_dir, self.name),
             'wrap': self.script,
         }
 

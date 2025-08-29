@@ -1,0 +1,38 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...).
+
+
+More information
+================
+ - Homepage: https://gcc.gnu.org/
+    }
+}
+
+module-whatis {Description: The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...).}
+module-whatis {Homepage: https://gcc.gnu.org/}
+module-whatis {URL: https://gcc.gnu.org/}
+
+set root /prefix/software/GCC/12.3.0
+
+conflict GCC
+
+if { ![ is-loaded GCCcore/12.3.0 ] } {
+    module load GCCcore/12.3.0
+}
+
+if { ![ is-loaded binutils/2.40-GCCcore-12.3.0 ] } {
+    module load binutils/2.40-GCCcore-12.3.0
+}
+
+setenv	EBROOTGCC		"$root"
+setenv	EBVERSIONGCC		"12.3.0"
+setenv	EBDEVELGCC		"$root/easybuild/GCC-12.3.0-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

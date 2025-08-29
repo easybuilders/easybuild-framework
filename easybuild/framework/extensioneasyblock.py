@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of the University of Ghent (http://ugent.be/hpc).
@@ -89,6 +89,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
             self.module_generator = self.master.module_generator
+            self.module_load_environment = self.master.module_load_environment
             self.robot_path = self.master.robot_path
             self.is_extension = True
             self.unpack_options = None
@@ -126,18 +127,23 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         elif ext_start_dir is None:
             # This may be on purpose, e.g. for Python WHL files which do not get extracted
             self.log.debug("Start dir is not set.")
-        else:
+        elif self.start_dir:
             # non-existing start dir means wrong input from user
-            warn_msg = "Provided start dir (%s) for extension %s does not exist: %s" % (self.start_dir, self.name,
-                                                                                        ext_start_dir)
+            raise EasyBuildError("Provided start dir (%s) for extension %s does not exist: %s",
+                                 self.start_dir, self.name, ext_start_dir)
+        else:
+            warn_msg = 'Failed to determine start dir for extension %s: %s' % (self.name, ext_start_dir)
             self.log.warning(warn_msg)
             print_warning(warn_msg, silent=build_option('silent'))
 
-    def run(self, unpack_src=False):
+    def install_extension(self, unpack_src=False):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired
-        if unpack_src:
+        if self.options.get('nosource', False):
+            # If no source wanted use the start_dir from the main EC
+            self.ext_dir = self.master.start_dir
+        elif unpack_src:
             targetdir = os.path.join(self.master.builddir, remove_unwanted_chars(self.name))
             self.ext_dir = extract_file(self.src, targetdir, extra_options=self.unpack_options,
                                         change_into_dir=False, cmd=self.src_extract_cmd)
@@ -146,10 +152,9 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # because start_dir value is usually a relative path (if it is set)
             change_dir(self.ext_dir)
 
-            self._set_start_dir()
+        self._set_start_dir()
+        if self.start_dir:
             change_dir(self.start_dir)
-        else:
-            self._set_start_dir()
 
         # patch if needed
         EasyBlock.patch_step(self, beginpath=self.ext_dir)
@@ -171,33 +176,26 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # make sure Extension sanity check step is run once, by using a single empty list of extra modules
             lists_of_extra_modules = [[]]
 
-        for extra_modules in lists_of_extra_modules:
-
-            fake_mod_data = None
-
-            # only load fake module + extra modules for stand-alone installations (not for extensions),
-            # since for extension the necessary modules should already be loaded at this point;
-            # take into account that module may already be loaded earlier in sanity check
-            if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
-                # load fake module
-                fake_mod_data = self.load_fake_module(purge=True, extra_modules=extra_modules)
-
-                if extra_modules:
-                    info_msg = "Running extension sanity check with extra modules: %s" % ', '.join(extra_modules)
-                    self.log.info(info_msg)
-                    trace_msg(info_msg)
-
-            # perform extension sanity check
+        # only load fake module + extra modules for stand-alone installations (not for extensions),
+        # since for extension the necessary modules should already be loaded at this point;
+        # take into account that module may already be loaded earlier in sanity check
+        if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
+            for extra_modules in lists_of_extra_modules:
+                with self.fake_module_environment(extra_modules=extra_modules):
+                    if extra_modules:
+                        info_msg = f"Running extension sanity check with extra modules: {', '.join(extra_modules)}"
+                        self.log.info(info_msg)
+                        trace_msg(info_msg)
+                    # perform sanity check for stand-alone extension
+                    (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
+        else:
+            # perform single sanity check for extension
             (sanity_check_ok, fail_msg) = Extension.sanity_check_step(self)
 
-            if fake_mod_data:
-                # unload fake module and clean up
-                self.clean_up_fake_module(fake_mod_data)
-
         if custom_paths or custom_commands or not self.is_extension:
-            super(ExtensionEasyBlock, self).sanity_check_step(custom_paths=custom_paths,
-                                                              custom_commands=custom_commands,
-                                                              extension=self.is_extension)
+            super().sanity_check_step(custom_paths=custom_paths,
+                                      custom_commands=custom_commands,
+                                      extension=self.is_extension)
 
         # pass or fail sanity check
         if sanity_check_ok:
@@ -209,10 +207,18 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         return (sanity_check_ok, '; '.join(self.sanity_check_fail_msgs))
 
-    def make_module_extra(self, extra=None):
+    def make_module_extra(self, *args, **kwargs):
         """Add custom entries to module."""
 
-        txt = EasyBlock.make_module_extra(self)
+        # The signature used to be make_module_extra(self, extra) which was wrong but supported
+        extra = kwargs.pop('extra', None)
+        if extra is None and len(args) == 1:
+            extra = args[0]
+            args = ()
+        if extra is not None:
+            self.log.deprecated("Passing the parameter 'extra' to make_module_extra should be "
+                                "replaced by concatenating the result", '6.0')
+        txt = super().make_module_extra(*args, **kwargs)
         if extra is not None:
             txt += extra
         return txt

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -60,7 +60,7 @@ OTHER = (9, 'other')
 # we use a tuple here so we can sort them based on the numbers
 CATEGORY_NAMES = ['BUILD', 'CUSTOM', 'DEPENDENCIES', 'EXTENSIONS', 'FILEMANAGEMENT', 'HIDDEN',
                   'LICENSE', 'MANDATORY', 'MODULES', 'OTHER', 'TOOLCHAIN']
-ALL_CATEGORIES = dict((name, eval(name)) for name in CATEGORY_NAMES)
+ALL_CATEGORIES = {name: eval(name) for name in CATEGORY_NAMES}
 
 # List of tuples. Each tuple has the following format (key, [default, help text, category])
 DEFAULT_CONFIG = {
@@ -84,6 +84,7 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'amdgcn_capabilities': [[], "List of AMDGCN capabilities to build with (if supported)", BUILD],
     'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
                                       "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
@@ -92,6 +93,7 @@ DEFAULT_CONFIG = {
     'checksums': [[], "Checksums for sources and patches", BUILD],
     'configopts': ['', 'Extra options passed to configure (default already has --prefix)', BUILD],
     'cuda_compute_capabilities': [[], "List of CUDA compute capabilities to build with (if supported)", BUILD],
+    'data_sources': [[], "List of source files for data", BUILD],
     'download_instructions': ['', "Specify steps to acquire necessary file, if obtaining it is difficult", BUILD],
     'easyblock': [None, "EasyBlock to use for building; if set to None, an easyblock is selected "
                         "based on the software name", BUILD],
@@ -109,8 +111,7 @@ DEFAULT_CONFIG = {
     'hidden': [False, "Install module file as 'hidden' by prefixing its version with '.'", BUILD],
     'installopts': ['', 'Extra options for installation', BUILD],
     'maxparallel': [None, 'Max degree of parallelism', BUILD],
-    'parallel': [None, ('Degree of parallelism for e.g. make (default: based on the number of '
-                        'cores, active cpuset and restrictions in ulimit)'), BUILD],
+    'module_only': [False, 'Only generate module file', BUILD],
     'patches': [[], "List of patches to apply", BUILD],
     'prebuildopts': ['', 'Extra options pre-passed to build command.', BUILD],
     'preconfigopts': ['', 'Extra options pre-passed to configure.', BUILD],
@@ -125,14 +126,20 @@ DEFAULT_CONFIG = {
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
+    'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failures in "
+                                     "the CUDA sanity check step are ignored. Typically used for files where you "
+                                     "know the CUDA architectures in those files don't match the "
+                                     "--cuda-compute-capabitilities configured for EasyBuild AND where you know "
+                                     "that this is ok / reasonable (e.g. binary installations)", BUILD],
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
                                 "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
     'skip': [False, "Skip existing software", BUILD],
+    'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
     'source_urls': [[], "List of URLs for source files", BUILD],
-    'sources': [[], "List of source files", BUILD],
+    'sources': [[], "List of source files for software", BUILD],
     'stop': [None, 'Keyword to halt the build process after a certain step.', BUILD],
     'testopts': ['', 'Extra options for test.', BUILD],
     'tests': [[], ("List of test-scripts to run after install. A test script should return a "
@@ -154,8 +161,8 @@ DEFAULT_CONFIG = {
                              FILEMANAGEMENT],
     'keeppreviousinstall': [False, ('Boolean to keep the previous installation with identical '
                                     'name. Experts only!'), FILEMANAGEMENT],
-    'keepsymlinks': [False, ('Boolean to determine whether symlinks are to be kept during copying '
-                             'or if the content of the files pointed to should be copied'),
+    'keepsymlinks': [True, ('Boolean to determine whether symlinks are to be kept during copying '
+                            'or if the content of the files pointed to should be copied'),
                      FILEMANAGEMENT],
     'start_dir': [None, ('Path to start the make in. If the path is absolute, use that path. '
                          'If not, this is added to the guessed path.'), FILEMANAGEMENT],
@@ -189,7 +196,6 @@ DEFAULT_CONFIG = {
     'exts_list': [[], 'List with extensions added to the base installation', EXTENSIONS],
 
     # MODULES easyconfig parameters
-    'allow_prepend_abs_path': [False, "Allow specifying absolute paths to prepend in modextrapaths", MODULES],
     'include_modpath_extensions': [True, "Include $MODULEPATH extensions specified by module naming scheme.", MODULES],
     'modaliases': [{}, "Aliases to be defined in module file", MODULES],
     'modextrapaths': [{}, "Extra paths to be prepended in module file", MODULES],
@@ -202,12 +208,13 @@ DEFAULT_CONFIG = {
     'moduleclass': [MODULECLASS_BASE, 'Module class to be used for this software', MODULES],
     'moduleforceunload': [False, 'Force unload of all modules when loading the extension', MODULES],
     'moduleloadnoconflict': [False, "Don't check for conflicts, unload other versions instead ", MODULES],
-    'module_depends_on': [False, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
-                          '(implies recursive unloading of modules).', MODULES],
+    'module_depends_on': [None, 'Use depends_on (Lmod 7.6.1+) for dependencies in generated module '
+                          '(implies recursive unloading of modules) [DEPRECATED]', MODULES],
+    'module_search_path_headers': [None, "Environment variable set by modules on load "
+                                   "with search paths to header files (if None, use $CPATH)", MODULES],
     'recursive_module_unload': [None, "Recursive unload of all dependencies when unloading module "
-                                      "(True/False to hard enable/disable; None implies honoring "
-                                      "the --recursive-module-unload EasyBuild configuration setting",
-                                MODULES],
+                                "(True/False to hard enable/disable; None implies honoring the "
+                                "--recursive-module-unload EasyBuild configuration setting", MODULES],
 
     # MODULES documentation easyconfig parameters
     #    (docurls is part of MANDATORY)
@@ -230,6 +237,7 @@ DEFAULT_CONFIG = {
                           "and will be archived in the next major release of EasyBuild", OTHER],
     'build_info_msg': [None, "String with information to be printed to stdout and logged during the building "
                              "of the easyconfig", OTHER],
+    'check_readelf_rpath': [True, "If False, it won't check the RPATH by readelf even with the --rpath flag", OTHER],
 }
 
 

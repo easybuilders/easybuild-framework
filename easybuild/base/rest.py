@@ -40,12 +40,13 @@ import base64
 import copy
 import json
 from functools import partial
+from urllib.parse import urlencode
+from urllib.request import HTTPSHandler, Request, build_opener
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import HTTPSHandler, Request, build_opener, json_loads, string_type, urlencode
 
 
-class Client(object):
+class Client:
     """An implementation of a REST client"""
     DELETE = 'DELETE'
     GET = 'GET'
@@ -180,7 +181,7 @@ class Client(object):
         else:
             body = conn.read()
             try:
-                pybody = json_loads(body)
+                pybody = json.loads(body)
             except ValueError:
                 pybody = body
         fancylogger.getLogger().debug('reponse len: %s ', len(pybody))
@@ -203,10 +204,8 @@ class Client(object):
         else:
             sep = ''
 
-        # value passed to 'data' must be a 'bytes' value (not 'str') in Python 3.x, but a string value in Python 2
-        # hence, we encode the value obtained (if needed)
-        # this doesn't affect the value type in Python 2, and makes it a 'bytes' value in Python 3
-        if isinstance(body, string_type):
+        # value passed to 'data' must be a 'bytes' value (not 'str') hence, we encode the value obtained (if needed)
+        if isinstance(body, str):
             body = body.encode('utf-8')
 
         request = Request(self.url + sep + url, data=body)
@@ -218,7 +217,7 @@ class Client(object):
         return connection
 
 
-class RequestBuilder(object):
+class RequestBuilder:
     '''RequestBuilder(client).path.to.resource.method(...)
         stands for
     RequestBuilder(client).client.method('path/to/resource, ...)
@@ -266,7 +265,7 @@ class RequestBuilder(object):
         return '%s: %s' % (self.__class__, self.url)
 
 
-class RestClient(object):
+class RestClient:
     """
     A client with a request builder, so you can easily create rest requests
     e.g. to create a github Rest API client just do

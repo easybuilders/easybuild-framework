@@ -1,5 +1,5 @@
 # #
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,8 +90,7 @@ class EnvironmentTest(EnhancedTestCase):
         # prepare test environment first:
         # keys in new_env should not be set yet, keys in old_env are expected to be set
         for key in new_env_vars:
-            if key in os.environ:
-                del os.environ[key]
+            os.environ.pop(key, None)
         for key in old_env_vars:
             os.environ[key] = old_env_vars[key]
 
@@ -163,9 +162,12 @@ class EnvironmentTest(EnhancedTestCase):
         self.assertEqual(os.getenv('LD_PRELOAD'), None)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EnvironmentTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EnvironmentTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,13 +32,14 @@ Authors:
 """
 
 from abc import ABCMeta, abstractmethod
+from types import SimpleNamespace
 
 from easybuild.base import fancylogger
 from easybuild.tools.config import get_job_backend
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 
-class JobBackend(object):
+class JobBackend:
     __metaclass__ = ABCMeta
 
     def __init__(self):
@@ -69,7 +70,7 @@ class JobBackend(object):
         See the `Job`:class: constructor for an explanation of what
         the arguments are.
         """
-        pass
+        return SimpleNamespace()
 
     @abstractmethod
     def queue(self, job, dependencies=frozenset()):
@@ -104,7 +105,7 @@ def avail_job_backends(check_usable=True):
     Return all known job execution backends.
     """
     import_available_modules('easybuild.tools.job')
-    class_dict = dict([(x.__name__, x) for x in get_subclasses(JobBackend)])
+    class_dict = {x.__name__: x for x in get_subclasses(JobBackend)}
     return class_dict
 
 

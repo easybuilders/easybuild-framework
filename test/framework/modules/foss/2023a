@@ -1,0 +1,54 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+GNU Compiler Collection (GCC) based compiler toolchain, including
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK.
+
+
+More information
+================
+ - Homepage: https://easybuild.readthedocs.io/en/master/Common-toolchains.html#foss-toolchain
+    }
+}
+
+module-whatis {Description: GNU Compiler Collection (GCC) based compiler toolchain, including
+ OpenMPI for MPI support, OpenBLAS (BLAS and LAPACK support), FFTW and ScaLAPACK.}
+module-whatis {Homepage: https://easybuild.readthedocs.io/en/master/Common-toolchains.html#foss-toolchain}
+module-whatis {URL: https://easybuild.readthedocs.io/en/master/Common-toolchains.html#foss-toolchain}
+
+set root /prefix/software/foss/2023a
+
+conflict foss
+
+if { ![ is-loaded GCC/12.3.0 ] } {
+    module load GCC/12.3.0
+}
+
+if { ![ is-loaded OpenMPI/4.1.5-GCC-12.3.0 ] } {
+    module load OpenMPI/4.1.5-GCC-12.3.0
+}
+
+if { ![ is-loaded FlexiBLAS/3.3.1-GCC-12.3.0 ] } {
+    module load FlexiBLAS/3.3.1-GCC-12.3.0
+}
+
+if { ![ is-loaded FFTW/3.3.10-GCC-12.3.0 ] } {
+    module load FFTW/3.3.10-GCC-12.3.0
+}
+
+if { ![ is-loaded FFTW.MPI/3.3.10-gompi-2023a ] } {
+    module load FFTW.MPI/3.3.10-gompi-2023a
+}
+
+if { ![ is-loaded ScaLAPACK/2.2.0-gompi-2023a-fb ] } {
+    module load ScaLAPACK/2.2.0-gompi-2023a-fb
+}
+
+setenv	EBROOTFOSS		"$root"
+setenv	EBVERSIONFOSS		"2023a"
+setenv	EBDEVELFOSS		"$root/easybuild/foss-2023a-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

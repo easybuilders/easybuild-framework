@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 # Copyright 2015 S3IT, University of Zurich
 #
 # This file is part of EasyBuild,
@@ -97,12 +97,16 @@ class GC3Pie(JobBackend):
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def __init__(self, *args, **kwargs):
         """GC3Pie JobBackend constructor."""
-        super(GC3Pie, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # _check_version is called by __init__, so guard it (too) with the decorator
     @only_if_module_is_available('gc3libs', pkgname='gc3pie')
     def _check_version(self):
         """Check whether GC3Pie version complies with required version."""
+
+        deprecation_msg = "The GC3Pie job backend is no longer maintained and will be removed"
+        deprecation_msg += ", please use a different job backend"
+        _log.deprecated(deprecation_msg, '6.0')
 
         try:
             from pkg_resources import get_distribution, DistributionNotFound

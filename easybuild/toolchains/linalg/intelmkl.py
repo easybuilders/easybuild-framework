@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -86,7 +86,7 @@ class IntelMKL(LinAlg):
         """Toolchain constructor."""
         class_constants = kwargs.setdefault('class_constants', [])
         class_constants.extend(['BLAS_LIB_MAP', 'SCALAPACK_LIB', 'SCALAPACK_LIB_MT', 'SCALAPACK_LIB_MAP'])
-        super(IntelMKL, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
@@ -103,7 +103,7 @@ class IntelMKL(LinAlg):
             elif 'dl' not in self.LIB_EXTRA:
                 self.LIB_EXTRA.append('dl')
 
-        super(IntelMKL, self).set_variables()
+        super().set_variables()
 
     def _set_blas_variables(self):
         """Fix the map a bit"""
@@ -132,43 +132,36 @@ class IntelMKL(LinAlg):
             raise EasyBuildError("_set_blas_variables: interface_mt unsupported combination with compiler family %s",
                                  self.COMPILER_FAMILY)
 
-        if self.options.get('32bit', None):
-            # 32bit
-            self.BLAS_LIB_MAP.update({"lp64": ''})
         if self.options.get('i8', None):
             # ilp64/i8
             self.BLAS_LIB_MAP.update({"lp64": '_ilp64'})
             # CPP / CFLAGS
-            self.variables.nappend_el('CFLAGS', 'DMKL_ILP64')
+            self.variables.nappend_el('CFLAGS', '-DMKL_ILP64')
 
         # exact paths/linking statements depend on imkl version
+        root = self.get_software_root(self.BLAS_MODULE_NAME)[0]
         found_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
         ver = LooseVersion(found_version)
         if ver < LooseVersion('10.3'):
-            if self.options.get('32bit', None):
-                self.BLAS_LIB_DIR = ['lib/32']
-            else:
-                self.BLAS_LIB_DIR = ['lib/em64t']
+            self.BLAS_LIB_DIR = ['lib/em64t']
             self.BLAS_INCLUDE_DIR = ['include']
         else:
-            if self.options.get('32bit', None):
-                raise EasyBuildError("_set_blas_variables: 32-bit libraries not supported yet for IMKL v%s (> v10.3)",
-                                     found_version)
+            if ver >= LooseVersion('2021'):
+                if os.path.islink(os.path.join(root, 'mkl', 'latest')):
+                    found_version = os.readlink(os.path.join(root, 'mkl', 'latest'))
+                basedir = os.path.join('mkl', found_version)
             else:
-                if ver >= LooseVersion('2021'):
-                    basedir = os.path.join('mkl', found_version)
-                else:
-                    basedir = 'mkl'
+                basedir = 'mkl'
 
-                self.BLAS_LIB_DIR = [os.path.join(basedir, 'lib', 'intel64')]
-                if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
-                    self.BLAS_LIB_DIR.append(os.path.join('compiler', 'lib', 'intel64'))
-                elif ver < LooseVersion('2021'):
-                    self.BLAS_LIB_DIR.append(os.path.join('lib', 'intel64'))
+            self.BLAS_LIB_DIR = [os.path.join(basedir, 'lib', 'intel64')]
+            if ver >= LooseVersion('10.3.4') and ver < LooseVersion('11.1'):
+                self.BLAS_LIB_DIR.append(os.path.join('compiler', 'lib', 'intel64'))
+            elif ver < LooseVersion('2021'):
+                self.BLAS_LIB_DIR.append(os.path.join('lib', 'intel64'))
 
             self.BLAS_INCLUDE_DIR = [os.path.join(basedir, 'include')]
 
-        super(IntelMKL, self)._set_blas_variables()
+        super()._set_blas_variables()
 
     def _set_blacs_variables(self):
         mpimap = {
@@ -190,7 +183,7 @@ class IntelMKL(LinAlg):
         self.BLACS_LIB_DIR = self.BLAS_LIB_DIR
         self.BLACS_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
-        super(IntelMKL, self)._set_blacs_variables()
+        super()._set_blacs_variables()
 
     def _set_scalapack_variables(self):
         imkl_version = self.get_software_version(self.BLAS_MODULE_NAME)[0]
@@ -198,15 +191,11 @@ class IntelMKL(LinAlg):
             self.SCALAPACK_LIB.append("mkl_solver%(lp64)s_sequential")
             self.SCALAPACK_LIB_MT.append("mkl_solver%(lp64)s")
 
-        if self.options.get('32bit', None):
-            # 32 bit
-            self.SCALAPACK_LIB_MAP.update({"lp64_sc": '_core'})
-
-        elif self.options.get('i8', None):
+        if self.options.get('i8', None):
             # ilp64/i8
             self.SCALAPACK_LIB_MAP.update({"lp64_sc": '_ilp64'})
 
         self.SCALAPACK_LIB_DIR = self.BLAS_LIB_DIR
         self.SCALAPACK_INCLUDE_DIR = self.BLAS_INCLUDE_DIR
 
-        super(IntelMKL, self)._set_scalapack_variables()
+        super()._set_scalapack_variables()

@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.config import build_option
 
 
-class PackageNamingScheme(object):
+class PackageNamingScheme:
     """Abstract class for package naming schemes"""
     __metaclass__ = ABCMeta
 

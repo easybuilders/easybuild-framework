@@ -13,8 +13,9 @@ print_usage()
     echo "Usage: $0 <github_username> <install_dir>"
     echo
     echo "    github_username:     username on GitHub for which the EasyBuild repositories should be cloned"
+    echo "                         Use 'easybuilders' if you don't want to use a fork"
     echo
-    echo "    install_dir:         directory were all the EasyBuild files will be installed"
+    echo "    install_dir:         directory where all the EasyBuild files will be installed"
     echo
 }
 
@@ -28,11 +29,13 @@ github_clone_branch()
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
     git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
-    cd "${REPO}"
-    git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
-    git fetch github_easybuilders
-    git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    if [[ $GITHUB_USERNAME != "easybuilders" ]]; then
+        echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+        cd "${REPO}"
+        git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+        git fetch github_easybuilders
+        git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    fi
 }
 
 # Print the content of the module
@@ -79,7 +82,7 @@ EOF
 
 
 # Check for 'help' argument
-if [ "$1" = "-h" -o "$1" = "--help" ] ; then 
+if [ "$1" = "-h" ] || [ "$1" = "--help" ] ; then
     print_usage
     exit 0
 fi
@@ -116,13 +119,14 @@ github_clone_branch "easybuild" "develop"
 EB_DEVEL_MODULE_NAME="EasyBuild-develop"
 MODULES_INSTALL_DIR=${INSTALL_DIR}/modules
 EB_DEVEL_MODULE="${MODULES_INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
-mkdir -p ${MODULES_INSTALL_DIR}
+mkdir -p "${MODULES_INSTALL_DIR}"
 print_devel_module > "${EB_DEVEL_MODULE}"
-echo 
+echo
 echo "=== Run 'module use ${MODULES_INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."
 echo "=== (you can append ${MODULES_INSTALL_DIR} to your MODULEPATH to make this module always available for loading)"
 echo
 echo "=== To update each repository, run 'git pull origin' in each subdirectory of ${INSTALL_DIR}"
+echo "=== Or run $(dirname "$0")/update-EasyBuild-develop.sh '${INSTALL_DIR}'"
 echo
 
 exit 0

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,21 +36,22 @@ Authors:
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
 import copy
+import itertools
 import os
 import re
 import tempfile
+from collections import defaultdict
 from contextlib import contextmanager
-from easybuild.tools import LooseVersion
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
-from easybuild.tools.py2vs3 import string_type
+from easybuild.tools.modules import (ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModules,
+                                     EnvironmentModulesC, Lmod, modules_tool)
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
-
 
 _log = fancylogger.getLogger('module_generator', fname=False)
 
@@ -59,7 +60,7 @@ def avail_module_generators():
     """
     Return all known module syntaxes.
     """
-    return dict([(k.SYNTAX, k) for k in get_subclasses(ModuleGenerator)])
+    return {k.SYNTAX: k for k in get_subclasses(ModuleGenerator)}
 
 
 def module_generator(app, fake=False):
@@ -116,7 +117,7 @@ def dependencies_for(mod_name, modtool, depth=None):
     return mods
 
 
-class ModuleGenerator(object):
+class ModuleGenerator:
     """
     Class for generating module files.
     """
@@ -131,6 +132,15 @@ class ModuleGenerator(object):
 
     # a single level of indentation
     INDENTATION = ' ' * 4
+
+    # shell environment variable name: ${__}VAR_NAME_00_SUFFIX
+    REGEX_SHELL_VAR_PATTERN = r'[A-Z_]+[A-Z0-9_]+'
+    REGEX_SHELL_VAR = re.compile(rf'\$({REGEX_SHELL_VAR_PATTERN})')
+    REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
+
+    # default options for modextravars
+    DEFAULT_MODEXTRAVARS_USE_PUSHENV = False
+    DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS = True
 
     def __init__(self, application, fake=False):
         """ModuleGenerator constructor."""
@@ -154,7 +164,7 @@ class ModuleGenerator(object):
             raise EasyBuildError('Module creation already in process. '
                                  'You cannot create multiple modules at the same time!')
         # Mapping of keys/env vars to paths already added
-        self.added_paths_per_key = dict()
+        self.added_paths_per_key = defaultdict(set)
         txt = self.MODULE_SHEBANG
         if txt:
             txt += '\n'
@@ -206,16 +216,20 @@ class ModuleGenerator(object):
 
         return os.path.join(mod_path, mod_path_suffix)
 
-    def _filter_paths(self, key, paths):
-        """Filter out paths already added to key and return the remaining ones"""
+    def _filter_paths(self, key, paths, warn_exists=True):
+        """
+        Filter out paths already added to key and return the remaining ones
+
+        :param warn_exists: Show a warning for paths already added to the key
+        """
         if self.added_paths_per_key is None:
             # For compatibility this is only a warning for now and we don't filter any paths
             print_warning('Module creation has not been started. Call start_module_creation first!')
             return paths
 
-        added_paths = self.added_paths_per_key.setdefault(key, set())
+        added_paths = self.added_paths_per_key[key]
         # paths can be a string
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             if paths in added_paths:
                 filtered_paths = None
             else:
@@ -227,15 +241,17 @@ class ModuleGenerator(object):
                 paths = list(paths)
             filtered_paths = [x for x in paths if x not in added_paths and not added_paths.add(x)]
         if filtered_paths != paths:
-            removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
-            print_warning("Suppressed adding the following path(s) to $%s of the module as they were already added: %s",
-                          key, removed_paths,
-                          log=self.log)
+            if warn_exists:
+                removed_paths = paths if filtered_paths is None else [x for x in paths if x not in filtered_paths]
+                print_warning("Suppressed adding the following path(s) to $%s of the module "
+                              "as they were already added: %s",
+                              key, removed_paths,
+                              log=self.log)
             if not filtered_paths:
                 filtered_paths = None
         return filtered_paths
 
-    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def append_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate append-path statements for the given list of paths.
 
@@ -243,13 +259,16 @@ class ModuleGenerator(object):
         :param paths: list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        return self.update_paths(key, paths, prepend=False, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
-    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True):
+    def prepend_paths(self, key, paths, allow_abs=False, expand_relpaths=True, delim=':', warn_exists=True):
         """
         Generate prepend-path statements for the given list of paths.
 
@@ -257,11 +276,14 @@ class ModuleGenerator(object):
         :param paths: list of paths to append
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
+        :param warn_exists: Show a warning if any path was already added to the variable
         """
-        paths = self._filter_paths(key, paths)
+        paths = self._filter_paths(key, paths, warn_exists=warn_exists)
         if paths is None:
             return ''
-        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths)
+        return self.update_paths(key, paths, prepend=True, allow_abs=allow_abs, expand_relpaths=expand_relpaths,
+                                 delim=delim)
 
     def _modulerc_check_module_version(self, module_version):
         """
@@ -347,7 +369,7 @@ class ModuleGenerator(object):
 
                 module_version_statement = "module-version %(modname)s %(sym_version)s"
 
-                # for Environment Modules we need to guard the module-version statement,
+                # for EnvironmentModulesC we need to guard the module-version statement,
                 # to avoid "Duplicate version symbol" warning messages where EasyBuild trips over,
                 # which occur because the .modulerc is parsed twice
                 # "module-info version <arg>" returns its argument if that argument is not a symbolic version (yet),
@@ -388,7 +410,7 @@ class ModuleGenerator(object):
 
         :param mod_names: (list of) module name(s) to check load status for
         """
-        if isinstance(mod_names, string_type):
+        if isinstance(mod_names, str):
             res = self.IS_LOADED_TEMPLATE % mod_names
         else:
             res = [self.IS_LOADED_TEMPLATE % m for m in mod_names]
@@ -409,28 +431,38 @@ class ModuleGenerator(object):
 
         return res
 
-    def unpack_setenv_value(self, env_var_name, env_var_val):
+    def unpack_setenv_value(self, *args, **kwargs):
+        """
+        DEPRECATED method, should not be used.
+        Replaced with (internal) _unpack_setenv_value method.
+        """
+        self.log.deprecated("unpack_setenv_value should not be used directly (replaced by internal method)", '6.0')
+        value, use_pushenv, _ = self._unpack_setenv_value(*args, **kwargs)
+        return value, use_pushenv
+
+    def _unpack_setenv_value(self, env_var_name, env_var_val):
         """
         Unpack value that specifies how to define an environment variable with specified name.
         """
-        use_pushenv = False
+        use_pushenv = self.DEFAULT_MODEXTRAVARS_USE_PUSHENV
+        resolve_env_vars = self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS
 
         # value may be specified as a string, or as a dict for special cases
-        if isinstance(env_var_val, string_type):
+        if isinstance(env_var_val, str):
             value = env_var_val
-
         elif isinstance(env_var_val, dict):
-            use_pushenv = env_var_val.get('pushenv', False)
+            use_pushenv = env_var_val.get('pushenv', self.DEFAULT_MODEXTRAVARS_USE_PUSHENV)
+            resolve_env_vars = env_var_val.get('resolve_env_vars', self.DEFAULT_MODEXTRAVARS_RESOLVE_ENV_VARS)
             try:
                 value = env_var_val['value']
-            except KeyError:
+            except KeyError as err:
                 raise EasyBuildError("Required key 'value' is missing in dict that specifies how to set $%s: %s",
-                                     env_var_name, env_var_val)
+                                     env_var_name, env_var_val) from err
         else:
             raise EasyBuildError("Incorrect value type for setting $%s environment variable (%s): %s",
                                  env_var_name, type(env_var_val), env_var_val)
 
-        return value, use_pushenv
+        return value, use_pushenv, resolve_env_vars
 
     # From this point on just not implemented methods
 
@@ -484,13 +516,13 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def load_module(self, mod_name, recursive_unload=False, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=False, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -552,15 +584,16 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         raise NotImplementedError
 
@@ -610,21 +643,6 @@ class ModuleGenerator(object):
         """
         raise NotImplementedError
 
-    def _generate_extension_list(self):
-        """
-        Generate a string with a list of extensions.
-
-        The name and version are separated by name_version_sep and each extension is separated by ext_sep
-        """
-        return self.app.make_extension_string()
-
-    def _generate_extensions_list(self):
-        """
-        Generate a list of all extensions in name/version format
-        """
-        exts_str = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
-        return exts_str.split(',') if exts_str else []
-
     def _generate_help_text(self):
         """
         Generate syntax-independent help text used for `module help`.
@@ -671,7 +689,7 @@ class ModuleGenerator(object):
             lines.extend(self._generate_section("Compatible modules", compatible_modules_txt))
 
         # Extensions (if any)
-        extensions = self._generate_extension_list()
+        extensions = self.app.make_extension_string()
         lines.extend(self._generate_section("Included extensions", '\n'.join(wrap(extensions, 78))))
 
         return '\n'.join(lines)
@@ -682,21 +700,13 @@ class ModuleGenerator(object):
         """
         multi_deps = []
         if self.app.cfg['multi_deps']:
-            for key in sorted(self.app.cfg['multi_deps'].keys()):
-                mod_list = []
-                txt = ''
-                vlist = self.app.cfg['multi_deps'].get(key)
-                for idx in range(len(vlist)):
-                    for deplist in self.app.cfg.multi_deps:
-                        for dep in deplist:
-                            if dep['name'] == key and dep['version'] == vlist[idx]:
-                                modname = dep['short_mod_name']
-                                # indicate which version is loaded by default (unless that's disabled)
-                                if idx == 0 and self.app.cfg['multi_deps_load_default']:
-                                    modname += ' (default)'
-                                mod_list.append(modname)
-                txt += ', '.join(mod_list)
-                multi_deps.append(txt)
+            for name in sorted(self.app.cfg['multi_deps']):
+                mod_list = [dep['short_mod_name'] for dep in itertools.chain.from_iterable(self.app.cfg.multi_deps)
+                            if dep['name'] == name]
+                # indicate that the first version is loaded by default if enabled
+                if self.app.cfg['multi_deps_load_default']:
+                    mod_list[0] += ' (default)'
+                multi_deps.append(', '.join(mod_list))
 
         return multi_deps
 
@@ -728,7 +738,7 @@ class ModuleGenerator(object):
             if multi_deps:
                 whatis.append("Compatible modules: %s" % ', '.join(multi_deps))
 
-            extensions = self._generate_extension_list()
+            extensions = self.app.make_extension_string()
             if extensions:
                 whatis.append("Extensions: %s" % extensions)
 
@@ -750,6 +760,34 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
 
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
+        """
+        minimal_version = "%(maj)s.%(min)s.%(patch)s" % {
+            'maj': minimal_version_maj,
+            'min': minimal_version_min,
+            'patch': minimal_version_patch,
+        }
+
+        if isinstance(self.modules_tool, Lmod):
+            tool_version_var = "::env(LMOD_VERSION)"
+        # cannot test minimal version below 4.7.0 with Environment Modules
+        elif (isinstance(self.modules_tool, EnvironmentModules) and
+              LooseVersion(minimal_version) > LooseVersion('4.7.0')):
+            tool_version_var = "::ModuleToolVersion"
+        else:
+            raise NotImplementedError
+
+        return [
+            f"info exists {tool_version_var}",
+            (f"string equal [lindex [lsort -dictionary [list {minimal_version} "
+             f"${tool_version_var}]] 0] {minimal_version}"),
+        ]
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -758,8 +796,18 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        self.log.warning("Can't generate robust check in TCL modules for users belonging to group %s.", group)
-        return ''
+        if self.modules_tool.supports_tcl_check_group:
+            if error_msg is None:
+                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+                error_msg += "Please consult with user support how to become a member of this group"
+
+            error_msg = 'error "%s"' % error_msg
+            res = self.conditional_statement('module-info usergroups %s' % group, error_msg, negative=True)
+        else:
+            self.log.warning("Can't generate robust check in Tcl modules for users belonging to group %s.", group)
+            res = ''
+
+        return res
 
     def comment(self, msg):
         """Return string containing given message as a comment."""
@@ -778,7 +826,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, string_type):
+        if isinstance(conditions, str):
             conditions = [conditions]
 
         if cond_or:
@@ -817,19 +865,20 @@ class ModuleGeneratorTcl(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             "proc ModulesHelp { } {",
             "    puts stderr {%s" % re.sub(r'([{}\[\]])', r'\\\1', self._generate_help_text()),
             "    }",
             '}',
             '',
+        ]
+
+        lines.extend([
+            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
+            for line in self._generate_whatis_lines()
         ])
 
-        lines = [
-            '%(whatis_lines)s',
-            '',
-            "set root %(installdir)s",
-        ]
+        lines.extend(['', "set root " + self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             cond_unload = self.conditional_statement(self.is_loaded('%(name)s'), "module unload %(name)s")
@@ -846,41 +895,43 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = [
-            "module-whatis {%s}" % re.sub(r'([{}\[\]])', r'\\\1', line)
-            for line in self._generate_whatis_lines()
-        ]
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-        }
+        if build_option('module_extensions') and self.modules_tool.supports_extensions:
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=' ')
+            if extensions_list:
+                extensions_stmt = 'extensions %s' % extensions_list
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
         if default is None:
-            cmd = '$::env(%s)' % envvar
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s]' % envvar
+            else:
+                cmd = '$::env(%s)' % envvar
         else:
-            values = {
-                'default': default,
-                'envvar': '::env(%s)' % envvar,
-            }
-            cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
+            if self.modules_tool.supports_tcl_getenv:
+                cmd = '[getenv %s "%s"]' % (envvar, default)
+            else:
+                values = {
+                    'default': default,
+                    'envvar': '::env(%s)' % envvar,
+                }
+                cmd = '[if { [info exists %(envvar)s] } { concat $%(envvar)s } else { concat "%(default)s" } ]' % values
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -889,7 +940,10 @@ class ModuleGeneratorTcl(ModuleGenerator):
             body.extend([self.unload_module(m).strip() for m in unload_modules])
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6.1+ supports depends-on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
+        if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
+            if depends_on is not None:
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends-on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
@@ -900,8 +954,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         cond_tmpl = None
 
+        # Environment Modules v4+ safely handles automatic module load by not reloading already
+        # loaded module. No safe guard test is required and it should even be avoided to get the
+        # module dependency correctly tracked.
+        safe_auto_load = self.modules_tool.supports_safe_auto_load
+
         if recursive_unload is None:
-            recursive_unload = build_option('recursive_mod_unload') or depends_on
+            recursive_unload = build_option('recursive_mod_unload') or depends_on or safe_auto_load
 
         if recursive_unload:
             # wrapping the 'module load' statement with an 'is-loaded or mode == unload'
@@ -912,7 +971,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # see also http://lmod.readthedocs.io/en/latest/210_load_storms.html
             cond_tmpl = "[ module-info mode remove ] || %s"
 
-        if depends_on:
+        if depends_on or safe_auto_load:
             if multi_dep_mods and len(multi_dep_mods) > 1:
                 parent_mod_name = os.path.dirname(mod_name)
                 guard = self.is_loaded(multi_dep_mods[1:])
@@ -956,15 +1015,16 @@ class ModuleGeneratorTcl(ModuleGenerator):
         print_cmd = "puts stderr %s" % quote_str(msg, tcl=True)
         return '\n'.join(['', self.conditional_statement("module-info mode unload", print_cmd, indent=False)])
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend-path or append-path statements for the given list of paths.
 
         :param key: environment variable to prepend/append paths to
-        :param paths: list of paths to prepend
+        :param paths: list of paths to prepend/append
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -975,7 +1035,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", paths, update_type, key)
             paths = [paths]
 
@@ -996,7 +1056,8 @@ class ModuleGeneratorTcl(ModuleGenerator):
             else:
                 abspaths.append(path)
 
-        statements = ['%s-path\t%s\t\t%s\n' % (update_type, key, p) for p in abspaths]
+        delim_opt = '' if delim == ':' else f' -d "{delim}"'
+        statements = [f'{update_type}-path{delim_opt}\t{key}\t\t{p}\n' for p in abspaths]
         return ''.join(statements)
 
     def set_alias(self, key, value):
@@ -1008,7 +1069,7 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
     def set_as_default(self, module_dir_path, module_version, mod_symlink_paths=None):
         """
-        Create a .version file inside the package module folder in order to set the default version for TMod
+        Create a .version file inside the package module folder in order to set the default version
 
         :param module_dir_path: module directory path, e.g. $HOME/easybuild/modules/all/Bison
         :param module_version: module version, e.g. 3.0.4
@@ -1049,19 +1110,19 @@ class ModuleGeneratorTcl(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
+
+        if relpath:
+            set_value = os.path.join('$root', set_value) if set_value else '$root'
+
+        if resolve_env_vars:
+            set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
-        if relpath:
-            if value:
-                val = quote_str(os.path.join('$root', value), tcl=True)
-            else:
-                val = '"$root"'
-        else:
-            val = quote_str(value, tcl=True)
+        set_value = quote_str(set_value, tcl=True)
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-        return '%s\t%s\t\t%s\n' % (env_setter, key, val)
+        return f'{env_setter}\t{key}\t\t{set_value}\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """
@@ -1145,19 +1206,36 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
+    OS_GETENV_TEMPLATE = r'os.getenv("%s")'
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
+    UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
 
     START_STR = '[==['
     END_STR = ']==]'
+    CONCAT_STR = ' .. '
 
     def __init__(self, *args, **kwargs):
         """ModuleGeneratorLua constructor."""
-        super(ModuleGeneratorLua, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         if self.modules_tool:
             if self.modules_tool.version and LooseVersion(self.modules_tool.version) >= LooseVersion('7.7.38'):
                 self.DOT_MODULERC = '.modulerc.lua'
+
+    @staticmethod
+    def _path_join_cmd(path):
+        "Return 'pathJoin' command for given path string"
+        path_components = [quote_str(p) for p in path.split(os.path.sep) if p]
+
+        path_root = quote_str(os.path.sep) if os.path.isabs(path) else 'root'
+        path_components.insert(0, path_root)
+
+        if len(path_components) > 1:
+            return 'pathJoin(' + ', '.join(path_components) + ')'
+
+        # no need for a pathJoin for single component paths
+        return path_components[0]
 
     def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
         """
@@ -1181,21 +1259,12 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param group: string with the group name
         :param error_msg: error message to print for users outside that group
         """
-        lmod_version = self.modules_tool.version
-        min_lmod_version = '6.0.8'
+        if error_msg is None:
+            error_msg = "You are not part of '%s' group of users that have access to this software; " % group
+            error_msg += "Please consult with user support how to become a member of this group"
 
-        if LooseVersion(lmod_version) >= LooseVersion(min_lmod_version):
-            if error_msg is None:
-                error_msg = "You are not part of '%s' group of users that have access to this software; " % group
-                error_msg += "Please consult with user support how to become a member of this group"
-
-            error_msg = 'LmodError("' + error_msg + '")'
-            res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
-        else:
-            warn_msg = "Can't generate robust check in Lua modules for users belonging to group %s. "
-            warn_msg += "Lmod version not recent enough (%s), should be >= %s"
-            self.log.warning(warn_msg, group, lmod_version, min_lmod_version)
-            res = ''
+        error_msg = 'LmodError("' + error_msg + '")'
+        res = self.conditional_statement('userInGroup("%s")' % group, error_msg, negative=True)
 
         return res
 
@@ -1223,7 +1292,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param cond_or: combine multiple conditions using 'or' (default is to combine with 'and')
         :param cond_tmpl: template for condition expression (default: '%s')
         """
-        if isinstance(conditions, string_type):
+        if isinstance(conditions, str):
             conditions = [conditions]
 
         if cond_or:
@@ -1262,17 +1331,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Generate a description.
         """
-        txt = '\n'.join([
+        lines = [
             'help(%s%s' % (self.START_STR, self.check_str(self._generate_help_text())),
             '%s)' % self.END_STR,
             '',
-        ])
-
-        lines = [
-            "%(whatis_lines)s",
-            '',
-            'local root = "%(installdir)s"',
         ]
+
+        for line in self._generate_whatis_lines():
+            lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
+
+        lines.extend(['', 'local root = "%s"' % self.app.installdir])
 
         if self.app.cfg['moduleloadnoconflict']:
             self.log.info("Nothing to do to ensure no conflicts can occur on load when using Lua modules files/Lmod")
@@ -1281,48 +1349,35 @@ class ModuleGeneratorLua(ModuleGenerator):
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
 
-        whatis_lines = []
-        for line in self._generate_whatis_lines():
-            whatis_lines.append("whatis(%s%s%s)" % (self.START_STR, self.check_str(line), self.END_STR))
-
         if build_option('module_extensions'):
-            extensions_list = self._generate_extensions_list()
-
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
-                extensions_stmt = 'extensions("%s")' % ','.join(['%s' % x for x in extensions_list])
+                extensions_stmt = 'extensions("%s")' % extensions_list
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
-        txt += '\n'.join([''] + lines + ['']) % {
-            'name': self.app.name,
-            'version': self.app.version,
-            'whatis_lines': '\n'.join(whatis_lines),
-            'installdir': self.app.installdir,
-            'homepage': self.app.cfg['homepage'],
-        }
-
-        return txt
+        return '\n'.join(lines + [''])
 
     def getenv_cmd(self, envvar, default=None):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        if default is None:
-            cmd = 'os.getenv("%s")' % envvar
-        else:
-            cmd = 'os.getenv("%s") or "%s"' % (envvar, default)
+        cmd = self.OS_GETENV_TEMPLATE % envvar
+        if default is not None:
+            cmd += f' or "{default}"'
         return cmd
 
-    def load_module(self, mod_name, recursive_unload=None, depends_on=False, unload_modules=None, multi_dep_mods=None):
+    def load_module(self, mod_name, recursive_unload=None, depends_on=None, unload_modules=None, multi_dep_mods=None):
         """
         Generate load statement for specified module.
 
         :param mod_name: name of module to generate load statement for
         :param recursive_unload: boolean indicating whether the 'load' statement should be reverted on unload
                                  (if None: enable if recursive_mod_unload build option or depends_on is True)
-        :param depends_on: use depends_on statements rather than (guarded) load statements
+        :param depends_on: use depends_on statements rather than (guarded) load statements (DEPRECATED)
         :param unload_modules: name(s) of module to unload first
         :param multi_dep_mods: list of module names in multi_deps context, to use for guarding load statement
         """
@@ -1332,7 +1387,10 @@ class ModuleGeneratorLua(ModuleGenerator):
 
         load_template = self.LOAD_TEMPLATE
         # Lmod 7.6+ supports depends_on which does this most nicely:
-        if build_option('mod_depends_on') or depends_on:
+        if (build_option('mod_depends_on') and self.modules_tool.supports_depends_on) or depends_on:
+            if depends_on is not None:
+                depr_msg = "'depends_on' argument of module generator method 'load_module' should not be used anymore"
+                self.log.deprecated(depr_msg, '6.0')
             if not self.modules_tool.supports_depends_on:
                 raise EasyBuildError("depends_on statements in generated module are not supported by modules tool")
             load_template = self.LOAD_TEMPLATE_DEPENDS_ON
@@ -1424,10 +1482,9 @@ class ModuleGeneratorLua(ModuleGenerator):
             else:
                 self.log.info("Lmod v%s < v%s, need to stick to Tcl syntax for .modulerc", lmod_ver, min_ver)
 
-        return super(ModuleGeneratorLua, self).modulerc(module_version=module_version, filepath=filepath,
-                                                        modulerc_txt=modulerc_txt)
+        return super().modulerc(module_version=module_version, filepath=filepath, modulerc_txt=modulerc_txt)
 
-    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True):
+    def update_paths(self, key, paths, prepend=True, allow_abs=False, expand_relpaths=True, delim=':'):
         """
         Generate prepend_path or append_path statements for the given list of paths
 
@@ -1436,6 +1493,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         :param prepend: whether to prepend (True) or append (False) paths
         :param allow_abs: allow providing of absolute paths
         :param expand_relpaths: expand relative paths into absolute paths (by prefixing install dir)
+        :param delim: delimiter used between paths
         """
         if prepend:
             update_type = 'prepend'
@@ -1446,7 +1504,7 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to %s environment variable $%s, as specified", update_type, key)
             return ''
 
-        if isinstance(paths, string_type):
+        if isinstance(paths, str):
             self.log.debug("Wrapping %s into a list before using it to %s path %s", update_type, paths, key)
             paths = [paths]
 
@@ -1462,13 +1520,16 @@ class ModuleGeneratorLua(ModuleGenerator):
                 # use pathJoin for (non-empty) relative paths
                 if path:
                     if expand_relpaths:
-                        abspaths.append(self.PATH_JOIN_TEMPLATE % path)
+                        abspaths.append(self._path_join_cmd(path))
                     else:
                         abspaths.append(quote_str(path))
                 else:
                     abspaths.append('root')
 
-        statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
+        if delim != ':':
+            statements = [self.UPDATE_PATH_TEMPLATE_DELIM % (update_type, key, p, delim) for p in abspaths]
+        else:
+            statements = [self.UPDATE_PATH_TEMPLATE % (update_type, key, p) for p in abspaths]
         statements.append('')
         return '\n'.join(statements)
 
@@ -1524,19 +1585,28 @@ class ModuleGeneratorLua(ModuleGenerator):
             self.log.info("Not including statement to define environment variable $%s, as specified", key)
             return ''
 
-        value, use_pushenv = self.unpack_setenv_value(key, value)
+        set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
         if relpath:
-            if value:
-                val = self.PATH_JOIN_TEMPLATE % value
-            else:
-                val = 'root'
+            set_value = self._path_join_cmd(set_value)
+            if resolve_env_vars:
+                # replace quoted substring with env var with os.getenv statement
+                # example: pathJoin(root, "$HOME") -> pathJoin(root, os.getenv("HOME"))
+                set_value = self.REGEX_QUOTE_SHELL_VAR.sub(self.OS_GETENV_TEMPLATE % r"\1", set_value)
         else:
-            val = quote_str(value)
+            if resolve_env_vars:
+                # replace env var with os.getenv statement
+                # example: $HOME -> os.getenv("HOME")
+                concat_getenv = self.CONCAT_STR + self.OS_GETENV_TEMPLATE % r"\1" + self.CONCAT_STR
+                set_value = self.REGEX_SHELL_VAR.sub(concat_getenv, set_value)
+            set_value = self.CONCAT_STR.join([
+                # quote any substrings that are not a os.getenv Lua statement
+                x if x.startswith(self.OS_GETENV_TEMPLATE[:10]) else quote_str(x)
+                for x in set_value.strip(self.CONCAT_STR).split(self.CONCAT_STR)
+            ])
 
         env_setter = 'pushenv' if use_pushenv else 'setenv'
-
-        return '%s("%s", %s)\n' % (env_setter, key, val)
+        return f'{env_setter}("{key}", {set_value})\n'
 
     def swap_module(self, mod_name_out, mod_name_in, guarded=True):
         """

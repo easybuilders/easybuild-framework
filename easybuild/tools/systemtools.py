@@ -1,5 +1,5 @@
 ##
-# Copyright 2011-2023 Ghent University
+# Copyright 2011-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,32 +27,48 @@ Module with useful functions for getting system information
 
 Authors:
 
+* Kenneth Hoste (Ghent University)
 * Jens Timmerman (Ghent University)
 * Ward Poelmans (Ghent University)
+* Jasper Grimm (UoY)
+* Jan Andre Reuter (Forschungszentrum Juelich GmbH)
+* Caspar van Leeuwen (SURF)
 """
+import csv
 import ctypes
 import errno
 import fcntl
 import grp  # @UnresolvedImport
+import io
 import os
 import platform
 import pwd
 import re
+import shutil
 import struct
 import sys
 import termios
 import warnings
+from collections import OrderedDict
 from ctypes.util import find_library
 from socket import gethostname
-from easybuild.tools.py2vs3 import subprocess_popen_text
 
 # pkg_resources is provided by the setuptools Python package,
 # which we really want to keep as an *optional* dependency
 try:
-    import pkg_resources
+    # catch & ignore deprecation warning when importing pkg_resources produced by setuptools
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        import pkg_resources
     HAVE_PKG_RESOURCES = True
 except ImportError:
     HAVE_PKG_RESOURCES = False
+
+# importlib.metadata only available in Python 3.10+ (which we take into account when using it)
+try:
+    import importlib.metadata
+except ImportError:
+    pass
 
 try:
     # only needed on macOS, may not be available on Linux
@@ -61,11 +77,11 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools import LooseVersion
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
-from easybuild.tools.py2vs3 import OrderedDict, string_type
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd, subprocess_popen_text
 
 
 _log = fancylogger.getLogger('systemtools', fname=False)
@@ -91,8 +107,8 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
-RISCV32 = 'RISC-V-32'
-RISCV64 = 'RISC-V-64'
+RISCV32 = 'RISCV32'
+RISCV64 = 'RISCV64'
 
 # known values for ARCH constant (determined by _get_arch_constant in easybuild.framework.easyconfig.constants)
 KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
@@ -200,10 +216,9 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'autopep8': (None, "auto-formatting for dumped easyconfigs"),
     'GC3Pie': ('gc3libs', "backend for --job"),
     'GitPython': ('git', "GitHub integration + using Git repository as easyconfigs archive"),
-    'graphviz-python': ('gv', "rendering dependency graph with Graphviz: --dep-graph"),
+    'graphviz': ('graphviz', "rendering dependency graph with Graphviz: --dep-graph"),
     'keyring': (None, "storing GitHub token"),
     'pbs-python': ('pbs', "using Torque as --job backend"),
-    'pep8': (None, "fallback for code style checking: --check-style, --check-contrib"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
     'pysvn': (None, "using SVN repository as easyconfigs archive"),
     'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
@@ -211,7 +226,7 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
     'requests': (None, "fallback library for downloading files"),
     'Rich': (None, "eb command rich terminal output"),
-    'PyYAML': ('yaml', "easystack files and .yeb easyconfig format"),
+    'PyYAML': ('yaml', "easystack files easyconfig format"),
     'setuptools': ('pkg_resources', "obtaining information on Python packages via pkg_resources module"),
 }
 
@@ -274,10 +289,11 @@ def get_avail_core_count():
         core_cnt = int(sum(sched_getaffinity()))
     else:
         # BSD-type systems
-        out, _ = run_cmd('sysctl -n hw.ncpu', force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
+        res = run_shell_cmd('sysctl -n hw.ncpu', in_dry_run=True, hidden=True, with_hooks=False,
+                            output_file=False, stream_output=False)
         try:
-            if int(out) > 0:
-                core_cnt = int(out)
+            if int(res.output) > 0:
+                core_cnt = int(res.output)
         except ValueError:
             pass
 
@@ -311,9 +327,9 @@ def get_total_memory():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.memsize"
         _log.debug("Trying to determine total memory size on Darwin via cmd '%s'", cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        if ec == 0:
-            memtotal = int(out.strip()) // (1024**2)
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        if res.exit_code == EasyBuildExit.SUCCESS:
+            memtotal = int(res.output.strip()) // (1024**2)
 
     if memtotal is None:
         memtotal = UNKNOWN
@@ -393,17 +409,18 @@ def get_cpu_vendor():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.vendor"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False, with_hooks=False)
-        out = out.strip()
-        if ec == 0 and out in VENDOR_IDS:
+        res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                            output_file=False, stream_output=False)
+        out = res.output.strip()
+        if res.exit_code == EasyBuildExit.SUCCESS and out in VENDOR_IDS:
             vendor = VENDOR_IDS[out]
             _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
         else:
             cmd = "sysctl -n machdep.cpu.brand_string"
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False,
-                              with_hooks=False)
-            out = out.strip().split(' ')[0]
-            if ec == 0 and out in CPU_VENDORS:
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            out = res.output.strip().split(' ')[0]
+            if res.exit_code == EasyBuildExit.SUCCESS and out in CPU_VENDORS:
                 vendor = out
                 _log.debug("Determined CPU vendor on DARWIN as being '%s' via cmd '%s" % (vendor, cmd))
 
@@ -504,9 +521,9 @@ def get_cpu_model():
 
     elif os_type == DARWIN:
         cmd = "sysctl -n machdep.cpu.brand_string"
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        if ec == 0:
-            model = out.strip()
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        if res.exit_code == EasyBuildExit.SUCCESS:
+            model = res.output.strip()
             _log.debug("Determined CPU model on Darwin using cmd '%s': %s" % (cmd, model))
 
     if model is None:
@@ -549,10 +566,10 @@ def get_cpu_speed():
     elif os_type == DARWIN:
         cmd = "sysctl -n hw.cpufrequency_max"
         _log.debug("Trying to determine CPU frequency on Darwin via cmd '%s'" % cmd)
-        out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-        out = out.strip()
+        res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, with_hooks=False, output_file=False, stream_output=False)
+        out = res.output.strip()
         cpu_freq = None
-        if ec == 0 and out:
+        if res.exit_code == EasyBuildExit.SUCCESS and out:
             # returns clock frequency in cycles/sec, but we want MHz
             cpu_freq = float(out) // (1000 ** 2)
 
@@ -597,10 +614,10 @@ def get_cpu_features():
         for feature_set in ['extfeatures', 'features', 'leaf7_features']:
             cmd = "sysctl -n machdep.cpu.%s" % feature_set
             _log.debug("Trying to determine CPU features on Darwin via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, force_in_dry_run=True, trace=False, stream_output=False, log_ok=False,
-                              with_hooks=False)
-            if ec == 0:
-                cpu_feat.extend(out.strip().lower().split())
+            res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                cpu_feat.extend(res.output.strip().lower().split())
 
         cpu_feat.sort()
 
@@ -625,36 +642,68 @@ def get_gpu_info():
         try:
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                for line in out.strip().split('\n'):
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
                     nvidia_gpu_info.setdefault(line, 0)
                     nvidia_gpu_info[line] += 1
             else:
-                _log.debug("None zero exit (%s) from nvidia-smi: %s", ec, out)
-        except Exception as err:
+                _log.debug("None zero exit (%s) from nvidia-smi: %s", res.exit_code, res.output)
+        except EasyBuildError as err:
             _log.debug("Exception was raised when running nvidia-smi: %s", err)
             _log.info("No NVIDIA GPUs detected")
 
+    amdgpu_checked = False
+    if not which('amd-smi', on_error=IGNORE):
+        _log.info("amd-smi not found. Trying to detect AMD GPUs via rocm-smi")
+    else:
+        try:
+            cmd = "amd-smi static --driver --board --asic --csv"
+            _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                csv_reader = csv.DictReader(io.StringIO(res.output.strip()))
+
+                for row in csv_reader:
+                    amd_card_series = row['product_name']
+                    amd_card_device_id = row['device_id']
+                    amd_card_gfx = row['target_graphics_version']
+                    amd_card_driver = row['version']
+
+                    amd_gpu = ("%s (device id: %s, gfx: %s, driver: %s)" %
+                               (amd_card_series, amd_card_device_id, amd_card_gfx, amd_card_driver))
+                    amd_gpu_info = gpu_info.setdefault('AMD', {})
+                    amd_gpu_info.setdefault(amd_gpu, 0)
+                    amd_gpu_info[amd_gpu] += 1
+                amdgpu_checked = True
+            else:
+                _log.debug("None zero exit (%s) from amd-smi: %s.", res.exit_code, res.output)
+        except EasyBuildError as err:
+            _log.debug("Exception was raised when running amd-smi: %s", err)
+            _log.info("No AMD GPUs detected via amd-smi.")
+        except KeyError as err:
+            _log.warning("Failed to extract AMD GPU info from amd-smi output: %s.", err)
+
     if not which('rocm-smi', on_error=IGNORE):
         _log.info("rocm-smi not found. Cannot detect AMD GPUs")
-    else:
+    elif not amdgpu_checked:
         try:
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                amd_driver = out.strip().split('\n')[1].split(',')[1]
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
-            out, ec = run_cmd(cmd, simple=False, log_ok=False, log_all=False,
-                              force_in_dry_run=True, trace=False, stream_output=False, with_hooks=False)
-            if ec == 0:
-                for line in out.strip().split('\n')[1:]:
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
                     amd_card_model = line.split(',')[2]
                     amd_gpu = "%s (model: %s, driver: %s)" % (amd_card_series, amd_card_model, amd_driver)
@@ -662,8 +711,8 @@ def get_gpu_info():
                     amd_gpu_info.setdefault(amd_gpu, 0)
                     amd_gpu_info[amd_gpu] += 1
             else:
-                _log.debug("None zero exit (%s) from rocm-smi: %s", ec, out)
-        except Exception as err:
+                _log.debug("None zero exit (%s) from rocm-smi: %s", res.exit_code, res.output)
+        except EasyBuildError as err:
             _log.debug("Exception was raised when running rocm-smi: %s", err)
             _log.info("No AMD GPUs detected")
 
@@ -735,7 +784,6 @@ def get_os_name():
     # platform.linux_distribution was removed in Python 3.8,
     # see https://docs.python.org/2/library/platform.html#platform.linux_distribution
     if hasattr(platform, 'linux_distribution'):
-        # platform.linux_distribution is more useful, but only available since Python 2.6
         # this allows to differentiate between Fedora, CentOS, RHEL and Scientific Linux (Rocks is just CentOS)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=PendingDeprecationWarning)
@@ -863,16 +911,17 @@ def check_os_dependency(dep):
 
     for pkg_cmd in pkg_cmds:
         if which(pkg_cmd):
-            cmd = [
+            cmd = ' '.join([
                 # unset $LD_LIBRARY_PATH to avoid broken rpm command due to loaded dependencies
                 # see https://github.com/easybuilders/easybuild-easyconfigs/pull/4179
                 'unset LD_LIBRARY_PATH &&',
                 pkg_cmd,
                 pkg_cmd_flag.get(pkg_cmd),
                 dep,
-            ]
-            found = run_cmd(' '.join(cmd), simple=True, log_all=False, log_ok=False,
-                            force_in_dry_run=True, trace=False, stream_output=False)
+            ])
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
+                                output_file=False, stream_output=False)
+            found = res.exit_code == EasyBuildExit.SUCCESS
             if found:
                 break
 
@@ -883,10 +932,10 @@ def check_os_dependency(dep):
         # try locate if it's available
         if not found and which('locate'):
             cmd = 'locate -c --regexp "/%s$"' % dep
-            out, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False, force_in_dry_run=True, trace=False,
-                              stream_output=False)
+            res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True,
+                                output_file=False, stream_output=False)
             try:
-                found = (ec == 0 and int(out.strip()) > 0)
+                found = (res.exit_code == EasyBuildExit.SUCCESS and int(res.output.strip()) > 0)
             except ValueError:
                 # Returned something else than an int -> Error
                 found = False
@@ -899,41 +948,41 @@ def get_tool_version(tool, version_option='--version', ignore_ec=False):
     Get output of running version option for specific command line tool.
     Output is returned as a single-line string (newlines are replaced by '; ').
     """
-    out, ec = run_cmd(' '.join([tool, version_option]), simple=False, log_ok=False, force_in_dry_run=True,
-                      trace=False, stream_output=False, with_hooks=False)
-    if not ignore_ec and ec:
-        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, out))
+    res = run_shell_cmd(' '.join([tool, version_option]), fail_on_error=False, in_dry_run=True,
+                        hidden=True, with_hooks=False, output_file=False, stream_output=False)
+    if not ignore_ec and res.exit_code != EasyBuildExit.SUCCESS:
+        _log.warning("Failed to determine version of %s using '%s %s': %s" % (tool, tool, version_option, res.output))
         return UNKNOWN
     else:
-        return '; '.join(out.split('\n'))
+        return '; '.join(res.output.split('\n'))
 
 
 def get_gcc_version():
     """
     Process `gcc --version` and return the GCC version.
     """
-    out, ec = run_cmd('gcc --version', simple=False, log_ok=False, force_in_dry_run=True, verbose=False, trace=False,
-                      stream_output=False)
-    res = None
-    if ec:
-        _log.warning("Failed to determine the version of GCC: %s", out)
-        res = UNKNOWN
+    res = run_shell_cmd('gcc --version', fail_on_error=False, in_dry_run=True, hidden=True,
+                        output_file=False, stream_output=False)
+    gcc_ver = None
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        _log.warning("Failed to determine the version of GCC: %s", res.output)
+        gcc_ver = UNKNOWN
 
     # Fedora: gcc (GCC) 5.1.1 20150618 (Red Hat 5.1.1-4)
     # Debian: gcc (Debian 4.9.2-10) 4.9.2
-    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", out)
+    find_version = re.search(r"^gcc\s+\([^)]+\)\s+(?P<version>[^\s]+)\s+", res.output)
     if find_version:
-        res = find_version.group('version')
-        _log.debug("Found GCC version: %s from %s", res, out)
+        gcc_ver = find_version.group('version')
+        _log.debug("Found GCC version: %s from %s", res, res.output)
     else:
         # Apple likes to install clang but call it gcc. <insert rant about Apple>
         if get_os_type() == DARWIN:
             _log.warning("On recent version of Mac OS, gcc is actually clang, returning None as GCC version")
-            res = None
+            gcc_ver = None
         else:
-            raise EasyBuildError("Failed to determine the GCC version from: %s", out)
+            raise EasyBuildError("Failed to determine the GCC version from: %s", res.output)
 
-    return res
+    return gcc_ver
 
 
 def get_glibc_version():
@@ -963,15 +1012,118 @@ def get_glibc_version():
     return glibc_ver
 
 
+def get_cuda_object_dump_raw(path):
+    """
+    Get raw ouput from command which extracts information from CUDA binary files in a human-readable format,
+    or None for files containing no CUDA device code.
+    See https://docs.nvidia.com/cuda/cuda-binary-utilities/index.html#cuobjdump
+    """
+
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
+        _log.warning(fail_msg)
+
+    # check that the file is an executable or object (shared library) or archive (static library)
+    result = None
+    if any(x in res.output for x in ['executable', 'object', 'archive']):
+        # Make sure we have a cuobjdump command
+        if not shutil.which('cuobjdump'):
+            raise EasyBuildError("Failed to get object dump from CUDA file: cuobjdump command not found")
+        cuda_cmd = f"cuobjdump {path}"
+        res = run_shell_cmd(cuda_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+        if res.exit_code == EasyBuildExit.SUCCESS:
+            result = res.output
+        else:
+            # Check and report for the common case that this is simply not a CUDA binary, i.e. does not
+            # contain CUDA device code
+            no_device_code_match = re.search(r'does not contain device code', res.output)
+            if no_device_code_match is not None:
+                # File is a regular executable, object or library, but not a CUDA file
+                msg = "'%s' does not appear to be a CUDA binary: cuobjdump failed to find device code in this file"
+                _log.debug(msg, path)
+            else:
+                # This should not happen: there was no string saying this was NOT a CUDA file, yet no device code
+                # was found at all
+                msg = "Dumping CUDA binary file information for '%s' via '%s' failed! Output: '%s'"
+                raise EasyBuildError(msg, path, cuda_cmd, res.output)
+
+    return result
+
+
+def get_cuda_architectures(path, section_type):
+    """
+    Get a sorted list of CUDA architectures supported in the file in 'path'.
+    path: full path to a CUDA file
+    section_type: the type of section in the cuobjdump output to check for architectures ('elf' or 'ptx')
+    Returns None if no CUDA device code is present in the file
+    """
+
+    # Note that typical output for a cuobjdump call will look like this for device code:
+    #
+    # Fatbin elf code:
+    # ================
+    # arch = sm_90
+    # code version = [1,7]
+    # host = linux
+    # compile_size = 64bit
+    #
+    # And for ptx code, it will look like this:
+    #
+    # Fatbin ptx code:
+    # ================
+    # arch = sm_90
+    # code version = [8,1]
+    # host = linux
+    # compile_size = 64bit
+
+    # Pattern to extract elf code architectures and ptx code architectures respectively
+    code_regex = re.compile(f'Fatbin {section_type} code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
+
+    # resolve symlinks
+    if os.path.islink(path) and os.path.exists(path):
+        path = os.path.realpath(path)
+
+    cc_archs = None
+    cuda_raw = get_cuda_object_dump_raw(path)
+    if cuda_raw is not None:
+        # extract unique device code architectures from raw dump
+        code_matches = re.findall(code_regex, cuda_raw)
+        if code_matches:
+            # convert match tuples into unique list of cuda compute capabilities
+            # e.g. [('8', '6'), ('8', '6'), ('9', '0')] -> ['8.6', '9.0']
+            cc_archs = sorted(['.'.join(m) for m in set(code_matches)], key=LooseVersion)
+        else:
+            # Try to be clear in the warning... did we not find elf/ptx code sections at all? or was the arch missing?
+            section_regex = re.compile(f'Fatbin {section_type} code')
+            section_matches = re.findall(section_regex, cuda_raw)
+            if section_matches:
+                fail_msg = f"Found Fatbin {section_type} code section(s) in cuobjdump output for {path}, "
+                fail_msg += "but failed to extract CUDA architecture"
+            else:
+                # In this case, the "Fatbin {section_type} code" section is simply missing from the binary
+                # It is entirely possible for a CUDA binary to have only device code or only ptx code (and thus the
+                # other section could be missing). However, considering --cuda-compute-capabilities is supposed to
+                # generate both PTX and device code (at least for the highest CC in that list), it is unexpected
+                # in an EasyBuild context and thus we print a warning
+                fail_msg = f"Failed to find Fatbin {section_type} code section(s) in cuobjdump output for {path}."
+            _log.warning(fail_msg)
+
+    return cc_archs
+
+
 def get_linked_libs_raw(path):
     """
     Get raw output from command that reports linked libraries for dynamically linked executables/libraries,
     or None for other types of files.
     """
 
-    file_cmd_out, ec = run_cmd("file %s" % path, simple=False, trace=False)
-    if ec:
-        fail_msg = "Failed to run 'file %s': %s" % (path, file_cmd_out)
+    if os.path.islink(path):
+        _log.debug(f"{path} is a symbolic link, so skipping check for linked libs")
+        return None
+    res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
         _log.warning(fail_msg)
 
     os_type = get_os_type()
@@ -982,7 +1134,7 @@ def get_linked_libs_raw(path):
         #   /usr/bin/ls: ELF 64-bit LSB executable, x86-64, ..., dynamically linked (uses shared libs), ...
         # example output for shared libraries:
         #   /lib64/libc-2.17.so: ELF 64-bit LSB shared object, x86-64, ..., dynamically linked (uses shared libs), ...
-        if "dynamically linked" in file_cmd_out:
+        if "dynamically linked" in res.output:
             # determine linked libraries via 'ldd'
             linked_libs_cmd = "ldd %s" % path
         else:
@@ -994,7 +1146,7 @@ def get_linked_libs_raw(path):
         # example output for shared libraries:
         #   /usr/lib/libz.dylib: Mach-O 64-bit dynamically linked shared library x86_64
         bin_lib_regex = re.compile('(Mach-O .* executable)|(dynamically linked)', re.M)
-        if bin_lib_regex.search(file_cmd_out):
+        if bin_lib_regex.search(res.output):
             linked_libs_cmd = "otool -L %s" % path
         else:
             return None
@@ -1004,12 +1156,12 @@ def get_linked_libs_raw(path):
     # take into account that 'ldd' may fail for strange reasons,
     # like printing 'not a dynamic executable' when not enough memory is available
     # (see also https://bugzilla.redhat.com/show_bug.cgi?id=1817111)
-    out, ec = run_cmd(linked_libs_cmd, simple=False, trace=False, log_ok=False, log_all=False)
-    if ec == 0:
-        linked_libs_out = out
+    res = run_shell_cmd(linked_libs_cmd, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
+    if res.exit_code == EasyBuildExit.SUCCESS:
+        linked_libs_out = res.output
     else:
-        fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'" % (path, linked_libs_cmd, out)
-        print_warning(fail_msg)
+        fail_msg = "Determining linked libraries for %s via '%s' failed! Output: '%s'"
+        print_warning(fail_msg % (path, linked_libs_cmd, res.output))
         linked_libs_out = None
 
     return linked_libs_out
@@ -1028,12 +1180,12 @@ def check_linked_shared_libs(path, required_patterns=None, banned_patterns=None)
     if required_patterns is None:
         required_regexs = []
     else:
-        required_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in required_patterns]
+        required_regexs = [re.compile(p) if isinstance(p, str) else p for p in required_patterns]
 
     if banned_patterns is None:
         banned_regexs = []
     else:
-        banned_regexs = [re.compile(p) if isinstance(p, string_type) else p for p in banned_patterns]
+        banned_regexs = [re.compile(p) if isinstance(p, str) else p for p in banned_patterns]
 
     # resolve symbolic links (unless they're broken)
     if os.path.islink(path) and os.path.exists(path):
@@ -1185,20 +1337,22 @@ def det_parallelism(par=None, maxpar=None):
         except AttributeError:
             # No cache -> Calculate value from current system values
             par = get_avail_core_count()
-            # check ulimit -u
-            out, ec = run_cmd('ulimit -u', force_in_dry_run=True, trace=False, stream_output=False)
+            # determine max user processes via ulimit -u
+            res = run_shell_cmd("ulimit -u", in_dry_run=True, hidden=True, output_file=False, stream_output=False)
             try:
-                if out.startswith("unlimited"):
+                if res.output.startswith("unlimited"):
                     maxuserproc = 2 ** 32 - 1
                 else:
-                    maxuserproc = int(out)
+                    maxuserproc = int(res.output)
             except ValueError as err:
-                raise EasyBuildError("Failed to determine max user processes (%s, %s): %s", ec, out, err)
+                raise EasyBuildError(
+                    "Failed to determine max user processes (%s, %s): %s", res.exit_code, res.output, err
+                )
             # assume 6 processes per build thread + 15 overhead
             par_guess = (maxuserproc - 15) // 6
             if par_guess < par:
                 par = par_guess
-                _log.info("Limit parallel builds to %s because max user processes is %s", par, out)
+                _log.info("Limit parallel builds to %s because max user processes is %s", par, res.output)
             # Cache value
             det_parallelism._default_parallelism = par
         return par
@@ -1212,6 +1366,8 @@ def det_parallelism(par=None, maxpar=None):
             raise EasyBuildError("Specified level of parallelism '%s' is not an integer value: %s", par, err)
 
     if maxpar is not None and maxpar < par:
+        if maxpar is False:
+            maxpar = 1
         _log.info("Limiting parallelism from %s to %s", par, maxpar)
         par = maxpar
 
@@ -1244,17 +1400,13 @@ def check_python_version():
     python_ver = '%d.%d' % (python_maj_ver, python_min_ver)
     _log.info("Found Python version %s", python_ver)
 
-    if python_maj_ver == 2:
-        if python_min_ver < 7:
-            raise EasyBuildError("Python 2.7 is required when using Python 2, found Python %s", python_ver)
-        else:
-            _log.info("Running EasyBuild with Python 2 (version %s)", python_ver)
-
-    elif python_maj_ver == 3:
-        if python_min_ver < 5:
-            raise EasyBuildError("Python 3.5 or higher is required when using Python 3, found Python %s", python_ver)
+    if python_maj_ver == 3:
+        if python_min_ver < 6:
+            raise EasyBuildError("Python 3.6 or higher is required, found Python %s", python_ver)
         else:
             _log.info("Running EasyBuild with Python 3 (version %s)", python_ver)
+    elif python_maj_ver < 3:
+        raise EasyBuildError("EasyBuild is not compatible with Python %s", python_ver)
     else:
         raise EasyBuildError("EasyBuild is not compatible (yet) with Python %s", python_ver)
 
@@ -1315,7 +1467,7 @@ def pick_dep_version(dep_version):
         result = None
     else:
         result = pick_system_specific_value("version", dep_version)
-        if not isinstance(result, string_type) and result is not False:
+        if not isinstance(result, str) and result is not False:
             typ = type(dep_version)
             raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
@@ -1327,21 +1479,42 @@ def det_pypkg_version(pkg_name, imported_pkg, import_name=None):
 
     version = None
 
-    if HAVE_PKG_RESOURCES:
+    # prefer using importlib.metadata, since pkg_resources is deprecated since setuptools v68.0.0
+    # and is scheduled to be removed in November 2025; see also https://github.com/pypa/setuptools/pull/5007
+
+    raised_error = None
+
+    # figure out which function to use to determine module/package version,
+    # and which error may be raised if the name is unknown
+    if check_python_version() >= (3, 10):
+
+        def _get_version(name):
+            return importlib.metadata.version(name)
+
+        raised_error = importlib.metadata.PackageNotFoundError
+
+    elif HAVE_PKG_RESOURCES:
+
+        def _get_version(name):
+            return pkg_resources.get_distribution(name).version
+
+        raised_error = pkg_resources.DistributionNotFound
+
+    if raised_error is not None:
         if import_name:
             try:
-                version = pkg_resources.get_distribution(import_name).version
-            except pkg_resources.DistributionNotFound as err:
+                version = _get_version(import_name)
+            except raised_error as err:
                 _log.debug("%s Python package not found: %s", import_name, err)
 
         if version is None:
             try:
-                version = pkg_resources.get_distribution(pkg_name).version
-            except pkg_resources.DistributionNotFound as err:
+                version = _get_version(pkg_name)
+            except raised_error as err:
                 _log.debug("%s Python package not found: %s", pkg_name, err)
 
-    if version is None and hasattr(imported_pkg, '__version__'):
-        version = imported_pkg.__version__
+    if version is None:
+        version = getattr(imported_pkg, '__version__', None)
 
     return version
 
@@ -1368,9 +1541,9 @@ def check_easybuild_deps(modtool):
     python_version = extract_version(sys.executable)
 
     opt_dep_versions = {}
-    for key in EASYBUILD_OPTIONAL_DEPENDENCIES:
+    for key, opt_dep in EASYBUILD_OPTIONAL_DEPENDENCIES.items():
 
-        pkg = EASYBUILD_OPTIONAL_DEPENDENCIES[key][0]
+        pkg = opt_dep[0]
         if pkg is None:
             pkg = key.lower()
 
@@ -1396,8 +1569,8 @@ def check_easybuild_deps(modtool):
     opt_deps_key = "Optional dependencies"
     checks_data[opt_deps_key] = {}
 
-    for key in opt_dep_versions:
-        checks_data[opt_deps_key][key] = (opt_dep_versions[key], EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
+    for key, version in opt_dep_versions.items():
+        checks_data[opt_deps_key][key] = (version, EASYBUILD_OPTIONAL_DEPENDENCIES[key][1])
 
     sys_tools_key = "System tools"
     checks_data[sys_tools_key] = {}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2023 Ghent University
+# Copyright 2016-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -27,7 +27,9 @@
 Utility script used by RPATH wrapper script;
 output is statements that define the following environment variables
 * $CMD_ARGS: new list of command line arguments to pass
-* $RPATH_ARGS: command line option to specify list of paths to RPATH
+
+Usage:
+    rpath_args.py <cmd> <rpath_filter> <rpath_include> <args...>
 
 author: Kenneth Hoste (HPC-UGent)
 """
@@ -38,22 +40,38 @@ import sys
 
 def is_new_existing_path(new_path, paths):
     """
-    Check whether specified path exists and is a new path compared to provided list of paths.
+    Check whether specified path exists and is a new path compared to provided list of paths (that surely exist as they
+    were checked before).
+
+    :param new_path: The new path to check
+    :param paths: The list of existing paths
     """
+    if not os.path.exists(new_path):
+        return False
 
-    # assume path is new, until proven otherwise
-    res = True
+    for path in paths:
+        if os.path.exists(path) and os.path.samefile(new_path, path):
+            return False
 
-    if os.path.exists(new_path):
-        for path in paths:
-            if os.path.exists(path) and os.path.samefile(new_path, path):
-                res = False
-                break
-    else:
-        # path doesn't exist
-        res = False
+    return True
 
-    return res
+
+def add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix):
+    """
+    Add an -rpath flag for the given library path if it is valid and not a duplicate.
+    Don't RPATH in empty or relative paths, or paths that are filtered out; linking relative paths via RPATH doesn't
+    make much sense and it can also break the build because it may result in reordering lib paths.
+
+    :param lib_path: Library path to process
+    :param rpath_filter: Compiled regex filter for excluding paths
+    :param rpath_lib_paths: List of already processed library paths
+    :param cmd_args_rpath: List of -rpath flags to append to
+    :param ldflag_prefix: Prefix for linker flags (e.g., '-Wl,' or empty)
+    """
+    if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
+        if is_new_existing_path(lib_path, rpath_lib_paths):
+            rpath_lib_paths.append(lib_path)
+            cmd_args_rpath.append(ldflag_prefix + '-rpath=' + lib_path)
 
 
 cmd = sys.argv[1]
@@ -63,9 +81,9 @@ args = sys.argv[4:]
 
 # determine whether or not to use -Wl to pass options to the linker based on name of command
 if cmd in ['ld', 'ld.gold', 'ld.bfd']:
-    flag_prefix = ''
+    ldflag_prefix = ''
 else:
-    flag_prefix = '-Wl,'
+    ldflag_prefix = '-Wl,'
 
 rpath_filter = rpath_filter.split(',')
 if rpath_filter:
@@ -93,6 +111,11 @@ while idx < len(args):
         add_rpath_args = False
         cmd_args.append(arg)
 
+    # with '-c' no linking is done, so we must not inject any rpath
+    elif arg == '-c':
+        add_rpath_args = False
+        cmd_args.append(arg)
+
     # compiler options like "-x c++header" imply no linking is done (similar to -c),
     # so then we must not inject -Wl,-rpath option since they *enable* linking;
     # see https://github.com/easybuilders/easybuild-framework/issues/3371
@@ -116,15 +139,7 @@ while idx < len(args):
         else:
             lib_path = arg[2:]
 
-        # don't RPATH in empty or relative paths, or paths that are filtered out;
-        # linking relative paths via RPATH doesn't make much sense,
-        # and it can also break the build because it may result in reordering lib paths
-        if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
-            # avoid using duplicate library paths
-            if is_new_existing_path(lib_path, rpath_lib_paths):
-                # inject -rpath flag in front for every -L with an absolute path,
-                rpath_lib_paths.append(lib_path)
-                cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
+        add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix)
 
         # always retain -L flag (without reordering!)
         cmd_args.append('-L%s' % lib_path)
@@ -135,8 +150,21 @@ while idx < len(args):
     # --enable-new-dtags is not removed but replaced to prevent issues when linker flag is forwarded from the compiler
     # to the linker with an extra prefixed flag (either -Xlinker or -Wl,).
     # In that case, the compiler would erroneously pass the next random argument to the linker.
-    elif arg == flag_prefix + '--enable-new-dtags':
-        cmd_args.append(flag_prefix + '--disable-new-dtags')
+    elif arg == '-Xlinker' and args[idx+1] == '--enable-new-dtags':  # detect '-Xlinker --enable-new-dtags'
+        cmd_args_rpath.append(ldflag_prefix + '--disable-new-dtags')
+        idx += 1
+    elif arg == ldflag_prefix + '--enable-new-dtags':  # detect '--enable-new-dtags' or '-Wl,--enable-new-dtags'
+        cmd_args_rpath.append(ldflag_prefix + '--disable-new-dtags')
+
+    # detect and retain any -rpath flag that was explicitly specified
+    elif arg.startswith(ldflag_prefix + '-rpath='):
+        lib_path = arg.replace(ldflag_prefix + '-rpath=', '')
+        add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix)
+    elif arg.startswith('-Xlinker') and args[idx+1].startswith('-rpath='):
+        lib_path = args[idx+1].replace('-rpath=', '')
+        add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix)
+        idx += 1
+
     else:
         cmd_args.append(arg)
 
@@ -145,18 +173,14 @@ while idx < len(args):
 # also inject -rpath options for all entries in $LIBRARY_PATH,
 # unless they are there already
 for lib_path in os.getenv('LIBRARY_PATH', '').split(os.pathsep):
-    if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
-        # avoid using duplicate library paths
-        if is_new_existing_path(lib_path, rpath_lib_paths):
-            rpath_lib_paths.append(lib_path)
-            cmd_args_rpath.append(flag_prefix + '-rpath=%s' % lib_path)
+    add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix)
 
 if add_rpath_args:
     # try to make sure that RUNPATH is not used by always injecting --disable-new-dtags
-    cmd_args_rpath.insert(0, flag_prefix + '--disable-new-dtags')
+    cmd_args_rpath.insert(0, ldflag_prefix + '--disable-new-dtags')
 
     # add -rpath options for paths listed in rpath_include
-    cmd_args_rpath = [flag_prefix + '-rpath=%s' % inc for inc in rpath_include] + cmd_args_rpath
+    cmd_args_rpath = [ldflag_prefix + '-rpath=%s' % inc for inc in rpath_include] + cmd_args_rpath
 
     # add -rpath flags in front
     cmd_args = cmd_args_rpath + cmd_args
@@ -164,5 +188,5 @@ if add_rpath_args:
 # wrap all arguments into single quotes to avoid further bash expansion
 cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
 
-# output: statement to define $CMD_ARGS and $RPATH_ARGS
+# output: statement to define $CMD_ARGS
 print("CMD_ARGS=(%s)" % ' '.join(cmd_args))

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # #
-# Copyright 2021-2023 Ghent University
+# Copyright 2021-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -32,10 +32,11 @@ Authors:
 * Jørgen Nordmoen (University of Oslo)
 """
 import functools
+from collections import OrderedDict
+import sys
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
-from easybuild.tools.py2vs3 import OrderedDict
 
 try:
     from rich.console import Console, Group
@@ -47,13 +48,19 @@ except ImportError:
     pass
 
 
+COLOR_BLUE = 'blue'
+COLOR_CYAN = 'cyan'
 COLOR_GREEN = 'green'
+COLOR_PURPLE = 'purple'
 COLOR_RED = 'red'
 COLOR_YELLOW = 'yellow'
 
 # map known colors to ANSII color codes
 KNOWN_COLORS = {
+    COLOR_BLUE: '\033[0;34m',
+    COLOR_CYAN: '\033[0;36m',
     COLOR_GREEN: '\033[0;32m',
+    COLOR_PURPLE: '\033[0;35m',
     COLOR_RED: '\033[0;31m',
     COLOR_YELLOW: '\033[1;33m',
 }
@@ -83,7 +90,7 @@ def colorize(txt, color):
     return coltxt
 
 
-class DummyRich(object):
+class DummyRich:
     """
     Dummy shim for Rich classes.
     Used in case Rich is not available, or when EasyBuild is not configured to use rich output style.
@@ -328,9 +335,7 @@ def print_checks(checks_data):
 
     if use_rich():
         console = Console()
-        # don't use console.print, which causes SyntaxError in Python 2
-        console_print = getattr(console, 'print')  # noqa: B009
-        console_print('')
+        console.print('')
 
     for section in checks_data:
         section_checks = checks_data[section]
@@ -382,9 +387,23 @@ def print_checks(checks_data):
             lines.append('')
 
         if use_rich():
-            console_print(table)
+            console.print(table)
         else:
             print('\n'.join(lines))
+
+
+def print_error(error_msg, rich_highlight=True):
+    """
+    Print error message, using a Rich Console instance if possible.
+    Newlines before/after message are automatically added.
+
+    :param rich_highlight: boolean indicating whether automatic highlighting by Rich should be enabled
+    """
+    if use_rich():
+        console = Console(stderr=True)
+        console.print('\n\n' + error_msg + '\n', highlight=rich_highlight)
+    else:
+        sys.stderr.write('\n' + error_msg + '\n\n')
 
 
 # this constant must be defined at the end, since functions used as values need to be defined

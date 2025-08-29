@@ -1,5 +1,5 @@
 #
-# Copyright 2015-2023 Ghent University
+# Copyright 2015-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -125,4 +125,4 @@ class LoggedException(Exception):
 
         getattr(logger, self.LOGGING_METHOD_NAME)(msg)
 
-        super(LoggedException, self).__init__(msg)
+        super().__init__(msg)

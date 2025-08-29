@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -47,4 +47,4 @@ class ScaLAPACK(Blacs):
             # BLACS is no longer required for ScaLAPACK >= 2.0
             return LooseVersion(self.get_software_version(self.SCALAPACK_MODULE_NAME)[0]) < LooseVersion("2.0")
         else:
-            return super(ScaLAPACK, self).is_required(name)
+            return super().is_required(name)

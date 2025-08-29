@@ -1,5 +1,5 @@
 ##
-# Copyright 2022-2023 Ghent University
+# Copyright 2022-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,13 +53,13 @@ class MPItrampoline(Mpi):
     MPI_COMPILER_MPIFC = None
 
     # MPItrampoline reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor"""
-        super(MPItrampoline, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _set_mpi_compiler_variables(self):
         """Define MPI wrapper commands and add MPITRAMPOLINE_* variables to set."""
@@ -75,4 +75,4 @@ class MPItrampoline(Mpi):
                 var_class=CommandFlagList
             )
 
-        super(MPItrampoline, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

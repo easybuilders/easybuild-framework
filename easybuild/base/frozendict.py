@@ -21,10 +21,10 @@ frozendict is an immutable wrapper around dictionaries that implements the compl
 It can be used as a drop-in replacement for dictionaries where immutability is desired.
 """
 import operator
+from collections.abc import Mapping
 from functools import reduce
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import Mapping
 
 
 # minor adjustments:
@@ -52,7 +52,7 @@ class FrozenDict(Mapping):
 
     def __hash__(self):
         if self.__hash is None:
-            self.__hash = reduce(operator.xor, map(hash, self.iteritems()), 0)
+            self.__hash = reduce(operator.xor, map(hash, self.items()), 0)
 
         return self.__hash
 
@@ -87,13 +87,13 @@ class FrozenDictKnownKeys(FrozenDict):
                 msg = "Encountered unknown keys %s (known keys: %s)" % (unknown_keys, self.KNOWN_KEYS)
                 self.log.raiseException(msg, exception=KeyError)
 
-        super(FrozenDictKnownKeys, self).__init__(tmpdict)
+        super().__init__(tmpdict)
 
     # pylint: disable=arguments-differ
     def __getitem__(self, key, *args, **kwargs):
         """Redefine __getitem__ to provide a better KeyError message."""
         try:
-            return super(FrozenDictKnownKeys, self).__getitem__(key, *args, **kwargs)
+            return super().__getitem__(key, *args, **kwargs)
         except KeyError as err:
             if key in self.KNOWN_KEYS:
                 raise KeyError(err)

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -90,9 +90,12 @@ class VariablesTest(EnhancedTestCase):
         self.assertEqual(v['FOOBAR'], [])
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(VariablesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(VariablesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(VariablesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

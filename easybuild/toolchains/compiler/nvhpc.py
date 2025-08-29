@@ -1,5 +1,5 @@
 ##
-# Copyright 2015 Bart Oldeman
+# Copyright 2015-2025 Bart Oldeman
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -60,28 +60,28 @@ class NVHPC(Compiler):
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfprelaxed
     # http://www.pgroup.com/products/freepgi/freepgi_ref/ch02.html#Mfpapprox
     COMPILER_UNIQUE_OPTION_MAP = {
-        'i8': 'i8',
-        'r8': 'r8',
+        'i8': '-i8',
+        'r8': '-r8',
         'optarch': '',  # PGI by default generates code for the arch it is running on!
-        'openmp': 'mp',
-        'ieee': 'Kieee',
-        'strict': ['Mnoflushz', 'Kieee'],
-        'precise': ['Mnoflushz'],
-        'defaultprec': ['Mflushz'],
-        'loose': ['Mfprelaxed'],
-        'veryloose': ['Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
-        'vectorize': {False: 'Mnovect', True: 'Mvect'},
+        'openmp': '-mp',
+        'ieee': '-Kieee',
+        'strict': ['-Mnoflushz', '-Kieee'],
+        'precise': ['-Mnoflushz'],
+        'defaultprec': ['-Mflushz'],
+        'loose': ['-Mfprelaxed'],
+        'veryloose': ['-Mfprelaxed=div,order,intrinsic,recip,sqrt,rsqrt', 'Mfpapprox'],
+        'vectorize': {False: '-Mnovect', True: '-Mvect'},
     }
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'tp=host',
-        (systemtools.X86_64, systemtools.INTEL): 'tp=host',
+        (systemtools.X86_64, systemtools.AMD): '-tp=host',
+        (systemtools.X86_64, systemtools.INTEL): '-tp=host',
     }
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
-        (systemtools.X86_64, systemtools.AMD): 'tp=px',
-        (systemtools.X86_64, systemtools.INTEL): 'tp=px',
+        (systemtools.X86_64, systemtools.AMD): '-tp=px',
+        (systemtools.X86_64, systemtools.INTEL): '-tp=px',
     }
 
     COMPILER_CC = 'nvc'
@@ -100,8 +100,8 @@ class NVHPC(Compiler):
         """Set -tp=x64 if optarch is set to False."""
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
-        super(NVHPC, self)._set_compiler_flags()
+        super()._set_compiler_flags()
 
     def _set_compiler_vars(self):
         """Set the compiler variables"""
-        super(NVHPC, self)._set_compiler_vars()
+        super()._set_compiler_vars()

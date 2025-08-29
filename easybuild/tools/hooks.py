@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2023 Ghent University
+# Copyright 2017-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,9 +33,9 @@ import difflib
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.py2vs3 import load_source
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
+from importlib.util import spec_from_file_location, module_from_spec
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -44,6 +44,7 @@ BUILD_STEP = 'build'
 CLEANUP_STEP = 'cleanup'
 CONFIGURE_STEP = 'configure'
 EXTENSIONS_STEP = 'extensions'
+EXTRACT_STEP = 'extract'
 FETCH_STEP = 'fetch'
 INSTALL_STEP = 'install'
 MODULE_STEP = 'module'
@@ -55,18 +56,19 @@ POSTPROC_STEP = 'postproc'
 PREPARE_STEP = 'prepare'
 READY_STEP = 'ready'
 SANITYCHECK_STEP = 'sanitycheck'
-SOURCE_STEP = 'source'
 TEST_STEP = 'test'
 TESTCASES_STEP = 'testcases'
 
 START = 'start'
 PARSE = 'parse'
 BUILD_AND_INSTALL_LOOP = 'build_and_install_loop'
+EASYBLOCK = 'easyblock'
 SINGLE_EXTENSION = 'single_extension'
 MODULE_WRITE = 'module_write'
 END = 'end'
 
 CANCEL = 'cancel'
+CRASH = 'crash'
 FAIL = 'fail'
 
 RUN_SHELL_CMD = 'run_shell_cmd'
@@ -76,7 +78,7 @@ POST_PREF = 'post_'
 HOOK_SUFF = '_hook'
 
 # list of names for steps in installation procedure (in order of execution)
-STEP_NAMES = [FETCH_STEP, READY_STEP, SOURCE_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
+STEP_NAMES = [FETCH_STEP, READY_STEP, EXTRACT_STEP, PATCH_STEP, PREPARE_STEP, CONFIGURE_STEP, BUILD_STEP, TEST_STEP,
               INSTALL_STEP, EXTENSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, SANITYCHECK_STEP, CLEANUP_STEP, MODULE_STEP,
               PERMISSIONS_STEP, PACKAGE_STEP, TESTCASES_STEP]
 
@@ -85,6 +87,7 @@ HOOK_NAMES = [
     START,
     PARSE,
     PRE_PREF + BUILD_AND_INSTALL_LOOP,
+    PRE_PREF + EASYBLOCK,
 ] + [p + x for x in STEP_NAMES[:STEP_NAMES.index(EXTENSIONS_STEP)]
      for p in [PRE_PREF, POST_PREF]] + [
     # pre-extensions hook is triggered before starting installation of extensions,
@@ -104,9 +107,11 @@ HOOK_NAMES = [
     POST_PREF + MODULE_STEP,
 ] + [p + x for x in STEP_NAMES[STEP_NAMES.index(MODULE_STEP)+1:]
      for p in [PRE_PREF, POST_PREF]] + [
+    POST_PREF + EASYBLOCK,
     POST_PREF + BUILD_AND_INSTALL_LOOP,
     END,
     CANCEL,
+    CRASH,
     FAIL,
     PRE_PREF + RUN_SHELL_CMD,
     POST_PREF + RUN_SHELL_CMD,
@@ -116,6 +121,14 @@ KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 # cached version of hooks, to avoid having to load them from file multiple times
 _cached_hooks = {}
+
+
+def load_source(filename, path):
+    """Load file as Python module"""
+    spec = spec_from_file_location(filename, path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_hooks(hooks_path):

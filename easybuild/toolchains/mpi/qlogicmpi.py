@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -52,4 +52,4 @@ class QLogicMPI(Mpich2):
 
         self.variables.nappend("MPICH_CCC", str(self.variables['CXX'].get_first()), var_class=CommandFlagList)
 
-        super(QLogicMPI, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()

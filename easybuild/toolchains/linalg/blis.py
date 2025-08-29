@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -56,4 +56,4 @@ class Blis(LinAlg):
         if LooseVersion(found_version) > LooseVersion('2.1'):
             self.BLAS_LIB_MT = ['blis-mt']
 
-        super(Blis, self)._set_blas_variables()
+        super()._set_blas_variables()

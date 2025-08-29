@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -145,7 +145,7 @@ class GitRepository(FileRepository):
         :param previous_stats: list of previous build stats
         :return: location of archived easyconfig
         """
-        path = super(GitRepository, self).add_easyconfig(cfg, name, version, stats, previous_stats)
+        path = super().add_easyconfig(cfg, name, version, stats, previous_stats)
         self.stage_file(path)
         return path
 
@@ -157,7 +157,7 @@ class GitRepository(FileRepository):
         :param name: software name
         :return: location of archived patch
         """
-        path = super(GitRepository, self).add_patch(patch, name)
+        path = super().add_patch(patch, name)
         self.stage_file(path)
         return path
 

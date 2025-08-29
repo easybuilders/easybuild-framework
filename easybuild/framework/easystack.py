@@ -1,4 +1,4 @@
-# Copyright 2020-2023 Ghent University
+# Copyright 2020-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,6 @@ import pprint
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
-from easybuild.tools.py2vs3 import string_type
 from easybuild.tools.utilities import only_if_module_is_available
 try:
     import yaml
@@ -53,7 +52,7 @@ def check_value(value, context):
     Check whether specified value obtained from a YAML file in specified context represents is valid.
     The value must be a string (not a float or an int).
     """
-    if not isinstance(value, string_type):
+    if not isinstance(value, str):
         error_msg = '\n'.join([
             "Value %(value)s (of type %(type)s) obtained for %(context)s is not valid!",
             "Make sure to wrap the value in single quotes (like '%(value)s') to avoid that it is interpreted "
@@ -67,7 +66,7 @@ def check_value(value, context):
         raise EasyBuildError(error_msg % format_info)
 
 
-class EasyStack(object):
+class EasyStack:
     """One class instance per easystack. General options + list of all SoftwareSpecs instances"""
 
     def __init__(self):
@@ -91,7 +90,7 @@ class EasyStack(object):
         return general_options
 
 
-class SoftwareSpecs(object):
+class SoftwareSpecs:
     """Contains information about every software that should be installed"""
 
     def __init__(self, name, version, versionsuffix, toolchain_version, toolchain_name):
@@ -102,7 +101,7 @@ class SoftwareSpecs(object):
         self.versionsuffix = versionsuffix
 
 
-class EasyStackParser(object):
+class EasyStackParser:
     """Parser for easystack files (in YAML syntax)."""
 
     @staticmethod
@@ -189,9 +188,6 @@ class EasyStackParser(object):
 @only_if_module_is_available('yaml', pkgname='PyYAML')
 def parse_easystack(filepath):
     """Parses through easystack file, returns what EC are to be installed together with their options."""
-    log_msg = "Support for easybuild-ing from multiple easyconfigs based on "
-    log_msg += "information obtained from provided file (easystack) with build specifications."
-    _log.experimental(log_msg)
     _log.info("Building from easystack: '%s'" % filepath)
 
     # class instance which contains all info about planned build

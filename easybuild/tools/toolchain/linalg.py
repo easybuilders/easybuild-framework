@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -85,7 +85,7 @@ class LinAlg(Toolchain):
     def __init__(self, *args, **kwargs):
         Toolchain.base_init(self)
 
-        super(LinAlg, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_variables(self):
         """Set the variables"""
@@ -98,7 +98,7 @@ class LinAlg(Toolchain):
 
         self.log.devel('set_variables: LinAlg variables %s', self.variables)
 
-        super(LinAlg, self).set_variables()
+        super().set_variables()
 
     def _set_blas_variables(self):
         """Set BLAS related variables"""
@@ -212,9 +212,9 @@ class LinAlg(Toolchain):
         """Set BLACS related variables"""
 
         lib_map = {}
-        if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
+        if getattr(self, 'BLAS_LIB_MAP', None) is not None:
             lib_map.update(self.BLAS_LIB_MAP)
-        if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
+        if getattr(self, 'BLACS_LIB_MAP', None) is not None:
             lib_map.update(self.BLACS_LIB_MAP)
 
         # BLACS
@@ -254,11 +254,11 @@ class LinAlg(Toolchain):
             raise EasyBuildError("_set_blas_variables: SCALAPACK_LIB not set")
 
         lib_map = {}
-        if hasattr(self, 'BLAS_LIB_MAP') and self.BLAS_LIB_MAP is not None:
+        if getattr(self, 'BLAS_LIB_MAP', None) is not None:
             lib_map.update(self.BLAS_LIB_MAP)
-        if hasattr(self, 'BLACS_LIB_MAP') and self.BLACS_LIB_MAP is not None:
+        if getattr(self, 'BLACS_LIB_MAP', None) is not None:
             lib_map.update(self.BLACS_LIB_MAP)
-        if hasattr(self, 'SCALAPACK_LIB_MAP') and self.SCALAPACK_LIB_MAP is not None:
+        if getattr(self, 'SCALAPACK_LIB_MAP', None) is not None:
             lib_map.update(self.SCALAPACK_LIB_MAP)
 
         self.SCALAPACK_LIB = self.variables.nappend('LIBSCALAPACK_ONLY', [x % lib_map for x in self.SCALAPACK_LIB])

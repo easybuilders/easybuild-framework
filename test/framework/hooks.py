@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2023 Ghent University
+# Copyright 2017-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,6 +29,7 @@ Unit tests for hooks.py
 """
 import os
 import sys
+import textwrap
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -44,7 +45,7 @@ class HooksTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up for testing."""
-        super(HooksTest, self).setUp()
+        super().setUp()
         self.test_hooks_pymod = os.path.join(self.test_prefix, 'test_hooks.py')
         test_hooks_pymod_txt = '\n'.join([
             'def start_hook():',
@@ -55,6 +56,9 @@ class HooksTest(EnhancedTestCase):
             '',
             'def pre_build_and_install_loop_hook(ecs):',
             '    print("About to start looping for %d easyconfigs!" % len(ecs))',
+            '',
+            'def pre_easyblock_hook(self):',
+            '    print(f"Starting installation of {self.name} {self.version}")',
             '',
             'def foo():',
             '    print("running foo helper method")',
@@ -77,8 +81,14 @@ class HooksTest(EnhancedTestCase):
             '        if cmd == "make install":',
             '            return "sudo " + cmd',
             '',
+            'def post_easyblock_hook(self):',
+            '    print(f"Done with installation of {self.name} {self.version}")',
+            '',
             'def fail_hook(err):',
             '    print("EasyBuild FAIL: %s" % err)',
+            '',
+            'def crash_hook(err):',
+            '    print("EasyBuild CRASHED, oh no! => %s" % err)',
         ])
         write_file(self.test_hooks_pymod, test_hooks_pymod_txt)
 
@@ -88,7 +98,7 @@ class HooksTest(EnhancedTestCase):
         # reset cached hooks
         easybuild.tools.hooks._cached_hooks.clear()
 
-        super(HooksTest, self).tearDown()
+        super().tearDown()
 
     def test_load_hooks(self):
         """Test for load_hooks function."""
@@ -97,12 +107,15 @@ class HooksTest(EnhancedTestCase):
 
         hooks = load_hooks(self.test_hooks_pymod)
 
-        self.assertEqual(len(hooks), 8)
+        self.assertEqual(len(hooks), 11)
         expected = [
+            'crash_hook',
             'fail_hook',
             'parse_hook',
             'post_configure_hook',
+            'post_easyblock_hook',
             'pre_build_and_install_loop_hook',
+            'pre_easyblock_hook',
             'pre_install_hook',
             'pre_run_shell_cmd_hook',
             'pre_single_extension_hook',
@@ -140,6 +153,7 @@ class HooksTest(EnhancedTestCase):
         pre_single_extension_hook = [hooks[k] for k in hooks if k == 'pre_single_extension_hook'][0]
         start_hook = [hooks[k] for k in hooks if k == 'start_hook'][0]
         pre_run_shell_cmd_hook = [hooks[k] for k in hooks if k == 'pre_run_shell_cmd_hook'][0]
+        crash_hook = [hooks[k] for k in hooks if k == 'crash_hook'][0]
         fail_hook = [hooks[k] for k in hooks if k == 'fail_hook'][0]
         pre_build_and_install_loop_hook = [hooks[k] for k in hooks if k == 'pre_build_and_install_loop_hook'][0]
 
@@ -175,6 +189,10 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(find_hook('fail', hooks, pre_step_hook=True), None)
         self.assertEqual(find_hook('fail', hooks, post_step_hook=True), None)
 
+        self.assertEqual(find_hook('crash', hooks), crash_hook)
+        self.assertEqual(find_hook('crash', hooks, pre_step_hook=True), None)
+        self.assertEqual(find_hook('crash', hooks, post_step_hook=True), None)
+
         hook_name = 'build_and_install_loop'
         self.assertEqual(find_hook(hook_name, hooks), None)
         self.assertEqual(find_hook(hook_name, hooks, pre_step_hook=True), pre_build_and_install_loop_hook)
@@ -187,12 +205,18 @@ class HooksTest(EnhancedTestCase):
 
         init_config(build_options={'debug': True})
 
+        class FakeEasyBlock():
+            def __init__(self, *args, **kwargs):
+                self.name = 'fake'
+                self.version = '1.2.3'
+
         def run_hooks():
             self.mock_stdout(True)
             self.mock_stderr(True)
             run_hook('start', hooks)
             run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
             run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
+            run_hook('easyblock', hooks, args=[FakeEasyBlock()], pre_step_hook=True)
             run_hook('configure', hooks, pre_step_hook=True, args=[None])
             run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
             run_hook('configure', hooks, post_step_hook=True, args=[None])
@@ -209,6 +233,8 @@ class HooksTest(EnhancedTestCase):
                 run_hook('single_extension', hooks, post_step_hook=True, args=[None])
             run_hook('extensions', hooks, post_step_hook=True, args=[None])
             run_hook('fail', hooks, args=[EasyBuildError('oops')])
+            run_hook('crash', hooks, args=[RuntimeError('boom!')])
+            run_hook('easyblock', hooks, args=[FakeEasyBlock()], post_step_hook=True)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
             self.mock_stdout(False)
@@ -225,6 +251,8 @@ class HooksTest(EnhancedTestCase):
             "Parse hook with argument <EasyConfig instance>",
             "== Running pre-build_and_install_loop hook...",
             "About to start looping for 2 easyconfigs!",
+            "== Running pre-easyblock hook...",
+            "Starting installation of fake 1.2.3",
             "== Running pre-run_shell_cmd hook...",
             "this is run before running interactive command 'configure.sh'",
             "== Running post-configure hook...",
@@ -244,6 +272,10 @@ class HooksTest(EnhancedTestCase):
             "this is run before installing an extension",
             "== Running fail hook...",
             "EasyBuild FAIL: 'oops'",
+            "== Running crash hook...",
+            "EasyBuild CRASHED, oh no! => boom!",
+            "== Running post-easyblock hook...",
+            "Done with installation of fake 1.2.3",
         ]
         expected_stdout = '\n'.join(expected_stdout_lines)
 
@@ -268,31 +300,36 @@ class HooksTest(EnhancedTestCase):
         self.assertEqual(verify_hooks(hooks), None)
 
         test_broken_hooks_pymod = os.path.join(self.test_prefix, 'test_broken_hooks.py')
-        test_hooks_txt = '\n'.join([
-            '',
-            'def there_is_no_such_hook():',
-            '    pass',
-            'def stat_hook(self):',
-            '    pass',
-            'def post_source_hook(self):',
-            '    pass',
-            'def install_hook(self):',
-            '    pass',
-        ])
+        test_hooks_txt = textwrap.dedent("""
+            def there_is_no_such_hook():
+                pass
+            def stat_hook(self):
+                pass
+            def post_source_hook(self):
+                pass
+            def post_extract_hook(self):
+                pass
+            def install_hook(self):
+                pass
+        """)
 
         write_file(test_broken_hooks_pymod, test_hooks_txt)
 
         error_msg_pattern = r"Found one or more unknown hooks:\n"
         error_msg_pattern += r"\* install_hook \(did you mean 'pre_install_hook', or 'post_install_hook'\?\)\n"
+        error_msg_pattern += r"\* post_source_hook \(did you mean .*'\?\)\n"
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
         error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(HooksTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(HooksTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

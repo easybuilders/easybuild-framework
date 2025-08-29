@@ -1,0 +1,37 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...).
+
+
+More information
+================
+ - Homepage: https://gcc.gnu.org/
+    }
+}
+
+module-whatis {Description: The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...).}
+module-whatis {Homepage: https://gcc.gnu.org/}
+module-whatis {URL: https://gcc.gnu.org/}
+
+set root /prefix/software/GCCcore/12.3.0
+
+conflict GCCcore
+
+prepend-path	CMAKE_LIBRARY_PATH		$root/lib64
+prepend-path	CMAKE_PREFIX_PATH		$root
+prepend-path	LD_LIBRARY_PATH		$root/lib64
+prepend-path	MANPATH		$root/share/man
+prepend-path	PATH		$root/bin
+prepend-path	XDG_DATA_DIRS		$root/share
+
+setenv	EBROOTGCCCORE		"$root"
+setenv	EBVERSIONGCCCORE		"12.3.0"
+setenv	EBDEVELGCCCORE		"$root/easybuild/GCCcore-12.3.0-easybuild-devel"
+
+# Built with EasyBuild version 4.9.0.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228

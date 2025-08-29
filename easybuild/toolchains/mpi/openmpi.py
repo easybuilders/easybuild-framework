@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -61,13 +61,13 @@ class OpenMPI(Mpi):
     MPI_COMPILER_MPIFC = None
 
     # OpenMPI reads from CC etc env variables
-    MPI_SHARED_OPTION_MAP = dict([('_opt_%s' % var, '') for var, _ in MPI_COMPILER_VARIABLES])
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
 
     MPI_LINK_INFO_OPTION = '-showme:link'
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor"""
-        super(OpenMPI, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.orig_tmpdir = None
 
@@ -75,7 +75,7 @@ class OpenMPI(Mpi):
         """
         Prepare for using OpenMPI library in toolchain environment
         """
-        super(OpenMPI, self).prepare(*args, **kwargs)
+        super().prepare(*args, **kwargs)
 
         # OpenMPI 2.x trips if path specified in $TMPDIR is too long
         # see https://www.open-mpi.org/faq/?category=osx#startup-errors-with-open-mpi-2.0.x
@@ -106,11 +106,11 @@ class OpenMPI(Mpi):
         for var, _ in COMPILER_VARIABLES:
             self.variables.nappend('OMPI_%s' % var, str(self.variables[var].get_first()), var_class=CommandFlagList)
 
-        super(OpenMPI, self)._set_mpi_compiler_variables()
+        super()._set_mpi_compiler_variables()
 
     def cleanup(self, *args, **kwargs):
         """Clean up after using OpenMPI in toolchain."""
-        super(OpenMPI, self).cleanup(*args, **kwargs)
+        super().cleanup(*args, **kwargs)
 
         tmpdir = os.environ.get('TMPDIR')
         if tmpdir != self.orig_tmpdir:

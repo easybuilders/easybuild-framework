@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,7 +46,7 @@ class Foss(Gompi, OpenBLAS, FlexiBLAS, ScaLAPACK, Fftw):
 
     def __init__(self, *args, **kwargs):
         """Toolchain constructor."""
-        super(Foss, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # need to transform a version like '2018b' with something that is safe to compare with '2019'
         # comparing subversions that include letters causes TypeErrors in Python 3

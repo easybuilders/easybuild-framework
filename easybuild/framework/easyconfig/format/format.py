@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,6 @@ from easybuild.framework.easyconfig.format.convert import Dependency
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 from easybuild.tools.utilities import get_subclasses
-from easybuild.tools.py2vs3 import string_type
 
 
 # format is mandatory major.minor
@@ -63,13 +62,13 @@ GROUPED_PARAMS = [
     ['name', 'version', 'versionprefix', 'versionsuffix'],
     ['homepage', 'description'],
     ['toolchain', 'toolchainopts'],
-    ['source_urls', 'sources', 'patches', 'checksums'],
+    ['source_urls', 'sources', 'data_sources', 'patches', 'checksums'],
     DEPENDENCY_PARAMETERS + ['multi_deps'],
     ['osdependencies'],
     ['preconfigopts', 'configopts'],
     ['prebuildopts', 'buildopts'],
     ['preinstallopts', 'installopts'],
-    ['parallel', 'maxparallel'],
+    ['maxparallel'],
 ]
 LAST_PARAMS = ['exts_default_options', 'exts_list',
                'sanity_check_paths', 'sanity_check_commands',
@@ -131,7 +130,7 @@ class TopNestedDict(NestedDict):
         NestedDict.__init__(self, self, 0)
 
 
-class Squashed(object):
+class Squashed:
     """Class to ease the squashing of OrderedVersionOperators and OrderedToolchainVersionOperators"""
 
     def __init__(self):
@@ -185,7 +184,7 @@ class Squashed(object):
         return self.result
 
 
-class EBConfigObj(object):
+class EBConfigObj:
     """
     Enhanced ConfigObj, version/toolchain and other easyconfig specific aspects aware
 
@@ -323,7 +322,7 @@ class EBConfigObj(object):
                     value_type = self.VERSION_OPERATOR_VALUE_TYPES[key]
                     # list of supported toolchains/versions
                     # first one is default
-                    if isinstance(value, string_type):
+                    if isinstance(value, str):
                         # so the split should be unnecessary
                         # (if it's not a list already, it's just one value)
                         # TODO this is annoying. check if we can force this in configobj
@@ -370,7 +369,7 @@ class EBConfigObj(object):
         for key, value in self.supported.items():
             if key not in self.VERSION_OPERATOR_VALUE_TYPES:
                 raise EasyBuildError('Unsupported key %s in %s section', key, self.SECTION_MARKER_SUPPORTED)
-            self.sections['%s' % key] = value
+            self.sections[key] = value
 
         for key, supported_key, fn_name in [('version', 'versions', 'get_version_str'),
                                             ('toolchain', 'toolchains', 'as_dict')]:
@@ -434,7 +433,7 @@ class EBConfigObj(object):
         # walk over dictionary of parsed sections, and check for marker conflicts (using .add())
         for key, value in processed.items():
             if isinstance(value, NestedDict):
-                tmp = self._squash_netsed_dict(key, value, squashed, sanity, vt_tuple)
+                tmp = self._squash_nested_dict(key, value, squashed, sanity, vt_tuple)
                 res_sections.update(tmp)
             elif key in self.VERSION_OPERATOR_VALUE_TYPES:
                 self.log.debug("Found VERSION_OPERATOR_VALUE_TYPES entry (%s)" % key)
@@ -454,7 +453,7 @@ class EBConfigObj(object):
                        (processed, squashed.versions, squashed.result))
         return squashed
 
-    def _squash_netsed_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
+    def _squash_nested_dict(self, key, nested_dict, squashed, sanity, vt_tuple):
         """
         Squash NestedDict instance, returns dict with already squashed data
             from possible higher sections
@@ -601,7 +600,7 @@ class EBConfigObj(object):
         return res
 
 
-class EasyConfigFormat(object):
+class EasyConfigFormat:
     """EasyConfigFormat class"""
     VERSION = EasyVersion('0.0')  # dummy EasyVersion instance (shouldn't be None)
     USABLE = False  # disable this class as usable format

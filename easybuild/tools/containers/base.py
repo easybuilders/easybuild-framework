@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,7 +37,7 @@ from easybuild.tools.containers.utils import check_tool
 from easybuild.tools.filetools import write_file
 
 
-class ContainerGenerator(object):
+class ContainerGenerator:
     """
     The parent class for concrete container recipe and image generator.
     Subclasses have to provide at least template resolution and image creation logic.

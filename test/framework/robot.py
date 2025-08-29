@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -112,14 +112,14 @@ class RobotTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RobotTest, self).setUp()
+        super().setUp()
         self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         self.orig_experimental = easybuild.framework.easyconfig.tools._log.experimental
         self.orig_modtool = self.modtool
 
     def tearDown(self):
         """Test cleanup."""
-        super(RobotTest, self).tearDown()
+        super().tearDown()
 
         # restore log.experimental
         easybuild.framework.easyconfig.tools._log.experimental = self.orig_experimental
@@ -128,8 +128,7 @@ class RobotTest(EnhancedTestCase):
         config.modules_tool = ORIG_MODULES_TOOL
         ecec.modules_tool = ORIG_ECEC_MODULES_TOOL
         if ORIG_MODULE_FUNCTION is None:
-            if 'module' in os.environ:
-                del os.environ['module']
+            os.environ.pop('module', None)
         else:
             os.environ['module'] = ORIG_MODULE_FUNCTION
         self.modtool = self.orig_modtool
@@ -713,6 +712,47 @@ class RobotTest(EnhancedTestCase):
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
         self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
 
+    def test_github_det_easyconfig_paths_from_commit(self):
+        """Test det_easyconfig_paths function in combination with --from-commit."""
+        # note: --from-commit does not involve using GitHub API, so no GitHub token required
+
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+
+        commit = '589282cf52609067616fc2a522f8e4b81f809cb7'
+        args = [
+            os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),  # absolute path
+            'toy-0.0-iter.eb',  # relative path, available via robot search path
+            # commit in which ReFrame-4.3.2.eb was added,
+            # see https://github.com/easybuilders/easybuild-easyconfigs/pull/18763/commits
+            '--from-commit', commit,
+            'ReFrame-4.3.2.eb',  # easyconfig included in commit, should be resolved via robot search path
+            '--dry-run',
+            '--robot',
+            '--robot=%s' % test_ecs_path,
+            '--unittest-file=%s' % self.logfile,
+            '--tmpdir=%s' % self.test_prefix,
+        ]
+
+        self.mock_stderr(True)
+        outtxt = self.eb_main(args, raise_error=True)
+        stderr = self.get_stderr()
+        self.mock_stderr(False)
+
+        self.assertFalse(stderr)
+
+        # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
+        test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
+
+        modules = [
+            (test_ecs_path, 'toy/0.0'),
+            (test_ecs_path, 'toy/0.0-iter'),
+            (os.path.join(self.test_prefix, '.*', 'files_commit_%s' % commit), 'ReFrame/4.3.2'),
+        ]
+        for path_prefix, module in modules:
+            ec_fn = "%s.eb" % '-'.join(module.split('/'))
+            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
         if self.github_token is None:
@@ -743,9 +783,9 @@ class RobotTest(EnhancedTestCase):
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
             test_ec,  # relative path, should be resolved via robot search path
-            # PR for foss/2018b, see https://github.com/easybuilders/easybuild-easyconfigs/pull/6424/files
-            '--from-pr=6424',
-            'FFTW-3.3.8-gompi-2018b.eb',
+            # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
+            '--from-pr=22227',
+            'XCrySDen-1.6.2-foss-2024a.eb',
             'gompi-2018b-test.eb',  # relative path, available in robot search path
             '--dry-run',
             '--robot',
@@ -756,8 +796,10 @@ class RobotTest(EnhancedTestCase):
         ]
 
         self.mock_stderr(True)
+        self.mock_stdout(True)
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
         self.mock_stderr(False)
+        self.mock_stdout(False)
 
         # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
         test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
@@ -767,9 +809,9 @@ class RobotTest(EnhancedTestCase):
             (self.test_prefix, 'intel/2018a'),  # dependency, found in robot search path
             (self.test_prefix, 'toy/0.0-deps'),  # specified easyconfig, found in robot search path
             (self.test_prefix, 'gompi/2018b-test'),  # specified easyconfig, found in robot search path
-            ('.*/files_pr6424', 'FFTW/3.3.8-gompi-2018b'),  # specified easyconfig
-            (test_ecs_path, 'gompi/2018b'),  # part of PR easyconfigs, found in robot search path
-            (test_ecs_path, 'GCC/7.3.0-2.30'),  # dependency for PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'XCrySDen/1.6.2-foss-2024a'),  # specified easyconfig
+            ('.*/files_pr22227', 'Togl/2.0-GCCcore-13.3.0'),  # part of PR easyconfigs, found in robot search path
+            ('.*/files_pr22227', 'GCC/13.3.0'),  # dependency for PR easyconfigs, found in robot search path
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -1082,8 +1124,8 @@ class RobotTest(EnhancedTestCase):
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         # Create directories to store the tweaked easyconfigs
-        tweaked_ecs_paths, pr_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
-        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_paths, auto_robot=True)
+        tweaked_ecs_paths, extra_ec_paths = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
+        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, extra_ec_paths, auto_robot=True)
 
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -1097,7 +1139,8 @@ class RobotTest(EnhancedTestCase):
 
         # Tweak the toolchain version of the easyconfig
         tweak_specs = {'toolchain_version': '6.4.0-2.28'}
-        easyconfigs = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths)
+        easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
+                                       return_map=True)
 
         # Check that all expected tweaked easyconfigs exists
         tweaked_openmpi = os.path.join(tweaked_ecs_paths[0], 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
@@ -1113,6 +1156,10 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
         untweaked_hwloc = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         self.assertIn(untweaked_hwloc, specs)
+        # Check correctness of tweak_map (maps back to the original untweaked file, even for hwloc, where the
+        # tweaked version is generated but not used)
+        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi,
+                                     tweaked_hwloc: untweaked_hwloc.replace("6.4.0-2.28", "4.6.4")})
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
@@ -1573,9 +1620,12 @@ class RobotTest(EnhancedTestCase):
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RobotTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RobotTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

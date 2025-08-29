@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2023 Ghent University
+# Copyright 2013-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -46,9 +46,12 @@ class EasyConfigFormatTest(EnhancedTestCase):
         self.assertEqual(version['minor'], int(res['minor']))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigFormatTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigFormatTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

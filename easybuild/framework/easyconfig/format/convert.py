@@ -1,5 +1,5 @@
 # #
-# Copyright 2014-2023 Ghent University
+# Copyright 2014-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -41,7 +41,7 @@ class Dependency(Convert):
 
     def __init__(self, obj, name=None):
         """Convert pass object to a dependency, use specified name if provided."""
-        super(Dependency, self).__init__(obj)
+        super().__init__(obj)
         if name is not None:
             self['name'] = name
 

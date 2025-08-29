@@ -1,6 +1,6 @@
 ##
 # Copyright 2005 Josiah Carlson
-# Copyright 2009-2023 Ghent University
+# Copyright 2009-2025 Ghent University
 #
 # The Asynchronous Python Subprocess recipe was originally created by Josiah Carlson.
 # and released under the GPL v2 on March 14, 2012
@@ -86,7 +86,7 @@ class Popen(subprocess.Popen):
         # bufsize=0 is the default in Python 2, but not in recent Python 3 versions,
         # see https://docs.python.org/3/library/subprocess.html#subprocess.Popen
         kwargs['bufsize'] = 0
-        super(Popen, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def recv(self, maxsize=None):
         return self._recv('stdout', maxsize)

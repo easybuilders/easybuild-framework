@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,7 +35,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.asyncprocess as p
 from easybuild.tools.asyncprocess import Popen
-from easybuild.tools.py2vs3 import subprocess_terminate
+from easybuild.tools.run import subprocess_terminate
 
 
 class AsyncProcessTest(EnhancedTestCase):
@@ -43,7 +43,7 @@ class AsyncProcessTest(EnhancedTestCase):
 
     def setUp(self):
         """ setup a basic shell """
-        super(AsyncProcessTest, self).setUp()
+        super().setUp()
         self.shell = Popen('sh', stdin=p.PIPE, stdout=p.PIPE, shell=True, executable='/bin/bash')
 
     def test_echo_between_process(self):
@@ -64,12 +64,15 @@ class AsyncProcessTest(EnhancedTestCase):
     def tearDown(self):
         """cleanup"""
         subprocess_terminate(self.shell, timeout=1)
-        super(AsyncProcessTest, self).tearDown()
+        super().tearDown()
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(AsyncProcessTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(AsyncProcessTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(AsyncProcessTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

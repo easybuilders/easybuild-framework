@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -37,6 +37,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import contextmanager
+from importlib import reload
 
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
@@ -48,13 +49,12 @@ from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
 from easybuild.tools import config
-from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes, update_build_option
+from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
 from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
-from easybuild.tools.py2vs3 import reload
 
 
 # make sure tests are robust against any non-default configuration settings;
@@ -66,8 +66,9 @@ for key in os.environ.keys():
     if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
         del os.environ[key]
 
+# Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
-go = EasyBuildOptions(go_useconfigfiles=False)
+go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
@@ -85,7 +86,7 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        super(EnhancedTestCase, self).setUp()
+        super().setUp()
 
         # make sure option parser doesn't pick up any cmdline arguments/options
         while len(sys.argv) > 1:
@@ -106,8 +107,8 @@ class EnhancedTestCase(TestCase):
         os.close(fd)
         self.cwd = os.getcwd()
 
-        # keep track of original environment to restore
-        self.orig_environ = copy.deepcopy(os.environ)
+        # keep track of original environment to restore after tests
+        self._initial_environ = copy.deepcopy(os.environ)
 
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
@@ -115,7 +116,9 @@ class EnhancedTestCase(TestCase):
         testdir = os.path.dirname(os.path.abspath(__file__))
 
         self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
+        self.test_sourcepath_data = os.path.join(testdir, 'sandbox', 'data_sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
+        os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
@@ -131,16 +134,18 @@ class EnhancedTestCase(TestCase):
             if eb_path is not None:
                 os.environ['EB_SCRIPT_PATH'] = eb_path
 
+        # disable progress bars when running the tests,
+        # since it messes with test suite progress output when test installations are performed
+        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+
+        # Store the environment as setup (including the above paths) for tests to restore
+        self.orig_environ = copy.deepcopy(os.environ)
+
         # make sure no deprecated behaviour is being triggered (unless intended by the test)
         self.orig_current_version = eb_build_log.CURRENT_VERSION
         self.disallow_deprecated_behaviour()
 
         init_config()
-
-        # disable progress bars when running the tests,
-        # since it messes with test suite progress output when test installations are performed
-        os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
-        update_build_option('show_progress_bar', False)
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
@@ -207,9 +212,16 @@ class EnhancedTestCase(TestCase):
 
     def allow_deprecated_behaviour(self):
         """Restore EasyBuild version to what it was originally, to allow triggering deprecated behaviour."""
-        if 'EASYBUILD_DEPRECATED' in os.environ:
-            del os.environ['EASYBUILD_DEPRECATED']
+        os.environ.pop('EASYBUILD_DEPRECATED', None)
         eb_build_log.CURRENT_VERSION = self.orig_current_version
+
+    @contextmanager
+    def temporarily_allow_deprecated_behaviour(self):
+        self.allow_deprecated_behaviour()
+        try:
+            yield
+        finally:
+            self.disallow_deprecated_behaviour()
 
     @contextmanager
     def log_to_testlogfile(self):
@@ -223,7 +235,7 @@ class EnhancedTestCase(TestCase):
 
     def tearDown(self):
         """Clean up after running testcase."""
-        super(EnhancedTestCase, self).tearDown()
+        super().tearDown()
 
         self.log.info("Cleaning up for test %s", self.id())
 
@@ -278,8 +290,7 @@ class EnhancedTestCase(TestCase):
         # make very sure $MODULEPATH is totally empty
         # some paths may be left behind, e.g. when they contain environment variables
         # example: "module unuse Modules/$MODULE_VERSION/modulefiles" may not yield the desired result
-        if 'MODULEPATH' in os.environ:
-            del os.environ['MODULEPATH']
+        os.environ.pop('MODULEPATH', None)
         for modpath in modpaths:
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
@@ -401,7 +412,7 @@ class EnhancedTestCase(TestCase):
             src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                         'modules', 'CategorizedHMNS', mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
-        # create empty module file directory to make C/Tcl modules happy
+        # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(os.path.join(mpi_pref, 'base'))
 
@@ -432,7 +443,8 @@ class TestLoaderFiltered(unittest.TestLoader):
         retained_test_names = []
         if len(filters) > 0:
             for test_case_name in test_case_names:
-                if any(filt in test_case_name for filt in filters):
+                full_test_case_name = '%s.%s' % (test_case_class.__name__, test_case_name)
+                if any(filt in full_test_case_name for filt in filters):
                     retained_test_names.append(test_case_name)
 
             retained_tests = ', '.join(retained_test_names)
@@ -469,6 +481,8 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
 
     cleanup(clear_caches=clear_caches)
 
+    if args is None:
+        args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))

@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -62,23 +62,17 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, find_eb_script, read_file, which, write_file
+from easybuild.tools.filetools import adjust_permissions, copy_file, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
 from easybuild.tools.modules import get_software_version, get_software_version_env_var_name
 from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
-from easybuild.tools.utilities import nub, trace_msg
+from easybuild.tools.utilities import nub, unique_ordered_extend, trace_msg
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
-
-# name/version for dummy toolchain
-# if name==DUMMY_TOOLCHAIN_NAME and version==DUMMY_TOOLCHAIN_VERSION, do not load dependencies
-# NOTE: use of 'dummy' toolchain is deprecated, replaced by 'system' toolchain (which always loads dependencies)
-DUMMY_TOOLCHAIN_NAME = 'dummy'
-DUMMY_TOOLCHAIN_VERSION = 'dummy'
 
 SYSTEM_TOOLCHAIN_NAME = 'system'
 
@@ -101,11 +95,27 @@ TOOLCHAIN_CAPABILITIES = [
     TOOLCHAIN_CAPABILITY_LAPACK_FAMILY,
     TOOLCHAIN_CAPABILITY_MPI_FAMILY,
 ]
+# modes to handle header and linker search paths
+# see: https://gcc.gnu.org/onlinedocs/cpp/Environment-Variables.html
+# supported on Linux by: GCC, GFortran, oneAPI C/C++ Compilers, oneAPI Fortran Compiler, LLVM-based
+SEARCH_PATH = {
+    "cpp_headers": {
+        "flags": ["CPPFLAGS"],
+        "cpath": ["CPATH"],
+        "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
+    },
+    "linker": {
+        "flags": ["LDFLAGS"],
+        "library_path": ["LIBRARY_PATH"],
+    },
+}
+DEFAULT_SEARCH_PATH_CPP_HEADERS = "flags"
+DEFAULT_SEARCH_PATH_LINKER = "flags"
 
 
 def is_system_toolchain(tc_name):
     """Return whether toolchain with specified name is a system toolchain or not."""
-    return tc_name in [DUMMY_TOOLCHAIN_NAME, SYSTEM_TOOLCHAIN_NAME]
+    return tc_name in [SYSTEM_TOOLCHAIN_NAME]
 
 
 def env_vars_external_module(name, version, metadata):
@@ -143,7 +153,7 @@ def env_vars_external_module(name, version, metadata):
     return env_vars
 
 
-class Toolchain(object):
+class Toolchain:
     """General toolchain class"""
 
     OPTIONS_CLASS = ToolchainOptions
@@ -163,13 +173,13 @@ class Toolchain(object):
         """see if this class can provide support for toolchain named name"""
         # TODO report later in the initialization the found version
         if name:
-            if hasattr(cls, 'NAME') and name == cls.NAME:
-                return True
-            else:
+            try:
+                return name == cls.NAME
+            except AttributeError:
                 return False
         else:
             # is no name is supplied, check whether class can be used as a toolchain
-            return hasattr(cls, 'NAME') and cls.NAME
+            return bool(getattr(cls, 'NAME', None))
 
     _is_toolchain_for = classmethod(_is_toolchain_for)
 
@@ -197,10 +207,6 @@ class Toolchain(object):
         if name is None:
             raise EasyBuildError("Toolchain init: no name provided")
         self.name = name
-        if self.name == DUMMY_TOOLCHAIN_NAME:
-            self.log.deprecated("Use of 'dummy' toolchain is deprecated, use 'system' toolchain instead", '5.0',
-                                silent=build_option('silent'))
-            self.name = SYSTEM_TOOLCHAIN_NAME
 
         if version is None:
             version = self.VERSION
@@ -224,6 +230,11 @@ class Toolchain(object):
 
         self.use_rpath = False
 
+        self.search_path = {
+            "cpp_headers": DEFAULT_SEARCH_PATH_CPP_HEADERS,
+            "linker": DEFAULT_SEARCH_PATH_LINKER,
+        }
+
         self.mns = mns
         self.mod_full_name = None
         self.mod_short_name = None
@@ -237,7 +248,7 @@ class Toolchain(object):
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
     def is_system_toolchain(self):
-        """Return boolean to indicate whether this toolchain is a system(/dummy) toolchain."""
+        """Return boolean to indicate whether this toolchain is a system toolchain."""
         return is_system_toolchain(self.name)
 
     def set_minimal_build_env(self):
@@ -330,10 +341,12 @@ class Toolchain(object):
         if key not in self.CLASS_CONSTANT_COPIES:
             self.CLASS_CONSTANT_COPIES[key] = {}
             for cst in self.CLASS_CONSTANTS_TO_RESTORE:
-                if hasattr(self, cst):
-                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(getattr(self, cst))
-                else:
+                try:
+                    value = getattr(self, cst)
+                except AttributeError:
                     raise EasyBuildError("Class constant '%s' to be restored does not exist in %s", cst, self)
+                else:
+                    self.CLASS_CONSTANT_COPIES[key][cst] = copy.deepcopy(value)
 
             self.log.devel("Copied class constants: %s", self.CLASS_CONSTANT_COPIES[key])
 
@@ -342,10 +355,12 @@ class Toolchain(object):
         key = self.__class__
         for cst in self.CLASS_CONSTANT_COPIES[key]:
             newval = copy.deepcopy(self.CLASS_CONSTANT_COPIES[key][cst])
-            if hasattr(self, cst):
-                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, getattr(self, cst))
-            else:
+            try:
+                oldval = getattr(self, cst)
+            except AttributeError:
                 self.log.devel("Restoring (currently undefined) class constant '%s' to %s", cst, newval)
+            else:
+                self.log.devel("Restoring class constant '%s' to %s (was: %s)", cst, newval, oldval)
 
             setattr(self, cst, newval)
 
@@ -367,9 +382,11 @@ class Toolchain(object):
         return res
 
     def set_variables(self):
-        """Do nothing? Everything should have been set by others
-            Needs to be defined for super() relations
         """
+        No generic toolchain variables set.
+        Post-process variables set by child Toolchain classes.
+        """
+
         if self.options.option('packed-linker-options'):
             self.log.devel("set_variables: toolchain variables. packed-linker-options.")
             self.variables.try_function_on_element('set_packed_linker_options')
@@ -560,16 +577,6 @@ class Toolchain(object):
 
         return deps
 
-    def add_dependencies(self, dependencies):
-        """
-        [DEPRECATED] Verify if the given dependencies exist, and return them.
-
-        This method is deprecated.
-        You should pass the dependencies to the 'prepare' method instead, via the 'deps' named argument.
-        """
-        self.log.deprecated("use of 'Toolchain.add_dependencies' method", '4.0')
-        self.dependencies = self._check_dependencies(dependencies)
-
     def is_required(self, name):
         """Determine whether this is a required toolchain element."""
         # default: assume every element is required
@@ -604,8 +611,8 @@ class Toolchain(object):
         self.log.debug("Defining $EB* environment variables for software named %s", name)
 
         env_vars = env_vars_external_module(name, version, metadata)
-        for key in env_vars:
-            setvar(key, env_vars[key], verbose=verbose)
+        for var, value in env_vars.items():
+            setvar(var, value, verbose=verbose)
 
     def _load_toolchain_module(self, silent=False):
         """Load toolchain module."""
@@ -764,6 +771,27 @@ class Toolchain(object):
             raise EasyBuildError("List of toolchain dependency modules and toolchain definition do not match "
                                  "(found %s vs expected %s)", self.toolchain_dep_mods, toolchain_definition)
 
+    def _validate_search_path(self):
+        """
+        Validate search path toolchain options.
+        Toolchain option has precedence over build option
+        """
+        for search_path in self.search_path:
+            sp_build_opt = f"search_path_{search_path}"
+            sp_toolchain_opt = sp_build_opt.replace("_", "-")
+            if self.options.get(sp_toolchain_opt) is not None:
+                self.search_path[search_path] = self.options.option(sp_toolchain_opt)
+            elif build_option(sp_build_opt) is not None:
+                self.search_path[search_path] = build_option(sp_build_opt)
+
+            if self.search_path[search_path] not in SEARCH_PATH[search_path]:
+                raise EasyBuildError(
+                    "Unknown value selected for toolchain option %s: %s. Choose one of: %s",
+                    sp_toolchain_opt, self.search_path[search_path], ", ".join(SEARCH_PATH[search_path])
+                )
+
+            self.log.debug("%s toolchain option set to: %s", sp_toolchain_opt, self.search_path[search_path])
+
     def symlink_commands(self, paths):
         """
         Create a symlink for each command to binary/script at specified path.
@@ -811,7 +839,7 @@ class Toolchain(object):
         self.variables_init()
 
     def prepare(self, onlymod=None, deps=None, silent=False, loadmod=True,
-                rpath_filter_dirs=None, rpath_include_dirs=None):
+                rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Prepare a set of environment parameters based on name/version of toolchain
         - load modules for toolchain and dependencies
@@ -825,6 +853,7 @@ class Toolchain(object):
         :param loadmod: whether or not to (re)load the toolchain module, and the modules for the dependencies
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
         :param rpath_include_dirs: extra directories to include in RPATH
+        :param rpath_wrappers_dir: directory in which to create RPATH wrappers
         """
 
         # take into account --sysroot configuration setting
@@ -843,7 +872,6 @@ class Toolchain(object):
             self._load_modules(silent=silent)
 
         if self.is_system_toolchain():
-
             # define minimal build environment when using system toolchain;
             # this is mostly done to try controlling which compiler commands are being used,
             # cfr. https://github.com/easybuilders/easybuild-framework/issues/3398
@@ -856,6 +884,7 @@ class Toolchain(object):
                 self._verify_toolchain()
 
             # Generate the variables to be set
+            self._validate_search_path()
             self.set_variables()
 
             # set the variables
@@ -866,7 +895,7 @@ class Toolchain(object):
             else:
                 self.log.debug("prepare: set additional variables onlymod=%s", onlymod)
 
-                # add LDFLAGS and CPPFLAGS from dependencies to self.vars
+                # add linker and preprocessor paths of dependencies to self.vars
                 self._add_dependency_variables()
                 self.generate_vars()
                 self._setenv_variables(onlymod, verbose=not silent)
@@ -878,7 +907,11 @@ class Toolchain(object):
 
         if build_option('rpath'):
             if self.options.get('rpath', True):
-                self.prepare_rpath_wrappers(rpath_filter_dirs, rpath_include_dirs)
+                self.prepare_rpath_wrappers(
+                    rpath_filter_dirs=rpath_filter_dirs,
+                    rpath_include_dirs=rpath_include_dirs,
+                    rpath_wrappers_dir=rpath_wrappers_dir
+                    )
                 self.use_rpath = True
             else:
                 self.log.info("Not putting RPATH wrappers in place, disabled via 'rpath' toolchain option")
@@ -941,16 +974,19 @@ class Toolchain(object):
         """
         Check whether command at specified location already is an RPATH wrapper script rather than the actual command
         """
-        in_rpath_wrappers_dir = os.path.basename(os.path.dirname(os.path.dirname(path))) == RPATH_WRAPPERS_SUBDIR
+        if os.path.basename(os.path.dirname(os.path.dirname(path))) != RPATH_WRAPPERS_SUBDIR:
+            return False
+        # Check if `rpath_args`` is called in the file
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
-        calls_rpath_args = b'rpath_args.py $CMD' in read_file(path, mode='rb')
-        return in_rpath_wrappers_dir and calls_rpath_args
+        return b'rpath_args.py $CMD' in read_file(path, mode='rb')
 
-    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None):
+    def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
         Put RPATH wrapper script in place for compiler and linker commands
 
         :param rpath_filter_dirs: extra directories to include in RPATH filter (e.g. build dir, tmpdir, ...)
+        :param rpath_include_dirs: extra directories to include in RPATH
+        :param rpath_wrappers_dir: directory in which to create RPATH wrappers (tmpdir is created if None)
         """
         if get_os_type() == LINUX:
             self.log.info("Putting RPATH wrappers in place...")
@@ -960,6 +996,11 @@ class Toolchain(object):
         if rpath_filter_dirs is None:
             rpath_filter_dirs = []
 
+        # only enable logging by RPATH wrapper scripts in debug mode
+        enable_wrapper_log = build_option('debug')
+
+        copy_rpath_args_py = False
+
         # always include filter for 'stubs' library directory,
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2683
         # (since CUDA 11.something the stubs are in $EBROOTCUDA/stubs/lib64)
@@ -968,13 +1009,35 @@ class Toolchain(object):
             if lib_stubs_pattern not in rpath_filter_dirs:
                 rpath_filter_dirs.append(lib_stubs_pattern)
 
-        # directory where all wrappers will be placed
-        wrappers_dir = os.path.join(tempfile.mkdtemp(), RPATH_WRAPPERS_SUBDIR)
+        # directory where all RPATH wrapper script will be placed;
+        if rpath_wrappers_dir is None:
+            wrappers_dir = tempfile.mkdtemp()
+        else:
+            wrappers_dir = rpath_wrappers_dir
+            # disable logging in RPATH wrapper scripts when they may be exported for use outside of EasyBuild
+            enable_wrapper_log = False
+            # copy rpath_args.py script to sit alongside RPATH wrapper scripts
+            copy_rpath_args_py = True
+
+        # it's important to honor RPATH_WRAPPERS_SUBDIR, see is_rpath_wrapper method
+        wrappers_dir = os.path.join(wrappers_dir, RPATH_WRAPPERS_SUBDIR)
+        mkdir(wrappers_dir, parents=True)
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
 
         rpath_args_py = find_eb_script('rpath_args.py')
+
+        # copy rpath_args.py script along RPATH wrappers, if desired
+        if copy_rpath_args_py:
+            copy_file(rpath_args_py, wrappers_dir)
+            # use path for %(rpath_args)s template value relative to location of the RPATH wrapper script,
+            # to avoid that the RPATH wrapper scripts rely on a script that's located elsewhere;
+            # that's mostly important when RPATH wrapper scripts are retained to be used outside of EasyBuild;
+            # we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
+            # ${TOPDIR} is defined in template for RPATH wrapper scripts, refers to parent dir of RPATH wrapper script
+            rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
+
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
         # figure out list of patterns to use in rpath filter
@@ -1013,11 +1076,11 @@ class Toolchain(object):
 
                 # make *very* sure we don't wrap around ourselves and create a fork bomb...
                 if os.path.exists(cmd_wrapper) and os.path.exists(orig_cmd) and os.path.samefile(orig_cmd, cmd_wrapper):
-                    raise EasyBuildError("Refusing the create a fork bomb, which(%s) == %s", cmd, orig_cmd)
+                    raise EasyBuildError("Refusing to create a fork bomb, which(%s) == %s", cmd, orig_cmd)
 
                 # enable debug mode in wrapper script by specifying location for log file
-                if build_option('debug'):
-                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), 'rpath_wrapper_%s.log' % cmd)
+                if enable_wrapper_log:
+                    rpath_wrapper_log = os.path.join(tempfile.gettempdir(), f'rpath_wrapper_{cmd}.log')
                 else:
                     rpath_wrapper_log = '/dev/null'
 
@@ -1031,7 +1094,15 @@ class Toolchain(object):
                     'rpath_wrapper_log': rpath_wrapper_log,
                     'wrapper_dir': wrapper_dir,
                 }
-                write_file(cmd_wrapper, cmd_wrapper_txt)
+
+                # it may be the case that the wrapper already exists if the user provides a fixed location to store
+                # the RPATH wrappers, in this case the wrappers will be overwritten as they do not yet appear in the
+                # PATH (`which(cmd)` does not "see" them). Warn that they will be overwritten.
+                if os.path.exists(cmd_wrapper):
+                    _log.warning(f"Overwriting existing RPATH wrapper {cmd_wrapper}")
+                    write_file(cmd_wrapper, cmd_wrapper_txt, always_overwrite=True)
+                else:
+                    write_file(cmd_wrapper, cmd_wrapper_txt)
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
 
                 # prepend location to this wrapper to $PATH
@@ -1043,7 +1114,7 @@ class Toolchain(object):
 
     def handle_sysroot(self):
         """
-        Extra stuff to be done when alternate system root is specified via --sysroot EasyBuild configuration option.
+        Extra stuff to be done when alternative system root is specified via --sysroot EasyBuild configuration option.
 
         * Update $PKG_CONFIG_PATH to include sysroot location to pkg-config files (*.pc).
         """
@@ -1064,41 +1135,54 @@ class Toolchain(object):
                 setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
-        """ Add LDFLAGS and CPPFLAGS to the self.variables based on the dependencies
-            names should be a list of strings containing the name of the dependency
         """
-        cpp_paths = ['include']
-        ld_paths = ['lib']
-        if not self.options.get('32bit', None):
-            ld_paths.insert(0, 'lib64')
-
-        if cpp is not None:
-            for p in cpp:
-                if p not in cpp_paths:
-                    cpp_paths.append(p)
-        if ld is not None:
-            for p in ld:
-                if p not in ld_paths:
-                    ld_paths.append(p)
-
-        if not names:
-            deps = self.dependencies
-        else:
-            deps = [{'name': name} for name in names if name is not None]
+        Add linker and preprocessor paths of dependencies to self.variables
+        :names: list of strings containing the name of the dependency
+        """
+        # collect dependencies
+        dependencies = self.dependencies if names is None else [{"name": name} for name in names if name]
 
         # collect software install prefixes for dependencies
-        roots = []
-        for dep in deps:
-            if dep.get('external_module', False):
+        dependency_roots = []
+        for dep in dependencies:
+            if dep.get("external_module", False):
                 # for software names provided via external modules, install prefix may be unknown
-                names = dep['external_module_metadata'].get('name', [])
-                roots.extend([root for root in self.get_software_root(names) if root is not None])
+                names = dep["external_module_metadata"].get("name", [])
+                dependency_roots.extend([root for root in self.get_software_root(names) if root is not None])
             else:
-                roots.extend(self.get_software_root(dep['name']))
+                dependency_roots.extend(self.get_software_root(dep["name"]))
 
-        for root in roots:
-            self.variables.append_subdirs("CPPFLAGS", root, subdirs=cpp_paths)
-            self.variables.append_subdirs("LDFLAGS", root, subdirs=ld_paths)
+        for root in dependency_roots:
+            self._add_dependency_cpp_headers(root, extra_dirs=cpp)
+            self._add_dependency_linker_paths(root, extra_dirs=ld)
+
+    def _add_dependency_cpp_headers(self, dep_root, extra_dirs=None):
+        """
+        Append prepocessor paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        header_dirs = ["include"]
+        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+
+        for env_var in SEARCH_PATH["cpp_headers"][self.search_path["cpp_headers"]]:
+            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
+
+    def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
+        """
+        Append linker paths for given dependency root directory
+        """
+        if extra_dirs is None:
+            extra_dirs = ()
+
+        lib_dirs = ["lib64", "lib"]
+        lib_dirs = unique_ordered_extend(lib_dirs, extra_dirs)
+
+        for env_var in SEARCH_PATH["linker"][self.search_path["linker"]]:
+            self.log.debug("Adding lib paths to toolchain variable '%s': %s", env_var, dep_root)
+            self.variables.append_subdirs(env_var, dep_root, subdirs=lib_dirs)
 
     def _setenv_variables(self, donotset=None, verbose=True):
         """Actually set the environment variables"""
@@ -1131,9 +1215,9 @@ class Toolchain(object):
     def get_flag(self, name):
         """Get compiler flag(s) for a certain option."""
         if isinstance(self.options.option(name), list):
-            return " ".join("-%s" % x for x in list(self.options.option(name)))
+            return " ".join(self.options.option(name))
         else:
-            return "-%s" % self.options.option(name)
+            return self.options.option(name)
 
     def toolchain_family(self):
         """Return toolchain family for this toolchain."""

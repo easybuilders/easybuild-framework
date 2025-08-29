@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -55,7 +55,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(ModuleGeneratorTest, self).setUp()
+        super().setUp()
         # find .eb file
         topdir = os.path.dirname(os.path.abspath(__file__))
         eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
@@ -82,7 +82,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -107,7 +107,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -137,7 +137,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -161,7 +161,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 '',
                 'Description',
                 '===========',
-                "%s" % descr,
+                descr,
                 '',
                 '',
                 "More information",
@@ -266,44 +266,57 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test load part in generated module file."""
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            # default: guarded module load (which implies no recursive unloading)
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded mod_name ] } {",
-                "    module load mod_name",
-                "}",
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                # default: guarded module load (which implies no recursive unloading)
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded mod_name ] } {",
+                    "    module load mod_name",
+                    "}",
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "module load mod_name",
+                    '',
+                ])
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
-            # with recursive unloading: no if is-loaded guard
-            expected = '\n'.join([
-                '',
-                "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
-                "    module load mod_name",
-                "}",
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                # with recursive unloading: no if is-loaded guard
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || ![ is-loaded mod_name ] } {",
+                    "    module load mod_name",
+                    "}",
+                    '',
+                ])
             self.assertEqual(expected, self.modgen.load_module("mod_name", recursive_unload=True))
 
             init_config(build_options={'recursive_mod_unload': True})
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends-on
+
+            self.allow_deprecated_behaviour()
+
             if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     "depends-on mod_name",
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                with self.mocked_stdout_stderr():
+                    txt = self.modgen.load_module("mod_name", depends_on=True)
+                self.assertEqual(expected, txt)
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
             else:
                 expected = "depends-on statements in generated module are not supported by modules tool"
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
-                init_config(build_options={'mod_depends_on': 'True'})
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+                with self.mocked_stdout_stderr():
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -330,20 +343,26 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertEqual(expected, self.modgen.load_module("mod_name"))
 
             # Lmod 7.6+ depends_on
+
+            self.allow_deprecated_behaviour()
+
             if self.modtool.supports_depends_on:
                 expected = '\n'.join([
                     '',
                     'depends_on("mod_name")',
                     '',
                 ])
-                self.assertEqual(expected, self.modgen.load_module("mod_name", depends_on=True))
+                with self.mocked_stdout_stderr():
+                    txt = self.modgen.load_module("mod_name", depends_on=True)
+
+                self.assertEqual(expected, txt)
                 init_config(build_options={'mod_depends_on': 'True'})
                 self.assertEqual(expected, self.modgen.load_module("mod_name"))
             else:
                 expected = "depends_on statements in generated module are not supported by modules tool"
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name", depends_on=True)
-                init_config(build_options={'mod_depends_on': 'True'})
-                self.assertErrorRegex(EasyBuildError, expected, self.modgen.load_module, "mod_name")
+                with self.mocked_stdout_stderr():
+                    self.assertErrorRegex(EasyBuildError, expected,
+                                          self.modgen.load_module, "mod_name", depends_on=True)
 
     def test_load_multi_deps(self):
         """Test generated load statement when multi_deps is involved."""
@@ -353,13 +372,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
-                "    module load Python/3.7.4",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded Python/3.7.4 ] && ![ is-loaded Python/2.7.16 ] } {",
+                    "    module load Python/3.7.4",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded Python/2.7.16 ] } {",
+                    "    module load Python",
+                    '} else {',
+                    "    module load Python/3.7.4",
+                    '}',
+                    '',
+                ])
         else:  # Lua syntax
             expected = '\n'.join([
                 '',
@@ -371,8 +401,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
+
+            self.allow_deprecated_behaviour()
+
             # two versions with depends_on
-            res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('Python/3.7.4', multi_dep_mods=multi_dep_mods, depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\n'.join([
@@ -396,19 +430,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ])
             self.assertEqual(expected, res)
 
+            self.disallow_deprecated_behaviour()
+
         # now test with more than two versions...
         multi_dep_mods = ['foo/1.2.3', 'foo/2.3.4', 'foo/3.4.5', 'foo/4.5.6']
         res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods)
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
-                "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
-                "    module load foo/1.2.3",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded foo/1.2.3 ] && ![ is-loaded foo/2.3.4 ] && " +
+                    "![ is-loaded foo/3.4.5 ] && ![ is-loaded foo/4.5.6 ] } {",
+                    "    module load foo/1.2.3",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\n'.join([
+                    '',
+                    "if { [ module-info mode remove ] || [ is-loaded foo/2.3.4 ] || [ is-loaded foo/3.4.5 ] " +
+                    "|| [ is-loaded foo/4.5.6 ] } {",
+                    "    module load foo",
+                    "} else {",
+                    "    module load foo/1.2.3",
+                    '}',
+                    '',
+                ])
         else:  # Lua syntax
             expected = '\n'.join([
                 '',
@@ -421,8 +469,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
+
+            self.allow_deprecated_behaviour()
+
             # more than two versions, with depends_on
-            res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('foo/1.2.3', multi_dep_mods=multi_dep_mods, depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\n'.join([
@@ -448,18 +500,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 ])
             self.assertEqual(expected, res)
 
+            self.disallow_deprecated_behaviour()
+
         # what if we only list a single version?
         # see https://github.com/easybuilders/easybuild-framework/issues/3080
         res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'])
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            expected = '\n'.join([
-                '',
-                "if { ![ is-loaded one/1.0 ] } {",
-                "    module load one/1.0",
-                '}',
-                '',
-            ])
+            if not self.modtool.supports_safe_auto_load:
+                expected = '\n'.join([
+                    '',
+                    "if { ![ is-loaded one/1.0 ] } {",
+                    "    module load one/1.0",
+                    '}',
+                    '',
+                ])
+            else:
+                expected = '\nmodule load one/1.0\n'
         else:  # Lua syntax
             expected = '\n'.join([
                 '',
@@ -471,7 +528,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
         self.assertEqual(expected, res)
 
         if self.modtool.supports_depends_on:
-            res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
+
+            self.allow_deprecated_behaviour()
+
+            with self.mocked_stdout_stderr():
+                res = self.modgen.load_module('one/1.0', multi_dep_mods=['one/1.0'], depends_on=True)
 
             if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
                 expected = '\ndepends-on one/1.0\n'
@@ -528,10 +589,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # loading of module with symbolic version works
         self.modtool.load(['test/1.2.3'])
-        # test/1.2.3.4.5 is actually loaded (rather than test/1.2.3)
+        # test/1.2.3.4.5 is actually loaded
         res = self.modtool.list()
-        self.assertEqual(len(res), 1)
-        self.assertEqual(res[0]['mod_name'], 'test/1.2.3.4.5')
+        self.assertTrue(any(x['mod_name'] == 'test/1.2.3.4.5' for x in res))
 
         # if same symbolic version is added again, nothing changes
         self.modgen.modulerc(mod_ver_spec, filepath=modulerc_path)
@@ -650,7 +710,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # create tiny test Tcl module to make sure that tested modules tools support single-argument swap
         # see https://github.com/easybuilders/easybuild-framework/issues/3396;
-        # this is known to fail with the ancient Tcl-only implementation of environment modules,
+        # this is known to fail with the ancient Tcl-only implementation of Environment Modules,
         # but that's considered to be a non-issue (since this is mostly relevant for Cray systems,
         # which are either using EnvironmentModulesC (3.2.10), EnvironmentModules (4.x) or Lmod...
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and self.modtool.__class__ != EnvironmentModulesTcl:
@@ -721,21 +781,24 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
             self.modgen.append_paths('TEST', 'path1')
-            self.mock_stderr(True)
-            self.modgen.append_paths('TEST', 'path1')
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                self.modgen.append_paths('TEST', 'path1')
+                stderr = self.get_stderr()
             expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
             expected_warning += "as they were already added: path1\n\n"
             self.assertEqual(stderr, expected_warning)
+            with self.mocked_stdout_stderr():
+                self.modgen.append_paths('TEST', 'path1', warn_exists=False)
+                stderr = self.get_stderr()
+            self.assertEqual(stderr, '')
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported for Tcl modules
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
             return
 
-        # currently requires opt-in via --module-extensions
+        # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -747,10 +810,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        patterns = [
-            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
-            r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
-        ]
+        req_version_pattern = re.escape(self.modtool.REQ_VERSION_EXTENSIONS)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            if isinstance(self.modtool, EnvironmentModules):
+                version_var = "::ModuleToolVersion"
+            else:
+                version_var = r"::env\(LMOD_VERSION\)"
+            patterns = [
+                (r'^if \{ \[ info exists %s \] && \[ string equal \[lindex \[lsort -dictionary '
+                 r'\[list %s \$%s\]\] 0\] %s \] \} \{\n') % (version_var, req_version_pattern,
+                                                             version_var, req_version_pattern),
+                r'\s*extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$',
+            ]
+        else:
+            patterns = [
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("%s"\) then\n' % req_version_pattern,
+                r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
+            ]
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -764,7 +840,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r"\s*extensions "
+        else:
+            pattern = r"\s*extensions\("
+
+        self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+
+        # check if the extensions is missing if 'module_extensions' is disabled
+        init_config(build_options={'module_extensions': False})
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
@@ -821,13 +915,17 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
             self.modgen.prepend_paths('TEST', 'path1')
-            self.mock_stderr(True)
-            self.modgen.prepend_paths('TEST', 'path1')
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                self.modgen.prepend_paths('TEST', 'path1')
+                stderr = self.get_stderr()
             expected_warning = "\nWARNING: Suppressed adding the following path(s) to $TEST of the module "
             expected_warning += "as they were already added: path1\n\n"
             self.assertEqual(stderr, expected_warning)
+
+            with self.mocked_stdout_stderr():
+                self.modgen.prepend_paths('TEST', 'path1', warn_exists=False)
+                stderr = self.get_stderr()
+            self.assertEqual(stderr, '')
 
     def test_det_user_modpath(self):
         """Test for generic det_user_modpath method."""
@@ -844,7 +942,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options={'suffix_modules_path': ''})
         user_modpath = 'my/{RUNTIME_ENV::TEST123}/modules'
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
+            if self.modtool.supports_tcl_getenv:
+                self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" [getenv TEST123] "modules"')
+            else:
+                self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my" $::env(TEST123) "modules"')
         else:
             self.assertEqual(self.modgen.det_user_modpath(user_modpath), '"my", os.getenv("TEST123"), "modules"')
 
@@ -883,14 +984,63 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_env(self):
         """Test setting of environment variables."""
+        collection = (
+            # value,               relpath, Tcl reference,                                    Lua reference
+            ("value",              False,   'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
+            ('va"lue',             False,   'setenv\tkey\t\t"va\\"lue"\n',                    'setenv("key", \'va"lue\')\n'),  # noqa
+            ("va'lue",             False,   'setenv\tkey\t\t"va\'lue"\n',                     'setenv("key", "va\'lue")\n'),  # noqa
+            ("""va"l'ue""",        False,   'setenv\tkey\t\t"""va"l\'ue"""\n',                'setenv("key", """va"l\'ue""")\n'),  # noqa
+            ("relative/path",      False,   'setenv\tkey\t\t"relative/path"\n',               'setenv("key", "relative/path")\n'),  # noqa
+            ("relative/path",      True,    'setenv\tkey\t\t"$root/relative/path"\n',         'setenv("key", pathJoin(root, "relative", "path"))\n'),  # noqa
+            ("relative/path/",     False,   'setenv\tkey\t\t"relative/path/"\n',              'setenv("key", "relative/path/")\n'),  # noqa
+            ("relative/path/",     True,    'setenv\tkey\t\t"$root/relative/path/"\n',        'setenv("key", pathJoin(root, "relative", "path"))\n'),  # noqa
+            ("",                   False,   'setenv\tkey\t\t""\n',                            'setenv("key", "")\n'),  # noqa
+            ("",                   True,    'setenv\tkey\t\t"$root"\n',                       'setenv("key", root)\n'),  # noqa
+            ("/absolute/path",     False,   'setenv\tkey\t\t"/absolute/path"\n',              'setenv("key", "/absolute/path")\n'),  # noqa
+            ("/absolute/path",     True,    'setenv\tkey\t\t"/absolute/path"\n',              'setenv("key", pathJoin("/", "absolute", "path"))\n'),  # noqa
+            ("/",                  False,   'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
+            ("/",                  True,    'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
+            ("$VAR",               False,   'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
+            ("$VAR",               True,    'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
+            ("$VAR/in/path",       False,   'setenv\tkey\t\t"$::env(VAR)/in/path"\n',         'setenv("key", os.getenv("VAR") .. "/in/path")\n'),  # noqa
+            ("$VAR/in/path",       True,    'setenv\tkey\t\t"$root/$::env(VAR)/in/path"\n',   'setenv("key", pathJoin(root, os.getenv("VAR"), "in", "path"))\n'),  # noqa
+            ("path/with/$VAR",     False,   'setenv\tkey\t\t"path/with/$::env(VAR)"\n',       'setenv("key", "path/with/" .. os.getenv("VAR"))\n'),  # noqa
+            ("path/with/$VAR",     True,    'setenv\tkey\t\t"$root/path/with/$::env(VAR)"\n', 'setenv("key", pathJoin(root, "path", "with", os.getenv("VAR")))\n'),  # noqa
+            ("path/$VAR/dir",      False,   'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ("path/$VAR/dir",      True,    'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
+            ("/$VAR/in/abspath",   False,   'setenv\tkey\t\t"/$::env(VAR)/in/abspath"\n',     'setenv("key", "/" .. os.getenv("VAR") .. "/in/abspath")\n'),  # noqa
+            ("/$VAR/in/abspath",   True,    'setenv\tkey\t\t"/$::env(VAR)/in/abspath"\n',     'setenv("key", pathJoin("/", os.getenv("VAR"), "in", "abspath"))\n'),  # noqa
+            ("/abspath/with/$VAR", False,   'setenv\tkey\t\t"/abspath/with/$::env(VAR)"\n',   'setenv("key", "/abspath/with/" .. os.getenv("VAR"))\n'),  # noqa
+            ("/abspath/with/$VAR", True,    'setenv\tkey\t\t"/abspath/with/$::env(VAR)"\n',   'setenv("key", pathJoin("/", "abspath", "with", os.getenv("VAR")))\n'),  # noqa
+            ("/abspath/$VAR/dir",  False,   'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", "/abspath/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ("/abspath/$VAR/dir",  True,    'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", pathJoin("/", "abspath", os.getenv("VAR"), "dir"))\n'),  # noqa
+            # modextravars defined with dicts
+            ({'value': 'value'},    False,  'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
+            ({'value': 'value',
+              'pushenv': True},     False,  'pushenv\tkey\t\t"value"\n',                      'pushenv("key", "value")\n'),  # noqa
+            ({'value': 'value',
+              'pushenv': False},    False,  'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
+            ({'value': "$VAR",
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
+            ({'value': "$VAR",
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
+            ({'value': "$VAR",
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
+            ({'value': "$VAR",
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
+            ({'value': "path/$VAR/dir",
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ({'value': "path/$VAR/dir",
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
+            ({'value': "path/$VAR/dir",
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"path/$VAR/dir"\n',               'setenv("key", "path/$VAR/dir")\n'),  # noqa
+            ({'value': "path/$VAR/dir",
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/path/$VAR/dir"\n',         'setenv("key", pathJoin(root, "path", "$VAR", "dir"))\n'),  # noqa
+        )
         # test set_environment
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            self.assertEqual('setenv\tkey\t\t"value"\n', self.modgen.set_environment("key", "value"))
-            self.assertEqual('setenv\tkey\t\t"va\\"lue"\n', self.modgen.set_environment("key", 'va"lue'))
-            self.assertEqual('setenv\tkey\t\t"va\'lue"\n', self.modgen.set_environment("key", "va'lue"))
-            self.assertEqual('setenv\tkey\t\t"""va"l\'ue"""\n', self.modgen.set_environment("key", """va"l'ue"""))
-        else:
-            self.assertEqual('setenv("key", "value")\n', self.modgen.set_environment("key", "value"))
+        for test_value, test_relpath, ref_tcl, ref_lua in collection:
+            reference = ref_tcl if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl else ref_lua
+            self.assertEqual(self.modgen.set_environment("key", test_value, test_relpath), reference)
 
     def test_getenv_cmd(self):
         """Test getting value of environment variable."""
@@ -900,15 +1050,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
             # can't have $LMOD_QUIET set when testing with Tcl syntax,
             # otherwise we won't get the output produced by the test module file...
-            if 'LMOD_QUIET' in os.environ:
-                del os.environ['LMOD_QUIET']
+            os.environ.pop('LMOD_QUIET', None)
 
-            self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
-            self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+            if self.modtool.supports_tcl_getenv:
+                self.assertEqual('[getenv HOSTNAME]', self.modgen.getenv_cmd('HOSTNAME'))
+                self.assertEqual('[getenv HOME]', self.modgen.getenv_cmd('HOME'))
 
-            expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
-            getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
-            self.assertEqual(getenv_txt, expected)
+                expected = '[getenv TEST "foobar"]'
+                getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+                self.assertEqual(getenv_txt, expected)
+            else:
+                self.assertEqual('$::env(HOSTNAME)', self.modgen.getenv_cmd('HOSTNAME'))
+                self.assertEqual('$::env(HOME)', self.modgen.getenv_cmd('HOME'))
+
+                expected = '[if { [info exists ::env(TEST)] } { concat $::env(TEST) } else { concat "foobar" } ]'
+                getenv_txt = self.modgen.getenv_cmd('TEST', default='foobar')
+                self.assertEqual(getenv_txt, expected)
 
             write_file(test_mod_file, '#%%Module\nputs stderr %s' % getenv_txt)
         else:
@@ -1598,6 +1755,28 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # one/1.0 module was swapped for one/1.1
         self.assertEqual(loaded_mods[-2]['mod_name'], 'one/1.1')
 
+    def test_check_group(self):
+        """Test check_group method."""
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            if self.modtool.supports_tcl_check_group:
+                expected = '\n'.join([
+                    "if { ![ module-info usergroups group_name ] } {",
+                    "    error \"mesg\"",
+                    "}",
+                    '',
+                ])
+                self.assertEqual(expected, self.modgen.check_group("group_name", error_msg="mesg"))
+            else:
+                self.assertEqual('', self.modgen.check_group("group_name", error_msg="mesg"))
+        else:
+            expected = '\n'.join([
+                'if not ( userInGroup("group_name") ) then',
+                '    LmodError("mesg")',
+                'end',
+                '',
+            ])
+            self.assertEqual(expected, self.modgen.check_group("group_name", error_msg="mesg"))
+
 
 class TclModuleGeneratorTest(ModuleGeneratorTest):
     """Test for module_generator module for Tcl syntax."""
@@ -1609,11 +1788,16 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
     MODULE_GENERATOR_CLASS = ModuleGeneratorLua
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
+    if loader:
+        args = []
+    else:
+        loader = TestLoaderFiltered()
+        args = [sys.argv[1:]]
     suite = TestSuite()
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(loader.loadTestsFromTestCase(TclModuleGeneratorTest, *args))
+    suite.addTests(loader.loadTestsFromTestCase(LuaModuleGeneratorTest, *args))
     return suite
 
 

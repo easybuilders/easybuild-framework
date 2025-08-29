@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2023 Ghent University
+# Copyright 2012-2025 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -35,16 +35,14 @@ import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-import easybuild.tools.build_log
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository
-from easybuild.tools.repository.hgrepo import HgRepository
 from easybuild.tools.repository.svnrepo import SvnRepository
 from easybuild.tools.repository.repository import init_repository
-from easybuild.tools.run import run_cmd
+from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.version import VERSION
 
 
@@ -53,7 +51,7 @@ class RepositoryTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RepositoryTest, self).setUp()
+        super().setUp()
 
         self.path = tempfile.mkdtemp(prefix='easybuild-repo-')
         shutil.rmtree(self.path, True)
@@ -95,10 +93,11 @@ class RepositoryTest(EnhancedTestCase):
         # filepath
         tmpdir = tempfile.mkdtemp()
         cmd = "cd %s && git clone --bare %s" % (tmpdir, test_repo_url)
-        _, ec = run_cmd(cmd, simple=False, log_all=False, log_ok=False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, fail_on_error=False)
 
         # skip remainder of test if creating bare git repo didn't work
-        if ec == 0:
+        if res.exit_code == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -127,27 +126,6 @@ class RepositoryTest(EnhancedTestCase):
         repo = SvnRepository(test_repo_url)
         repo.init()
         self.assertExists(os.path.join(repo.wc, 'trunk', 'README.md'))
-        shutil.rmtree(repo.wc)
-
-    # this test is disabled because it fails in Travis as a result of bitbucket disabling TLS 1.0/1.1
-    # we can consider re-enabling it when moving to a more recent Ubuntu version in the Travis config
-    # (which implies dropping support for Python 2.6)
-    # cfr. https://github.com/easybuilders/easybuild-framework/pull/2678
-    def DISABLED_test_hgrepo(self):
-        """Test using HgRepository."""
-        # only run this test if pysvn Python module is available
-        try:
-            import hglib  # noqa
-        except ImportError:
-            print("(skipping HgRepository test)")
-            return
-
-        # GitHub also supports SVN
-        test_repo_url = 'https://kehoste@bitbucket.org/kehoste/testrepository'
-
-        repo = HgRepository(test_repo_url)
-        repo.init()
-        self.assertExists(os.path.join(repo.wc, 'README'))
         shutil.rmtree(repo.wc)
 
     def test_init_repository(self):
@@ -185,33 +163,19 @@ class RepositoryTest(EnhancedTestCase):
         path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
         check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
 
-        orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
-        easybuild.tools.build_log.EXPERIMENTAL = True
-
-        if 'yaml' in sys.modules:
-            toy_yeb_file = os.path.join(test_easyconfigs, 'yeb', 'toy-0.0.yeb')
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', {'time': 1.23}, None)
-            check_ec(path, [{'time': 1.23}])
-
-            stats1 = {'time': 1.23, 'size': 123}
-            stats2 = [{'time': 0.9, 'size': 2}]
-            path = repo.add_easyconfig(toy_yeb_file, 'test', '1.0', stats1, stats2)
-            check_ec(path, stats2 + [stats1])
-
-            easybuild.tools.build_log.EXPERIMENTAL = orig_experimental
-        else:
-            print("Skipping .yeb part of test_add_easyconfig (no PyYAML available)")
-
     def tearDown(self):
         """Clean up after test."""
-        super(RepositoryTest, self).tearDown()
+        super().tearDown()
 
         shutil.rmtree(self.path, True)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RepositoryTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RepositoryTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
