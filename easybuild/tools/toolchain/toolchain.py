@@ -55,6 +55,7 @@ Authors:
 import copy
 import os
 import stat
+import sys
 import tempfile
 
 from easybuild.base import fancylogger
@@ -1086,7 +1087,7 @@ class Toolchain:
                 # complete template script and put it in place
                 cmd_wrapper_txt = read_file(rpath_wrapper_template) % {
                     'orig_cmd': orig_cmd,
-                    'python': 'python3',
+                    'python': sys.executable,
                     'rpath_args_py': rpath_args_py,
                     'rpath_filter': rpath_filter,
                     'rpath_include': rpath_include,
