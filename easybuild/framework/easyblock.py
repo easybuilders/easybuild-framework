@@ -1871,10 +1871,10 @@ class EasyBlock:
 
         # create fake module
         fake_mod_path = self.make_module_step(fake=True)
+        full_fake_mod_path = os.path.join(fake_mod_path, self.mod_subdir)
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir))
-        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
+        self.load_module(purge=purge, extra_modules=extra_modules, mod_paths=[full_fake_mod_path], verbose=verbose)
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
