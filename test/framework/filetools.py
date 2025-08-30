@@ -2563,6 +2563,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(testfile)
         self.assertNotExists(testfile_hidden)
         self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
 
         # also test behaviour under --dry-run
         build_options = {
@@ -2655,6 +2656,25 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
+
+    def test_clean_dir(self):
+        """Test clean_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir, parents=True)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.clean_dir(test_dir)
+        ft.mkdir(test_dir, parents=True)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
 
     def test_index_functions(self):
         """Test *_index functions."""

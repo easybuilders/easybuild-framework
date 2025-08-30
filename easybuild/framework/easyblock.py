@@ -90,10 +90,10 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock, clean_dir
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
 from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import download_file, clean_dir, encode_class_name, extract_file
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file
 from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
 from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
@@ -1176,7 +1176,7 @@ class EasyBlock:
             pass
         elif self.build_in_installdir:
             # building in installation directory, so clean it
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], isinstalldir=True)
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], clean_instead_of_remove=True)
         else:
             # make sure we no longer sit in the build directory before removing it.
             change_dir(self.orig_workdir)
@@ -1229,7 +1229,7 @@ class EasyBlock:
         self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate,
                       isinstalldir=True)
 
-    def make_dir(self, dir_name, clean, dontcreateinstalldir=False, isinstalldir=False):
+    def make_dir(self, dir_name, clean, dontcreateinstalldir=False, clean_instead_of_remove=False):
         """
         Create the directory.
         """
@@ -1247,7 +1247,7 @@ class EasyBlock:
                     backupdir = "%s.%s" % (dir_name, timestamp)
                     copy_dir(dir_name, backupdir)
                     self.log.info("Copied old directory %s to %s", dir_name, backupdir)
-                if isinstalldir:
+                if clean_instead_of_remove:
                     # clean the installation directory: first try to remove it; if that fails, empty it
                     clean_dir(dir_name)
                     self.log.info("Emptied old directory %s", dir_name)

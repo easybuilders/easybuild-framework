@@ -447,8 +447,8 @@ def clean_dir(path):
     """
     try:
         remove_dir(path)
-    except EasyBuildError:
-        _log.debug("Failed to remove directory %s, emptying it instead", path)
+    except EasyBuildError as err:
+        _log.debug(f"Removing directory {path} failed, will try to empty it instead: {err}")
         empty_dir(path)
 
 
