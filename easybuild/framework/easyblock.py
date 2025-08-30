@@ -1227,7 +1227,7 @@ class EasyBlock:
             self.cfg['keeppreviousinstall'] = True
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
         self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate,
-                      isinstalldir=True)
+                      clean_instead_of_remove=True)
 
     def make_dir(self, dir_name, clean, dontcreateinstalldir=False, clean_instead_of_remove=False):
         """
