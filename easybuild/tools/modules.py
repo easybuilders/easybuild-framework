@@ -1104,11 +1104,10 @@ class ModulesTool:
             # restore initial environment if provided
             if init_env is None:
                 raise EasyBuildError("Initial environment required when purging before loading, but not available")
-            else:
-                restore_env(init_env)
 
-            # make sure $MODULEPATH is set correctly after purging
-            self.check_module_path()
+            restore_env(init_env)
+            # sync mod_paths member with MODULEPATH environment variable
+            self.set_mod_paths()
 
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
