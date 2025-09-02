@@ -46,12 +46,14 @@ jobs:
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.13'
             modules_tool: ${{needs.setup.outputs.lmod8}}
+          - python: '3.14'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
       fail-fast: false
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
     - name: set up Python
-      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -150,7 +152,10 @@ jobs:
           # also pick up changes to $PATH set by sourcing $MOD_INIT
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           export PATH=$PREFIX/bin:$(cat $HOME/path)
-          export PYTHONPATH=$PREFIX/lib/python${{matrix.python}}/site-packages:$PYTHONPATH
+          export PYTHONPATH=$PREFIX/lib/python$(echo ${{matrix.python}} | cut -f1,2 -d'.')/site-packages:$PYTHONPATH
+          echo "PYTHONPATH=$PYTHONPATH"
+          ls $(echo $PYTHONPATH | cut -f1:)
+          python3 -m easybuild.main --version
           eb --version
           # tell EasyBuild which modules tool is available
           if [[ ${{matrix.modules_tool}} =~ ^modules- ]]; then
