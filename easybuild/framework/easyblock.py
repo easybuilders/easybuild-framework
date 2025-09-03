@@ -1253,7 +1253,7 @@ class EasyBlock:
                     # clean the installation directory: first try to remove it; if that fails, empty it
                     clean_dir(dir_name)
                     self.log.info(f"Cleaned old directory {dir_name}")
-                else:
+                elif clean:
                     remove_dir(dir_name)
                     self.log.info(f"Removed old directory {dir_name}")
 
