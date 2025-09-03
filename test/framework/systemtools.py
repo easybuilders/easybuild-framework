@@ -1457,15 +1457,16 @@ class SystemToolsTest(EnhancedTestCase):
         """
         Test get_linked_libs_raw function.
         """
-        bin_ls = which('ls')
-        linked_libs_out = get_linked_libs_raw(bin_ls)
         os_type = get_os_type()
         if os_type == LINUX:
             libname = 'libc.so.6'
         elif os_type == DARWIN:
             libname = 'libSystem.B.dylib'
         else:
-            self.fail(f"Unknown OS: {os_type}")
+            self.skipTest(f"Unknown OS: {os_type}")
+
+        bin_ls = which('ls')
+        linked_libs_out = get_linked_libs_raw(bin_ls)
 
         # check whether expected pattern is found
         self.assertIn(libname, linked_libs_out)
@@ -1474,12 +1475,12 @@ class SystemToolsTest(EnhancedTestCase):
         symlinked_ls = os.path.join(self.test_prefix, 'ls')
         symlink(bin_ls, symlinked_ls)
         res = get_linked_libs_raw(symlinked_ls)
-        self.assertEqual(res, None)
+        self.assertIs(res, None)
 
         txt_file = os.path.join(self.test_prefix, 'test.txt')
         write_file(txt_file, 'not-a-binary')
         res = get_linked_libs_raw(txt_file)
-        self.assertEqual(res, None)
+        self.assertIs(res, None)
 
 
 def suite(loader=None):
