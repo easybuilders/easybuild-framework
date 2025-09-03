@@ -1615,6 +1615,13 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, "hello\n")
 
+        os.environ['TEST'] = '123'
+        cmd = ['/bin/sh', '-c', "echo $TEST"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "123\n")
+
     def test_run_cmd_script(self):
         """Testing use of run_cmd with shell=False to call external scripts"""
 
