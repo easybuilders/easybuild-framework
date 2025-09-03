@@ -3791,7 +3791,7 @@ class EasyBlock:
                 self.log.debug(f"Sanity checking RPATH for files in {dirpath}")
 
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
-                    # skip the check for symlinks
+                    # skip the check for symlinks (since get_linked_libs_raw will return None anyway)
                     if os.path.islink(path):
                         realpath = os.path.realpath(path)
                         self.log.debug(f"Skipping RPATH sanity check for {path}, since it is a symlink to {realpath}")
