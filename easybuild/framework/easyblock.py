@@ -1174,13 +1174,11 @@ class EasyBlock:
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
         if self.build_in_installdir and self.iter_idx > 0:
             pass
-        elif self.build_in_installdir:
-            # building in installation directory, so clean it
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], clean_instead_of_remove=True)
         else:
             # make sure we no longer sit in the build directory before removing it.
             change_dir(self.orig_workdir)
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+            # if we’re building in installation directory, clean it
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], clean_instead_of_remove=self.build_in_installdir)
 
         trace_msg("build dir: %s" % self.builddir)
 
@@ -1245,15 +1243,19 @@ class EasyBlock:
                     self.log.info("Creating backup of directory %s...", dir_name)
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     backupdir = "%s.%s" % (dir_name, timestamp)
-                    copy_dir(dir_name, backupdir)
-                    self.log.info("Copied old directory %s to %s", dir_name, backupdir)
+                    if clean_instead_of_remove:
+                        copy_dir(dir_name, backupdir)
+                        self.log.info(f"Copied old directory {dir_name} to {backupdir}")
+                    else:
+                        move_file(dir_name, backupdir)
+                        self.log.info(f"Moved old directory {dir_name} to {backupdir}")
                 if clean_instead_of_remove:
                     # clean the installation directory: first try to remove it; if that fails, empty it
                     clean_dir(dir_name)
-                    self.log.info("Emptied old directory %s", dir_name)
+                    self.log.info(f"Cleaned old directory {dir_name}")
                 else:
                     remove_dir(dir_name)
-                    self.log.info("Removed old directory %s", dir_name)
+                    self.log.info(f"Removed old directory {dir_name}")
 
         if dontcreateinstalldir:
             olddir = dir_name
