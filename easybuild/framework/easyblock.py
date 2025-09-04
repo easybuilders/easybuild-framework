@@ -1045,7 +1045,7 @@ class EasyBlock:
                     self.dry_run_msg("  * %s (MISSING)", filename)
                 return targetpath
             else:
-                error_msg = "Couldn't find file %s anywhere, "
+                error_msg = f"Couldn't find file {filename} anywhere, "
                 if download_instructions is None:
                     download_instructions = self.cfg['download_instructions']
                 if download_instructions:
@@ -1059,9 +1059,9 @@ class EasyBlock:
                     error_msg += "Paths attempted (in order): " + ', '.join(failedpaths)
 
                 if warning_only:
-                    self.log.warning(error_msg, filename)
+                    self.log.warning(error_msg)
                     return None
-                raise EasyBuildError(error_msg, filename, exit_code=EasyBuildExit.FAIL_DOWNLOAD)
+                raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_DOWNLOAD)
 
     #
     # GETTER/SETTER UTILITY FUNCTIONS
