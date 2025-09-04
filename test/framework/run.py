@@ -1743,6 +1743,41 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0, "Non-streaming output: Command timed out")
         self.assertEqual(res.output, inp)
 
+    def test_run_shell_cmd_timeout(self):
+        """Test use of run_shell_cmd with a timeout."""
+        cmd = 'sleep 1; echo hello'
+        # Failure on process timeout
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(
+                EasyBuildError, "Timeout during `.*` after .* seconds",
+                run_shell_cmd, cmd, timeout=.5
+                )
+
+        # Success
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, timeout=3)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
+    def test_run_shell_cmd_timeout_stream(self):
+        """Test use of run_shell_cmd with a timeout."""
+        data = '0'*128
+        # Failure on process timeout
+        cmd = f'for i in {{1..20}}; do echo {data} && sleep 0.1; done'
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(
+                EasyBuildError, "Timeout during `.*` after .* seconds",
+                run_shell_cmd, cmd, timeout=.5, stream_output=True
+                )
+
+        # Success
+        cmd = 'sleep .5 && echo hello'
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd, timeout=1.5, stream_output=True)
+
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
     def test_run_cmd_async(self):
         """Test asynchronously running of a shell command via run_cmd + complete_cmd."""
 
