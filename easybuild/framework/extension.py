@@ -232,6 +232,8 @@ class Extension:
         Stuff to do after installing a extension.
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
+        self.master.apply_post_install_patches(patches=[p for p in self.patches if p['postinstall']])
+        self.master.print_post_install_messages(msgs=self.cfg.get('postinstallmsgs', []))
 
     def install_extension_substep(self, substep, *args, **kwargs):
         """

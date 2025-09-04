@@ -28,11 +28,20 @@ EasyBuild support for building and installing dummy extensions, implemented as a
 @author: Kenneth Hoste (Ghent University)
 """
 
+from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 
 
 class DummyExtension(ExtensionEasyBlock):
     """Support for building/installing dummy extensions."""
+
+    @staticmethod
+    def extra_options():
+        """Custom easyconfig parameters for dummy extensions."""
+        extra_vars = {
+            'unpack_source': [None, "Unpack sources", CUSTOM],
+        }
+        return ExtensionEasyBlock.extra_options(extra_vars=extra_vars)
 
     def __init__(self, *args, **kwargs):
 
@@ -41,3 +50,10 @@ class DummyExtension(ExtensionEasyBlock):
         # use lowercase name as default value for expected module name, and replace '-' with '_'
         if 'modulename' not in self.options:
             self.options['modulename'] = self.name.lower().replace('-', '_')
+
+    def install_extension(self, unpack_src=False):
+        """Install the dummy extension."""
+        ec_unpack_source = self.cfg.get('unpack_source')
+        if ec_unpack_source is not None:
+            unpack_src = ec_unpack_source
+        super().install_extension(unpack_src)

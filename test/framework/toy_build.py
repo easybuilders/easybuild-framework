@@ -1355,25 +1355,27 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(os.path.join(self.test_prefix, 'test.txt'), 'test123')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = '\n'.join([
-            toy_ec_txt,
-            'exts_defaultclass = "DummyExtension"',
-            'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "buildopts": " && ls -l test.txt",',
-            '       "patches": [',
-            '           "bar-0.0_fix-silly-typo-in-printf-statement.patch",',  # normal patch
-            '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
-            '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
-            '       ],',
-            '       "postinstallcmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],',
-            '   }),',
-            ']',
-        ])
+        test_ec_txt = f"{toy_ec_txt}\n" + textwrap.dedent("""
+            exts_defaultclass = "DummyExtension"
+            exts_list = [
+               ("bar", "0.0", {
+                   "buildopts": " && ls -l test.txt",
+                   "patches": [
+                       "bar-0.0_fix-silly-typo-in-printf-statement.patch",  # normal patch
+                       ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0), # patch with patch level
+                       ("test.txt", "."),  # file to copy to build dir (not a real patch file)
+                   ],
+                   "post_install_cmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],
+                   "post_install_patches": [("test.txt", "test_ext.txt")],
+                   "post_install_msgs": ["Hello World!"],
+               }),
+            ]
+        """)
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-cleanup-builddir'])
+            self.assertIn("Hello World!", self.get_stdout())
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
@@ -1386,6 +1388,10 @@ class ToyBuildTest(EnhancedTestCase):
         # verify that post-install command for 'bar' extension was executed
         fn = 'created-via-postinstallcmds.txt'
         self.assertExists(os.path.join(installdir, fn))
+        # Same for all patches
+        self.assertExists(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system',
+                                       'bar', 'bar-0.0', 'test.txt'))
+        self.assertExists(os.path.join(installdir, 'test_ext.txt'))
 
         # make sure that patch file for extension was copied to 'easybuild' subdir in installation directory
         easybuild_subdir = os.path.join(installdir, 'easybuild')

@@ -364,6 +364,8 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
+    :param cmd: command to run; can be specified as string value (which implies interpretation by shell),
+                or as a list of strings (no interpretation by the shell)
     :param fail_on_error: fail on non-zero exit code (enabled by default)
     :param split_stderr: split of stderr from stdout output
     :param stdin: input to be sent to stdin (nothing if set to None)
@@ -490,6 +492,9 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         bash = shutil.which('bash')
         _log.info(f"Path to bash that will be used to run shell commands: {bash}")
         executable, shell = bash, True
+        if isinstance(cmd, (list, tuple)):
+            _log.info(f"Setting 'shell' option to False, since command is specified as a list of strings: {cmd}")
+            shell = False
     else:
         executable, shell = None, False
 
