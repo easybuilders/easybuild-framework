@@ -360,7 +360,7 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
                   hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
                   output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100, hide_output_on_success=False):
+                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100, log_output_on_success=True):
     """
     Run specified (interactive) shell command, and capture output + exit code.
 
@@ -381,6 +381,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     :param qa_patterns: list of 2-tuples with patterns for questions + corresponding answers
     :param qa_wait_patterns: list of strings with patterns for non-questions
     :param qa_timeout: amount of seconds to wait until more output is produced when there is no matching question
+    :param log_output_on_success: log output of command if it was successful
 
     :return: Named tuple with:
     - output: command output, stdout+stderr combined if split_stderr is disabled, only stdout otherwise
@@ -604,17 +605,17 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         }
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
-    # always log command output
+    # log command output (unless command was successful and log_output_on_success is disabled)
     cmd_name = cmd_str.split(' ')[0]
     if split_stderr:
-        log_msg = f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}\n"
+        log_msg = f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}\n\n"
         log_msg += f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}"
     else:
         log_msg = f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}"
 
     if res.exit_code == EasyBuildExit.SUCCESS:
         _log.info(f"Shell command completed successfully: {cmd_str}")
-        if not hide_output_on_success:
+        if log_output_on_success:
             _log.info(log_msg)
     else:
         _log.warning(f"Shell command FAILED (exit code {res.exit_code}): {cmd_str}")

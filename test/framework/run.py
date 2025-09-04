@@ -467,7 +467,7 @@ class RunTest(EnhancedTestCase):
         # command output can be suppressed
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd("echo hello", hide_output_on_success=True)
+            res = run_shell_cmd("echo hello", log_output_on_success=False)
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'hello\n')
@@ -479,7 +479,7 @@ class RunTest(EnhancedTestCase):
         # But is shown on error
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
-            res = run_shell_cmd("echo hello && false", hide_output_on_success=True, fail_on_error=False)
+            res = run_shell_cmd("echo hello && false", log_output_on_success=False, fail_on_error=False)
         stop_logging(logfile)
         self.assertEqual(res.exit_code, 1)
         self.assertEqual(res.output, 'hello\n')
