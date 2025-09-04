@@ -54,7 +54,7 @@ log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: $*)"
 # * -S: disable the import of the module site and the site-dependent manipulations of sys.path that it entails;
 # (once we only support Python 3, we can (also) use -I (isolated mode)
 log "%(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' $*"
-readarray -t CMD_ARGS < <( %(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@" )
+readarray -d '' -t CMD_ARGS < <( %(python)s -E -O -s -S %(rpath_args_py)s $CMD '%(rpath_filter)s' '%(rpath_include)s' "$@" )
 
 # exclude location of this wrapper from $PATH to avoid other potential wrappers calling this wrapper
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')

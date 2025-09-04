@@ -183,4 +183,4 @@ if add_rpath_args:
     cmd_args = cmd_args_rpath + cmd_args
 
 
-print('\n'.join(cmd_args))
+print('\0'.join(cmd_args), end='')

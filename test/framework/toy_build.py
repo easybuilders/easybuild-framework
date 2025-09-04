@@ -2978,7 +2978,7 @@ class ToyBuildTest(EnhancedTestCase):
             gcc_rpath_wrapper_txt = read_file(glob.glob(os.path.join(rpath_wrappers_dir, '*', 'gcc'))[0])
 
             # Get the filter and include arguments
-            rpath_args_regex = re.compile(r"^readarray -t CMD_ARGS .*rpath_args.py \$CMD "
+            rpath_args_regex = re.compile(r"^readarray -d '' -t CMD_ARGS .*rpath_args.py \$CMD "
                                           r"'(?P<filter_paths>[^ ]*)' '(?P<include_paths>[^ ]*)'.*", re.M)
             res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
             self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))

@@ -82,16 +82,19 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_vendor = self.orig_get_cpu_vendor
         super().tearDown()
 
-    def run_cmd_and_split(self, cmd):
+    def run_cmd_and_split(self, cmd, sep='\0'):
         """Run the command, check return code and return output as list of lines"""
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd)
         self.assertEqual(res.exit_code, 0)
         out = res.output
-        # Remove 1 trailing newline
-        if out:
-            self.assertEqual(out[-1], '\n')
-        return out[:-1].split('\n')
+        if sep == '\0':
+            return out.split('\0')
+        else:
+            # Remove 1 trailing separator
+            if out:
+                self.assertEqual(out[-1], sep)
+            return out[:-1].split(sep)
 
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
@@ -3123,7 +3126,7 @@ class ToolchainTest(EnhancedTestCase):
             r"-DY1=\'\'",
             r"-DY2=\'J\'",
         ])
-        out = self.run_cmd_and_split(cmd)
+        out = self.run_cmd_and_split(cmd, sep='\n')
         expected = [
             '-Wl,--disable-new-dtags',
             '-Wl,-rpath=%s/foo' % self.test_prefix,
@@ -3165,7 +3168,7 @@ class ToolchainTest(EnhancedTestCase):
         args.append('-L"%s"' % path_with_spaces)
 
         cmd = "g++ ${USER}.c %s" % ' '.join(args)
-        out = self.run_cmd_and_split(cmd)
+        out = self.run_cmd_and_split(cmd, sep='\n')
 
         expected = ('\n'.join([
             '-Wl,--disable-new-dtags',
