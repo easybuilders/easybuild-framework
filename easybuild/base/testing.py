@@ -114,13 +114,13 @@ class TestCase(OrigTestCase):
             raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF]))) from None
 
     def assertExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path exists"""
         if msg is None:
             msg = "'%s' should exist" % path
         self.assertTrue(os.path.exists(path), msg)
 
     def assertNotExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path does not exist"""
         if msg is None:
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
