@@ -125,7 +125,7 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None, oversubscribe=Fal
 
         if oversubscribe:
             osub_cmd = ''
-            if mpi_family in [toolchain.OPENMPI,]:
+            if mpi_family in [toolchain.OPENMPI]:
                 if mpi_version is None:
                     raise EasyBuildError("OpenMPI version unknown, can't determine how to handle oversubscription!")
                 if LooseVersion(mpi_version) < '5':
@@ -157,7 +157,7 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None, oversubscribe=Fal
                     newvalue = f"{unit}:{','.join(flags)}"
 
                     osub_cmd = f'{varname}={newvalue}'
-            elif mpi_family in [toolchain.INTELMPI,]:
+            elif mpi_family in [toolchain.INTELMPI]:
                 _log.info("INTELMPI always oversubscribe by default, nothing to do...")
             elif mpi_family in [toolchain.MVAPICH2, toolchain.MPICH, toolchain.MPICH2]:
                 _log.info("MPICH always oversubscribe by default, nothing to do...")
@@ -336,7 +336,9 @@ class Mpi(Toolchain):
                 # so we have to return early if we couldn't determine the impi version...
                 return None
 
-        mpi_cmd_template, params = get_mpi_cmd_template(mpi_family, params, mpi_version=mpi_version, oversubscribe=oversubscribe)
+        mpi_cmd_template, params = get_mpi_cmd_template(
+            mpi_family, params, mpi_version=mpi_version, oversubscribe=oversubscribe
+        )
         self.log.info("Using MPI command template '%s' (params: %s)", mpi_cmd_template, params)
 
         try:
