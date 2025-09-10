@@ -5054,7 +5054,7 @@ def build_and_install_one(ecdict, init_env):
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        run_test_cases = not build_option('skip_test_cases') and app.cfg.get_ref('tests')
 
         if not dry_run:
             # create our reproducibility files before carrying out the easyblock steps
