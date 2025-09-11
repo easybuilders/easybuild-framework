@@ -480,6 +480,21 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
 
+        # test loading of module when particular module path has priority over others
+        if isinstance(self.modtool, Lmod):
+            mod_paths = [
+                os.path.join(self.test_prefix, 'one'),
+                (os.path.join(self.test_prefix, 'two'), 10000),
+                os.path.join(self.test_prefix, 'three'),
+            ]
+            for mod_path in mod_paths:
+                if isinstance(mod_path, tuple):
+                    mod_path = mod_path[0]
+                mod_file = os.path.join(mod_path, 'test', '1.2.3.lua')
+                write_file(mod_file, 'setenv("TEST_PARENT_DIR", "%s")' % os.path.basename(mod_path))
+            self.modtool.load(['test/1.2.3'], mod_paths=mod_paths)
+            self.assertEqual(os.getenv('TEST_PARENT_DIR'), 'two')
+
     def test_show(self):
         """Test for ModulesTool.show method."""
 

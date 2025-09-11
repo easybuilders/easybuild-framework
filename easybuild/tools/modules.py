@@ -1111,9 +1111,15 @@ class ModulesTool:
 
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
+            priority = None
+            if isinstance(mod_path, tuple) and len(mod_path) == 2:
+                mod_path, priority = mod_path
+            elif not isinstance(mod_path, str):
+                raise EasyBuildError(f"Incorrect mod_paths entry encountered when loading module(s): {mod_path}")
+
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             if os.path.exists(full_mod_path):
-                self.prepend_module_path(full_mod_path)
+                self.prepend_module_path(full_mod_path, priority=priority)
 
         loaded_modules = self.loaded_modules()
         for mod in modules:
