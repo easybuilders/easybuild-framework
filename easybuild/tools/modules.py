@@ -2112,11 +2112,11 @@ class Lmod(ModulesTool):
         """
         # Lmod produces "module show" output with setenv statements like:
         # setenv("EBROOTBZIP2","/tmp/software/bzip2/1.0.6")
-        # - line starts with setenv(
+        # - line starts with setenv( or setenv{ (see also https://github.com/TACC/Lmod/issues/792)
         # - both variable name and value are enclosed in double quotes, separated by comma
         # - value can contain spaces!
         # - line ends with )
-        regex = re.compile(r'^setenv\("%s"\s*,\s*"(?P<value>.+)"\)' % var_name, re.M)
+        regex = re.compile(r'^setenv[\({]"%s"\s*,\s*"(?P<value>.+)"[\)}]' % var_name, re.M)
         value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
         if value:
