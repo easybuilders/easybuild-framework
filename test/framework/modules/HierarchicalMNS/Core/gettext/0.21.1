@@ -1,0 +1,34 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+GNU 'gettext' is an important step for the GNU Translation Project, as it is an asset on which we may
+build many other steps. This package offers to programmers, translators, and even users, a well integrated set of tools
+and documentation
+
+
+More information
+================
+ - Homepage: https://www.gnu.org/software/gettext/
+    }
+}
+
+module-whatis {Description: GNU 'gettext' is an important step for the GNU Translation Project, as it is an asset on which we may
+build many other steps. This package offers to programmers, translators, and even users, a well integrated set of tools
+and documentation}
+module-whatis {Homepage: https://www.gnu.org/software/gettext/}
+module-whatis {URL: https://www.gnu.org/software/gettext/}
+
+set root /tmp/software/gettext/0.21.1
+
+conflict gettext
+
+module load ncurses/6.3
+
+setenv	EBROOTGETTEXT		"$root"
+setenv	EBVERSIONGETTEXT		"0.21.1"
+setenv	EBDEVELGETTEXT		"$root/easybuild/Core-gettext-0.21.1-easybuild-devel"
+
+# Built with EasyBuild version 5.1.2.dev0-r5819168038d7bd74810f38f75acfced9fb41870e

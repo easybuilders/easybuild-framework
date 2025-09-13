@@ -1885,10 +1885,14 @@ class EasyBlock:
 
         # create fake module
         fake_mod_path = self.make_module_step(fake=True)
+        full_fake_mod_path = os.path.join(fake_mod_path, self.mod_subdir)
+
+        # indicate that path to fake module should get absolute priority
+        mod_paths = [(full_fake_mod_path, 10000)]
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
+        self.load_module(purge=purge, extra_modules=extra_modules, mod_paths=mod_paths, verbose=verbose)
+
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):

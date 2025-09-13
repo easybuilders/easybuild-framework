@@ -2695,7 +2695,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 95)
+            self.assertEqual(len(index), 100)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2745,7 +2745,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 29)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -2775,7 +2775,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 29)
         for fn in expected:
             self.assertIn(fn, index)
 
