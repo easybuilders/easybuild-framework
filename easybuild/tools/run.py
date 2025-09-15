@@ -454,7 +454,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
 
-        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
+        _log.info(f'run_shell_cmd: command environment of\n\t"{cmd_str}"\nwill be saved to {tmpdir}')
 
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
         _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
