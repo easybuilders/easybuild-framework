@@ -2622,8 +2622,17 @@ class FileToolsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, toy_path))
+            # Extracting the same tarball again detects the same folder
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, toy_path))
+
             path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
+
+            # Extracting the same tarball again now can't detect the same folder as there is another one next to it.
+            # Should fall back to the parent dir
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
 
             # Contains just a file
             path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)

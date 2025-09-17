@@ -540,7 +540,12 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     previous_paths = set(_get_paths_purged(abs_dest))
     run_shell_cmd(cmd, in_dry_run=forced, hidden=not trace)
     new_paths = set(_get_paths_purged(abs_dest)) - previous_paths
-    if len(new_paths) == 1:
+    if len(new_paths) == 0:
+        _log.warning(f"No new folder/files found after extraction of {fn} in {abs_dest}, "
+                     f"verify that the same file is not extracted multiple times! "
+                     f"Existing paths: {', '.join(previous_paths)}")
+        base_dir = find_base_dir()  # Fallback
+    elif len(new_paths) == 1:
         new_path = new_paths.pop()
         if os.path.isdir(new_path):
             # note: find_base_dir also changes into the base dir!
