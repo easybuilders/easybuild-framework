@@ -2624,7 +2624,12 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(path, toy_path))
             path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
-            # Contains no folder
+
+            # Contains just a file
+            path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+            # Same behavior when only a file is extracted
+            ft.remove_dir(extraction_path)
             path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)
             self.assertTrue(os.path.samefile(path, extraction_path))
 
