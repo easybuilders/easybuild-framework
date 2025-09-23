@@ -48,6 +48,7 @@ import os
 import re
 from collections import OrderedDict
 from contextlib import contextmanager
+from typing import Optional
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -2234,6 +2235,40 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
     return value
 
 
+def make_easyconfig_dict(ec: EasyConfig, original_spec: Optional[str] = None) -> dict:
+    """Embed the easyconfig into a dictionary with entries for name, dependencies etc."""
+    result = {
+        'ec': ec,
+        'spec': ec.path,
+        'short_mod_name': ec.short_mod_name,
+        'full_mod_name': ec.full_mod_name,
+        'dependencies': [],
+        'builddependencies': [],
+        'hiddendependencies': [],
+        'hidden': ec.hidden,
+    }
+    if original_spec is not None:
+        result['original_spec'] = original_spec
+
+    name = ec.name
+    # add build dependencies
+    for dep in ec['builddependencies']:
+        _log.debug("Adding build dependency %s for app %s." % (dep, name))
+        result['builddependencies'].append(dep)
+
+    # add dependencies (including build & hidden dependencies)
+    for dep in ec.dependencies():
+        _log.debug("Adding dependency %s for app %s." % (dep, name))
+        result['dependencies'].append(dep)
+
+    # add toolchain as dependency too
+    if not is_system_toolchain(ec['toolchain']['name']):
+        tc = ec.toolchain.as_dict()
+        _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
+        result['dependencies'].append(tc)
+    return result
+
+
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
@@ -2270,42 +2305,11 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 exit_code = EasyBuildExit.EASYCONFIG_ERROR
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
-        name = ec['name']
-
-        easyconfig = {
-            'ec': ec,
-        }
+        if parse_only:
+            easyconfig = {'ec': ec}
+        else:
+            easyconfig = make_easyconfig_dict(ec, original_spec=path if len(blocks) > 1 else None)
         easyconfigs.append(easyconfig)
-
-        if not parse_only:
-            # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
-            easyconfig.update({
-                'spec': ec.path,
-                'short_mod_name': ec.short_mod_name,
-                'full_mod_name': ec.full_mod_name,
-                'dependencies': [],
-                'builddependencies': [],
-                'hiddendependencies': [],
-                'hidden': ec.hidden,
-            })
-            if len(blocks) > 1:
-                easyconfig['original_spec'] = path
-
-            # add build dependencies
-            for dep in ec['builddependencies']:
-                _log.debug("Adding build dependency %s for app %s." % (dep, name))
-                easyconfig['builddependencies'].append(dep)
-
-            # add dependencies (including build & hidden dependencies)
-            for dep in ec.dependencies():
-                _log.debug("Adding dependency %s for app %s." % (dep, name))
-                easyconfig['dependencies'].append(dep)
-
-            # add toolchain as dependency too
-            if not is_system_toolchain(ec['toolchain']['name']):
-                tc = ec.toolchain.as_dict()
-                _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
-                easyconfig['dependencies'].append(tc)
 
     if cache_key is not None:
         _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
