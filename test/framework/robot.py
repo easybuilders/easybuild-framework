@@ -1415,11 +1415,11 @@ class RobotTest(EnhancedTestCase):
 
         gzip_ec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         gompi_ec = os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-2018a.eb')
-        ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
+        non_conflict_ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
         self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
+        conflicts = check_conflicts(non_conflict_ecs, self.modtool)
         stderr = self.get_stderr()
         self.mock_stderr(False)
         self.assertFalse(conflicts)
@@ -1440,6 +1440,13 @@ class RobotTest(EnhancedTestCase):
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
+
+        # Can also return the text
+        with self.mocked_stdout_stderr(mock_stdout=False) as mocked_stderr:
+            conflict_lst = check_conflicts(ecs, self.modtool, return_conflicts=True)
+            self.assertEqual('\n'.join(conflict_lst), stderr.strip())
+            self.assertEqual(mocked_stderr.getvalue(), '')
+            self.assertEqual(check_conflicts(non_conflict_ecs, self.modtool, return_conflicts=True), [])
 
         # conflicts between specified easyconfigs are also detected
 
