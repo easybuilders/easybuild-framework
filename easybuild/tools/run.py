@@ -471,13 +471,13 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         tmpdir, cmd_out_fp, cmd_err_fp, cmd_sh = None, None, None, None
 
-    interactive_msg = 'interactive ' if interactive else ''
+    cmd_type_msg = ('interactive ' if interactive else '') + ('shell command' if use_bash else 'command')
 
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden or verbose_dry_run:
             silent = build_option('silent')
-            msg = f"  running {interactive_msg}shell command \"{cmd_str}\"\n"
+            msg = f"  running {cmd_type_msg} \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
@@ -505,7 +505,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
     stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
-    log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
+    log_msg = f"Running {cmd_type_msg} in {work_dir}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
