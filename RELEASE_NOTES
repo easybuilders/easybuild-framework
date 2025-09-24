@@ -4,6 +4,45 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.1.2 (26 Sept 2025)
+---------------------
+
+update/bugfix release
+
+- enhancements:
+  - show readable error message when applying patch without (extracted) source (#4738)
+  - add support for `amdgcn-capabilities` configuration option and `amdgcn_capabilities` easyconfig parameter + related templates, similar to `cuda-compute-capabilities` (#4860)
+  - try to empty install dir if removing it fails (#4932)
+  - add support for "extensions" on Tcl modulefiles , but disable it for now (#4972, #4978, #4985)
+  - exit with appropriate error code for `--search` when no match is found (#4976)
+  - handle `post_install_patches` and `post_install_msgs` for extensions (#4980)
+  - skip RPATH sanity check for symlinks explicitely (#4988)
+  - take `--terse` into account for `--dry-run-short`/`-D` and `--dry-run` (#4989)
+- bug fixes:
+  - test if all extensions support parallel install before attempting parallel extension install (#4949)
+  - do not fail for read-only installation directory on `--module-only` (re)builds (#4958, #5004)
+  - store all patches (incl. the ones for extensions) that need to be copied to a repo/reprod dir in an `all_patches` set (#4960)
+  - fix error when adding files to existing PR with `--update-pr` and refactor + fixes in `options` tests (#4962)
+  - add back `OrderedDict` import in (deprecated) `easybuild.tools.py2vs3.py3` module (#4965)
+  - fixes for RPATH wrapper script:
+    - detect & replace `-Xlinker --enable-new-dtags` (#4970)
+    - do not add RPATH (linking) flags when `-c` flag specified (#4981)
+  - honor `--disable-module-extensions` configuration option (#4971)
+  - fix f-string in rpath check and skip check for linked libs on symlinks (#4975)
+  - fix passing command as list of strings to `run_shell_cmd` (#4977)
+  - add `f` for the f-string in a `git_config` error (#4982)
+  - keep `ModuleTool.mod_paths` in sync with `MODULEPATH` in `ModuleTool.load()` (#4991)
+  - fix failure to resolve template in tests (#4994)
+  - update regex used in `Lmod.get_setenv_value_from_modulefile` (#4998)
+- enhancements and fixes for test suite:
+  - only run tests for `--from-commit` for subset of test configurations (those for which a GitHub token is available) (#4967)
+  - adapt `module_extensions` disable test for Tcl modulefiles (#4973)
+- other changes:
+  - don't log variables (un)set + raw output of `module` command when cleaning up fake module (#4942)
+  - introduce `PYTHON_EXE` variable in template for RPATH wrapper script (to easily replace name of `python` command to use in `buildenv` easyblock) (#4984)
+  - remove deprecated license classifier in `setup.py` (#5002)
+
+
 v5.1.1 (6 July 2025)
 --------------------
 
