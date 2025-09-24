@@ -5269,6 +5269,11 @@ def build_and_install_one(ecdict, init_env):
 
     del app
 
+    # take into account that log file may not exist,
+    # for example when we're operating in extended dry run mode (-x)
+    if not os.path.exists(application_log):
+        application_log = None
+
     return (success, application_log, error_msg, exit_code)
 
 
