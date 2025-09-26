@@ -487,7 +487,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
+        _cmd_trace_msg(cmd_type_msg, cmd_str, start_time, work_dir, stdin, tmpdir, thread_id)
 
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
@@ -505,7 +505,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
     stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
-    log_msg = f"Running {cmd_type_msg} in {work_dir}"
+    cmd_name = cmd_str.split(' ', 1)[0]
+    short_cmd_msg = f"'{cmd_name} ...' {cmd_type_msg}"  # E.g. 'gcc ... shell command'
+
+    log_msg = f"Running {short_cmd_msg} in {work_dir}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
@@ -614,19 +617,19 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     # log command output (unless command was successful and log_output_on_success is disabled)
-    cmd_name = cmd_str.split(' ')[0]
     if split_stderr:
-        log_msg = f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}\n\n"
-        log_msg += f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}"
+        log_msg = f"Output of {short_cmd_msg} (stdout only):\n{res.output}\n\n"
+        log_msg += f"Warnings and errors of {short_cmd_msg} (stderr only):\n{res.stderr}"
     else:
-        log_msg = f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}"
+        log_msg = f"Output of {short_cmd_msg} (stdout + stderr):\n{res.output}"
 
+    cmd_type_msg = cmd_type_msg[:1].upper() + cmd_type_msg[1:]  # capitalize first letter
     if res.exit_code == EasyBuildExit.SUCCESS:
-        _log.info(f"Shell command completed successfully: {cmd_str}")
+        _log.info(f"{cmd_type_msg} completed successfully: {cmd_str}")
         if log_output_on_success:
             _log.info(log_msg)
     else:
-        _log.warning(f"Shell command FAILED (exit code {res.exit_code}): {cmd_str}")
+        _log.warning(f"{cmd_type_msg} FAILED (exit code {res.exit_code}): {cmd_str}")
         _log.info(log_msg)
         if fail_on_error:
             raise_run_shell_cmd_error(res)
@@ -637,7 +640,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.getcwd()
     except FileNotFoundError:
         _log.warning(
-            f"Shell command `{cmd_str}` completed successfully but left the system in an unknown working directory. "
+            f"{short_cmd_msg} completed successfully but left the system in an unknown working directory. "
             f"Changing back to initial working directory: {initial_work_dir}"
         )
         try:
@@ -652,25 +655,24 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def _cmd_trace_msg(cmd, start_time, work_dir, stdin, tmpdir, thread_id, interactive=False):
+def _cmd_trace_msg(cmd_type, cmd, start_time, work_dir, stdin, tmpdir, thread_id):
     """
     Helper function to construct and print trace message for command being run
 
+    :param cmd_type: string describing the type of command being run (e.g., 'interactive shell command')
     :param cmd: command being run
     :param start_time: datetime object indicating when command was started
     :param work_dir: path of working directory in which command is run
     :param stdin: stdin input value for command
     :param tmpdir: path to temporary output directory for command
     :param thread_id: thread ID (None when not running shell command asynchronously)
-    :param interactive: boolean indicating whether it is an interactive command, or not
     """
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
-    interactive = 'interactive ' if interactive else ''
     if thread_id:
-        run_cmd_msg = f"running {interactive}shell command (asynchronously, thread ID: {thread_id}):"
+        run_cmd_msg = f"running {cmd_type} (asynchronously, thread ID: {thread_id}):"
     else:
-        run_cmd_msg = f"running {interactive}shell command:"
+        run_cmd_msg = f"running {cmd_type}:"
 
     lines = [
         run_cmd_msg,
