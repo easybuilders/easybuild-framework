@@ -447,7 +447,7 @@ class RunTest(EnhancedTestCase):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex_start_cmd = re.compile("Running shell command 'echo hello' in /")
+        regex_start_cmd = re.compile("Running shell command in /")
         regex_cmd_exit = re.compile(r"Shell command completed successfully: echo hello")
         regex_cmd_output = re.compile(r"Output of 'echo \.\.\.' shell command \(stdout \+ stderr\):\nhello", re.M)
 
