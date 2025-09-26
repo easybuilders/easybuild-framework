@@ -241,16 +241,22 @@ def dry_run(easyconfigs, modtool, short=False):
     :param modtool: ModulesTool instance to use
     :param short: use short format for overview: use a variable for common prefixes
     """
-    lines = []
+    terse = build_option('terse')
     if build_option('robot') is None:
-        lines.append("Dry run: printing build status of easyconfigs")
+        lines = ["Dry run: printing build status of easyconfigs"]
         all_specs = easyconfigs
     else:
-        lines.append("Dry run: printing build status of easyconfigs and dependencies")
+        lines = ["Dry run: printing build status of easyconfigs and dependencies"]
         all_specs = resolve_dependencies(easyconfigs, modtool, retain_all_deps=True, raise_error_missing_ecs=False)
+    if terse:
+        lines = []
 
     unbuilt_specs = skip_available(all_specs, modtool)
-    dry_run_fmt = " * [%1s] %s (module: %s)"  # markdown compatible (list of items with checkboxes in front)
+    if terse:
+        dry_run_fmt = "{status} {ec}"  # terse format (1-char status + easyconfig path)
+    else:
+        # markdown compatible (list of items with checkboxes in front)
+        dry_run_fmt = " * [{status}] {ec} (module: {module})"
 
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
 
@@ -260,7 +266,7 @@ def dry_run(easyconfigs, modtool, short=False):
     short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
     for spec in all_specs:
         if spec in unbuilt_specs:
-            ans = ' '
+            ans = '-' if terse else ' '
         elif build_option('force') and spec['spec'] in listed_ec_paths:
             ans = 'F'
         elif build_option('rebuild') and spec['spec'] in listed_ec_paths:
@@ -274,15 +280,17 @@ def dry_run(easyconfigs, modtool, short=False):
             mod = spec['full_mod_name']
 
         if spec['spec'] is None:
+            if terse:
+                continue
             item = "(no easyconfig file found)"
-        elif short:
+        elif short and not terse:
             item = os.path.join('$%s' % var_name, spec['spec'][len(common_prefix) + 1:])
         else:
             item = spec['spec']
 
-        lines.append(dry_run_fmt % (ans, item, mod))
+        lines.append(dry_run_fmt.format(status=ans, ec=item, module=mod))
 
-    if short:
+    if short and not terse:
         # insert after 'Dry run:' message
         lines.insert(1, "%s=%s" % (var_name, common_prefix))
     return '\n'.join(lines)

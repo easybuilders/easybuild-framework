@@ -1,0 +1,30 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+Set of Linux utilities
+
+
+More information
+================
+ - Homepage: https://www.kernel.org/pub/linux/utils/util-linux
+    }
+}
+
+module-whatis {Description: Set of Linux utilities}
+module-whatis {Homepage: https://www.kernel.org/pub/linux/utils/util-linux}
+module-whatis {URL: https://www.kernel.org/pub/linux/utils/util-linux}
+
+set root /tmp/software/util-linux/2.39-GCCcore-12.3.0
+
+conflict util-linux
+
+module load ncurses/6.4
+
+setenv	EBROOTUTILMINLINUX		"$root"
+setenv	EBVERSIONUTILMINLINUX		"2.39"
+setenv	EBDEVELUTILMINLINUX		"$root/easybuild/Compiler-GCCcore-12.3.0-util-linux-2.39-easybuild-devel"
+
+# Built with EasyBuild version 5.1.2.dev0-r5819168038d7bd74810f38f75acfced9fb41870e
