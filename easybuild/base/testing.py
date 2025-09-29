@@ -36,12 +36,12 @@ Authors:
 import difflib
 import os
 import pprint
-import re
 import sys
 from contextlib import contextmanager
 from io import StringIO
 
 from unittest import TestCase as OrigTestCase
+from easybuild.base import fancylogger
 
 
 def nicediff(txta, txtb, offset=5):
@@ -140,42 +140,9 @@ class TestCase(OrigTestCase):
         self.orig_sys_stdout = sys.stdout
         self.orig_sys_stderr = sys.stderr
 
-    def convert_exception_to_str(self, err):
-        """Convert an Exception instance to a string."""
-        msg = err
-        if hasattr(err, 'msg'):
-            msg = err.msg
-        elif hasattr(err, 'message'):
-            msg = err.message
-            if not msg:
-                # rely on str(msg) in case err.message is empty
-                msg = err
-        elif hasattr(err, 'args'):  # KeyError in Python 2.4 only provides message via 'args' attribute
-            msg = err.args[0]
-        else:
-            msg = err
-        try:
-            res = str(msg)
-        except UnicodeEncodeError:
-            res = msg.encode('utf8', 'replace')
-
-        return res
-
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """
-        Convenience method to match regex with the expected error message.
-        Example: self.assertErrorRegex(OSError, "No such file or directory", os.remove, '/no/such/file')
-        """
-        try:
-            call(*args, **kwargs)
-            str_kwargs = ['='.join([k, str(v)]) for (k, v) in kwargs.items()]
-            str_args = ', '.join(list(map(str, args)) + str_kwargs)
-            self.fail("Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
-        except error as err:
-            msg = self.convert_exception_to_str(err)
-            if isinstance(regex, str):
-                regex = re.compile(regex)
-            self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
+    def assertErrorRegex(*args, **kwargs):
+        fancylogger.getLogger().deprecated('assertErrorRegex is deprecated, use assertRaisesRegex instead', '6.0')
+        return OrigTestCase.assertRaisesRegex(*args, **kwargs)
 
     def mock_stdout(self, enable):
         """Enable/disable mocking stdout."""
