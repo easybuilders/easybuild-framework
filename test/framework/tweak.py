@@ -163,7 +163,7 @@ class TweakTest(EnhancedTestCase):
 
         # check behaviour if target file already exists
         error_pattern = "File exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
 
         # existing file does get overwritten when --force is used
         init_config(build_options={'force': True, 'silent': True})
@@ -239,8 +239,8 @@ class TweakTest(EnhancedTestCase):
                          {'name': 'golf', 'version': '2018a'})
         # Make sure there's an error when we can't do the mapping
         error_msg = "No possible mapping from source toolchain spec .*"
-        self.assertErrorRegex(EasyBuildError, error_msg, match_minimum_tc_specs,
-                              foss_hierarchy[3], iimpi_hierarchy)
+        self.assertRaisesRegex(EasyBuildError, error_msg, match_minimum_tc_specs,
+                               foss_hierarchy[3], iimpi_hierarchy)
 
     def test_dep_tree_of_toolchain(self):
         """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
@@ -295,8 +295,8 @@ class TweakTest(EnhancedTestCase):
 
         # Expect an error when there is no possible mapping
         error_msg = "No possible mapping from source toolchain spec .*"
-        self.assertErrorRegex(EasyBuildError, error_msg, map_toolchain_hierarchies,
-                              foss_tc, iimpi_tc, self.modtool)
+        self.assertRaisesRegex(EasyBuildError, error_msg, map_toolchain_hierarchies,
+                               foss_tc, iimpi_tc, self.modtool)
 
         # Test that we correctly include GCCcore binutils when it is there
         gcc_binutils_tc = {'name': 'GCC', 'version': '4.9.3-2.26'}
