@@ -255,7 +255,7 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         error_pattern = "Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet"
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
         self.mock_stdout(False)
 
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
@@ -555,11 +555,11 @@ class GithubTest(EnhancedTestCase):
         # test downloading with short commit, download_repo currently enforces using long commit
         error_pattern = r"Specified commit SHA 7c83a55 for downloading easybuilders/easybuild-easyconfigs "
         error_pattern += r"is not valid, must be full SHA-1 \(40 chars\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, fetch_files_from_commit, '7c83a55')
 
         # test downloading of non-existing commit
         error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
-        self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
     @ignore_rate_limit_in_pr
     def test_fetch_easyconfigs_from_commit(self):
@@ -666,11 +666,11 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue("v4.9.0 (30 December 2023)" in release_notes_txt)
 
         # short commit doesn't work, must be full commit ID
-        self.assertErrorRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
-                              path=self.test_prefix, commit='bdcc586')
+        self.assertRaisesRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
+                               path=self.test_prefix, commit='bdcc586')
 
-        self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
-                              path=self.test_prefix, commit='0000000000000000000000000000000000000000')
+        self.assertRaisesRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
+                               path=self.test_prefix, commit='0000000000000000000000000000000000000000')
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
@@ -1007,7 +1007,7 @@ class GithubTest(EnhancedTestCase):
 
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
         with self.mocked_stdout():
-            self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
+            self.assertRaisesRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
 
         rawtxt = textwrap.dedent("""
             easyblock = 'ConfigureMake'

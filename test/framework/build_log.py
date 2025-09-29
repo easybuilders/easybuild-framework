@@ -63,18 +63,18 @@ class BuildLogTest(EnhancedTestCase):
         setLogFormat("%(name)s :: %(message)s")
 
         with self.log_to_testlogfile() as logfile:
-            self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
+            self.assertRaisesRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
             logtxt = read_file(logfile)
 
         log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
-        self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
+        self.assertRaisesRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
 
         # a '%s' in a value used to template the error message should not print a traceback!
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
+            self.assertRaisesRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
             stderr = self.get_stderr()
             stdout = self.get_stdout()
         # stdout/stderr should be *empty* (there should definitely not be a traceback)
@@ -83,7 +83,7 @@ class BuildLogTest(EnhancedTestCase):
 
         # Need to all call a method in the "easybuild" package as everything else will be filtered out
         with self.log_to_testlogfile() as logfile:
-            self.assertErrorRegex(EasyBuildError, 'Failed to read', tweak_one, '/does/not/exist', '/tmp/new', {})
+            self.assertRaisesRegex(EasyBuildError, 'Failed to read', tweak_one, '/does/not/exist', '/tmp/new', {})
             logtxt: str = read_file(logfile)
 
         self.assertRegex(logtxt, '\n'.join(
@@ -91,7 +91,7 @@ class BuildLogTest(EnhancedTestCase):
              r"Callstack:",
              r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
              r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
-             r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
+             r'\s+easybuild/base/testing\.py:\d+ in assertRaisesRegex',
              )), re.M)
 
     def test_easybuildlog(self):
@@ -156,10 +156,10 @@ class BuildLogTest(EnhancedTestCase):
         logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
         self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
 
-        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
-        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
-        self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0',
-                              max_ver='1.0')
+        self.assertRaisesRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
+        self.assertRaisesRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
+        self.assertRaisesRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0',
+                               max_ver='1.0')
 
         # wipe log so we can reuse it
         write_file(tmplog, '')
@@ -265,7 +265,7 @@ class BuildLogTest(EnhancedTestCase):
         run_check(['You have been %s.', 'warned'], silent=True)
         run_check(['You %s %s %s.', 'have', 'been', 'warned'], silent=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_warning, 'foo', unknown_arg='bar')
+        self.assertRaisesRegex(EasyBuildError, "Unknown named arguments", print_warning, 'foo', unknown_arg='bar')
 
         # test passing of logger to print_warning
         tmp_logfile = os.path.join(self.test_prefix, 'test.log')
@@ -301,7 +301,7 @@ class BuildLogTest(EnhancedTestCase):
         run_check(['%s %s %s.', 'You', 'have', 'failed'], silent=True)
 
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
-            self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
+            self.assertRaisesRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
 
     def test_print_msg(self):
         """Test print_msg"""
@@ -334,7 +334,7 @@ class BuildLogTest(EnhancedTestCase):
         run_check("testing, 1, 2, 3", [], silent=True, stderr=True)
         run_check("testing, %s, %s, 3", ['1', '2'], silent=True, stderr=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
+        self.assertRaisesRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
 
     def test_time_str_since(self):
         """Test time_str_since"""
@@ -369,7 +369,7 @@ class BuildLogTest(EnhancedTestCase):
         run_check("test 123", [], silent=True)
         run_check("test %s", ['123'], silent=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", dry_run_msg, 'foo', unknown_arg='bar')
+        self.assertRaisesRegex(EasyBuildError, "Unknown named arguments", dry_run_msg, 'foo', unknown_arg='bar')
 
     def test_dry_run_warning(self):
         """Test dry_run_warningmsg"""
@@ -390,7 +390,7 @@ class BuildLogTest(EnhancedTestCase):
         run_check("test 123", [], silent=True)
         run_check("test %s", ['123'], silent=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", dry_run_warning, 'foo', unknown_arg='bar')
+        self.assertRaisesRegex(EasyBuildError, "Unknown named arguments", dry_run_warning, 'foo', unknown_arg='bar')
 
     def test_init_logging(self):
         """Test init_logging function."""
@@ -447,8 +447,8 @@ class BuildLogTest(EnhancedTestCase):
         stop_logging(logfile, logtostdout=True)
 
     def test_raise_nosupport(self):
-        self.assertErrorRegex(EasyBuildError, 'NO LONGER SUPPORTED since v42: foobar;',
-                              raise_nosupport, 'foobar', 42)
+        self.assertRaisesRegex(EasyBuildError, 'NO LONGER SUPPORTED since v42: foobar;',
+                               raise_nosupport, 'foobar', 42)
 
 
 def suite(loader=None):

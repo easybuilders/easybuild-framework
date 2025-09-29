@@ -285,7 +285,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         error = "1 jobs failed: toy-1.2.3"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
+            self.assertRaisesRegex(EasyBuildError, error, build_easyconfigs_in_parallel, cmd, ecs, prepare_first=False)
 
     def test_submit_jobs(self):
         """Test submit_jobs"""

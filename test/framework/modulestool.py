@@ -111,7 +111,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
         os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         error_regex = ".*pattern .* not found in defined 'module' function"
-        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
+        self.assertRaisesRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -202,7 +202,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
             os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
             error_regex = ".*pattern .* not found in defined 'module' function"
-            self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
+            self.assertRaisesRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
 
             # redefine '_module_raw' function with correct module command
             os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/modulecmd.tcl' bash $*`;\n}"

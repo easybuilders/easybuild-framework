@@ -338,7 +338,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force',
         ]
         error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
 
     def test_module_only_param(self):
         """check use of module_only parameter"""
@@ -383,20 +383,20 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--rebuild',
         ]
         error_pattern = "Sanity check failed: no file found at 'bin/nosuchfile'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.mocked_main, args, do_build=True, raise_error=True)
 
         # Verify a wrong step name is caught
         test_ec_txt += "\nskipsteps = ['wrong-step-name']\n"
         write_file(test_ec, test_ec_txt)
         error_pattern = "Found one or more unknown step names in 'skipsteps' easyconfig parameter:\n"
         error_pattern += r"\* wrong-step-name"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
         # 'source' step was renamed to 'extract' in EasyBuild 5.0,
         # see https://github.com/easybuilders/easybuild-framework/pull/4629
         test_ec_txt += "\nskipsteps = ['source']\n"
         write_file(test_ec, test_ec_txt)
         error_pattern = error_pattern.replace('wrong-step-name', r"source \(did you mean 'extract'\?\)")
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
         # check use of skipsteps to skip sanity check
         test_ec_txt += "\nskipsteps = ['sanitycheck']\n"
@@ -461,7 +461,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Passing skip and ignore options is disallowed
         args.append('--skip-test-step')
         error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_skip_sanity_check(self):
         """Test skipping of sanity check step (--skip-sanity-check)."""
@@ -474,7 +474,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [test_ec, '--rebuild']
         err_msg = "Sanity check failed"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
 
         args.append('--skip-sanity-check')
         with self.mocked_stdout_stderr():
@@ -485,7 +485,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args.append('--sanity-check-only')
         error_pattern = 'Found both skip-sanity-check and sanity-check-only enabled'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_job(self):
         """Test submitting build as a job."""
@@ -1194,13 +1194,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
                 args = [opt, pattern, '--robot', test_easyconfigs_dir]
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
+                    self.assertRaisesRegex(EasyBuildError, "Invalid search query", self.eb_main, args, raise_error=True)
 
         # test searching for non-existing easyconfig file (should produce non-zero exit code)
         # 4 corresponds with MISSING_EASYCONFIG in EasyBuildExit (see easybuild/tools/build_log.py)
         args = ['--search', 'nosuchsoftware-1.2.3.4.5']
-        self.assertErrorRegex(SystemExit, 'MISSING_EASYCONFIG|4', self.eb_main, args,
-                              testing=False, raise_error=True, raise_systemexit=True)
+        self.assertRaisesRegex(SystemExit, 'MISSING_EASYCONFIG|4', self.eb_main, args,
+                               testing=False, raise_error=True, raise_systemexit=True)
 
     def test_ignore_index(self):
         """
@@ -1383,7 +1383,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec', 'toy-0.0.eb', 'bzip2-1.0.6-GCC-4.9.2.eb', target]
         error_pattern = ".*/test.eb exists but is not a directory"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         # test use of --copy-ec with only one argument: copy to current working directory
         test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
@@ -1402,7 +1402,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--copy-ec']
         error_pattern = "One or more files to copy should be specified!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
     def test_github_copy_ec_from_pr(self):
         """Test combination of --copy-ec with --from-pr."""
@@ -1664,7 +1664,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                             "Should not fail with --buildpath='{build_dir}' and {option_flag}='{persist_path}'."
                         )
                 else:
-                    self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, raise_error=True)
+                    self.assertRaisesRegex(EasyBuildError, pattern, self.eb_main, args, raise_error=True)
 
         test_eb_with(option_flag='--failed-install-logs-path', is_valid=True)
         test_eb_with(option_flag='--failed-install-logs-path', is_valid=False)
@@ -1829,7 +1829,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # if it fails, an error is printed
         error_pattern = "Toolchain iccifort is not equivalent to toolchain foss in terms of capabilities."
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True, do_build=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True, do_build=True)
 
         # can continue anyway using --disable-map-toolchains
         args.append('--disable-map-toolchains')
@@ -1879,7 +1879,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Experimental functionality", self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, "Experimental functionality", self.eb_main, args, raise_error=True)
 
         args.append('--experimental')
         with self.mocked_stdout_stderr():
@@ -2753,13 +2753,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for extra_arg in ['--try-software=foo', '--try-toolchain=gompi', '--try-toolchain=gomp,2018a,-a-suffix']:
             allargs = args + [extra_arg]
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, "problems validating the options",
-                                      self.eb_main, allargs, raise_error=True)
+                self.assertRaisesRegex(EasyBuildError, "problems validating the options",
+                                       self.eb_main, allargs, raise_error=True)
 
         # no --try used, so no tweaked easyconfig files are generated
         allargs = args + ['--software-version=1.2.3', '--toolchain=gompi,2018a']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, "version .* not available", self.eb_main, allargs, raise_error=True)
 
         # Try changing only name or version of toolchain
         args.pop(0)  # Remove EC filename
@@ -3182,12 +3182,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Case H: recurse into files but hit limit
         args = filesub4
         error_regex = r"Failed to parse_http_header_fields_urlpat \(recursion limit\)"
-        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+        self.assertRaisesRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
 
         # Case I: argument is not a string
         args = list("foobar")
         error_regex = r"Failed to parse_http_header_fields_urlpat \(argument not a string\)"
-        self.assertErrorRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
+        self.assertRaisesRegex(EasyBuildError, error_regex, parse_http_header_fields_urlpat, args)
 
     def test_http_header_fields_urlpat(self):
         """Test use of --http-header-fields-urlpat."""
@@ -3377,7 +3377,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         error_regex = r"Missing modules for dependencies .*: toy/\.0.0-deps"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
+            self.assertRaisesRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True, do_build=True)
 
         # enable robot, but without passing path required to resolve toy dependency => FAIL
         # note that --dry-run is now robust against missing easyconfig, so shouldn't use it here
@@ -3386,7 +3386,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot',
         ]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, 'Missing dependencies', self.eb_main, args, raise_error=True)
 
         # add path to test easyconfigs to robot paths, so dependencies can be resolved
         args.append('--dry-run')
@@ -3453,7 +3453,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for robot in ['--robot=foo', '--robot=%s' % empty_file]:
             args = ['toy-0.0.eb', '--dry-run', robot]
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+                self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         toy_mod_txt = 'module: toy/0.0'
 
@@ -3473,7 +3473,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--dry-run', '--robot', 'no_such_easyconfig_file_in_robot_search_path.eb']
         error_pattern = "One or more files not found: no_such_easyconfig_file_in_robot_search_path.eb"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         for robot in ['-r%s' % self.test_prefix, '--robot=%s' % self.test_prefix]:
             args = ['toy-0.0.eb', '--dry-run', robot]
@@ -3492,7 +3492,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
             args = ['toy-0.0.eb', arg]
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+                self.assertRaisesRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
                 stderr = self.get_stderr()
             self.assertIn("error: no such option: -X", stderr)
 
@@ -3501,7 +3501,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--configfiles=/no/such/cfgfile.foo']
         error_regex = "parseconfigfiles: configfile .* not found"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_regex, self.eb_main, args, raise_error=True)
 
     def test_show_default_moduleclasses(self):
         """Test --show-default-moduleclasses."""
@@ -3787,7 +3787,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # generic easyblock FooBar is not there initially
         error_msg = "Failed to obtain class for FooBar easyblock"
-        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
+        self.assertRaisesRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # include extra test easyblocks
         txt = '\n'.join([
@@ -3833,7 +3833,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
-        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
+        self.assertRaisesRegex(EasyBuildError, error_msg, get_easyblock_class, 'FooBar')
 
         # clear log
         write_file(self.logfile, '')
@@ -4113,8 +4113,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # selecting a module naming scheme that doesn't exist leads to 'invalid choice'
         error_regex = "Selected module naming scheme \'AnotherTestIncludedMNS\' is unknown"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, logfile=dummylogfn,
-                                  raise_error=True, raise_systemexit=True)
+            self.assertRaisesRegex(EasyBuildError, error_regex, self.eb_main, args, logfile=dummylogfn,
+                                   raise_error=True, raise_systemexit=True)
 
         args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
         with self.mocked_stdout_stderr():
@@ -4296,7 +4296,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         for args in test_cases:
             error_pattern = "The following options are set but incompatible.* " + args[0]
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
     def test_set_tmpdir(self):
         """Test set_tmpdir config function."""
@@ -4695,7 +4695,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args_new_pr = args + ['--pr-commit-msg=just a test']
         error_msg = r"PR commit msg \(--pr-commit-msg\) should not be used"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args_new_pr, raise_error=True, testing=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main,
+                                   args_new_pr, raise_error=True, testing=False)
 
         # But commit message can still be specified when using --force
         args_new_pr.append('--force')
@@ -4722,7 +4723,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = f"A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: {ec_name}"
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
 
         # check whether unstaged file in git working dir was copied (it shouldn't)
         res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
@@ -4799,7 +4800,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
         error_msg += "Modified: " + os.path.basename(gcc_new_ec)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         # also specifying commit message is sufficient; PR title is inherited from commit message
         args.append('--pr-commit-msg=this is just a test')
@@ -4821,7 +4822,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         args.append('--pr-commit-msg=just a test')
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
@@ -5121,7 +5122,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         error_msg = r"This PR is closed."
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         # and also for an already merged PR
         args = [
@@ -5131,7 +5132,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         error_msg = r"This PR is already merged."
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         # merged PR for EasyBuild-3.3.0.eb, is missing approved review
         args = [
@@ -5239,7 +5240,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         error_msg = "No changed files found when comparing to current develop branch."
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_show_config(self):
         """"Test --show-config and --show-full-config."""
@@ -5362,7 +5363,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.environ['EASYBUILD_MODULES_TOOL'] = 'EnvironmentModules'
         args = ['--show-full-config']
         error_pattern = "Generating Lua module files requires Lmod as modules tool"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
         patterns = [
             r"^# Current EasyBuild configuration",
@@ -5422,7 +5423,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['%s.eb' % openmpi, '--dump-env-script']
         error_msg = r"Script\(s\) already exists, not overwriting them \(unless --force is used\): %s.env" % openmpi
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
 
         os.chdir(self.test_prefix)
         args.append('--force')
@@ -5472,7 +5473,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg = (r"Script\(s\) already exists, not overwriting them \(unless --force is used\): "
                      + os.path.basename(env_script))
         os.chdir(self.test_prefix)
-        self.assertErrorRegex(EasyBuildError, error_msg, self._run_mock_eb, args, do_build=True, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_msg, self._run_mock_eb, args, do_build=True, raise_error=True)
         self.assertExists(env_script)
         self.assertExists(test_module)
         # Unchanged module and env file
@@ -5539,7 +5540,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--sourcepath=%s:%s' % (tmpdir, self.test_sourcepath), '--fetch', 'toy-0.0.eb']
         with self.mocked_stdout_stderr():
             pattern = 'Checksum verification for .*/toy-0.0.tar.gz .*failed'
-            self.assertErrorRegex(EasyBuildError, pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, pattern, self.eb_main, args, do_build=True, raise_error=True)
             # We can avoid that failure by ignoring the checksums
             args.append('--ignore-checksums')
             self.eb_main(args, do_build=True, raise_error=True)
@@ -5598,12 +5599,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # if both names and versions are specified, lists must have same lengths
         write_file(testcfg, '\n'.join(['[foo/1.2.3]', 'name = foo,bar', 'version = 1.2.3']))
         err_msg = "Different length for lists of names/versions in metadata for external module"
-        self.assertErrorRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
+        self.assertRaisesRegex(EasyBuildError, err_msg, parse_external_modules_metadata, [testcfg])
 
         # if path to non-existing file is used, an error is reported
         doesnotexist = os.path.join(self.test_prefix, 'doesnotexist')
         error_pattern = "Specified path for file with external modules metadata does not exist"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, [doesnotexist])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, [doesnotexist])
 
         # glob pattern can be used to specify file locations to parse_external_modules_metadata
         cfg1 = os.path.join(self.test_prefix, 'cfg_one.ini')
@@ -5643,7 +5644,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"\* one/1.0: foo",
             r"\* three/3.0: aaa, naem, vresion, zzz",
         ])
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, broken_cfgs)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_external_modules_metadata, broken_cfgs)
 
     def test_zip_logs(self):
         """Test use of --zip-logs"""
@@ -5696,22 +5697,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--list-prs', 'foo']
         error_msg = r"must be one of \['open', 'closed', 'all'\]"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         args = ['--list-prs', 'open,foo']
         error_msg = r"must be one of \['created', 'updated', 'popularity', 'long-running'\]"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         args = ['--list-prs', 'open,created,foo']
         error_msg = r"must be one of \['asc', 'desc'\]"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         args = ['--list-prs', 'open,created,asc,foo']
         error_msg = r"must be in the format 'state\[,order\[,direction\]\]"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
         args = ['--list-prs', 'closed,updated,asc']
         txt, _ = self._run_mock_eb(args, testing=False)
@@ -5851,17 +5852,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Check for EasyBuildErrors
         error_msg = "The optarch option has an incorrect syntax"
         options.options.optarch = 'Intel:something;GCC'
-        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        self.assertRaisesRegex(EasyBuildError, error_msg, options.postprocess)
 
         options.options.optarch = 'Intel:something;'
-        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        self.assertRaisesRegex(EasyBuildError, error_msg, options.postprocess)
 
         options.options.optarch = 'Intel:something:somethingelse'
-        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        self.assertRaisesRegex(EasyBuildError, error_msg, options.postprocess)
 
         error_msg = "The optarch option contains duplicated entries for compiler"
         options.options.optarch = 'Intel:something;GCC:somethingelse;Intel:anothersomething'
-        self.assertErrorRegex(EasyBuildError, error_msg, options.postprocess)
+        self.assertRaisesRegex(EasyBuildError, error_msg, options.postprocess)
 
         # Check the parsing itself
         gcc_generic_flags = "march=x86-64 -mtune=generic"
@@ -5899,7 +5900,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args[0] = '--check-contrib'
         error_pattern = "One or more contribution checks FAILED"
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
             stdout = self.get_stdout().strip()
         self.assertRegex(stdout, regex)
 
@@ -5921,7 +5922,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             error_pattern = "One or more %s checks FAILED!" % check_type
             with self.mocked_stdout_stderr(mock_stderr=False):
-                self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+                self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
                 stdout = self.get_stdout()
             patterns = [
                 "toy.eb:1:5: E223 tab before operator",
@@ -5944,7 +5945,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         error_pattern = "One or more contribution checks FAILED"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
             stdout = self.get_stdout().strip()
             stderr = self.get_stderr().strip()
         self.assertEqual(stderr, '')
@@ -5987,7 +5988,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # running as root is disallowed by default
         error_msg = "You seem to be running EasyBuild with root privileges which is not wise, so let's end this here"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, ['toy-0.0.eb'], raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self.eb_main, ['toy-0.0.eb'], raise_error=True)
 
         # running as root is allowed under --allow-use-as-root, but does result in a warning being printed to stderr
         args = ['toy-0.0.eb', '--allow-use-as-root-and-accept-consequences']
@@ -6028,8 +6029,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern += r"name: 'toy'; version: '0.0'; versionsuffix: ''; "
         error_pattern += r"toolchain name, version: 'system', 'system'\)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn,
-                                  raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn,
+                                   raise_error=True)
 
         write_file(self.logfile, '')
 
@@ -6156,7 +6157,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # if existing checksums are found, --force is required
         args = [test_ec, '--inject-checksums']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Found existing checksums", self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, "Found existing checksums", self.eb_main, args, raise_error=True)
             stdout = self.get_stdout().strip()
             stderr = self.get_stderr().strip()
 
@@ -6439,7 +6440,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # because it's not a valid type of checksum
         args = ['--inject-checksums', test_ec]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+            self.assertRaisesRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
             stdout = self.get_stdout().strip()
             stderr = self.get_stderr().strip()
 
@@ -6523,7 +6524,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         copy_file(toy_ec, test_ec)
         error_pattern = r"Missing checksum for bar-0.0[^ ]*\.patch"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
         # get rid of checksums for extensions, should result in different error message
         # because of missing checksum for source of 'bar' extension
@@ -6533,7 +6534,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
         error_pattern = r"Missing checksum for bar-0\.0\.tar\.gz"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
         # wipe both exts_list and checksums, so we can check whether missing checksum for main source is caught
         test_ec_txt = read_file(test_ec)
@@ -6545,7 +6546,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
         error_pattern = "Missing checksum for toy-0.0.tar.gz"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_show_system_info(self):
         """Test for --show-system-info."""
@@ -6870,7 +6871,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--include-module-naming-schemes=%s' % test_mns,
         ]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(SystemExit, '1', self.eb_main, args, do_build=True, raise_error=True, verbose=True)
+            self.assertRaisesRegex(SystemExit, '1', self.eb_main, args, do_build=True, raise_error=True, verbose=True)
             stderr = self.get_stderr()
         regex = re.compile("ERROR: Detected import from 'vsc' namespace in .*/test_mns.py")
         self.assertRegex(stderr, regex)
@@ -6936,7 +6937,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # existing index is not overwritten without --force
         error_pattern = "File exists, not overwriting it without --force: .*/.eb-path-index"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
         # also test creating index that's infinitely valid
         args.extend(['--index-max-age=0', '--force'])
@@ -6970,10 +6971,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [sysroot_arg, '--show-config']
         error_pattern = r"Specified sysroot '%s' does not exist!" % doesnotexist
-        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
         os.environ['EASYBUILD_SYSROOT'] = doesnotexist
-        self.assertErrorRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
     def test_software_commit(self):
         """Test use of --software-commit option."""
@@ -7009,7 +7010,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [test_ec, '--force']
         error_pattern = r"The End User License Agreement \(EULA\) for toy is currently not accepted!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
         toy_modfile = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_modfile += '.lua'
@@ -7126,7 +7127,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = ['--easystack', toy_easystack, '--experimental']
         expected_err = "No such file or directory: '%s'" % toy_easystack
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, expected_err, self.eb_main, args, raise_error=True)
 
     # testing basics - end-to-end
     # expecting successful build

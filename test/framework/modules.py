@@ -118,7 +118,7 @@ class ModulesTest(EnhancedTestCase):
 
             # by default, exit code is checked and an error is raised if we run something that fails
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
             # we need to use a different error pattern here with EnvironmentModulesC and
             # EnvironmentModules  <5.5, because a load of a non-existing module doesnt' trigger a
@@ -129,7 +129,7 @@ class ModulesTest(EnhancedTestCase):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
 
         # we can choose to blatently ignore the exit code,
         # and also disable the output check that serves as a fallback;
@@ -442,7 +442,7 @@ class ModulesTest(EnhancedTestCase):
             'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/ScaLAPACK/2.0.2-OpenBLAS-0.2.20',
         ]
         for modname in modnames:
-            self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [modname])
+            self.assertRaisesRegex(EasyBuildError, '.*', self.modtool.load, [modname])
 
         # by default, modules are always loaded, even if they are already loaded
         self.modtool.load(['GCC/6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28'])
@@ -732,7 +732,7 @@ class ModulesTest(EnhancedTestCase):
         remove_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext))
 
         # check expected result of get_software_libdir with multiple lib subdirs
-        self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
+        self.assertRaisesRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         check_get_software_libdir(only_one=False, expected=['lib', 'lib64'])
 
         # only directories containing files in specified list should be retained
@@ -945,7 +945,7 @@ class ModulesTest(EnhancedTestCase):
 
         # error for non-existing modules
         error_pattern = "Can't get value from a non-existing module"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
         # make sure $HOME/$USER is set to something we can easily check
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
@@ -1096,7 +1096,7 @@ class ModulesTest(EnhancedTestCase):
         # GCC/4.6.3 is *not* an available Core module
         os.environ['LC_ALL'] = 'C'
         os.environ['LANG'] = 'C'
-        self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
+        self.assertRaisesRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
 
         # GCC/6.4.0-2.28 is one of the available Core modules
         self.modtool.load(['GCC/6.4.0-2.28'])
@@ -1131,7 +1131,7 @@ class ModulesTest(EnhancedTestCase):
         else:
             load_err_msg = "Unable to locate a modulefile"
 
-        self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['OpenMPI/2.1.2'])
+        self.assertRaisesRegex(EasyBuildError, load_err_msg, self.modtool.load, ['OpenMPI/2.1.2'])
 
     def test_mk_module_cache_key(self):
         """Test mk_module_cache_key method."""
@@ -1225,7 +1225,7 @@ class ModulesTest(EnhancedTestCase):
 
         # Adding an empty modulepath is not possible
         modulepath = os.environ.get('MODULEPATH', '')
-        self.assertErrorRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
+        self.assertRaisesRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
         self.assertEqual(os.environ.get('MODULEPATH', ''), modulepath)
 
         # make sure the right test module is loaded
@@ -1439,7 +1439,7 @@ class ModulesTest(EnhancedTestCase):
         else:
             # Environment Modules exits with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
     def test_check_loaded_modules(self):
         """Test check_loaded_modules method."""
@@ -1495,7 +1495,7 @@ class ModulesTest(EnhancedTestCase):
         # error mentioning 1 non-allowed module (OpenMPI), both GCC and hwloc loaded modules are allowed
         error_pattern = r"Found one or more non-allowed loaded .* module.*\n"
         error_pattern += r"\* OpenMPI/2.1.2-GCC-6.4.0-2.28\n\nThis is not"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules
         build_options.update({'detect_loaded_modules': 'purge'})
@@ -1528,7 +1528,7 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options=build_options)
         error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: "
         error_msg += r"\$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
-        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
+        self.assertRaisesRegex(EasyBuildError, error_msg, check_loaded_modules)
 
         build_options.update({'check_ebroot_env_vars': 'ignore'})
         init_config(build_options=build_options)
@@ -1545,7 +1545,7 @@ class ModulesTest(EnhancedTestCase):
 
         # specified action for detected loaded modules is verified early
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
-        self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
+        self.assertRaisesRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
     def test_NoModulesTool(self):
         """Test use of NoModulesTool class."""
@@ -1919,7 +1919,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
 
         error_pattern = "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules.*'test_lower'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
 
         mod_load_env.TEST_STR = 'some/path'
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
@@ -2064,9 +2064,9 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(alias_load_env.ALIAS_VAR32.contents, ['alias3_path', 'new_path'])
 
         error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
 def suite(loader=None):
