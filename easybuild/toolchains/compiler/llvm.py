@@ -43,7 +43,7 @@ TC_CONSTANT_LLVM = "LLVM"
 
 
 class LLVM(Compiler):
-    """Compiler toolchain with Clang and GFortran compilers."""
+    """Compiler toolchain with LLVM compilers (clang/flang)."""
     # NAME = 'LLVMcore'
     # COMPILER_MODULE_NAME = [NAME]
     COMPILER_FAMILY = TC_CONSTANT_LLVM
@@ -182,7 +182,7 @@ class LLVM(Compiler):
 
         if unsupported_fortran_flags is not None:
             self.log.debug(
-                f"Ensuring usupported Fortran flags `{unsupported_fortran_flags}` are removed from variables"
+                f"Ensuring unsupported Fortran flags `{unsupported_fortran_flags}` are removed from variables"
             )
             for key, lst in self.variables.items():
                 if key not in self.FORTRAN_FLAGS:

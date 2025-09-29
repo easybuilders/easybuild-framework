@@ -38,7 +38,7 @@ from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
 class Lompi(LLVMtc, OpenMPI):
-    """Compiler toolchain with GCC and OpenMPI."""
+    """Compiler toolchain with LLVM and OpenMPI."""
     NAME = 'lompi'
     SUBTOOLCHAIN = LLVMtc.NAME
 

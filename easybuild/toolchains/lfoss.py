@@ -40,7 +40,7 @@ from easybuild.tools import LooseVersion
 
 
 class LFoss(Lompi, FlexiBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with GCC, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
+    """Compiler toolchain with LLVM, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
     NAME = 'lfoss'
     SUBTOOLCHAIN = [
         Lompi.NAME,
