@@ -65,7 +65,7 @@ def nicediff(txta, txtb, offset=5):
 
 
 class TestCase(OrigTestCase):
-    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+    """Enhanced test case, provides extra functionality."""
 
     longMessage = True  # print both standard messgae and custom message
 
