@@ -85,9 +85,9 @@ class TestEBConfigObj(EnhancedTestCase):
         for val, res in data:
             configobj_txt = ['[SUPPORTED]', val]
             co = ConfigObj(configobj_txt)
-            self.assertErrorRegex(EasyBuildError,
-                                  r'First\s+(toolchain|version)\s.*?\scan\'t\s+be\s+used\s+as\s+default',
-                                  EBConfigObj, co)
+            self.assertRaisesRegex(EasyBuildError,
+                                   r'First\s+(toolchain|version)\s.*?\scan\'t\s+be\s+used\s+as\s+default',
+                                   EBConfigObj, co)
 
     def test_squash_simple(self):
         """Test toolchain filter"""
@@ -160,8 +160,8 @@ class TestEBConfigObj(EnhancedTestCase):
         for txt in [txt_wrong_versions, txt_conflict_nested_versions]:
             co = ConfigObj(txt)
             cov = EBConfigObj(co)
-            self.assertErrorRegex(EasyBuildError, r'conflict', cov.squash,
-                                  default_version, tc_first['name'], tc_first['version'])
+            self.assertRaisesRegex(EasyBuildError, r'conflict', cov.squash,
+                                   default_version, tc_first['name'], tc_first['version'])
 
     def test_toolchain_squash_nested(self):
         """Test toolchain filter on nested sections"""

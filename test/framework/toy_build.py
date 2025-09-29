@@ -260,8 +260,8 @@ class ToyBuildTest(EnhancedTestCase):
         broken_toy_ec_txt += "checksums = ['clearywrongSHA256checksumoflength64-0123456789012345678901234567']"
         write_file(broken_toy_ec, broken_toy_ec_txt)
         error_regex = "Checksum verification .* failed"
-        self.assertErrorRegex(EasyBuildError, error_regex, self.run_test_toy_build_with_output, ec_file=broken_toy_ec,
-                              tmpdir=tmpdir, verify=False, fails=True, verbose=False, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_regex, self.run_test_toy_build_with_output, ec_file=broken_toy_ec,
+                               tmpdir=tmpdir, verify=False, fails=True, verbose=False, raise_error=True)
 
         # make sure log file is retained, also for failed build
         log_path_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*.log')
@@ -462,7 +462,7 @@ class ToyBuildTest(EnhancedTestCase):
             'verbose': False,
         }
         err_regex = r"name 'run_shell_cmd' is not defined"
-        self.assertErrorRegex(NameError, err_regex, self.run_test_toy_build_with_output, **kwargs)
+        self.assertRaisesRegex(NameError, err_regex, self.run_test_toy_build_with_output, **kwargs)
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
@@ -881,8 +881,8 @@ class ToyBuildTest(EnhancedTestCase):
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         write_file(test_ec, TOY_EC_TXT + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
-        self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
-                              raise_error=True, raise_systemexit=True)
+        self.assertRaisesRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
+                               raise_error=True, raise_systemexit=True)
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
@@ -1454,8 +1454,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             error_pattern = r"Checksum verification for extension source bar-0.0-local.tar.gz failed"
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                      raise_error=True, verbose=False)
+                self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                       raise_error=True, verbose=False)
 
             # test again with correct checksum for bar-0.0.tar.gz, but faulty checksum for patch file
             test_ec_txt = '\n'.join([
@@ -1478,8 +1478,8 @@ class ToyBuildTest(EnhancedTestCase):
 
             error_pattern = r"Checksum verification for extension patch bar-0.0_fix-local.patch failed"
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                      raise_error=True, verbose=False)
+                self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                       raise_error=True, verbose=False)
 
             # test again with correct checksums
             test_ec_txt = '\n'.join([
@@ -1524,8 +1524,8 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
-            self.assertErrorRegex(EasyBuildError, pat_in_err,
-                                  self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, pat_in_err,
+                                   self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
             self.assertRegex(read_file(self.logfile), pat_in_log)
 
     def test_toy_extension_sources_git_config(self):
@@ -1742,8 +1742,8 @@ class ToyBuildTest(EnhancedTestCase):
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
+                                   raise_error=True, verbose=False)
 
         extraectxt = "\ndependencies += [('nosuchmodule/1.2.3', EXTERNAL_MODULE)]"
         extraectxt += "\nversionsuffix = '-external-deps-broken2'"
@@ -1755,8 +1755,8 @@ class ToyBuildTest(EnhancedTestCase):
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, err_msg, self._test_toy_build, ec_file=toy_ec,
+                                   raise_error=True, verbose=False)
 
         # --dry-run still works when external modules are missing; external modules are treated as if they were there
         with self.mocked_stdout_stderr():
@@ -1783,7 +1783,7 @@ class ToyBuildTest(EnhancedTestCase):
         args = common_args + ['--module-only']
         err_msg = "Sanity check failed"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, err_msg, self.eb_main, args, do_build=True, raise_error=True)
         self.assertNotExists(toy_mod)
 
         with self.mocked_stdout_stderr():
@@ -1803,7 +1803,7 @@ class ToyBuildTest(EnhancedTestCase):
         rebuild_args = args + ['--rebuild']
         err_msg = "Sanity check failed"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, err_msg, self.eb_main, rebuild_args, do_build=True, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, err_msg, self.eb_main, rebuild_args, do_build=True, raise_error=True)
         self.assertNotExists(toy_mod)
 
         # installing another module under a different naming scheme and using Lua module syntax works fine
@@ -1941,8 +1941,8 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = 'Sanity check failed: command "ls -l lib/libbarbar.a" failed'
         for extra_args in (['--module-only'], ['--module-only', '--rebuild']):
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, [test_ec] + extra_args,
-                                      do_build=True, raise_error=True)
+                self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, [test_ec] + extra_args,
+                                       do_build=True, raise_error=True)
         self.assertNotExists(toy_mod)
 
         # failing sanity check for barbar extension is ignored when using --module-only --skip-extensions
@@ -2600,8 +2600,8 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt.replace('PLACEHOLDER', 'false'))
         error_pattern = 'sanity check command echo "Run-Custom-Cmd for barbar" && false failed with exit code 1'
         with self.mocked_stdout_stderr(), self.log_to_testlogfile() as logfile:
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   raise_error=True, verbose=False)
             logtxt = read_file(logfile)
         check_bin_msg = 'Sanity check: found (non-empty) directory bin'
         self.assertEqual(logtxt.count(check_bin_msg), 1, "Check for 'bin' folder should only be done once")
@@ -2633,9 +2633,9 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled
         error_pattern = r"Sanity check failed: no file found at 'lib/libtoy.a' or 'lib/libfoo.a' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                                   raise_error=True, verbose=False)
 
         # all is fine is lib64 fallback check is enabled (which it is by default)
         with self.mocked_stdout_stderr():
@@ -2648,9 +2648,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                                   raise_error=True, verbose=False)
 
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
@@ -2662,9 +2662,9 @@ class ToyBuildTest(EnhancedTestCase):
         # sanity check fails if lib64 fallback in sanity check is disabled, since lib64/libtoy.a is not there
         error_pattern = r"Sanity check failed: no file found at 'lib64/libtoy.a' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                                   raise_error=True, verbose=False)
 
         # sanity check passes when lib64 fallback is enabled (by default), since lib/libtoy.a is also considered
         with self.mocked_stdout_stderr():
@@ -2677,9 +2677,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r"Sanity check failed: no \(non-empty\) directory found at 'lib64' in "
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   extra_args=['--disable-lib64-fallback-sanity-check', '--disable-lib64-lib-symlink'],
+                                   raise_error=True, verbose=False)
 
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, extra_args=['--disable-lib64-lib-symlink'], raise_error=True)
@@ -2844,8 +2844,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = r"Missing mandatory key 'dirs' in sanity_check_paths."
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
-                                  extra_args=eb_args, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=test_ec,
+                                   extra_args=eb_args, raise_error=True, verbose=False)
 
         del sys.modules['easybuild.easyblocks.toy']
 
@@ -3063,8 +3063,8 @@ class ToyBuildTest(EnhancedTestCase):
         eb_args = ['--rpath', '--rpath-override-dirs=/opt/eessi/2021.03/lib:eessi/lib']
         error_pattern = r"Path used in rpath_override_dirs is not an absolute path: eessi/lib"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=eb_args,
-                                  raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=eb_args,
+                                   raise_error=True, verbose=False)
 
         # also test use of --rpath-filter
         args.extend(['--rpath-filter=/test.*,/foo/bar.*', '--disable-cleanup-tmpdir'])
@@ -3127,8 +3127,8 @@ class ToyBuildTest(EnhancedTestCase):
         args = rpath_args + ['--rpath-filter=.*libtoy.*']
         error_pattern = r"Sanity check failed\: Library libtoy\.so not found"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
-                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                   extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
         # test use of --filter-rpath-sanity-libs option. In this test, we use --rpath-filter to make sure libtoy.so is
         # not rpath-ed. Then, we use --filter-rpath-sanity-libs to make sure the RPATH sanity checks ignores
@@ -3176,8 +3176,8 @@ class ToyBuildTest(EnhancedTestCase):
         args = ['libtoy-0.0.eb', '--rebuild', '--rpath', '--rpath-filter=.*libtoy.*',
                 '--filter-env-vars=LD_LIBRARY_PATH']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
-                                  extra_args=args, name='toy-app', raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec,
+                                   extra_args=args, name='toy-app', raise_error=True, verbose=False)
 
     def test_toy_cuda_sanity_check(self):
         """Test the CUDA sanity check"""
@@ -3377,8 +3377,8 @@ class ToyBuildTest(EnhancedTestCase):
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files missing CUDA device code: 4."
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
-                                  extra_args=args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                   extra_args=args, raise_error=True)
             outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
             stdout = self.get_stdout()
         self.assertIn(device_additional_70_90_code_msg, outtxt)
@@ -3406,8 +3406,8 @@ class ToyBuildTest(EnhancedTestCase):
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files missing CUDA PTX code: 4"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
-                                  extra_args=args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                   extra_args=args, raise_error=True)
             outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
             stdout = self.get_stdout()
         self.assertIn(device_additional_70_code_msg, outtxt)
@@ -3437,8 +3437,8 @@ class ToyBuildTest(EnhancedTestCase):
         # We expect this to fail, so first check error, then run again to check output
         error_pattern = r"Files with additional CUDA device code: 4"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
-                                  extra_args=args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, ec_file=toy_ec_cuda,
+                                   extra_args=args, raise_error=True)
             outtxt = self._test_toy_build(ec_file=toy_ec_cuda, extra_args=args, raise_error=False, verify=False)
             stdout = self.get_stdout()
         self.assertIn(device_additional_70_code_msg, outtxt)
@@ -4238,14 +4238,14 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_pattern = "Lock .*_software_toy_0.0.lock already exists, aborting!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
 
         # lock should still be there after it was hit
         self.assertExists(toy_lock_path)
 
         # trying again should give same result
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, raise_error=True, verbose=False)
         self.assertExists(toy_lock_path)
 
         locks_dir = os.path.join(self.test_prefix, 'locks')
@@ -4259,8 +4259,8 @@ class ToyBuildTest(EnhancedTestCase):
         toy_lock_path = os.path.join(locks_dir, toy_lock_fn)
         mkdir(toy_lock_path, parents=True)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build,
-                                  extra_args=extra_args, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build,
+                                   extra_args=extra_args, raise_error=True, verbose=False)
 
         # also test use of --ignore-locks
         with self.mocked_stdout_stderr():
@@ -4324,8 +4324,8 @@ class ToyBuildTest(EnhancedTestCase):
         all_args = extra_args + ['--wait-on-lock-limit=3', '--wait-on-lock-interval=1']
         with self.mocked_stdout_stderr():
             error_pattern = r"Maximum wait time for lock /.*toy_0.0.lock to be released reached: [0-9]+ sec >= 3 sec"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=all_args,
-                                  verify=False, raise_error=True, testing=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build, extra_args=all_args,
+                                   verify=False, raise_error=True, testing=False)
             stderr, stdout = self.get_stderr(), self.get_stdout()
 
         wait_matches = wait_regex.findall(stdout)
@@ -4349,8 +4349,8 @@ class ToyBuildTest(EnhancedTestCase):
         error_pattern = r"Failed to create lock /.*_software_toy_0.0.lock:.* "
         error_pattern += r"(Read-only file system|Permission denied)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self._test_toy_build,
-                                  extra_args=extra_args, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self._test_toy_build,
+                                   extra_args=extra_args, raise_error=True, verbose=False)
 
     def test_toy_lock_cleanup_signals(self):
         """Test cleanup of locks after EasyBuild session gets a cancellation signal."""
@@ -4403,9 +4403,9 @@ class ToyBuildTest(EnhancedTestCase):
                 change_dir(orig_wd)
 
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
-                                          extra_args=extra_args, raise_error=True, testing=False, raise_systemexit=True)
-
+                    self.assertRaisesRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
+                                           extra_args=extra_args, raise_error=True, testing=False,
+                                           raise_systemexit=True)
                     stderr = self.get_stderr().strip()
 
                 pattern = r"^WARNING: signal received \(%s\), " % int(signum)
@@ -4530,14 +4530,14 @@ class ToyBuildTest(EnhancedTestCase):
         # we can make the check fail by defining environment variables picked up by the EB_libtoy easyblock
         os.environ['EB_LIBTOY_BANNED_SHARED_LIBS'] = 'libtoy'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
         del os.environ['EB_LIBTOY_BANNED_SHARED_LIBS']
 
         os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS'] = 'thisisnottheremostlikely'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=libtoy_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
         del os.environ['EB_LIBTOY_REQUIRED_SHARED_LIBS']
 
         # make sure default check passes (so we know better what triggered a failing test)
@@ -4549,28 +4549,28 @@ class ToyBuildTest(EnhancedTestCase):
         # check specifying banned/required libraries via EasyBuild configuration option
         args = ['--banned-linked-shared-libs=%s,foobarbaz' % libtoy_fn, '--module-only']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
 
         args = ['--required-linked-shared=libs=foobarbazisnotthereforsure', '--module-only']
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=libtoy_ec, extra_args=args, raise_error=True, verbose=False)
 
         # check specifying banned/required libraries via easyconfig parameter
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nbanned_linked_shared_libs = ['toy']"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
         test_ec_txt = read_file(libtoy_ec)
         test_ec_txt += "\nrequired_linked_shared_libs = ['thereisnosuchlibraryyoudummy']"
         write_file(test_ec, test_ec_txt)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
-                                  ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
+            self.assertRaisesRegex(EasyBuildError, error_msg, self._test_toy_build, force=False,
+                                   ec_file=test_ec, extra_args=['--module-only'], raise_error=True, verbose=False)
 
         # check behaviour when alternative subdirectories are specified
         test_ec_txt = read_file(libtoy_ec)
@@ -4620,8 +4620,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         args += ['--fail-on-mod-files-gcccore']
         pattern = r"Sanity check failed: One or more \.mod files found in .*/toy/0.0-GCCcore-6.2.0: .*/lib/file.mod"
-        self.assertErrorRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
-                              extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, pattern, self.run_test_toy_build_with_output, ec_file=test_ec,
+                               extra_args=args, verify=False, fails=True, verbose=False, raise_error=True)
 
         test_ec_txt += "\nskip_mod_files_sanity_check = True"
         write_file(test_ec, test_ec_txt)
@@ -4739,8 +4739,8 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         error_pattern = r"shell command 'false \.\.\.' failed in test step"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
-                              ec_file=test_ec, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                               ec_file=test_ec, raise_error=True)
         self.assertNotExists(toy_mod_path)
 
         # make sure that option to ignore test failures works
@@ -4755,8 +4755,8 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         error_pattern = "An error was raised during test step: TOY_TEST_FAIL\nDescription"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
-                              ec_file=test_ec, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
+                               ec_file=test_ec, raise_error=True)
 
         # make sure that option to ignore test failures works
         self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['--ignore-test-failure'],
