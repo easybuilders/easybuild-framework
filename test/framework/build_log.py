@@ -91,7 +91,6 @@ class BuildLogTest(EnhancedTestCase):
              r"Callstack:",
              r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
              r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
-             r'\s+easybuild/base/testing\.py:\d+ in assertRaisesRegex',
              )), re.M)
 
     def test_easybuildlog(self):
