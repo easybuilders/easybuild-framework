@@ -185,7 +185,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['name'], 'gzip')
         self.assertEqual(ec['toolchain']['name'], 'foss')
 
-        self.assertErrorRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
+        self.assertRaisesRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
 
     def test_easyconfig_constants(self):
         """Test available easyconfig constants."""
@@ -214,7 +214,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         test_ec = os.path.join(TESTDIRBASE, 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
+        self.assertRaisesRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
 
         # test default behaviour: auto-converting of mismatched value types
         ecp = EasyConfigParser(test_ec)

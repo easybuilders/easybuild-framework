@@ -68,7 +68,7 @@ class EasyConfigVersion(EnhancedTestCase):
         self.assertTrue(VersionOperator('123'))
 
         error_msg = "Failed to parse '<=' as a version operator string"
-        self.assertErrorRegex(EasyBuildError, error_msg, VersionOperator, '<=')
+        self.assertRaisesRegex(EasyBuildError, error_msg, VersionOperator, '<=')
 
     def test_vop_test(self):
         """Test version checker"""
