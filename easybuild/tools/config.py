@@ -240,6 +240,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_cache_dir',
         'cuda_cache_maxsize',
         'cuda_compute_capabilities',
+        'developer',
         'dump_test_report',
         'easyblock',
         'envvars_user_modules',
