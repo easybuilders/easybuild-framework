@@ -34,7 +34,6 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.package.package_naming_scheme.pns import PackageNamingScheme
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-
 class EasyBuildPNS(PackageNamingScheme):
     """Class implmenting the default EasyBuild packaging naming scheme."""
 
@@ -52,4 +51,4 @@ class EasyBuildPNS(PackageNamingScheme):
             # cfr. http://rpm.org/ticket/56,
             # https://debian-handbook.info/browse/stable/sect.manipulating-packages-with-dpkg.html (see box in 5.4.3)
             ebver.replace('dev', '~dev')
-        return 'eb-%s' % ebver
+        return '%s~eb' % ebver
