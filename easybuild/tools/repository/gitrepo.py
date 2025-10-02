@@ -103,7 +103,7 @@ class GitRepository(FileRepository):
             client = git.Git(self.wc)
             client.clone(self.repo)
             reponame = os.listdir(self.wc)[0]
-            self.log.debug("rep name is %s" % reponame)
+            self.log.debug("Repo name is %s", reponame)
         except (git.GitCommandError, OSError) as err:
             # it might already have existed
             self.log.warning("Git local repo initialization failed, it might already exist: %s", err)
@@ -111,7 +111,7 @@ class GitRepository(FileRepository):
         # local repo should now exist, let's connect to it again
         try:
             self.wc = os.path.join(self.wc, reponame)
-            self.log.debug("connectiong to git repo in %s" % self.wc)
+            self.log.debug("Connecting to git repo in %s", self.wc)
             self.client = git.Git(self.wc)
         except (git.GitCommandError, OSError) as err:
             raise EasyBuildError("Could not create a local git repo in wc %s: %s", self.wc, err)
@@ -119,7 +119,7 @@ class GitRepository(FileRepository):
         # try to get the remote data in the local repo
         try:
             res = self.client.pull()
-            self.log.debug("pulled succesfully to %s in %s" % (res, self.wc))
+            self.log.debug("Pulled succesfully to %s in %s", res, self.wc)
         except (git.GitCommandError, OSError) as err:
             raise EasyBuildError("pull in working copy %s went wrong: %s", self.wc, err)
 
