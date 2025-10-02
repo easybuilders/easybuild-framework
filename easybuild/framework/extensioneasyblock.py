@@ -176,8 +176,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             # make sure Extension sanity check step is run once, by using a single empty list of extra modules
             lists_of_extra_modules = [[]]
 
-        saved_sanity_check_fail_msgs = self.sanity_check_fail_msgs
-        self.sanity_check_fail_msgs = []
         # only load fake module + extra modules for stand-alone installations (not for extensions),
         # since for extension the necessary modules should already be loaded at this point;
         # take into account that module may already be loaded earlier in sanity check
@@ -204,9 +202,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.log.info("Sanity check for %s successful!", self.name)
         else:
             sanity_check_ok = False
-            if self.is_extension:
-                self.sanity_check_fail_msgs = saved_sanity_check_fail_msgs + self.sanity_check_fail_msgs
-            else:
+            if not self.is_extension:
                 msg = "Sanity check for %s failed: %s" % (self.name, '; '.join(self.sanity_check_fail_msgs))
                 raise EasyBuildError(msg)
 
