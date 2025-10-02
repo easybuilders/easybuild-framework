@@ -2982,7 +2982,8 @@ class EasyBlock:
             if os.path.isabs(self.rpath_wrappers_dir):
                 _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
             else:
-                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s",
+                                     self.rpath_wrappers_dir)
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
