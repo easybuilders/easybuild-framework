@@ -679,11 +679,10 @@ class EasyBlock:
                         'name': ext_name,
                         'version': ext_version,
                         'options': ext_options,
+                        # if a particular easyblock is specified, make sure it's used
+                        # (this is picked up by init_ext_instances)
+                        'easyblock': ext_options.get('easyblock', None),
                     }
-
-                    # if a particular easyblock is specified, make sure it's used
-                    # (this is picked up by init_ext_instances)
-                    ext_src['easyblock'] = ext_options.get('easyblock', None)
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
@@ -1833,7 +1832,7 @@ class EasyBlock:
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
 
-    def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
+    def expand_module_search_path(self, *_, **__):
         """
         REMOVED in EasyBuild 5.1, use EasyBlock.module_load_environment.expand_paths instead
         """
@@ -2799,7 +2798,7 @@ class EasyBlock:
                 # if the filename is a dict, the actual source file name is the "filename" element
                 if isinstance(fn, dict):
                     fn = fn["filename"]
-                if fn in checksums_from_json.keys():
+                if fn in checksums_from_json:
                     checksums += [checksums_from_json[fn]]
 
         if source_cnt is None:
