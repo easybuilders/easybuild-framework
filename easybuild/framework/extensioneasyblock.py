@@ -72,8 +72,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
     def __init__(self, *args, **kwargs):
         """Initialize either as EasyBlock or as Extension."""
 
-        self.is_extension = False
-
         if isinstance(args[0], EasyBlock):
             # make sure that extra custom easyconfig parameters are known
             extra_params = self.__class__.extra_options()
@@ -193,8 +191,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             Extension.sanity_check_step(self)
 
         super().sanity_check_step(custom_paths=custom_paths,
-                                  custom_commands=custom_commands,
-                                  extension=self.is_extension)
+                                  custom_commands=custom_commands)
 
         # pass or fail sanity check
         if not self.sanity_check_fail_msgs:
