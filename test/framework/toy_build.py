@@ -1973,7 +1973,7 @@ class ToyBuildTest(EnhancedTestCase):
         move_file(libbarbar, libbarbar + '.foobar')
 
         # check whether sanity check fails now when using --module-only
-        error_pattern = 'Sanity check failed: command "ls -l lib/libbarbar.a" failed'
+        error_pattern = 'Sanity check failed: .*barbar\n.*command "ls -l lib/libbarbar.a" failed'
         for extra_args in (['--module-only'], ['--module-only', '--rebuild']):
             with self.mocked_stdout_stderr():
                 self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, [test_ec] + extra_args,

@@ -4079,7 +4079,7 @@ class EasyBlock:
 
         return fail_msg
 
-    def _sanity_check_step_common(self, custom_paths, custom_commands):
+    def _sanity_check_step_common(self, custom_paths, custom_commands, is_extension=False):
         """
         Determine sanity check paths and commands to use.
 
@@ -4116,8 +4116,10 @@ class EasyBlock:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
-                paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s", paths)
+                # Default paths for extensions are handled in the parent easyconfig if desired
+                if not is_extension:
+                    paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
+                    self.log.info("Using default sanity check paths: %s", paths)
 
             # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
             # those paths are used to enhance the paths provided by the easyblock
@@ -4137,9 +4139,11 @@ class EasyBlock:
         # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
         only_list_values = all(isinstance(x, list) for x in paths.values())
         only_empty_lists = all(not x for x in paths.values())
-        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+        if sorted_keys != known_keys or not only_list_values or (only_empty_lists and not is_extension):
             error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
-            error_msg += "values should be lists (at least one non-empty)."
+            error_msg += "values should be lists"
+            if not is_extension:
+                error_msg += " (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
 
         # Resolve arch specific entries
@@ -4194,14 +4198,15 @@ class EasyBlock:
 
         return paths, path_keys_and_check, commands
 
-    def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, **_):
+    def _sanity_check_step_dry_run(self, custom_paths=None, custom_commands=None, extension=False, **_):
         """
         Dry run version of sanity_check_step method.
 
         :param custom_paths: custom sanity check paths to check existence for
         :param custom_commands: custom sanity check commands to run
         """
-        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
+        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands,
+                                                                              is_extension=extension)
 
         for key in [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS]:
             (typ, _) = path_keys_and_check[key]
@@ -4305,7 +4310,8 @@ class EasyBlock:
         :param extension: indicates whether or not sanity check is run for an extension
         :param extra_modules: extra modules to load before running sanity check commands
         """
-        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
+        paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands,
+                                                                              is_extension=extension)
 
         # helper function to sanity check (alternatives for) one particular path
         def check_path(xs, typ, check_fn):
@@ -4397,20 +4403,21 @@ class EasyBlock:
             else:
                 self._sanity_check_step_extensions()
 
-        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
-        if linked_shared_lib_fails:
-            self.log.warning("Check for required/banned linked shared libraries failed!")
-            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+            # Do not do those checks for extensions, only in the main easyconfig
+            linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+            if linked_shared_lib_fails:
+                self.log.warning("Check for required/banned linked shared libraries failed!")
+                self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
-        # software installed with GCCcore toolchain should not have Fortran module files (.mod),
-        # unless that's explicitly allowed
-        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
-            mod_files_found_msg = self.sanity_check_mod_files()
-            if mod_files_found_msg:
-                if build_option('fail_on_mod_files_gcccore'):
-                    self.sanity_check_fail_msgs.append(mod_files_found_msg)
-                else:
-                    print_warning(mod_files_found_msg)
+            # software installed with GCCcore toolchain should not have Fortran module files (.mod),
+            # unless that's explicitly allowed
+            if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
+                mod_files_found_msg = self.sanity_check_mod_files()
+                if mod_files_found_msg:
+                    if build_option('fail_on_mod_files_gcccore'):
+                        self.sanity_check_fail_msgs.append(mod_files_found_msg)
+                    else:
+                        print_warning(mod_files_found_msg)
 
         # cleanup
         if self.fake_mod_data:
@@ -4440,13 +4447,13 @@ class EasyBlock:
             self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
 
         # pass or fail
-        if self.sanity_check_fail_msgs:
+        if not self.sanity_check_fail_msgs:
+            self.log.debug("Sanity check passed!")
+        elif not extension:
             raise EasyBuildError(
                 "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs),
                 exit_code=EasyBuildExit.FAIL_SANITY_CHECK,
             )
-
-        self.log.debug("Sanity check passed!")
 
     def _set_module_as_default(self, fake=False):
         """

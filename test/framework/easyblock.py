@@ -2615,6 +2615,52 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr(), self.saved_env():
             eb.run_all_steps(True)
 
+        # Verify custom paths and commands of extensions are checked
+        toy_ec_fn = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec_fn)
+
+        self.contents = toy_ec_txt + textwrap.dedent("""
+            exts_defaultclass = 'DummyExtension'
+            exts_filter = ('true', '')
+            exts_list = [
+                ('bar', '0.0', {
+                    'sanity_check_commands': ['echo "%(name)s extension output"'],
+                    'sanity_check_paths': {'dirs': ['.'], 'files': ['any_file']},
+                }),
+                ('barbar', '0.0', {'sanity_check_commands': ['echo "%(name)s extension output"']}),
+            ]
+            sanity_check_commands = ['echo "%(name)s output"']
+            sanity_check_paths = {
+                'dirs': ['.'],
+                'files': [],
+            }
+        """)
+
+        self.writeEC()
+        eb = EB_toy(EasyConfig(self.eb_file))
+        eb.silent = True
+        write_file(os.path.join(eb.installdir, 'any_file'), '')
+        with self.mocked_stdout_stderr(), self.saved_env():
+            eb.sanity_check_step()
+        logtxt = read_file(eb.logfile)
+        self.assertRegex(logtxt, 'sanity check command.*echo "toy output" ran successfully')
+        self.assertRegex(logtxt, 'sanity check command.*echo "bar extension output" ran successfully')
+        self.assertRegex(logtxt, 'Using .*sanity check paths .*any_file')
+        self.assertRegex(logtxt, 'sanity check command.*echo "barbar extension output" ran successfully')
+        # Only do this once, not for every extension which would be redundant
+        self.assertEqual(logtxt.count('Checking for banned/required linked shared libraries'), 1)
+
+        # Verify that sanity_check_paths are actually verified
+        self.contents += "\nexts_list[-1][2]['sanity_check_paths'] = {'dirs': [], 'files': ['nosuchfile']}"
+        self.writeEC()
+        eb = EB_toy(EasyConfig(self.eb_file))
+        eb.silent = True
+        write_file(os.path.join(eb.installdir, 'any_file'), '')
+        with self.mocked_stdout_stderr():
+            self.assertRaisesRegex(EasyBuildError,
+                                   "extensions sanity check failed for 1 extensions: barbar\n.*nosuchfile",
+                                   eb.sanity_check_step)
+
     def test_parallel(self):
         """Test defining of parallelism."""
         topdir = os.path.abspath(os.path.dirname(__file__))
