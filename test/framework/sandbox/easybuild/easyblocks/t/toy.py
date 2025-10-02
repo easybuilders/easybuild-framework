@@ -81,9 +81,10 @@ class EB_toy(ExtensionEasyBlock):
         """
         Prepare for installing toy extensions.
         """
-        # insert new packages by building them with RPackage
-        self.cfg['exts_defaultclass'] = "Toy_Extension"
-        self.cfg['exts_filter'] = ("%(ext_name)s", "")
+        if not self.cfg.get('exts_defaultclass', resolve=False):
+            self.cfg['exts_defaultclass'] = "Toy_Extension"
+        if not self.cfg.get('exts_filter', resolve=False):
+            self.cfg['exts_filter'] = ("%(ext_name)s", "")
 
     def run_all_steps(self, *args, **kwargs):
         """

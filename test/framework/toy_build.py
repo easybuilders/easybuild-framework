@@ -1357,7 +1357,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = f"{toy_ec_txt}\n" + textwrap.dedent("""
-            exts_defaultclass = "DummyExtension"
             exts_list = [
                ("bar", "0.0", {
                    "buildopts": " && ls -l test.txt",
@@ -1423,7 +1422,6 @@ class ToyBuildTest(EnhancedTestCase):
             # test use of single-element list in 'sources' with just the filename
             test_ec_txt = '\n'.join([
                 toy_ec_txt,
-                'exts_defaultclass = "DummyExtension"',
                 'exts_list = [',
                 '   ("bar", "0.0", {',
                 '       "sources": %s,' % bar_sources_spec,
@@ -1451,7 +1449,6 @@ class ToyBuildTest(EnhancedTestCase):
 
             test_ec_txt = '\n'.join([
                 toy_ec_txt,
-                'exts_defaultclass = "DummyExtension"',
                 'exts_list = [',
                 '   ("bar", "0.0", {',
                 '       "source_urls": ["file://%s"],' % test_source_path,
@@ -1467,7 +1464,6 @@ class ToyBuildTest(EnhancedTestCase):
             # check that checksums are picked up and verified
             test_ec_txt = '\n'.join([
                 toy_ec_txt,
-                'exts_defaultclass = "DummyExtension"',
                 'exts_list = [',
                 '   ("bar", "0.0", {',
                 '       "source_urls": ["file://%s"],' % test_source_path,
@@ -1491,7 +1487,6 @@ class ToyBuildTest(EnhancedTestCase):
             # test again with correct checksum for bar-0.0.tar.gz, but faulty checksum for patch file
             test_ec_txt = '\n'.join([
                 toy_ec_txt,
-                'exts_defaultclass = "DummyExtension"',
                 'exts_list = [',
                 '   ("bar", "0.0", {',
                 '       "source_urls": ["file://%s"],' % test_source_path,
@@ -1515,7 +1510,6 @@ class ToyBuildTest(EnhancedTestCase):
             # test again with correct checksums
             test_ec_txt = '\n'.join([
                 toy_ec_txt,
-                'exts_defaultclass = "DummyExtension"',
                 'exts_list = [',
                 '   ("bar", "0.0", {',
                 '       "source_urls": ["file://%s"],' % test_source_path,
@@ -1541,7 +1535,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = '\n'.join([
             toy_ec_txt,
-            'exts_defaultclass = "DummyExtension"',
             'exts_list = [',
             '   ("bar", "0.0", {',
             # deliberately incorrect custom extract command, just to verify that it's picked up
@@ -1582,7 +1575,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt = '\n'.join([
             toy_ec_txt,
             'prebuildopts = "echo \\\"%s\\\" > %s && ",' % (ext_code, ext_cfile),
-            'exts_defaultclass = "DummyExtension"',
             'exts_list = [',
             '   ("exts-git", "0.0", {',
             '       "buildopts": "&& ls -l %s %s",' % (ext_tarball, ext_tarfile),
@@ -1945,7 +1937,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += '\n' + '\n'.join([
             "sanity_check_commands = ['barbar', 'toy']",
             "sanity_check_paths = {'files': ['bin/barbar', 'bin/toy'], 'dirs': ['bin']}",
-            "exts_defaultclass = 'DummyExtension'",
             "exts_list = [",
             "    ('barbar', '0.0', {",
             "        'start_dir': 'src',",
@@ -2015,7 +2006,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += '\n' + '\n'.join([
-            "exts_defaultclass = 'DummyExtension'",
             "exts_list = [",
             "    ('ls'),",
             "    ('bar', '0.0'),",
@@ -2396,7 +2386,6 @@ class ToyBuildTest(EnhancedTestCase):
         ec1 = os.path.join(self.test_prefix, 'toy1.eb')
         ec1_txt = '\n'.join([
             toy_ec_txt,
-            "exts_defaultclass = 'DummyExtension'",
             "exts_list = [('barbar', '1.2', {'start_dir': 'src'})]",
             "",
         ])
@@ -3647,7 +3636,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec) + '\n'.join([
             "exts_list = [('bar', '0.0'), ('toy', '0.0')]",
-            "exts_defaultclass = 'DummyExtension'",
         ])
         write_file(test_ec, test_ec_txt)
 
@@ -3811,7 +3799,6 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # also inject (minimal) list of extensions to test iterative installation of extensions
-        test_ec_txt += "\nexts_defaultclass = 'DummyExtension'"
         test_ec_txt += "\nexts_list = [('barbar', '1.2', {'start_dir': 'src'})]"
 
         test_ec_txt += "\nmulti_deps = {'GCC': ['4.6.3', '7.3.0-2.30']}"

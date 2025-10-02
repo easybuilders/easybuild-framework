@@ -2596,7 +2596,6 @@ class EasyBlockTest(EnhancedTestCase):
             exts_list = toy_ec['exts_list']
             exts_list[-1][2]['exts_filter'] = ("thisshouldfail", '')
             toy_ec['exts_list'] = exts_list
-            toy_ec['exts_defaultclass'] = 'DummyExtension'
 
         eb = EB_toy(toy_ec)
         eb.silent = True
@@ -2611,7 +2610,6 @@ class EasyBlockTest(EnhancedTestCase):
         # sanity check commands are checked after checking sanity check paths, so this should work
         toy_ec = EasyConfig(toy_ec_fn)
         toy_ec.update('sanity_check_commands', [("%(installdir)s/bin/toy && rm %(installdir)s/bin/toy", '')])
-        toy_ec['exts_defaultclass'] = 'DummyExtension'
         eb = EB_toy(toy_ec)
         eb.silent = True
         with self.mocked_stdout_stderr(), self.saved_env():

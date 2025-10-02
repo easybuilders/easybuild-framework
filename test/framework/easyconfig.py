@@ -1529,7 +1529,6 @@ class EasyConfigTest(EnhancedTestCase):
             preconfigopts = 'echo start_dir in configure is %(start_dir)s && '
             prebuildopts = 'echo start_dir in build is %(start_dir)s && '
 
-            exts_defaultclass = 'EB_Toy'
             exts_list = [
                ('bar', '0.0', {
                    'sources': ['bar-0.0-local.tar.gz'],
