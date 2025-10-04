@@ -318,6 +318,7 @@ BUILD_OPTIONS_CMDLINE = {
         'experimental',
         'extended_dry_run',
         'fail_on_mod_files_gcccore',
+        'fetch_continue',
         'force',
         'generate_devel_module',
         'group_writable_installdir',
