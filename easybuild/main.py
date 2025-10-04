@@ -586,7 +586,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # build software, will exit when errors occurs (except when testing)
     if not testing or (testing and do_build):
-        exit_on_failure = not (options.dump_test_report or options.upload_test_report)
+        exit_on_failure = not (options.dump_test_report or options.upload_test_report or build_option('fetch_continue'))
 
         with rich_live_cm():
             run_hook(PRE_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ordered_ecs])
