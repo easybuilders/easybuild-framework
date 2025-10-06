@@ -1095,6 +1095,8 @@ class ModulesTool:
         :param init_env: original environment to restore after running 'module purge'
         :param allow_reload: allow reloading an already loaded module
         """
+        if not any((modules, mod_paths, purge)):
+            return  # Avoid costly module paths if nothing to do
         if mod_paths is None:
             mod_paths = []
 
