@@ -53,7 +53,6 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, EasyBuildLog
 from easybuild.tools.config import DEFAULT_MODULECLASSES, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
 from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_http_header_fields_urlpat
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
@@ -4322,7 +4321,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # cleanup
             os.close(fd)
             shutil.rmtree(mytmpdir)
-            modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
 
         orig_tmpdir = tempfile.gettempdir()
@@ -4333,7 +4331,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.path.join(orig_tmpdir, '[ab @cd]%/#*'),
         ]
         for tmpdir in cand_tmpdirs:
-            check_tmpdir(tmpdir)
+            with self.saved_env():
+                check_tmpdir(tmpdir)
 
     def test_minimal_toolchains(self):
         """End-to-end test for --minimal-toolchains."""

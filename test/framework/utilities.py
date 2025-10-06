@@ -501,9 +501,9 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
-    for key in default_build_options:
+    for key, def_option in default_build_options.items():
         if key not in build_options:
-            build_options[key] = default_build_options[key]
+            build_options[key] = def_option
 
     config.init_build_options(build_options=build_options)
 
