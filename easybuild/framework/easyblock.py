@@ -91,13 +91,14 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock, clean_dir
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
 from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
-from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url, is_binary, is_parent_path
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, remove_lock, symlink, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
+from easybuild.tools.filetools import weld_paths, write_file
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EASYBLOCK, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP,
     MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
@@ -1187,10 +1188,13 @@ class EasyBlock:
         # unless we're building in installation directory and we iterating over a list of (pre)config/build/installopts,
         # otherwise we wipe the already partially populated installation directory,
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
-        if not (self.build_in_installdir and self.iter_idx > 0):
-            # make sure we no longer sit in the build directory before cleaning it.
+        if self.build_in_installdir and self.iter_idx > 0:
+            pass
+        else:
+            # make sure we no longer sit in the build directory before removing it.
             change_dir(self.orig_workdir)
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+            # if we’re building in installation directory, clean it
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], clean_instead_of_remove=self.build_in_installdir)
 
         trace_msg("build dir: %s" % self.builddir)
 
@@ -1236,9 +1240,10 @@ class EasyBlock:
         if self.build_in_installdir:
             self.cfg['keeppreviousinstall'] = True
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
-        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
+        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate,
+                      clean_instead_of_remove=True)
 
-    def make_dir(self, dir_name, clean, dontcreateinstalldir=False):
+    def make_dir(self, dir_name, clean, dontcreateinstalldir=False, clean_instead_of_remove=False):
         """
         Create the directory.
         """
@@ -1249,15 +1254,24 @@ class EasyBlock:
                 return
             elif build_option('module_only') or self.cfg['module_only']:
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
-            elif clean:
-                remove_dir(dir_name)
-                self.log.info("Removed old directory %s", dir_name)
             else:
-                self.log.info("Moving existing directory %s out of the way...", dir_name)
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
-                backupdir = "%s.%s" % (dir_name, timestamp)
-                move_file(dir_name, backupdir)
-                self.log.info("Moved old directory %s to %s", dir_name, backupdir)
+                if not clean:
+                    self.log.info("Creating backup of directory %s...", dir_name)
+                    timestamp = time.strftime("%Y%m%d-%H%M%S")
+                    backupdir = "%s.%s" % (dir_name, timestamp)
+                    if clean_instead_of_remove:
+                        copy_dir(dir_name, backupdir)
+                        self.log.info(f"Copied old directory {dir_name} to {backupdir}")
+                    else:
+                        move_file(dir_name, backupdir)
+                        self.log.info(f"Moved old directory {dir_name} to {backupdir}")
+                if clean_instead_of_remove:
+                    # clean the installation directory: first try to remove it; if that fails, empty it
+                    clean_dir(dir_name)
+                    self.log.info(f"Cleaned old directory {dir_name}")
+                elif clean:
+                    remove_dir(dir_name)
+                    self.log.info(f"Removed old directory {dir_name}")
 
         if dontcreateinstalldir:
             olddir = dir_name
@@ -1871,10 +1885,14 @@ class EasyBlock:
 
         # create fake module
         fake_mod_path = self.make_module_step(fake=True)
+        full_fake_mod_path = os.path.join(fake_mod_path, self.mod_subdir)
+
+        # indicate that path to fake module should get absolute priority
+        mod_paths = [(full_fake_mod_path, 10000)]
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
+        self.load_module(purge=purge, extra_modules=extra_modules, mod_paths=mod_paths, verbose=verbose)
+
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
@@ -1886,7 +1904,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name])
+                self.modules_tool.unload([self.short_mod_name], log_changes=False)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
@@ -1895,7 +1913,8 @@ class EasyBlock:
             self.log.warning("Not unloading module, since self.short_mod_name is not set.")
 
         # restore original environment
-        restore_env(env)
+        self.log.info("Restoring environment after unloading fake module")
+        restore_env(env, log_changes=False)
 
     def load_dependency_modules(self):
         """Load dependency modules."""
@@ -5039,7 +5058,7 @@ def build_and_install_one(ecdict, init_env):
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        run_test_cases = not build_option('skip_test_cases') and app.cfg.get_ref('tests')
 
         if not dry_run:
             # create our reproducibility files before carrying out the easyblock steps
@@ -5249,6 +5268,11 @@ def build_and_install_one(ecdict, init_env):
     run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
 
     del app
+
+    # take into account that log file may not exist,
+    # for example when we're operating in extended dry run mode (-x)
+    if not os.path.exists(application_log):
+        application_log = None
 
     return (success, application_log, error_msg, exit_code)
 

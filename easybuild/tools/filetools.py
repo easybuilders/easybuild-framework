@@ -376,6 +376,26 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove file %s: %s", path, err)
 
 
+def empty_dir(path):
+    """Empty directory at specified path, keeping directory itself intact."""
+    # early exit in 'dry run' mode
+    if build_option('extended_dry_run'):
+        dry_run_msg(f"directory {path} emptied", silent=build_option('silent'))
+        return
+
+    if os.path.exists(path):
+        try:
+            for item in os.listdir(path):
+                subpath = os.path.join(path, item)
+                if os.path.isfile(subpath) or os.path.islink(subpath):
+                    remove_file(subpath)
+                elif os.path.isdir(subpath):
+                    remove_dir(subpath)
+            _log.info(f"Path {path} successfully emptied.")
+        except OSError as err:
+            raise EasyBuildError(f"Failed to empty directory {path}: {err}")
+
+
 def remove_dir(path):
     """Remove directory at specified path."""
     # early exit in 'dry run' mode
@@ -404,6 +424,18 @@ def remove_dir(path):
         else:
             raise EasyBuildError("Failed to remove directory %s even after %d attempts.\nReasons: %s",
                                  path, max_attempts, errors)
+
+
+def clean_dir(path):
+    """
+    Try to remove directory at specified path.
+    If that fails, empty directory instead.
+    """
+    try:
+        remove_dir(path)
+    except EasyBuildError as err:
+        _log.debug(f"Removing directory {path} failed, will try to empty it instead: {err}")
+        empty_dir(path)
 
 
 def remove(paths):
@@ -1952,7 +1984,7 @@ def adjust_permissions(provided_path, permission_bits, add=True, onlyfiles=False
     if failed_paths:
         raise EasyBuildError("Failed to chmod/chown several paths: %s (last error: %s)", failed_paths, err_msg)
 
-    # we ignore some errors, but if there are to many, something is definitely wrong
+    # we ignore some errors, but if there are too many, something is definitely wrong
     fail_ratio = fail_cnt / float(len(allpaths))
     max_fail_ratio = float(build_option('max_fail_ratio_adjust_permissions'))
     if fail_ratio > max_fail_ratio:

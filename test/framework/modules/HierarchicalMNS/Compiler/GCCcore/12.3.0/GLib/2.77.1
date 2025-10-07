@@ -1,0 +1,32 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+GLib is one of the base libraries of the GTK+ project
+
+
+More information
+================
+ - Homepage: https://www.gtk.org/
+    }
+}
+
+module-whatis {Description: GLib is one of the base libraries of the GTK+ project}
+module-whatis {Homepage: https://www.gtk.org/}
+module-whatis {URL: https://www.gtk.org/}
+
+set root /tmp/software/GLib/2.77.1-GCCcore-12.3.0
+
+conflict GLib
+
+module load gettext/0.21.1
+
+module load util-linux/2.39
+
+setenv	EBROOTGLIB		"$root"
+setenv	EBVERSIONGLIB		"2.77.1"
+setenv	EBDEVELGLIB		"$root/easybuild/Compiler-GCCcore-12.3.0-GLib-2.77.1-easybuild-devel"
+
+# Built with EasyBuild version 5.1.2.dev0-r5819168038d7bd74810f38f75acfced9fb41870e
