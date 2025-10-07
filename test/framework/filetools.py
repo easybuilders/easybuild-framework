@@ -2687,7 +2687,7 @@ class FileToolsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        self.assertRegEx(txt, "^directory [^ ]* emptied$")
+        self.assertRegex(txt, "^directory [^ ]* emptied$")
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
