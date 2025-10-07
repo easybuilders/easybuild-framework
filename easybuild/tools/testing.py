@@ -240,18 +240,18 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
             additional_info = ''
             if ec_res.get('success', False):
                 test_result = 'SUCCESS'
-                test_result_descr = ''
+                error_descr = ''
             else:
                 test_result = 'FAIL'
                 # compose test result string
                 if 'err' in ec_res:
                     if isinstance(ec_res['err'], EasyBuildError):
-                        test_result_descr = '(build issue)'
+                        error_descr = '(build issue)'
                     else:
-                        test_result_descr = '(unhandled exception: `%s`)' % ec_res['err']
+                        error_descr = '(unhandled exception: `%s`)' % ec_res['err']
                         additional_info = f"```{ec_res['traceback']}\n```"
                 else:
-                    test_result_descr = '(unknown cause, not an exception?!)'
+                    error_descr = '(unknown cause, not an exception?!)'
 
                 # create gist for log file (if desired and available)
                 if gist_log and 'log_file' in ec_res:
@@ -267,10 +267,12 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
 
                     fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                     gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
-                    additional_info += "(partial log available at %s)" % gist_url
+                    additional_info += f"(partial log available at {gist_url})"
 
             filename = os.path.basename(ec['spec'])
-            build_overview.append(f" * **{test_result}** _{filename}_ {test_result_descr}\n  {additional_info}")
+            if error_descr:
+                error_descr = f"**{error_descr}**"  # Make bold if set                
+            build_overview.append(f" * **{test_result}** _{filename}_ {error_descr}\n  {additional_info}")
         build_overview.append("")
         test_report.extend(build_overview)
 
