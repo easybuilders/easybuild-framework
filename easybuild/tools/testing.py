@@ -271,7 +271,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
 
             filename = os.path.basename(ec['spec'])
             if error_descr:
-                error_descr = f"**{error_descr}**"  # Make bold if set                
+                error_descr = f"**{error_descr}**"  # Make bold if set
             build_overview.append(f" * **{test_result}** _{filename}_ {error_descr}\n  {additional_info}")
         build_overview.append("")
         test_report.extend(build_overview)
