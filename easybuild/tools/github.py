@@ -753,13 +753,6 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
     # download tarball for specific commit
     repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
 
-    if github_repo == GITHUB_EASYCONFIGS_REPO:
-        files_subdir = 'easybuild/easyconfigs/'
-    elif github_repo == GITHUB_EASYBLOCKS_REPO:
-        files_subdir = 'easybuild/easyblocks/'
-    else:
-        raise EasyBuildError("Unknown repo: %s", github_repo, exit_code=EasyBuildExit.OPTION_ERROR)
-
     # symlink subdirectories of 'easybuild/easy{blocks,configs}' into path that gets added to robot search path
     mkdir(path, parents=True)
     dirpath = os.path.join(repo_commit, easybuild_subdir)
@@ -768,6 +761,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
     # copy specified files to directory where they're expected to be found
     file_paths = []
+    subdir_prefix = easybuild_subdir + os.path.sep
     for file in files:
 
         # if only filename is specified, we need to determine the file path
@@ -782,8 +776,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
         # strip of leading subdirectory like easybuild/easyconfigs/ or easybuild/easyblocks/
         # because that's what expected by robot_find_easyconfig
-        if file.startswith(files_subdir):
-            file = file[len(files_subdir):]
+        if file.startswith(subdir_prefix):
+            file = file[len(subdir_prefix):]
 
         # if file is found, copy it to dedicated directory;
         # if not, just skip it (may be an easyconfig file in local directory);
