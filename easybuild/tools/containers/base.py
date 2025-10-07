@@ -37,7 +37,7 @@ from easybuild.tools.containers.utils import check_tool
 from easybuild.tools.filetools import write_file
 
 
-class ContainerGenerator(object):
+class ContainerGenerator:
     """
     The parent class for concrete container recipe and image generator.
     Subclasses have to provide at least template resolution and image creation logic.

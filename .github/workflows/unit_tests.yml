@@ -13,7 +13,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-        lmod8: Lmod-8.7.58
+        lmod8: Lmod-8.7.65
         modules4: modules-4.5.3
         modules5: modules-5.3.1
     steps:

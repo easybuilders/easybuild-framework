@@ -55,7 +55,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 111
+TEST_MODULES_COUNT = 118
 
 
 class ModulesTest(EnhancedTestCase):
@@ -429,7 +429,7 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
         # exclude modules not on the top level of a hierarchy
         ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
-                                    m.startswith('CategorizedHMNS'))]
+                                    m.startswith('CategorizedHMNS') or m.startswith('HierarchicalMNS'))]
 
         for m in ms:
             self.modtool.load([m])
@@ -479,6 +479,21 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
+
+        # test loading of module when particular module path has priority over others
+        if isinstance(self.modtool, Lmod):
+            mod_paths = [
+                os.path.join(self.test_prefix, 'one'),
+                (os.path.join(self.test_prefix, 'two'), 10000),
+                os.path.join(self.test_prefix, 'three'),
+            ]
+            for mod_path in mod_paths:
+                if isinstance(mod_path, tuple):
+                    mod_path = mod_path[0]
+                mod_file = os.path.join(mod_path, 'test', '1.2.3.lua')
+                write_file(mod_file, 'setenv("TEST_PARENT_DIR", "%s")' % os.path.basename(mod_path))
+            self.modtool.load(['test/1.2.3'], mod_paths=mod_paths)
+            self.assertEqual(os.getenv('TEST_PARENT_DIR'), 'two')
 
     def test_show(self):
         """Test for ModulesTool.show method."""
@@ -1756,6 +1771,219 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_envar.contents, ['new_path_1', 'new_path_2'])
         self.assertRaises(TypeError, mod_envar.update, 'arg1', 'arg2')
 
+    def test_module_environment_variable_expand_paths(self):
+        """Testcase for ModuleEnvironmentVariable.expand_paths"""
+
+        # create test directories and files
+        installdir = tempfile.mkdtemp()
+        test_directories = (
+            'empty_dir',
+            'dir_empty_subdir',
+            ('dir_empty_subdir', 'empty_subdir'),
+            'dir_with_file',
+            'dir_full_subdirs',
+            ('dir_full_subdirs', 'subdir1'),
+            ('dir_full_subdirs', 'subdir2'),
+        )
+        for path in test_directories:
+            path_components = (path, ) if isinstance(path, str) else path
+            os.mkdir(os.path.join(installdir, *path_components))
+
+        write_file(os.path.join(installdir, 'dir_with_file', 'file.txt'), 'test file')
+        write_file(os.path.join(installdir, 'dir_full_subdirs', 'subdir1', 'file11.txt'), 'test file 1.1')
+        write_file(os.path.join(installdir, 'dir_full_subdirs', 'subdir1', 'file12.txt'), 'test file 1.2')
+        write_file(os.path.join(installdir, 'dir_full_subdirs', 'subdir2', 'file21.txt'), 'test file 2.1')
+
+        def assert_expanded_paths(test_paths, references, installdir):
+            mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+            for var_type, ref_value in references:
+                mod_envar.type = var_type
+                self.assertEqual(sorted(mod_envar.expand_paths(installdir)), sorted(ref_value))
+
+        # test simple paths
+        test_paths = ['nonexistent', 'empty_dir', 'dir_empty_subdir', 'dir_with_file', 'dir_full_subdirs']
+        references = (
+            (mod.ModEnvVarType.PATH, ['empty_dir', 'dir_empty_subdir', 'dir_with_file', 'dir_full_subdirs']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['dir_with_file', 'dir_full_subdirs']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['dir_with_file']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['dir_with_file', 'dir_full_subdirs']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test globs
+        test_paths = ['dir_empty_subdir/*', 'dir_full_subdirs/*', 'dir_full_subdirs/subdir2/*', 'nonexistent/*']
+        references = (
+            (mod.ModEnvVarType.PATH, [
+                "dir_empty_subdir/empty_subdir",
+                "dir_full_subdirs/subdir1",
+                "dir_full_subdirs/subdir2",
+                "dir_full_subdirs/subdir2/file21.txt",
+            ]),
+            (mod.ModEnvVarType.PATH_WITH_FILES, [
+                "dir_full_subdirs/subdir1",
+                "dir_full_subdirs/subdir2",
+                "dir_full_subdirs/subdir2/file21.txt",
+            ]),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, [
+                "dir_full_subdirs/subdir1",
+                "dir_full_subdirs/subdir2",
+                "dir_full_subdirs/subdir2/file21.txt",
+            ]),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, [
+                "dir_full_subdirs/subdir1",
+                "dir_full_subdirs/subdir2",
+                "dir_full_subdirs/subdir2/file21.txt",
+            ]),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test just one lib directory
+        os.mkdir(os.path.join(installdir, "lib"))
+
+        test_paths = ['lib', 'lib64']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, []),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, []),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        write_file(os.path.join(installdir, 'lib', 'libtest.so'), "not actually a lib")
+        test_paths = ['lib', 'lib64']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test both lib and lib64 directories
+        os.mkdir(os.path.join(installdir, "lib64"))
+        test_paths = ['lib*']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib', 'lib64']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        write_file(os.path.join(installdir, "lib64", "libtest.so"), "not actually a lib")
+        test_paths = ['lib*']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib', 'lib64']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib', 'lib64']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib', 'lib64']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib', 'lib64']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test lib64 symlinked to lib
+        remove_dir(os.path.join(installdir, "lib64"))
+        os.symlink("lib", os.path.join(installdir, "lib64"))
+        test_paths = ['lib']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib64']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib*']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test lib symlinked to lib64
+        remove_dir(os.path.join(installdir, "lib"))
+        remove_file(os.path.join(installdir, "lib64"))
+        os.mkdir(os.path.join(installdir, "lib64"))
+        write_file(os.path.join(installdir, "lib64", "libtest.so"), "not actually a lib")
+        os.symlink("lib64", os.path.join(installdir, "lib"))
+        test_paths = ['lib']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib64']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib64']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib64']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib64']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib*']
+        references = (
+            (mod.ModEnvVarType.PATH, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['lib64']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['lib64']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, ['lib64']),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test both lib and lib64 symlinked to some other folder
+        remove_dir(os.path.join(installdir, "lib64"))
+        remove_file(os.path.join(installdir, "lib"))
+        os.mkdir(os.path.join(installdir, "some_dir"))
+        write_file(os.path.join(installdir, "some_dir", "libtest.so"), "not actually a lib")
+        os.symlink("some_dir", os.path.join(installdir, "lib"))
+        os.symlink("some_dir", os.path.join(installdir, "lib64"))
+        test_paths = ['lib']
+        references = (
+            (mod.ModEnvVarType.PATH, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['some_dir']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib64']
+        references = (
+            (mod.ModEnvVarType.PATH, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['some_dir']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+        test_paths = ['lib*']
+        references = (
+            (mod.ModEnvVarType.PATH, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_FILES, ['some_dir']),
+            (mod.ModEnvVarType.PATH_WITH_TOP_FILES, ['some_dir']),
+            (mod.ModEnvVarType.STRICT_PATH_WITH_FILES, []),
+        )
+        assert_expanded_paths(test_paths, references, installdir)
+
+        # test folder symlinked to folder outside installdir
+        os.symlink("/bin", os.path.join(installdir, "external_bin"))
+        test_paths = ['external_bin']
+        mod_envar = mod.ModuleEnvironmentVariable(test_paths)
+        mod_envar.type = mod.ModEnvVarType.PATH
+        self.assertRaises(EasyBuildError, mod_envar.expand_paths, installdir)
+        mod_envar.type = mod.ModEnvVarType.PATH_WITH_FILES
+        self.assertRaises(EasyBuildError, mod_envar.expand_paths, installdir)
+        mod_envar.type = mod.ModEnvVarType.PATH_WITH_TOP_FILES
+        self.assertRaises(EasyBuildError, mod_envar.expand_paths, installdir)
+        mod_envar.type = mod.ModEnvVarType.STRICT_PATH_WITH_FILES
+        self.assertEqual(mod_envar.expand_paths(installdir), [])
+
     def test_module_load_environment(self):
         """Test for ModuleLoadEnvironment object"""
         mod_load_env = mod.ModuleLoadEnvironment()
@@ -1917,9 +2145,12 @@ class ModulesTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ModulesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ModulesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

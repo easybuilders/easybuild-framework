@@ -163,9 +163,12 @@ class ToolchainVariablesTest(EnhancedTestCase):
         self.assertEqual(str(tcv['MPICH_CC']), "icc -test")
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainVariablesTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToolchainVariablesTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToolchainVariablesTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

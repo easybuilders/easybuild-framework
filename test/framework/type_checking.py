@@ -840,9 +840,12 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(TypeCheckingTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(TypeCheckingTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

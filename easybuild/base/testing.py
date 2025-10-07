@@ -86,7 +86,7 @@ class TestCase(OrigTestCase):
         """Make assertEqual always print useful messages"""
 
         try:
-            super(TestCase, self).assertEqual(a, b)
+            super().assertEqual(a, b, msg=msg)
         except AssertionError as e:
             if not self._is_diffable(a) or not self._is_diffable(b):
                 raise
@@ -114,13 +114,13 @@ class TestCase(OrigTestCase):
             raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF]))) from None
 
     def assertExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path exists"""
         if msg is None:
             msg = "'%s' should exist" % path
         self.assertTrue(os.path.exists(path), msg)
 
     def assertNotExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path does not exist"""
         if msg is None:
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
@@ -132,7 +132,7 @@ class TestCase(OrigTestCase):
 
     def setUp(self):
         """Prepare test case."""
-        super(TestCase, self).setUp()
+        super().setUp()
 
         self.maxDiff = None
         self.longMessage = True
@@ -225,4 +225,4 @@ class TestCase(OrigTestCase):
         """Cleanup after running a test."""
         self.mock_stdout(False)
         self.mock_stderr(False)
-        super(TestCase, self).tearDown()
+        super().tearDown()

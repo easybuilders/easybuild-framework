@@ -64,12 +64,12 @@ class RunTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up test."""
-        super(RunTest, self).setUp()
+        super().setUp()
         self.orig_experimental = easybuild.tools.utilities._log.experimental
 
     def tearDown(self):
         """Test cleanup."""
-        super(RunTest, self).tearDown()
+        super().tearDown()
 
         # restore log.experimental
         easybuild.tools.utilities._log.experimental = self.orig_experimental
@@ -448,9 +448,10 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         regex_start_cmd = re.compile("Running shell command 'echo hello' in /")
-        regex_cmd_exit = re.compile(r"Shell command completed successfully \(see output above\): echo hello")
+        regex_cmd_exit = re.compile(r"Shell command completed successfully: echo hello")
+        regex_cmd_output = re.compile(r"Output of 'echo \.\.\.' shell command \(stdout \+ stderr\):\nhello", re.M)
 
-        # command output is always logged
+        # command output is logged
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("echo hello")
@@ -460,6 +461,30 @@ class RunTest(EnhancedTestCase):
         logtxt = read_file(logfile)
         self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
         self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 1)
+        write_file(logfile, '')
+
+        # command output can be suppressed
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello", log_output_on_success=False)
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, 'hello\n')
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_start_cmd.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_exit.findall(logtxt)), 1)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 0)
+        write_file(logfile, '')
+        # But is shown on error
+        init_logging(logfile, silent=True)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello && false", log_output_on_success=False, fail_on_error=False)
+        stop_logging(logfile)
+        self.assertEqual(res.exit_code, 1)
+        self.assertEqual(res.output, 'hello\n')
+        logtxt = read_file(logfile)
+        self.assertEqual(len(regex_cmd_output.findall(logtxt)), 1)
         write_file(logfile, '')
 
         # with debugging enabled, exit code and output of command should only get logged once
@@ -473,6 +498,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(len(regex_start_cmd.findall(read_file(logfile))), 1)
         self.assertEqual(len(regex_cmd_exit.findall(read_file(logfile))), 1)
+        self.assertEqual(len(regex_cmd_output.findall(read_file(logfile))), 1)
         write_file(logfile, '')
 
     def test_run_cmd_negative_exit_code(self):
@@ -1605,6 +1631,23 @@ class RunTest(EnhancedTestCase):
         # no reason echo hello could fail
         self.assertEqual(ec, 0)
 
+    def test_run_shell_cmd_list(self):
+        """Test run_shell_cmd with command specified as a list rather than a string"""
+
+        cmd = ['/bin/sh', '-c', "echo hello"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        # no reason echo hello could fail
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "hello\n")
+
+        os.environ['TEST'] = '123'
+        cmd = ['/bin/sh', '-c', "echo $TEST"]
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        self.assertEqual(res.output, "123\n")
+
     def test_run_cmd_script(self):
         """Testing use of run_cmd with shell=False to call external scripts"""
 
@@ -2068,7 +2111,9 @@ class RunTest(EnhancedTestCase):
                     print("pre-run hook '%s' in %s" % (cmd, work_dir))
                     import sys
                     sys.stderr.write('pre-run hook done\\n')
-                if not cmd.startswith('echo'):
+                print("command is allowed to fail: %s" % kwargs.get('fail_on_error', 'NOT AVAILABLE'))
+                print("command is hidden: %s" % kwargs.get('hidden', 'NOT AVAILABLE'))
+                if cmd != 'false' and not cmd.startswith('echo'):
                     cmds = cmd.split(';')
                     return '; '.join(cmds[:-1] + ["echo " + cmds[-1].lstrip()])
 
@@ -2081,6 +2126,8 @@ class RunTest(EnhancedTestCase):
                 else:
                     msg = "post-run hook '%s'" % cmd
                 msg += " (exit code: %s, output: '%s')" % (exit_code, output)
+                msg += "\\ncommand was allowed to fail: %s" % kwargs.get('fail_on_error', 'NOT AVAILABLE')
+                msg += "\\ncommand was hidden: %s" % kwargs.get('hidden', 'NOT AVAILABLE')
                 print(msg)
         """)
         write_file(hooks_file, hooks_file_txt)
@@ -2095,7 +2142,11 @@ class RunTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             f"pre-run hook 'make' in {cwd}",
+            "command is allowed to fail: True",
+            "command is hidden: False",
             "post-run hook 'echo make' (exit code: 0, output: 'make\n')",
+            "command was allowed to fail: True",
+            "command was hidden: False",
             '',
         ])
         self.assertEqual(stdout, expected_stdout)
@@ -2109,6 +2160,8 @@ class RunTest(EnhancedTestCase):
 
         expected_stdout = '\n'.join([
             "pre-run hook 'make' in %s" % cwd,
+            "command is allowed to fail: True",
+            "command is hidden: False",
             '  running shell command "echo make"',
             '  (in %s)' % cwd,
             '',
@@ -2125,6 +2178,24 @@ class RunTest(EnhancedTestCase):
 
         regex = re.compile('>> running shell command:\n\techo make', re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        with self.mocked_stdout_stderr():
+            # run_shell_cmd will raise RunShellCmdError which we don't care about here,
+            # we just want to verify that the post_run_shell_cmd_hook has run
+            try:
+                run_shell_cmd("false")
+            except RunShellCmdError:
+                pass
+            stdout = self.get_stdout()
+
+        expected_end = '\n'.join([
+            '',
+            "post-run hook 'false' (exit code: 1, output: '')",
+            "command was allowed to fail: True",
+            "command was hidden: False",
+            '',
+        ])
+        self.assertTrue(stdout.endswith(expected_end), f"Stdout should end with '{expected_end}': {stdout}")
 
     def test_run_shell_cmd_delete_cwd(self):
         """
@@ -2225,9 +2296,12 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, "hello\n")
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(RunTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(RunTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

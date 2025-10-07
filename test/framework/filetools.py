@@ -70,7 +70,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def setUp(self):
         """Test setup."""
-        super(FileToolsTest, self).setUp()
+        super().setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
         if ft.HAVE_REQUESTS:
@@ -79,7 +79,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Cleanup."""
-        super(FileToolsTest, self).tearDown()
+        super().tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
         ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS
@@ -557,6 +557,21 @@ class FileToolsTest(EnhancedTestCase):
         downloads = glob.glob(target_location + '*')
         self.assertEqual(len(downloads), 1)
 
+        ft.remove_file(target_location)
+
+        # with max attempts set to 0, nothing gets downloaded
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=0)
+        self.assertEqual(res, None)
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 0)
+
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, source_url, target_location, max_attempts=3, initial_wait_time=5)
+        self.assertEqual(res, target_location, "'download' of local file works")
+        downloads = glob.glob(target_location + '*')
+        self.assertEqual(len(downloads), 1)
+
         # non-existing files result in None return value
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, 'file://%s/nosuchfile' % test_dir, target_location), None)
@@ -918,10 +933,7 @@ class FileToolsTest(EnhancedTestCase):
 
         utf8_file = os.path.join(self.test_prefix, 'utf8.txt')
         txt = b'Hyphen: \xe2\x80\x93\nEuro sign: \xe2\x82\xac\na with dots: \xc3\xa4'
-        if sys.version_info[0] == 3:
-            txt_decoded = txt.decode('utf-8')
-        else:
-            txt_decoded = txt
+        txt_decoded = txt.decode('utf-8')
         # Must work as binary and string
         ft.write_file(utf8_file, txt)
         self.assertEqual(ft.read_file(utf8_file), txt_decoded)
@@ -1616,9 +1628,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(testfile, testtxt)
         ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
         txt = ft.read_file(testfile)
-        if sys.version_info[0] == 3:
-            testtxt = testtxt.decode('utf-8')
-        self.assertEqual(txt, testtxt.replace('foo', 'FOO'))
+        self.assertEqual(txt, testtxt.decode('utf-8').replace('foo', 'FOO'))
 
         # make sure apply_regex_substitutions can patch files that include non-UTF-8 characters
         testtxt = b"foo \xe2 bar"
@@ -1878,6 +1888,12 @@ class FileToolsTest(EnhancedTestCase):
 
         # trying the patch again should fail
         self.assertErrorRegex(EasyBuildError, "Couldn't apply patch file", ft.apply_patch, toy_patch, path)
+
+        # Passing an option works
+        with self.mocked_stdout_stderr():
+            ft.apply_patch(toy_patch_gz, path, options=' --reverse')
+        # Change was really removed
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
 
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
@@ -2271,8 +2287,8 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertExists(target_dir)
-        expected = ['GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb',
-                    'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
+        expected = ['GCC-10.2.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
+                    'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
         # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
         self.assertNotExists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb'))
@@ -2530,16 +2546,63 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(stderr)
         self.assertFalse(stdout)
 
+    def test_empty_dir(self):
+        """Test empty_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir, parents=True)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.empty_dir(test_dir)
+        self.assertExists(test_dir)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
+
+        # also test behaviour under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        ft.mkdir(test_dir)
+        ft.empty_dir(test_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile("^directory [^ ]* emptied$")
+        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' found in: {txt}")
+
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
         testfile = os.path.join(self.test_prefix, 'foo')
         test_dir = os.path.join(self.test_prefix, 'test123')
+        test_link = os.path.join(self.test_prefix, 'foolink')
 
         for remove_file_function in (ft.remove_file, ft.remove):
             ft.write_file(testfile, 'bar')
             self.assertExists(testfile)
+            # remove symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
+            # remove file
             remove_file_function(testfile)
             self.assertNotExists(testfile)
+            # remove broken symlink
+            ft.symlink(testfile, test_link)
+            self.assertTrue(os.path.islink(test_link))
+            remove_file_function(test_link)
+            self.assertNotExists(test_link)
 
         for remove_dir_function in (ft.remove_dir, ft.remove):
             ft.mkdir(test_dir)
@@ -2594,6 +2657,25 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
+    def test_clean_dir(self):
+        """Test clean_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir, parents=True)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.clean_dir(test_dir)
+        ft.mkdir(test_dir, parents=True)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
+
     def test_index_functions(self):
         """Test *_index functions."""
 
@@ -2613,7 +2695,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 94)
+            self.assertEqual(len(index), 100)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2663,7 +2745,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 25)
+        self.assertEqual(len(index), 29)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -2693,7 +2775,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 25)
+        self.assertEqual(len(index), 29)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -3358,7 +3440,7 @@ class FileToolsTest(EnhancedTestCase):
         reference_checksum_txz = "ec0f91a462c2743b19b428f4c177d7109d2ccc018dcdedc12570d9d735d6fb1b"
         reference_checksum_tar = "6e902e77925ab2faeef8377722434d4482f1fcc74af958c984c3f22509ae5084"
 
-        if sys.version_info[0] >= 3 and sys.version_info[1] >= 9:
+        if sys.version_info >= (3, 9):
             # checksums of tarballs made by EB cannot be reliably checked prior to Python 3.9
             # due to changes introduced in python/cpython#90021
             self.assertNotEqual(unreprod_txz_chksum, reference_checksum_txz)
@@ -4131,9 +4213,12 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_dir(test_root)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(FileToolsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(FileToolsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

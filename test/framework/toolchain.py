@@ -54,7 +54,7 @@ from easybuild.tools.modules import EnvironmentModules
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.toolchain.mpi import get_mpi_cmd_template
-from easybuild.tools.toolchain.toolchain import env_vars_external_module
+from easybuild.tools.toolchain.toolchain import env_vars_external_module, RPATH_WRAPPERS_SUBDIR
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.toolchains.compiler.clang import Clang
 
@@ -66,7 +66,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up toolchain test."""
-        super(ToolchainTest, self).setUp()
+        super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
         self.orig_get_cpu_family = st.get_cpu_family
         self.orig_get_cpu_model = st.get_cpu_model
@@ -80,7 +80,7 @@ class ToolchainTest(EnhancedTestCase):
         st.get_cpu_family = self.orig_get_cpu_family
         st.get_cpu_model = self.orig_get_cpu_model
         st.get_cpu_vendor = self.orig_get_cpu_vendor
-        super(ToolchainTest, self).tearDown()
+        super().tearDown()
 
     def get_toolchain(self, name, version=None):
         """Get a toolchain object instance to test with."""
@@ -2498,17 +2498,11 @@ class ToolchainTest(EnhancedTestCase):
             '$ORIGIN/../lib64',
         ])
 
-        # simplest possible compiler command
+        # simplest possible compiler command, no linking
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -c foo.c")
         self.assertEqual(res.exit_code, 0)
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
             "'-c'",
             "'foo.c'",
         ]
@@ -2530,9 +2524,36 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
+        # no linking, linker flags should be removed
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags -Xlinker --enable-new-dtags "
+                                f"-Wl,-rpath={self.test_prefix} -c foo.c")
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-c'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
         # compiler command, -Wl,--enable-new-dtags should be replaced with -Wl,--disable-new-dtags
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags foo.c")
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # compiler command, -Xlinker --enable-new-dtags should be replaced with -Wl,--disable-new-dtags
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Xlinker --enable-new-dtags foo.c")
         self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
@@ -2645,6 +2666,69 @@ class ToolchainTest(EnhancedTestCase):
             "'foo.c'",
             "'-L%s/foo'" % self.test_prefix,
             "'-lfoo'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -Wl,-rpath already specified, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Wl,-rpath={self.test_prefix}/dummy "
+               f"-Wl,-rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-ldummy -lfoo foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-ldummy'",
+            "'-lfoo'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -Xlinker -rpath already specified, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Xlinker -rpath={self.test_prefix}/dummy "
+               f"-Xlinker -rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-ldummy -lfoo foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-ldummy'",
+            "'-lfoo'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -rpath specified, but no linking, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Wl,-rpath={self.test_prefix}/dummy "
+               f"-Wl,-rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-lfoo -ldummy -c foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-lfoo'",
+            "'-ldummy'",
+            "'-c'",
+            "'foo.c'",
         ]
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -2840,7 +2924,12 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # check whether $LIBRARY_PATH is taken into account
-        test_cmd_gcc = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
+        test_cmd_gcc_c = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
+        test_cmd_gcc = "%s gcc '' '%s' -o foo foo.c" % (script, rpath_inc)
+        cmd_args_gcc_c = [
+            "'-c'",
+            "'foo.c'",
+        ]
         pre_cmd_args_gcc = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2850,7 +2939,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,--disable-new-dtags'",
         ]
         post_cmd_args_gcc = [
-            "'-c'",
+            "'-o'",
+            "'foo'",
             "'foo.c'",
         ]
 
@@ -2901,6 +2991,13 @@ class ToolchainTest(EnhancedTestCase):
                 mkdir(path, parents=True)
 
             os.environ['LIBRARY_PATH'] = ':'.join(library_path)
+
+            # -c flag
+            with self.mocked_stdout_stderr():
+                res = run_shell_cmd(test_cmd_gcc_c)
+            self.assertEqual(res.exit_code, 0)
+            cmd_args = cmd_args_gcc_c
+            self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
             with self.mocked_stdout_stderr():
                 res = run_shell_cmd(test_cmd_gcc)
@@ -3137,6 +3234,33 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
 
+    def test_toolchain_prepare_rpath_external(self):
+        """Test toolchain.prepare under --rpath with rpath_wrappers_dir argument"""
+
+        # put fake 'g++' command in place that just echos its arguments
+        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
+        write_file(fake_gxx, '#!/bin/bash\necho "$@"')
+        adjust_permissions(fake_gxx, stat.S_IXUSR)
+        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+
+        # export the wrappers to a target location
+        target_wrapper_dir = os.path.abspath(os.path.join(self.test_prefix, 'target'))
+        # enable --rpath for a toolchain so we test against it
+        init_config(build_options={'rpath': True, 'silent': True})
+        tc = self.get_toolchain('gompi', version='2018a')
+        tc.set_options({'rpath': True})
+        # allow the underlying toolchain to be in a prepared state (which may include rpath wrapping)
+        with self.mocked_stdout_stderr():
+            tc.prepare(rpath_wrappers_dir=target_wrapper_dir)
+
+        # check that wrapper was created
+        target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
+        self.assertTrue(os.path.exists(target_wrapper))
+        # Make sure it is a wrapper
+        self.assertTrue(b'rpath_args.py $CMD' in read_file(target_wrapper, mode='rb'))
+        # Make sure it wraps our fake 'g++'
+        self.assertTrue(fake_gxx.encode(encoding="utf-8") in read_file(target_wrapper, mode='rb'))
+
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
 
@@ -3253,9 +3377,12 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(tc.get_flag('openmp'), flagstring)
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests"""
-    return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToolchainTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToolchainTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

@@ -76,12 +76,13 @@ def get_changes():
     return _changes
 
 
-def setvar(key, value, verbose=True):
+def setvar(key, value, verbose=True, log_changes=True):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
 
     :param verbose: include message in dry run output for defining this environment variable
+    :param log_changes: show the change in the log
     """
     try:
         oldval_info = "previous value: '%s'" % os.environ[key]
@@ -90,7 +91,8 @@ def setvar(key, value, verbose=True):
     # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
     _changes[key] = value
-    _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
+    if log_changes:
+        _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
     if verbose and build_option('extended_dry_run'):
         quoted_value = shell_quote(value)
@@ -149,23 +151,22 @@ def read_environment(env_vars, strict=False):
     return result
 
 
-def modify_env(old, new, verbose=True):
+def modify_env(old, new, verbose=True, log_changes=True):
     """
     Compares two os.environ dumps. Adapts final environment.
+    :param log_changes: show the change in the log
     """
     old_keys = list(old.keys())
     new_keys = list(new.keys())
 
     for key in new_keys:
-        # set them all. no smart checking for changed/identical values
         if key in old_keys:
-            # hmm, smart checking with debug logging
-            if not new[key] == old[key]:
+            if new[key] != old[key]:
                 _log.debug("Key in new environment found that is different from old one: %s (%s)", key, new[key])
-                setvar(key, new[key], verbose=verbose)
+                setvar(key, new[key], verbose=verbose, log_changes=log_changes)
         else:
             _log.debug("Key in new environment found that is not in old one: %s (%s)", key, new[key])
-            setvar(key, new[key], verbose=verbose)
+            setvar(key, new[key], verbose=verbose, log_changes=log_changes)
 
     for key in old_keys:
         if key not in new_keys:
@@ -174,11 +175,12 @@ def modify_env(old, new, verbose=True):
             del os.environ[key]
 
 
-def restore_env(env):
+def restore_env(env, log_changes=True):
     """
     Restore active environment based on specified dictionary.
+    :param log_changes: show the change in the log
     """
-    modify_env(os.environ, env, verbose=False)
+    modify_env(os.environ, env, verbose=False, log_changes=log_changes)
 
 
 def sanitize_env():

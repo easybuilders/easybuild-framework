@@ -43,7 +43,7 @@ from easybuild.tools.utilities import get_subclasses, import_available_modules
 _log = fancylogger.getLogger('repository', fname=False)
 
 
-class Repository(object):
+class Repository:
     """
     Interface for repositories
     """

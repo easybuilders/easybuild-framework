@@ -46,7 +46,7 @@ from urllib.request import HTTPSHandler, Request, build_opener
 from easybuild.base import fancylogger
 
 
-class Client(object):
+class Client:
     """An implementation of a REST client"""
     DELETE = 'DELETE'
     GET = 'GET'
@@ -217,7 +217,7 @@ class Client(object):
         return connection
 
 
-class RequestBuilder(object):
+class RequestBuilder:
     '''RequestBuilder(client).path.to.resource.method(...)
         stands for
     RequestBuilder(client).client.method('path/to/resource, ...)
@@ -265,7 +265,7 @@ class RequestBuilder(object):
         return '%s: %s' % (self.__class__, self.url)
 
 
-class RestClient(object):
+class RestClient:
     """
     A client with a request builder, so you can easily create rest requests
     e.g. to create a github Rest API client just do

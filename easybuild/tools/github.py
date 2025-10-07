@@ -32,7 +32,6 @@ Authors:
 * Toon Willems (Ghent University)
 """
 import base64
-import copy
 import getpass
 import glob
 import functools
@@ -45,6 +44,7 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from http.client import HTTPException
 from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
 
@@ -139,7 +139,7 @@ def pick_default_branch(github_owner):
     return branch
 
 
-class Githubfs(object):
+class Githubfs:
     """This class implements some higher level functionality on top of the Github api"""
 
     def __init__(self, githubuser, reponame, branchname=None, username=None, password=None, token=None):
@@ -282,7 +282,7 @@ def github_api_get_request(request_f, github_user=None, token=None, **kwargs):
 
     try:
         status, data = url.get(**kwargs)
-    except socket.gaierror as err:
+    except (socket.gaierror, HTTPException) as err:
         _log.warning("Error occurred while performing get request: %s", err)
         status, data = 0, None
 
@@ -539,18 +539,44 @@ def fetch_files_from_pr(pr, path=None, github_user=None, github_account=None, gi
     pr_closed = pr_data['state'] == GITHUB_STATE_CLOSED and not pr_merged
 
     pr_target_branch = pr_data['base']['ref']
-    _log.info("Target branch for PR #%s: %s", pr, pr_target_branch)
+    _log.info(f"Target branch for PR #{pr}: {pr_target_branch}")
+    # 5.0.x branch was collapsed into develop branch and then removed shortly after release of EasyBuild v5.0.0,
+    # so for PRs targeting the 5.0.x branch use develop branch instead
+    if pr_target_branch == '5.0.x':
+        pr_target_branch = GITHUB_DEVELOP_BRANCH
+        _log.info(f"Using {pr_target_branch} instead of 5.0.x branch (since that branch was removed)")
 
     # download target branch of PR so we can try and apply the PR patch on top of it
     repo_target_branch = download_repo(repo=github_repo, account=github_account, branch=pr_target_branch,
                                        github_user=github_user)
 
     # determine list of changed files via diff
-    diff_fn = os.path.basename(pr_data['diff_url'])
+    diff_url = pr_data['diff_url']
+    diff_fn = os.path.basename(diff_url)
     diff_filepath = os.path.join(path, diff_fn)
-    download_file(diff_fn, pr_data['diff_url'], diff_filepath, forced=True, trace=False)
-    diff_txt = read_file(diff_filepath)
-    _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
+
+    def pr_request_fn(gh):
+        return gh.repos[github_account][github_repo].pulls[pr]
+
+    # see also https://docs.github.com/en/rest/pulls/pulls#get-a-pull-request,
+    # in particular part about media types
+    error_msg = None
+    accept_diff = {'Accept': 'application/vnd.github.diff'}
+    try:
+        status, data = github_api_get_request(pr_request_fn, github_user=github_user, headers=accept_diff)
+        if status == HTTP_STATUS_OK:
+            # decode from bytes to text
+            diff_txt = data.decode()
+            _log.debug("Diff for PR #%s:\n%s", pr, diff_txt)
+            write_file(diff_filepath, diff_txt)
+        else:
+            error_msg = f"HTTP status code: {status}"
+    except HTTPError as err:
+        error_msg = str(err)
+
+    if error_msg:
+        error_msg = f"Failed to download diff for {github_account}/{github_repo} PR #{pr}! ({error_msg})"
+        raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_GITHUB)
 
     patched_files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
     _log.debug("List of patched files for PR #%s: %s", pr, patched_files)
@@ -697,20 +723,32 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
     # if no files are specified, determine which files are touched in commit
     if not files:
-        diff_url = os.path.join(GITHUB_URL, github_account, github_repo, 'commit', commit + '.diff')
-        diff_fn = os.path.basename(diff_url)
-        diff_filepath = os.path.join(path, diff_fn)
-        if download_file(diff_fn, diff_url, diff_filepath, forced=True, trace=False):
-            diff_txt = read_file(diff_filepath)
-            _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+        github_user = build_option('github_user')
 
-            files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
-            _log.debug("List of patched files for commit %s: %s", commit, files)
-        else:
-            raise EasyBuildError(
-                "Failed to download diff for commit %s of %s/%s", commit, github_account, github_repo,
-                exit_code=EasyBuildExit.FAIL_GITHUB
-            )
+        def commit_request_fn(gh):
+            return gh.repos[github_account][github_repo].commits[commit]
+
+        error_msg = None
+        try:
+            # see also https://docs.github.com/en/rest/commits/commits#get-a-commit,
+            # in particular part about media types
+            accept_diff = {'Accept': 'application/vnd.github.diff'}
+            status, data = github_api_get_request(commit_request_fn, github_user=github_user, headers=accept_diff)
+            if status == HTTP_STATUS_OK:
+                # decode from bytes to text
+                diff_txt = data.decode()
+                _log.debug("Diff for commit %s:\n%s", commit, diff_txt)
+            else:
+                error_msg = f"HTTP status code: {status}"
+        except HTTPError as err:
+            error_msg = str(err)
+
+        if error_msg:
+            error_msg = f"Failed to download diff for {github_account}/{github_repo} commit {commit}! ({error_msg})"
+            raise EasyBuildError(error_msg, exit_code=EasyBuildExit.FAIL_GITHUB)
+
+        files = det_patched_files(txt=diff_txt, omit_ab_prefix=True, github=True, filter_deleted=True)
+        _log.debug("List of patched files for commit %s: %s", commit, files)
 
     # download tarball for specific commit
     repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
@@ -1058,8 +1096,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if start_account is None:
         start_account = build_option('pr_target_account')
 
-    if start_branch is None:
-        # if start branch is not specified, we're opening a new PR
+    # if start branch is not specified, we're opening a new PR
+    # else, we're updating an existing PR
+    is_new_pr = start_branch is None
+    if is_new_pr:
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
 
@@ -1068,7 +1108,6 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 "--github-org or --github-user must be specified!", exit_code=EasyBuildExit.OPTION_ERROR
             )
 
-        # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
         # account to target is the one that owns the branch used to open PR
@@ -1087,6 +1126,15 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
+        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']
+                and is_new_pr):  # Only if opening a new PR
+            msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
+            msg += "the PR title will be automatically generated."
+            if build_option('force'):
+                print_msg(msg)
+                print_msg("Using the specified --pr-commit-msg as the force build option was specified.")
+            else:
+                raise EasyBuildError(msg)
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
     elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
@@ -1280,9 +1328,19 @@ def push_branch_to_github(git_repo, target_account, target_repo, branch):
 
 def is_patch_for(patch_name, ec):
     """Check whether specified patch matches any patch in the provided EasyConfig instance."""
-    res = False
+    # Extract name from patch entry
+    def get_name(patch):
+        if isinstance(patch, (tuple, list)):
+            patch = patch[0]
+        elif isinstance(patch, dict):
+            try:
+                patch = patch['name']
+            except KeyError:
+                raise EasyBuildError(f"Invalid patch spec in {ec.path}: Missing 'name' key",
+                                     exit_code=EasyBuildExit.VALUE_ERROR)
+        return patch
 
-    patches = copy.copy(ec['patches'])
+    patches = [get_name(p) for p in ec['patches']]
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
@@ -1294,17 +1352,9 @@ def is_patch_for(patch_name, ec):
                     'version': entry[1],
                 }
                 options = entry[2]
-                patches.extend(p[0] % templates if isinstance(p, (tuple, list)) else p % templates
-                               for p in options.get('patches', []))
+                patches.extend(get_name(p) % templates for p in options.get('patches', []))
 
-    for patch in patches:
-        if isinstance(patch, (tuple, list)):
-            patch = patch[0]
-        if patch == patch_name:
-            res = True
-            break
-
-    return res
+    return patch_name in patches
 
 
 def det_patch_specs(patch_paths, file_info, ec_dirs):
@@ -1395,7 +1445,7 @@ def find_software_name_for_patch(patch_name, ec_dirs):
                     soft_name = ec['ec']['name']
                     break
         except EasyBuildError as err:
-            _log.debug("Ignoring easyconfig %s that fails to parse: %s", path, err)
+            _log.warning("Ignoring easyconfig %s that fails to parse: %s", path, err)
         sys.stdout.write('\r%s of %s easyconfigs checked' % (idx + 1, nr_of_ecs))
         sys.stdout.flush()
 
@@ -2125,7 +2175,7 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                        pr_metadata=(file_info, deleted_paths, diff_stat), commit_msg=commit_msg)
 
 
-def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
+def det_account_repo_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
     """Determine account & branch corresponding to pull request with specified id."""
 
     if github_user is None:
@@ -2142,9 +2192,18 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
 
     # branch that corresponds with PR is supplied in form <account>:<branch_label>
     account = pr_data['head']['label'].split(':')[0]
+    repo = pr_data['head']['repo']['name']
     branch = ':'.join(pr_data['head']['label'].split(':')[1:])
     github_target = '%s/%s' % (pr_target_account, pr_target_repo)
     print_msg("Determined branch name corresponding to %s PR #%s: %s" % (github_target, pr_id, branch), log=_log)
+
+    return account, repo, branch
+
+
+def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
+    """Deprecated version of `det_account_repo_branch_for_pr`"""
+    _log.deprecated("`det_account_branch_for_pr` is deprecated, use `det_account_repo_branch_for_pr` instead", "6.0")
+    account, _, branch = det_account_repo_branch_for_pr(pr_id, github_user=github_user, pr_target_repo=pr_target_repo)
 
     return account, branch
 
@@ -2243,7 +2302,7 @@ def update_pr(pr_id, paths, ecs, commit_msg=None):
             exit_code=EasyBuildExit.OPTION_ERROR
         )
 
-    github_account, branch_name = det_account_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
+    github_account, _, branch_name = det_account_repo_branch_for_pr(pr_id, pr_target_repo=pr_target_repo)
 
     update_branch(branch_name, paths, ecs, github_account=github_account, commit_msg=commit_msg)
 
@@ -2835,18 +2894,18 @@ def sync_pr_with_develop(pr_id):
     target_account = build_option('pr_target_account')
     target_repo = build_option('pr_target_repo') or GITHUB_EASYCONFIGS_REPO
 
-    pr_account, pr_branch = det_account_branch_for_pr(pr_id)
+    pr_account, pr_repo, pr_branch = det_account_repo_branch_for_pr(pr_id)
 
     # initialize repository
     git_working_dir = tempfile.mkdtemp(prefix='git-working-dir')
     git_repo = init_repo(git_working_dir, target_repo)
 
-    setup_repo(git_repo, pr_account, target_repo, pr_branch)
+    setup_repo(git_repo, pr_account, pr_repo, pr_branch)
 
     sync_with_develop(git_repo, pr_branch, target_account, target_repo)
 
     # push updated branch back to GitHub (unless we're doing a dry run)
-    return push_branch_to_github(git_repo, pr_account, target_repo, pr_branch)
+    return push_branch_to_github(git_repo, pr_account, pr_repo, pr_branch)
 
 
 def sync_branch_with_develop(branch_name):
