@@ -1340,7 +1340,7 @@ def is_patch_for(patch_name, ec):
                                      exit_code=EasyBuildExit.VALUE_ERROR)
         return patch
 
-    patches = [get_name(p) for p in ec['patches']]
+    patches = [get_name(p) for p in itertools.chain(ec['patches'], ec['postinstallpatches'])]
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
@@ -1352,10 +1352,12 @@ def is_patch_for(patch_name, ec):
                     'version': entry[1],
                 }
                 options = entry[2]
-                patches.extend(get_name(p) % templates for p in options.get('patches', []))
                 patches.extend(get_name(p) % templates for p in
-                               options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
-                                           options.get('post_install_patches', [])))
+                               itertools.chain(
+                                   options.get('patches', []),
+                                   options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                               options.get('post_install_patches', []))
+                ))
 
     return patch_name in patches
 
