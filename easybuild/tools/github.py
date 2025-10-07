@@ -52,7 +52,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg, print_warning
 from easybuild.tools.config import build_option
@@ -1353,6 +1353,9 @@ def is_patch_for(patch_name, ec):
                 }
                 options = entry[2]
                 patches.extend(get_name(p) % templates for p in options.get('patches', []))
+                patches.extend(get_name(p) % templates for p in
+                               options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                           options.get('post_install_patches', [])))
 
     return patch_name in patches
 
