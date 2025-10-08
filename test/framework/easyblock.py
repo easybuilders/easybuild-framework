@@ -29,8 +29,10 @@ Unit tests for easyblock.py
 @author: Kenneth Hoste (Ghent University)
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
+@author: Alexander Grund (TU Dresden)
 """
 import fileinput
+import itertools
 import os
 import re
 import shutil
@@ -3341,6 +3343,7 @@ class EasyBlockTest(EnhancedTestCase):
         run_checks()
 
         # full check also catches checksum issues with extensions
+        eb.json_checksums = {}  # Avoid picking up checksums from JSON file
         res = eb.check_checksums()
         self.assertEqual(len(res), 4)
         run_checks()
@@ -3477,6 +3480,12 @@ class EasyBlockTest(EnhancedTestCase):
                 ('ext-ok3', version, {
                     'nosource': True
                 }),
+                ('ext-ok1', version, {
+                    'checksums': ['44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc']
+                }),
+                ('ext-ok2', version, {
+                    'nosource': True
+                }),
             ]
         """)
         self.writeEC()
@@ -3486,6 +3495,27 @@ class EasyBlockTest(EnhancedTestCase):
         extensions = ['ext1', 'ext2', 'ext3', 'ext-uniq_1']
         for ext, line in zip(extensions, res):
             self.assertIn(ext_error_tmpl % ext, line)
+
+        # Gradually add checksums to JSON dict and test that the associated extension checksums are now fine
+        sha256_cs = '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'  # Valid format only
+        eb.json_checksums = {'ext1-0.0.tar.gz': sha256_cs}
+        for ext, line in itertools.zip_longest(extensions[1:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext2.zip'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[1:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext2.patch'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[2:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext3.zip'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[2:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext3.patch'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[3:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext-uniq_1-3.14.zip'] = sha256_cs
+        eb.json_checksums['ext-uniq_1.patch'] = sha256_cs
+        self.assertEqual(eb.check_checksums(), [])
 
         # more checks for check_checksums_for method, which also takes regular dict as input
         self.assertEqual(eb.check_checksums_for({}), [])
