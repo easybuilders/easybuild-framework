@@ -43,8 +43,10 @@ Authors:
 * Jan Andre Reuter (Juelich Supercomputing Centre)
 * Jasper Grimm (UoY)
 * Alex Domingo (Vrije Universiteit Brussel)
+* Alexander Grund (TU Dresden)
 """
 import concurrent
+import contextlib
 import copy
 import functools
 import glob
@@ -2779,25 +2781,30 @@ class EasyBlock:
         if isinstance(checksums, str):
             checksums = [checksums]
 
-        sources = sources + data_sources
+        def get_name(fn, key):
+            # if the filename is a tuple, the actual source file name is the first element
+            if isinstance(fn, tuple):
+                fn = fn[0]
+            # if the filename is a dict, the actual source file name is inside
+            if isinstance(fn, dict):
+                fn = fn[key]
+            return fn
 
-        if not checksums:
-            checksums_from_json = self.get_checksums_from_json()
-            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
-            # what is expected in list format
-            for fn in sources + patches:
-                # if the filename is a tuple, the actual source file name is the first element
-                if isinstance(fn, tuple):
-                    fn = fn[0]
-                # if the filename is a dict, the actual source file name is the "filename" element
-                if isinstance(fn, dict):
-                    fn = fn["filename"]
-                if fn in checksums_from_json.keys():
-                    checksums += [checksums_from_json[fn]]
+        sources = [get_name(src, 'filename') for src in itertools.chain(sources, data_sources)]
+        patches = [get_name(patch, 'name') for patch in patches]
 
         if source_cnt is None:
             source_cnt = len(sources)
-        patch_cnt, checksum_cnt = len(patches), len(checksums)
+        patch_cnt = len(patches)
+
+        if not checksums and (source_cnt + patch_cnt) > 0:
+            checksums_from_json = self.get_checksums_from_json()
+            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
+            # what is expected in list format
+            with contextlib.suppress(KeyError):
+                checksums.extend(checksums_from_json[fn] for fn in sources + patches)
+
+        checksum_cnt = len(checksums)
 
         if (source_cnt + patch_cnt) != checksum_cnt:
             if sub:
