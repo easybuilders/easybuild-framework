@@ -3333,6 +3333,8 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertEqual(res[0], expected)
             self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz:"))
 
+        ext_error_tmpl = "Checksums missing for one or more sources/patches of extension %s in "
+
         # check for main sources/patches should reveal two issues with checksums
         res = eb.check_checksums_for(eb.cfg)
         self.assertEqual(len(res), 2)
@@ -3343,11 +3345,8 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(len(res), 4)
         run_checks()
 
-        idx = 2
-        for ext in ['bar', 'barbar']:
-            expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
-            self.assertTrue(res[idx].startswith(expected))
-            idx += 1
+        for ext, line in zip(('bar', 'barbar'), res[2:]):
+            self.assertIn(ext_error_tmpl % ext, line)
 
         # check whether tuple of alternative SHA256 checksums is correctly recognized
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -3410,6 +3409,24 @@ class EasyBlockTest(EnhancedTestCase):
         )]
         self.assertEqual(eb.check_checksums(), [])
 
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            # Templates of parent used in extensions
+            exts_list = [
+                ('%(namelower)s', version),
+            ]
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 1)
+        self.assertIn(ext_error_tmpl % 'uniq_1', res[0])
+
         # no checksums in easyconfig, then picked up from checksums.json next to easyconfig file
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         copy_file(toy_ec, test_ec)
@@ -3422,7 +3439,7 @@ class EasyBlockTest(EnhancedTestCase):
         expected += "found 1 sources + 2 patches vs 0 checksums"
         self.assertEqual(res[0], expected)
 
-        # all is fine is checksums.json is also copied
+        # all is fine if checksums.json is also copied
         copy_file(os.path.join(os.path.dirname(toy_ec), 'checksums.json'), self.test_prefix)
         eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
