@@ -2743,7 +2743,8 @@ class EasyBlock:
         try:
             sources = ent.get('sources', [])
             data_sources = ent.get('data_sources', [])
-            patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
+            patches = ent.get('patches', []) + ent.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                                       ent.get('post_install_patches', []))
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
