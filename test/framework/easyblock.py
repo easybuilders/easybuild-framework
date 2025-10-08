@@ -2368,14 +2368,17 @@ class EasyBlockTest(EnhancedTestCase):
         bar_patch2 = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
         self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
+        self.assertEqual(len(exts_file_info[1]['checksums']), 1)
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
         self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-1.2.tar.gz'))
         self.assertNotIn('patches', exts_file_info[2])
+        self.assertEqual(len(exts_file_info[2]['checksums']), 0)
 
         self.assertEqual(exts_file_info[3]['name'], 'toy')
         self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
         self.assertNotIn('patches', exts_file_info[3])
+        self.assertEqual(len(exts_file_info[3]['checksums']), 0)
 
         # location of files is missing when fetch_files is set to False
         exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
