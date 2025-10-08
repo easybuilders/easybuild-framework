@@ -594,7 +594,7 @@ class EasyBlock:
             if not isinstance(patch_specs, tuple) or len(patch_specs) != 2:
                 raise EasyBuildError('Patch specs must be a tuple of (patches, post-install patches) or a list')
             post_install_patches = patch_specs[1]
-            patch_specs = itertools.chain(*patch_specs)
+            patch_specs = itertools.chain.from_iterable(patch_specs)
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
@@ -796,7 +796,7 @@ class EasyBlock:
                     if fetch_files:
                         ext_patches = self.fetch_patches(patch_specs=ext_patch_specs, extension=True)
                     else:
-                        ext_patches = [create_patch_info(p) for p in itertools.chain(*ext_patch_specs)]
+                        ext_patches = [create_patch_info(p) for p in itertools.chain.from_iterable(ext_patch_specs)]
 
                     if ext_patches:
                         self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
