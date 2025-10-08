@@ -2765,10 +2765,11 @@ class EasyBlock:
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
-                sources = ent.get_ref('sources')
-                data_sources = ent.get_ref('data_sources')
-                patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
-                checksums = ent.get_ref('checksums')
+                with ent.disable_templating():
+                    sources = ent['sources']
+                    data_sources = ent['data_sources']
+                    patches = ent['patches'] + ent['postinstallpatches']
+                    checksums = ent['checksums']
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
