@@ -413,7 +413,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exit_code)
+        sys.exit(int(exit_code))
     elif log is not None:
         raise EasyBuildError(msg)
 

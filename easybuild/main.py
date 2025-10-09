@@ -822,7 +822,7 @@ def main_with_hooks(args=None):
     hooks = load_hooks(eb_go.options.hooks)
 
     try:
-        sys.exit(main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings)))
+        sys.exit(int(main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg, exit_on_error=True, exit_code=err.exit_code)
