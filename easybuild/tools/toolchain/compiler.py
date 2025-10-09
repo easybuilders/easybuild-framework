@@ -73,8 +73,8 @@ def parse_optarch_string(optarch, include_compiler):
               entry := <cpu-arch>(,<cpu-family>(,<vector-ext>)?)?:<flag-string>
     Example values:
         "GENERIC"
-        "march=native"
-        "Intel,x86:xHost; Intel,x86,AMD,AVX2:mavx2 -fma; GCC:march=native"
+        "-march=native"
+        "Intel,x86:-xHost; Intel,x86,AMD,AVX2:-mavx2 -fma; GCC:-march=native"
     """
     # Split into entries, and each entry into key-value pairs
     optarch_parts = [i.strip().split(OPTARCH_MAP_CHAR) for i in optarch.split(OPTARCH_SEP)]
