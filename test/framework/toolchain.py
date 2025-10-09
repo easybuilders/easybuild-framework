@@ -890,17 +890,17 @@ class ToolchainTest(EnhancedTestCase):
         toy_txt = read_file(eb_file)
 
         # check that using compilers in optarch raises an error
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:march=sandybridge;Intel:xAVX'}")
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandybridge;Intel:-xAVX'}")
         msg = "The optarch option has an incorrect syntax"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
 
         # check that setting optarch flags work
         test_cases = [
-            ('march=sandybridge', 'march=sandybridge'),
+            ('-march=sandybridge', '-march=sandybridge'),
             # <cpu-arch>,<cpu-family>,<vector-ext>
-            ('POWER,POWER:march=ppc; x86_64,Intel,AVX:march=avx', 'march=avx'),
-            ('POWER,POWER:march=ppc; x86_64,Intel,AVX2:march=avx; :GENERIC', 'march=x86-64 -mtune=generic'),
+            ('POWER,POWER:-march=ppc; x86_64,Intel,AVX:-march=avx', '-march=avx'),
+            ('POWER,POWER:-march=ppc; x86_64,Intel,AVX2:-march=avx; :GENERIC', '-march=x86-64 -mtune=generic'),
         ]
         with mock_object(st, 'get_cpu_arch_name', lambda: st.X86_64), \
                 mock_object(st, 'get_cpu_family', lambda: st.INTEL), \
