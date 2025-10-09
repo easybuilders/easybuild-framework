@@ -6735,7 +6735,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         reload(easybuild.easyblocks.generic.toy_extension)
 
     def test_keep_going(self):
-        """Test use of --keep-goin."""
+        """Test use of --keep-going."""
         topdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
