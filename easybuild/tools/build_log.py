@@ -397,7 +397,6 @@ def print_error(msg, *args, **kwargs):
     if exitCode is not None:
         _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
 
-    # default exit code
     if exit_code is None:
         exit_code = EasyBuildExit.ERROR
 
