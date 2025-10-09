@@ -122,7 +122,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
-        for var in os.environ.keys():
+        for var in list(os.environ):
             # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
             if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
                 del os.environ[var]
@@ -3238,8 +3238,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mentionhdr = 'Custom HTTP header field set: %s'
         mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
 
-        def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
-            stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        def run_and_assert(args, _msg, words_expected=None, words_unexpected=None):
+            stdout, _stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
             if words_expected is not None:
                 self._assert_regexs(words_expected, stdout)
             if words_unexpected is not None:
@@ -5257,7 +5257,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'EASYBUILD_SOURCEPATH',
             'EASYBUILD_SOURCEPATH_DATA',
         ]
-        for key in os.environ.keys():
+        for key in list(os.environ):
             if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
                 del os.environ[key]
 
@@ -6450,7 +6450,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force-download',
             '--sourcepath=%s' % self.test_prefix,
         ]
-        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
+        _stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
         regex = re.compile(r"^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
 

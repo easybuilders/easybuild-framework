@@ -264,7 +264,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             if tmp_logdir and not os.path.exists(tmp_logdir):
                 try:
                     os.makedirs(tmp_logdir)
-                except (IOError, OSError) as err:
+                except OSError as err:
                     raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
 
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!

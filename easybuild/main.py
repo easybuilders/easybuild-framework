@@ -337,7 +337,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     global _log
     # Unpack cfg_settings
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+    (build_specs, _log, _logfile, robot_path, search_query, _eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # determine easybuild-easyconfigs package install path
@@ -644,8 +644,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
+    (_build_specs, _log, logfile, _robot_path, search_query, eb_tmpdir, _try_to_generate,
+     _from_pr_list, _tweaked_ecs_paths) = cfg_settings
 
     # compare running Framework and EasyBlocks versions
     if EASYBLOCKS_VERSION == UNKNOWN_EASYBLOCKS_VERSION:
