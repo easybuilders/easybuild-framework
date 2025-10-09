@@ -535,7 +535,7 @@ class Toolchain:
                 raise EasyBuildError("No toolchain version for dependency name %s (suffix %s) found",
                                      dependency['name'], toolchain_suffix)
 
-    def _check_dependencies(self, dependencies):
+    def _check_dependencies(self, dependencies, check_modules=True):
         """ Verify if the given dependencies exist and return them """
         self.log.debug("_check_dependencies: adding toolchain dependencies %s", dependencies)
 
@@ -548,7 +548,7 @@ class Toolchain:
 
         # check whether modules exist
         self.log.debug("_check_dependencies: MODULEPATH: %s", os.environ['MODULEPATH'])
-        if self.dry_run:
+        if self.dry_run or not check_modules:
             deps_exist = [True] * len(dep_mod_names)
         else:
             deps_exist = self.modules_tool.exist(dep_mod_names)
@@ -862,7 +862,7 @@ class Toolchain:
         # do all dependencies have a toolchain version?
         if deps is None:
             deps = []
-        self.dependencies = self._check_dependencies(deps)
+        self.dependencies = self._check_dependencies(deps, check_modules=loadmod)
         if not len(deps) == len(self.dependencies):
             self.log.debug("dep %s (%s)" % (len(deps), deps))
             self.log.debug("tc.dep %s (%s)" % (len(self.dependencies), self.dependencies))

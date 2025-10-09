@@ -2126,7 +2126,8 @@ class EasyBlock:
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
                     # don't reload modules for toolchain, there is no need
                     # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                          silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs,
                                           rpath_include_dirs=self.rpath_include_dirs,
                                           rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2288,7 +2289,8 @@ class EasyBlock:
                         with self.fake_module_environment(with_build_deps=True):
                             # don't reload modules for toolchain, there is no
                             # need since they will be loaded by the fake module
-                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                                  silent=True, loadmod=False,
                                                   rpath_filter_dirs=self.rpath_filter_dirs,
                                                   rpath_include_dirs=self.rpath_include_dirs,
                                                   rpath_wrappers_dir=self.rpath_wrappers_dir)
