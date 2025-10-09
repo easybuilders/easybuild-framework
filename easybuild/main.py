@@ -780,6 +780,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     stop_logging(logfile, logtostdout=options.logtostdout)
     if is_successful:
         cleanup(logfile, eb_tmpdir, testing, silent=options.terse)
+    if options.dump_test_report or options.upload_test_report:
+        # Generation test reports is successful even when software failed to build
+        return EasyBuildExit.SUCCESS
     return EasyBuildExit.SUCCESS if is_successful else EasyBuildExit.ERROR
 
 

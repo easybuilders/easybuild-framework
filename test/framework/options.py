@@ -6755,10 +6755,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
         self.assertRegex(outtxt, r'\[SKIPPED\] *toy/working')
 
+        args.append('--keep-going')
         with self.mocked_stdout_stderr():
-            outtxt, exit_code = self.eb_main(args + ['--keep-going'], do_build=True, raise_error=True,
+            outtxt, exit_code = self.eb_main(args, do_build=True, raise_error=True,
                                              return_exit_code=True)
         self.assertNotEqual(exit_code, 0)
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SUCCESS\] *toy/working')
+
+        args.append(f"--dump-test-report={os.path.join(tempfile.gettempdir(), 'report.md')}")
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code = self.eb_main(args, do_build=True, raise_error=True,
+                                             return_exit_code=True)
+        self.assertEqual(exit_code, 0)  # Creating a test report returns success even on build failure
         self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
         self.assertRegex(outtxt, r'\[SUCCESS\] *toy/working')
 
