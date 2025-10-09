@@ -6734,6 +6734,34 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic.toy_extension
         reload(easybuild.easyblocks.generic.toy_extension)
 
+    def test_keep_going(self):
+        """Test use of --keep-goin."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nsources=["toy-0.0.tar.gz"]'
+        write_file(test_ec, test_ec_txt + '\nversion="broken"\npreconfigopts = "false && "')
+        test_ec2 = os.path.join(self.test_prefix, 'test2.eb')
+        write_file(test_ec2, test_ec_txt + '\nversion="working"')
+
+        args = [test_ec, test_ec2, '--rebuild']
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code, error_thrown = self.eb_main(args, do_build=True, return_error=True,
+                                                           return_exit_code=True)
+        self.assertIn("Installation of test.eb failed", str(error_thrown))
+        self.assertNotEqual(exit_code, 0)
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SKIPPED\] *toy/working')
+
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code = self.eb_main(args + ['--keep-going'], do_build=True, raise_error=True,
+                                             return_exit_code=True)
+        self.assertNotEqual(exit_code, 0)
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SUCCESS\] *toy/working')
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
