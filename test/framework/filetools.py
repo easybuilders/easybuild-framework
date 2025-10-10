@@ -581,11 +581,18 @@ class FileToolsTest(EnhancedTestCase):
         proxy_handler = request.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
         request.install_opener(request.build_opener(proxy_handler))
 
+        # for Python 3.14+, we need to make sure that proxy and original URL are using different protocol,
+        # or download will succeed anyway (due to improvemts in in urllib.request.FileHandler)
+        source_url = source_url.replace('file://', 'http://')
+
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, source_url, target_location), None,
                              "download over broken proxy fails")
+
+        # restore source URL using file://
+        source_url = source_url.replace('http://', 'file://')
 
         # modify existing download so we can verify re-download
         ft.write_file(target_location, '')
