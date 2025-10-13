@@ -272,8 +272,8 @@ for ext in EXTENSIONS:
         'SOURCELOWER_%s' % suffix: ('%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
     })
     TEMPLATE_CONSTANTS.update({
-        'VERSION_%s' % suffix: ('%(version)s.' + ext, "Source filename <version>.%s common at github" % ext),
-        'VVERSION_%s' % suffix: ('v%(version)s.' + ext, "Source filename v<version>.%s common at github" % ext),
+        'VERSION_%s' % suffix: ('%(version)s.' + ext, "Source filename <version>.%s common at GitHub" % ext),
+        'VVERSION_%s' % suffix: ('v%(version)s.' + ext, "Source filename v<version>.%s common at GitHub" % ext),
     })
 
 for pyver in ('py2.py3', 'py2', 'py3'):
