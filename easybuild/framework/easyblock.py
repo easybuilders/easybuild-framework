@@ -2852,15 +2852,19 @@ class EasyBlock:
         """
         Unpack the source files.
         """
-        for src in self.src:
+        for i, src in enumerate(self.src):
             self.log.info("Unpacking source %s" % src['name'])
             srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
-                                  extra_options=self.cfg['unpack_options'], change_into_dir=False)
-            change_dir(srcdir)
+                                  extra_options=self.cfg['unpack_options'], change_into_dir=(i == 0))
             if srcdir:
                 self.src[self.src.index(src)]['finalpath'] = srcdir
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
+        # Compatibility with previous EasyBuild versions:
+        # When multiple sources were extracted subsequent calls of `extract_file` returned the build directory
+        # so we changed to that instead of the directory of the first/main source
+        if len(src) > 1:
+            change_dir(self.builddir)
 
     def patch_step(self, beginpath=None, patches=None):
         """
