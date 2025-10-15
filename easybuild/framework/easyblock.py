@@ -2860,11 +2860,6 @@ class EasyBlock:
                 self.src[self.src.index(src)]['finalpath'] = srcdir
             else:
                 raise EasyBuildError("Unpacking source %s failed", src['name'])
-        # Compatibility with previous EasyBuild versions:
-        # When multiple sources were extracted subsequent calls of `extract_file` returned the build directory
-        # so we changed to that instead of the directory of the first/main source
-        if len(src) > 1:
-            change_dir(self.builddir)
 
     def patch_step(self, beginpath=None, patches=None):
         """
