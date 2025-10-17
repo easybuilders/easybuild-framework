@@ -55,6 +55,7 @@ import random
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import time
@@ -151,6 +152,25 @@ def _obtain_file_update_progress_bar_on_return(func):
 
         return result
     return wrapper
+
+def _quick_check_url_404(url:str)->bool:
+    """
+    use "curl" on linux computer to check whether the url is 404
+    This is a weak check, to make sure no right url be deleted
+    True for it is 404
+    """
+    try:
+        output = subprocess.check_output("curl -I -s %s" % url , shell=True, text=True) # run curl
+        for line in output.split('\n'):
+            if 'HTTP/2 404' in line:
+                return True
+            elif 'HTTP/2' in line:
+                # no 404
+                return False
+    except subprocess.CalledProcessError:
+        # make sure no right url be killed
+        return False
+    return False
 
 
 class EasyBlock:
@@ -1042,6 +1062,13 @@ class EasyBlock:
                 else:
                     self.log.debug("Trying to download file %s from %s to %s ..." % (filename, fullurl, targetpath))
                     downloaded = False
+                    # can add a check to make sure there is not 404
+                    # the method in filetools.py to check 404 is too slow, I think we can use curl
+                    if _quick_check_url_404(fullurl):
+                        # if it is 404
+                        self.log.debug("Pre-check failed when trying to download %s from %s" % (filename, url))
+                        failedpaths.append(fullurl)
+                        continue
                     try:
                         if download_file(filename, fullurl, targetpath):
                             downloaded = True
