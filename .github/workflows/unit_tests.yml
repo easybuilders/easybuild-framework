@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
         lmod8: Lmod-8.7.65
+        lmod9: Lmod-9.0
         modules4: modules-4.5.3
         modules5: modules-5.3.1
     steps:
@@ -48,6 +49,9 @@ jobs:
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.14'
             modules_tool: ${{needs.setup.outputs.lmod8}}
+          # also test with Lmod 9.x
+          - python: '3.9'
+            modules_tool: ${{needs.setup.outputs.lmod9}}
       fail-fast: false
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
