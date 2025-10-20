@@ -626,6 +626,25 @@ def get_cpu_features():
 
     return cpu_feat
 
+def get_isa():
+    """
+    Get supported ISA string
+    """
+    isa_string = None
+    os_type = get_os_type()
+    if os_type == LINUX:
+        if is_readable(PROC_CPUINFO_FP):
+            cmd = "cat /proc/cpuinfo | grep isa | head -1 | cut -d':' -f2"
+            _log.debug("Trying to determine ISA string on Linux via cmd '%s'", cmd)
+            res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False,
+                                output_file=False, stream_output=False)
+            if res.exit_code == EasyBuildExit.SUCCESS:
+                isa_string = res.output.strip()
+        else:
+            _log.debug("%s not found to determine ISA string", PROC_CPUINFO_FP)
+    else:
+        raise SystemToolsException("Could not determine ISA string (OS: %s)" % os_type)
+    return isa_string
 
 def get_gpu_info():
     """
