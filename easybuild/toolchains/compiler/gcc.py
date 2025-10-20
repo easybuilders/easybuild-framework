@@ -94,7 +94,7 @@ class Gcc(Compiler):
         # no support for -march on POWER; implies -mtune=native
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',
-        (systemtools.RISCV64, systemtools.RISCV): '-march=' + systemtools.get_isa(),  # build for all available extensions 
+        (systemtools.RISCV64, systemtools.RISCV): '-march=' + systemtools.get_isa(),  # use all available extensions
         (systemtools.X86_64, systemtools.AMD): '-march=native',  # implies -mtune=native
         (systemtools.X86_64, systemtools.INTEL): '-march=native',  # implies -mtune=native
     }
