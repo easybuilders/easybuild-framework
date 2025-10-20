@@ -626,6 +626,7 @@ def get_cpu_features():
 
     return cpu_feat
 
+
 def get_isa():
     """
     Get supported ISA string
@@ -645,6 +646,7 @@ def get_isa():
     else:
         raise SystemToolsException("Could not determine ISA string (OS: %s)" % os_type)
     return isa_string
+
 
 def get_gpu_info():
     """
