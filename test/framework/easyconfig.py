@@ -566,15 +566,16 @@ class EasyConfigTest(EnhancedTestCase):
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
-            '   ("toy", "0.0", {',
+            '   ("toy", "0.0.1", {',
             # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
             # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
             # %(versionsuffix)s should get resolved with value of parent
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
-            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            '       "patches": ["%(name)s-%(version_major_minor)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
-            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version_minor_patch)s &&' +
+            ' mv toy-%(version_minor_patch)s toy # echo installdir is %(installdir)s #",',
+            '        "postbuildopts": "echo postbuild step for %(name)s-%(version)s",',
             '   }),',
             ']',
         ])
@@ -597,16 +598,15 @@ class EasyConfigTest(EnhancedTestCase):
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        patches = []
-        for patch in toy_ext.patches:
-            patches.append(patch['path'])
+        patches = [patch['path'] for patch in toy_ext.patches]
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
-        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
+        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.1 && mv toy-0.1 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
+            'postbuildopts': "echo postbuild step for toy-0.0.1",
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -3747,8 +3747,19 @@ class EasyConfigTest(EnhancedTestCase):
             'version': '1.2.3',
             'version_major': '1',
             'version_major_minor': '1.2',
-            'version_minor': '2'
+            'version_minor': '2',
+            'version_minor_patch': '2.3',
+            'version_patch': '3',
         }
+        self.assertEqual(res, expected)
+
+        # No patch version makes the templates undefined
+        ext_dict['version'] = '1.2'
+        res = template_constant_dict(ext_dict)
+
+        del expected['version_minor_patch']
+        del expected['version_patch']
+        expected['version'] = '1.2'
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
