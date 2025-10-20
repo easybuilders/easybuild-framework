@@ -3723,7 +3723,7 @@ class EasyConfigTest(EnhancedTestCase):
         # also check result of template_constant_dict when dict representing extension is passed
         ext_dict = {
             'name': 'foo',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'options': {
                 'source_urls': ['https://example.com'],
                 'source_tmpl': '%(name)s-%(version)s.tar.gz',
@@ -3744,9 +3744,10 @@ class EasyConfigTest(EnhancedTestCase):
             'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'version_major': '1',
             'version_major_minor': '1.2',
+            'version_major_minor_patch': '1.2.3',
             'version_minor': '2',
             'version_minor_patch': '2.3',
             'version_patch': '3',
@@ -3756,7 +3757,9 @@ class EasyConfigTest(EnhancedTestCase):
         # No patch version makes the templates undefined
         ext_dict['version'] = '1.2'
         res = template_constant_dict(ext_dict)
+        res.pop('arch')
 
+        del expected['version_major_minor_patch']
         del expected['version_minor_patch']
         del expected['version_patch']
         expected['version'] = '1.2'

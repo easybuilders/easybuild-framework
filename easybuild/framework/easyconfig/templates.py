@@ -50,6 +50,7 @@ TEMPLATE_NAMES_EASYCONFIG = {
     'nameletter': 'First letter of software name',
     'toolchain_name': 'Toolchain name',
     'toolchain_version': 'Toolchain version',
+    'version_major_minor_patch': "Major.Minor.Patch version",
     'version_major_minor': "Major.Minor version",
     'version_major': 'Major version',
     'version_minor_patch': 'Minor.Patch version',
@@ -206,6 +207,7 @@ ALTERNATIVE_EASYCONFIG_TEMPLATES = {
     'r_short_ver': 'rshortver',
     'r_ver': 'rver',
     'toolchain_ver': 'toolchain_version',
+    'ver_maj_min_patch': 'version_major_minor_patch',
     'ver_maj_min': 'version_major_minor',
     'ver_maj': 'version_major',
     'ver_min_patch': 'version_minor_patch',
@@ -351,6 +353,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                         patch = version[2]
                         template_values['version_patch'] = patch
                         template_values['version_minor_patch'] = '.'.join([minor, patch])
+                        template_values['version_major_minor_patch'] = '.'.join([major, minor, patch])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
