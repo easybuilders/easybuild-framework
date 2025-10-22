@@ -3754,24 +3754,32 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(test_zlib_mod_file, zlib_mod_txt)
         self.modtool.use(test_mods)
 
-        args = [
-            test_ec,
-            '--rebuild',
-            '--search-path-cpp-headers=include_paths',
-        ]
-        with self.mocked_stdout_stderr():
-            with self.log_to_testlogfile():
-                self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+        env_vars = {
+            'cpath': ['CPATH'],
+            'flags': ['CPPFLAGS'],
+            'include_paths': ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+        }
 
-        log_txt = read_file(self.logfile)
+        for search_path_cpp_headers in ('cpath', 'flags', 'include_paths'):
+            args = [
+                test_ec,
+                '--rebuild',
+                f'--search-path-cpp-headers={search_path_cpp_headers}',
+            ]
+            with self.mocked_stdout_stderr():
+                with self.log_to_testlogfile():
+                    self.eb_main(args, raise_error=True, do_build=True, verbose=True)
 
-        # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
-        regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
-        self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+            log_txt = read_file(self.logfile)
 
-        # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
-        regex = re.compile(f"^C_INCLUDE_PATH=.*/software/zlib/{zlib_fn}/include$", re.M)
-        self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+            # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
+            regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
+            self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
+            # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
+            for env_var in env_vars[search_path_cpp_headers]:
+                regex = re.compile(f"^{env_var}=.*/software/zlib/{zlib_fn}/include$", re.M)
+                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
 
 def suite(loader=None):
