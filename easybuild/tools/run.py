@@ -462,8 +462,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
 
-        log_str = f'Command environment of\n\t"{cmd_str}"\nwill be saved to {cmd_sh}\n'
-        log_str += f'Output will be logged to {cmd_out_fp}'
+        log_str = '\n'.join([
+            'Script to start debug shell for command',
+            f'\t{cmd_str}',
+            f'will be saved to {cmd_sh}',
+        ])
+        log_str += f'\nOutput will be logged to {cmd_out_fp}'
         if cmd_err_fp:
             log_str += f'\nErrors and warnings will be logged to {cmd_err_fp}'
         _log.info(f'run_shell_cmd: {log_str}')
