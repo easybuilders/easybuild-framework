@@ -592,8 +592,6 @@ class ModulesTool:
     VERSION_REGEXP = None
     # modules tool user cache directory
     USER_CACHE_DIR = None
-    # Priority used to put module paths at the front when priorities are otherwise used
-    HIGH_PRIORITY = 10000
 
     def __init__(self, mod_paths=None, testing=False):
         """
@@ -2115,19 +2113,14 @@ class Lmod(ModulesTool):
         # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
         modulepath = curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
-            # If no explicit priority is set, but priorities are already in use we need to use a high
-            # priority to make sure the path (very likely) ends up at the front
-            if priority is None and self._has_module_paths_with_priority():
-                priority = self.HIGH_PRIORITY
             self.use(path, priority=priority)
-            modulepath = curr_module_paths(normalize=True, clean=False)
-            path_idx = modulepath.index(normalize_path(path))
-            if path_idx != 0:
-                print_warning("Path '%s' could not be prepended to $MODULEPATH. "
-                              "The following paths are still in front of it: %s\n"
-                              "This can happen if paths were added via `module use` with a priority higher than %s",
-                              path, "; ".join(modulepath[:path_idx]), self.HIGH_PRIORITY,
-                              log=self.log)
+            if priority is None and not self._has_module_paths_with_priority():
+                modulepath = curr_module_paths(normalize=True, clean=False)
+                path_idx = modulepath.index(normalize_path(path))
+                if path_idx != 0:
+                    print_warning("Path '%s' could not be prepended to $MODULEPATH. "
+                                  "The following paths are still in front of it: %s",
+                                  path, "; ".join(modulepath[:path_idx]), log=self.log)
             if set_mod_paths:
                 self.set_mod_paths()
 
