@@ -37,6 +37,7 @@ import re
 import shutil
 import sys
 import tempfile
+import textwrap
 from inspect import cleandoc
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -3670,6 +3671,9 @@ class EasyBlockTest(EnhancedTestCase):
         os.remove(eb.logfile)
 
     def test_report_current_step_method(self):
+        """
+        Check whether name of methods in installation steps are correctly reported
+        """
         testdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
@@ -3705,6 +3709,77 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Ran test', logtxt)
         self.assertRegex(logtxt, f'Running method {method_name} .* {step_name}')
         self.assertIn('Ran custom', logtxt)
+
+    def test_exts_deps_build_env(self):
+        """
+        Test whether dependencies are loaded in build environment for extensions.
+        """
+        # to verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5023
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += textwrap.dedent("""
+            toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+
+            dependencies = [
+                ('zlib', '1.2.13'),
+            ]
+
+            exts_list = [
+                ('bar', '0.0', {
+                    'prebuildopts': "(env | sort) && ",
+                })
+            ]
+
+            sanity_check_paths = {
+                'files': ['bin/bar', 'bin/toy'],
+                'dirs': ['bin'],
+            }
+        """)
+        write_file(test_ec, test_ec_txt)
+
+        # put dummy zlib module in place where we can control $EBROOTZLIB value
+        zlib_mod_file = os.path.join(testdir, 'modules', 'zlib', '1.2.13-GCCcore-12.3.0')
+        zlib_fn = os.path.basename(zlib_mod_file)
+
+        zlib_root = os.path.join(self.test_prefix, 'software', 'zlib', zlib_fn)
+        write_file(os.path.join(zlib_root, 'include', 'zlib.h'), '')
+
+        zlib_mod_txt = read_file(zlib_mod_file)
+        zlib_mod_txt = re.sub("set root.*", f"set root {zlib_root}", zlib_mod_txt)
+
+        test_mods = os.path.join(self.test_prefix, 'modules')
+        test_zlib_mod_file = os.path.join(test_mods, 'zlib', zlib_fn)
+        write_file(test_zlib_mod_file, zlib_mod_txt)
+        self.modtool.use(test_mods)
+
+        env_vars = {
+            'cpath': ['CPATH'],
+            'flags': ['CPPFLAGS'],
+            'include_paths': ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+        }
+
+        for search_path_cpp_headers in ('cpath', 'flags', 'include_paths'):
+            args = [
+                test_ec,
+                '--rebuild',
+                f'--search-path-cpp-headers={search_path_cpp_headers}',
+            ]
+            with self.mocked_stdout_stderr():
+                with self.log_to_testlogfile():
+                    self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+
+            log_txt = read_file(self.logfile)
+
+            # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
+            regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
+            self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
+            # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
+            for env_var in env_vars[search_path_cpp_headers]:
+                regex = re.compile(f"^{env_var}=.*/software/zlib/{zlib_fn}/include$", re.M)
+                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
 
 def suite(loader=None):
