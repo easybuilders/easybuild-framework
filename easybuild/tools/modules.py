@@ -2110,8 +2110,8 @@ class Lmod(ModulesTool):
         :param set_mod_paths: (re)set self.mod_paths
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
-        # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
-        modulepath = curr_module_paths()
+        # If the path is already first in MODULEPATH, do nothing if we don't want to add it with a priority
+        modulepath = None if priority is not None else curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.use(path, priority=priority)
             if (priority is None) == (not self._has_module_paths_with_priority()):
