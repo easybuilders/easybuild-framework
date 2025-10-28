@@ -631,7 +631,7 @@ def get_isa():
     """
     Get supported ISA string
     """
-    isa_string = None
+    isa_string = '' 
     os_type = get_os_type()
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
