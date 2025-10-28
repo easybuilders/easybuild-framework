@@ -44,7 +44,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import modify_env, setvar
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
-from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64, RISCV64
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
