@@ -635,12 +635,15 @@ def get_isa():
     os_type = get_os_type()
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
-            cmd = "cat /proc/cpuinfo | grep isa | head -1 | cut -d':' -f2"
-            _log.debug("Trying to determine ISA string on Linux via cmd '%s'", cmd)
-            res = run_shell_cmd(cmd, in_dry_run=True, hidden=True, fail_on_error=False, with_hooks=False,
-                                output_file=False, stream_output=False)
-            if res.exit_code == EasyBuildExit.SUCCESS:
-                isa_string = res.output.strip()
+            _log.debug("Trying to determine ISA string on Linux via %s", PROC_CPUINFO_FP)
+            proc_cpuinfo = read_file(PROC_CPUINFO_FP)
+            isa_regex = re.compile(r"isa\s*:\s*(.*)")
+            res = isa_regex.search(proc_cpuinfo)
+            if res:
+                isa_string = res.group(1)
+                _log.debug("Found ISA string using regex '%s': %s", isa_regex.pattern, isa_string)
+            else:
+                _log.debug("Failed to determine ISA string from %s", PROC_CPUINFO_FP)
         else:
             _log.debug("%s not found to determine ISA string", PROC_CPUINFO_FP)
     else:
