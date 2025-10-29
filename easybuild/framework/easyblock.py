@@ -48,6 +48,7 @@ import copy
 import functools
 import glob
 import inspect
+import itertools
 import json
 import os
 import random
@@ -71,7 +72,7 @@ from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
-from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig
+from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconfig, ALTERNATIVE_EASYCONFIG_PARAMETERS
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
@@ -90,13 +91,14 @@ from easybuild.tools.config import install_path, log_path, package_path, source_
 from easybuild.tools.config import DATA, SOFTWARE
 from easybuild.tools.environment import restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
-from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock
+from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock, clean_dir
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
 from easybuild.tools.filetools import create_non_existing_paths, create_patch_info, derive_alt_pypi_url, diff_files
-from easybuild.tools.filetools import download_file, encode_class_name, extract_file, find_backup_name_candidate
-from easybuild.tools.filetools import get_cwd, get_source_tarball_from_git, is_alt_pypi_url, is_binary, is_parent_path
-from easybuild.tools.filetools import is_sha256_checksum, mkdir, move_file, move_logs, read_file, remove_dir
-from easybuild.tools.filetools import remove_file, remove_lock, symlink, verify_checksum, weld_paths, write_file
+from easybuild.tools.filetools import download_file, encode_class_name, extract_file
+from easybuild.tools.filetools import find_backup_name_candidate, get_cwd, get_source_tarball_from_git, is_alt_pypi_url
+from easybuild.tools.filetools import is_binary, is_parent_path, is_sha256_checksum, mkdir, move_file, move_logs
+from easybuild.tools.filetools import read_file, remove_dir, remove_file, remove_lock, symlink, verify_checksum
+from easybuild.tools.filetools import weld_paths, write_file
 from easybuild.tools.hooks import (
     BUILD_STEP, CLEANUP_STEP, CONFIGURE_STEP, EASYBLOCK, EXTENSIONS_STEP, EXTRACT_STEP, FETCH_STEP, INSTALL_STEP,
     MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
@@ -581,11 +583,17 @@ class EasyBlock:
         Add a list of patches.
         All patches will be checked if a file exists (or can be located)
         """
-        post_install_patches = []
         if patch_specs is None:
             # if no patch_specs are specified, use all pre-install and post-install patches
             post_install_patches = self.cfg['postinstallpatches']
             patch_specs = self.cfg['patches'] + post_install_patches
+        elif isinstance(patch_specs, list):
+            post_install_patches = []
+        else:
+            if not isinstance(patch_specs, tuple) or len(patch_specs) != 2:
+                raise EasyBuildError('Patch specs must be a tuple of (patches, post-install patches) or a list')
+            post_install_patches = patch_specs[1]
+            patch_specs = itertools.chain(*patch_specs)
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
@@ -765,11 +773,15 @@ class EasyBlock:
                             )
 
                     # locate extension patches (if any), and verify checksums
-                    ext_patches = resolve_template(ext_options.get('patches', []), template_values)
+                    ext_patch_specs = resolve_template((
+                        ext_options.get('patches', []),
+                        ext_options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                        ext_options.get('post_install_patches', []))
+                        ), template_values)
                     if fetch_files:
-                        ext_patches = self.fetch_patches(patch_specs=ext_patches, extension=True)
+                        ext_patches = self.fetch_patches(patch_specs=ext_patch_specs, extension=True)
                     else:
-                        ext_patches = [create_patch_info(p) for p in ext_patches]
+                        ext_patches = [create_patch_info(p) for p in itertools.chain(*ext_patch_specs)]
 
                     if ext_patches:
                         self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
@@ -1176,10 +1188,13 @@ class EasyBlock:
         # unless we're building in installation directory and we iterating over a list of (pre)config/build/installopts,
         # otherwise we wipe the already partially populated installation directory,
         # see https://github.com/easybuilders/easybuild-framework/issues/2556
-        if not (self.build_in_installdir and self.iter_idx > 0):
-            # make sure we no longer sit in the build directory before cleaning it.
+        if self.build_in_installdir and self.iter_idx > 0:
+            pass
+        else:
+            # make sure we no longer sit in the build directory before removing it.
             change_dir(self.orig_workdir)
-            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'])
+            # if we’re building in installation directory, clean it
+            self.make_dir(self.builddir, self.cfg['cleanupoldbuild'], clean_instead_of_remove=self.build_in_installdir)
 
         trace_msg("build dir: %s" % self.builddir)
 
@@ -1225,9 +1240,10 @@ class EasyBlock:
         if self.build_in_installdir:
             self.cfg['keeppreviousinstall'] = True
         dontcreate = (dontcreate is None and self.cfg['dontcreateinstalldir']) or dontcreate
-        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate)
+        self.make_dir(self.installdir, self.cfg['cleanupoldinstall'], dontcreateinstalldir=dontcreate,
+                      clean_instead_of_remove=True)
 
-    def make_dir(self, dir_name, clean, dontcreateinstalldir=False):
+    def make_dir(self, dir_name, clean, dontcreateinstalldir=False, clean_instead_of_remove=False):
         """
         Create the directory.
         """
@@ -1238,15 +1254,24 @@ class EasyBlock:
                 return
             elif build_option('module_only') or self.cfg['module_only']:
                 self.log.info("Not touching existing directory %s in module-only mode...", dir_name)
-            elif clean:
-                remove_dir(dir_name)
-                self.log.info("Removed old directory %s", dir_name)
             else:
-                self.log.info("Moving existing directory %s out of the way...", dir_name)
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
-                backupdir = "%s.%s" % (dir_name, timestamp)
-                move_file(dir_name, backupdir)
-                self.log.info("Moved old directory %s to %s", dir_name, backupdir)
+                if not clean:
+                    self.log.info("Creating backup of directory %s...", dir_name)
+                    timestamp = time.strftime("%Y%m%d-%H%M%S")
+                    backupdir = "%s.%s" % (dir_name, timestamp)
+                    if clean_instead_of_remove:
+                        copy_dir(dir_name, backupdir)
+                        self.log.info(f"Copied old directory {dir_name} to {backupdir}")
+                    else:
+                        move_file(dir_name, backupdir)
+                        self.log.info(f"Moved old directory {dir_name} to {backupdir}")
+                if clean_instead_of_remove:
+                    # clean the installation directory: first try to remove it; if that fails, empty it
+                    clean_dir(dir_name)
+                    self.log.info(f"Cleaned old directory {dir_name}")
+                elif clean:
+                    remove_dir(dir_name)
+                    self.log.info(f"Removed old directory {dir_name}")
 
         if dontcreateinstalldir:
             olddir = dir_name
@@ -1860,10 +1885,14 @@ class EasyBlock:
 
         # create fake module
         fake_mod_path = self.make_module_step(fake=True)
+        full_fake_mod_path = os.path.join(fake_mod_path, self.mod_subdir)
+
+        # indicate that path to fake module should get absolute priority
+        mod_paths = [(full_fake_mod_path, 10000)]
 
         # load fake module
-        self.modules_tool.prepend_module_path(os.path.join(fake_mod_path, self.mod_subdir), priority=10000)
-        self.load_module(purge=purge, extra_modules=extra_modules, verbose=verbose)
+        self.load_module(purge=purge, extra_modules=extra_modules, mod_paths=mod_paths, verbose=verbose)
+
         return (fake_mod_path, env)
 
     def clean_up_fake_module(self, fake_mod_data):
@@ -1875,7 +1904,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name])
+                self.modules_tool.unload([self.short_mod_name], log_changes=False)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
@@ -1884,7 +1913,8 @@ class EasyBlock:
             self.log.warning("Not unloading module, since self.short_mod_name is not set.")
 
         # restore original environment
-        restore_env(env)
+        self.log.info("Restoring environment after unloading fake module")
+        restore_env(env, log_changes=False)
 
     def load_dependency_modules(self):
         """Load dependency modules."""
@@ -2096,7 +2126,8 @@ class EasyBlock:
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
                     # don't reload modules for toolchain, there is no need
                     # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                          silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs,
                                           rpath_include_dirs=self.rpath_include_dirs,
                                           rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2258,7 +2289,8 @@ class EasyBlock:
                         with self.fake_module_environment(with_build_deps=True):
                             # don't reload modules for toolchain, there is no
                             # need since they will be loaded by the fake module
-                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                                  silent=True, loadmod=False,
                                                   rpath_filter_dirs=self.rpath_filter_dirs,
                                                   rpath_include_dirs=self.rpath_include_dirs,
                                                   rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2713,7 +2745,8 @@ class EasyBlock:
         try:
             sources = ent.get('sources', [])
             data_sources = ent.get('data_sources', [])
-            patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
+            patches = ent.get('patches', []) + ent.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                                       ent.get('post_install_patches', []))
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
@@ -2858,6 +2891,13 @@ class EasyBlock:
             if beginpath is None:
                 if not self.src:
                     raise EasyBuildError("Can't apply patch %s to source if no sources are given", patch['name'])
+                # If the src member is a string we have an extension with a single source.
+                # If that did extract the source beginpath would be set.
+                if isinstance(self.src, str):
+                    raise EasyBuildError("Cannot apply patches if sources were not extracted. "
+                                         "Patch file: " + patch['name'])
+                # Use (extracted) location of first source.
+                # Other sources will likely not have a reasonable finalpath set.
                 beginpath = self.src[0]['finalpath']
                 self.log.debug("Determined begin path for patch %s: %s" % (patch['name'], beginpath))
             else:
@@ -3264,11 +3304,12 @@ class EasyBlock:
             # To allow postinstallpatches for Bundle, and derived, easyblocks we directly call EasyBlock.patch_step
             EasyBlock.patch_step(self, beginpath=self.installdir, patches=patches)
 
-    def print_post_install_messages(self):
+    def print_post_install_messages(self, msgs=None):
         """
         Print post-install messages that are specified via the 'postinstallmsgs' easyconfig parameter.
         """
-        msgs = self.cfg['postinstallmsgs'] or []
+        if msgs is None:
+            msgs = self.cfg['postinstallmsgs'] or []
         for msg in msgs:
             print_msg(msg, log=self.log)
 
@@ -3799,12 +3840,10 @@ class EasyBlock:
                 self.log.debug(f"Sanity checking RPATH for files in {dirpath}")
 
                 for path in [os.path.join(dirpath, x) for x in os.listdir(dirpath)]:
-                    # skip the check for any symlinks that resolve to outside the installation directory
-                    if not is_parent_path(self.installdir, path):
+                    # skip the check for symlinks (since get_linked_libs_raw will return None anyway)
+                    if os.path.islink(path):
                         realpath = os.path.realpath(path)
-                        msg = (f"Skipping RPATH sanity check for {path}, since its absolute path {realpath} resolves to"
-                               f" outside the installation directory {self.installdir}")
-                        self.log.info(msg)
+                        self.log.debug(f"Skipping RPATH sanity check for {path}, since it is a symlink to {realpath}")
                         continue
 
                     self.log.debug(f"Sanity checking RPATH for {path}")
@@ -3812,7 +3851,7 @@ class EasyBlock:
                     out = get_linked_libs_raw(path)
 
                     if out is None:
-                        msg = "Failed to determine dynamically linked libraries for {path}, "
+                        msg = f"Failed to determine dynamically linked libraries for {path}, "
                         msg += "so skipping it in RPATH sanity check"
                         self.log.debug(msg)
                     else:
@@ -5022,7 +5061,7 @@ def build_and_install_one(ecdict, init_env):
     # timing info
     start_time = time.time()
     try:
-        run_test_cases = not build_option('skip_test_cases') and app.cfg['tests']
+        run_test_cases = not build_option('skip_test_cases') and app.cfg.get_ref('tests')
 
         if not dry_run:
             # create our reproducibility files before carrying out the easyblock steps
@@ -5232,6 +5271,11 @@ def build_and_install_one(ecdict, init_env):
     run_hook(EASYBLOCK, hooks, post_step_hook=True, args=[app])
 
     del app
+
+    # take into account that log file may not exist,
+    # for example when we're operating in extended dry run mode (-x)
+    if not os.path.exists(application_log):
+        application_log = None
 
     return (success, application_log, error_msg, exit_code)
 

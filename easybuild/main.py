@@ -736,9 +736,9 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         options.list_prs,
         options.merge_pr,
         options.review_pr,
-        # --missing-modules is processed by process_eb_args,
+        # --missing-modules and dry_run(_short) are processed by process_eb_args,
         # so we can't exit just yet here if it's used in combination with --terse
-        options.terse and not options.missing_modules,
+        options.terse and not (options.missing_modules or options.dry_run or options.dry_run_short),
         search_query,
     ]
     if any(early_stop_options):

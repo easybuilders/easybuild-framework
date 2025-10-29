@@ -1104,29 +1104,36 @@ class ModulesTool:
             # restore initial environment if provided
             if init_env is None:
                 raise EasyBuildError("Initial environment required when purging before loading, but not available")
-            else:
-                restore_env(init_env)
 
-            # make sure $MODULEPATH is set correctly after purging
+            restore_env(init_env)
+
+            # sync mod_paths class variable with $MODULEPATH environment variable after resetting environment
+            self.mod_paths = None
             self.check_module_path()
 
         # extend $MODULEPATH if needed
         for mod_path in mod_paths:
+            priority = None
+            if isinstance(mod_path, tuple) and len(mod_path) == 2:
+                mod_path, priority = mod_path
+            elif not isinstance(mod_path, str):
+                raise EasyBuildError(f"Incorrect mod_paths entry encountered when loading module(s): {mod_path}")
+
             full_mod_path = os.path.join(install_path('mod'), build_option('suffix_modules_path'), mod_path)
             if os.path.exists(full_mod_path):
-                self.prepend_module_path(full_mod_path)
+                self.prepend_module_path(full_mod_path, priority=priority)
 
         loaded_modules = self.loaded_modules()
         for mod in modules:
             if allow_reload or mod not in loaded_modules:
                 self.run_module('load', mod)
 
-    def unload(self, modules=None):
+    def unload(self, modules, log_changes=True):
         """
         Unload all requested modules.
         """
         for mod in modules:
-            self.run_module('unload', mod)
+            self.run_module('unload', mod, log_changes=log_changes)
 
     def purge(self):
         """
@@ -1189,9 +1196,9 @@ class ModulesTool:
 
         return modpath
 
-    def set_path_env_var(self, key, paths):
+    def set_path_env_var(self, key, paths, log_changes=True):
         """Set path environment variable to the given list of paths."""
-        setvar(key, os.pathsep.join(paths), verbose=False)
+        setvar(key, os.pathsep.join(paths), verbose=False, log_changes=log_changes)
 
     def check_module_output(self, cmd, stdout, stderr):
         """Check output of 'module' command, see if if is potentially invalid."""
@@ -1250,11 +1257,13 @@ class ModulesTool:
                 self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                                key, old_value, new_value)
 
+        log_changes = kwargs.get('log_changes', True)
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
         res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, use_bash=False, split_stderr=True,
-                            hidden=True, in_dry_run=True, output_file=False)
+                            hidden=True, in_dry_run=True, output_file=False,
+                            log_output_on_success=log_changes)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -1790,7 +1799,9 @@ class EnvironmentModules(ModulesTool):
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
-        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
+        # Environment Modules should support "informational extension" to safely handle the
+        # extensions built here (see https://github.com/envmodules/modules/issues/585)
+        self.supports_extensions = False
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -1923,7 +1934,7 @@ class Lmod(ModulesTool):
         version = LooseVersion(self.version)
 
         self.supports_depends_on = True
-        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
+        self.supports_extensions = True
         # See https://lmod.readthedocs.io/en/latest/125_personal_spider_cache.html
         if version >= LooseVersion('8.7.12'):
             self.USER_CACHE_DIR = os.path.join(os.path.expanduser('~'), '.cache', 'lmod')
@@ -2101,11 +2112,11 @@ class Lmod(ModulesTool):
         """
         # Lmod produces "module show" output with setenv statements like:
         # setenv("EBROOTBZIP2","/tmp/software/bzip2/1.0.6")
-        # - line starts with setenv(
+        # - line starts with setenv( or setenv{ (see also https://github.com/TACC/Lmod/issues/792)
         # - both variable name and value are enclosed in double quotes, separated by comma
         # - value can contain spaces!
         # - line ends with )
-        regex = re.compile(r'^setenv\("%s"\s*,\s*"(?P<value>.+)"\)' % var_name, re.M)
+        regex = re.compile(r'^setenv[\({]"%s"\s*,\s*"(?P<value>.+)"[\)}]' % var_name, re.M)
         value = self.get_value_from_modulefile(mod_name, regex, strict=False)
 
         if value:

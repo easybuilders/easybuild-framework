@@ -1118,6 +1118,9 @@ def get_linked_libs_raw(path):
     or None for other types of files.
     """
 
+    if os.path.islink(path):
+        _log.debug(f"{path} is a symbolic link, so skipping check for linked libs")
+        return None
     res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
     if res.exit_code != EasyBuildExit.SUCCESS:
         fail_msg = "Failed to run 'file %s': %s" % (path, res.output)

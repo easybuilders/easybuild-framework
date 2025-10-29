@@ -43,7 +43,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -794,6 +794,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
+            return
+
         # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
@@ -806,22 +810,27 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
+        req_version_pattern = re.escape(self.modtool.REQ_VERSION_EXTENSIONS)
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            pattern = r'^extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$'
-            regex = re.compile(pattern, re.M)
-            if self.modtool.supports_extensions:
-                self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
+            if isinstance(self.modtool, EnvironmentModules):
+                version_var = "::ModuleToolVersion"
             else:
-                self.assertFalse(regex.search(desc), "No extensions found in: %s" % desc)
+                version_var = r"::env\(LMOD_VERSION\)"
+            patterns = [
+                (r'^if \{ \[ info exists %s \] && \[ string equal \[lindex \[lsort -dictionary '
+                 r'\[list %s \$%s\]\] 0\] %s \] \} \{\n') % (version_var, req_version_pattern,
+                                                             version_var, req_version_pattern),
+                r'\s*extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$',
+            ]
         else:
             patterns = [
-                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("%s"\) then\n' % req_version_pattern,
                 r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
             ]
 
-            for pattern in patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(desc), "Pattern '%s' found in: %s" % (regex.pattern, desc))
 
         # check if the extensions is missing if there are no extensions
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
@@ -832,7 +841,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         desc = modgen.get_description()
 
         if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            pattern = r"^extensions "
+            pattern = r"\s*extensions "
         else:
             pattern = r"\s*extensions\("
 
@@ -847,13 +856,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
-            pattern = r'^extensions '
-            self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
-        else:
-            for pattern in patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
