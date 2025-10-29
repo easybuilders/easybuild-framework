@@ -15,7 +15,7 @@ def parse_hook(ec, *args, **kwargs):
     if openssl_found:
         print(f"[openssl1->3 hook] OpenSSL found in dependencies of {ec['name']}, replacing with OpenSSL 3")
         for i, dep in enumerate(raw_deps):
-            if dep[0] == 'OpenSSL':
+            if dep[0] == 'OpenSSL' and dep[1] == '1.1':
                 raw_deps[i] = ('OpenSSL', '3', '', EASYCONFIG_CONSTANTS['SYSTEM'][0])
                 break
 
