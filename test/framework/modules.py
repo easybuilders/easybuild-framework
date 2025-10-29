@@ -55,7 +55,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 111
+TEST_MODULES_COUNT = 118
 
 
 class ModulesTest(EnhancedTestCase):
@@ -429,7 +429,7 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
         # exclude modules not on the top level of a hierarchy
         ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
-                                    m.startswith('CategorizedHMNS'))]
+                                    m.startswith('CategorizedHMNS') or m.startswith('HierarchicalMNS'))]
 
         for m in ms:
             self.modtool.load([m])
@@ -479,6 +479,21 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
+
+        # test loading of module when particular module path has priority over others
+        if isinstance(self.modtool, Lmod):
+            mod_paths = [
+                os.path.join(self.test_prefix, 'one'),
+                (os.path.join(self.test_prefix, 'two'), 10000),
+                os.path.join(self.test_prefix, 'three'),
+            ]
+            for mod_path in mod_paths:
+                if isinstance(mod_path, tuple):
+                    mod_path = mod_path[0]
+                mod_file = os.path.join(mod_path, 'test', '1.2.3.lua')
+                write_file(mod_file, 'setenv("TEST_PARENT_DIR", "%s")' % os.path.basename(mod_path))
+            self.modtool.load(['test/1.2.3'], mod_paths=mod_paths)
+            self.assertEqual(os.getenv('TEST_PARENT_DIR'), 'two')
 
     def test_show(self):
         """Test for ModulesTool.show method."""
