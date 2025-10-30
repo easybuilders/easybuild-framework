@@ -245,7 +245,7 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     breakpoints = build_option('breakpoints')
     bk_hooks = {}
     if breakpoints:
-        for bk in breakpoints.split(','):
+        for bk in breakpoints:
             if not bk.endswith(HOOK_SUFF):
                 bk += HOOK_SUFF
             bk_hooks[bk] = lambda *a, **k: _breakpoint()
