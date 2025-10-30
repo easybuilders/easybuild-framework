@@ -219,6 +219,15 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
 
     return res
 
+def _breakpoint():
+    """Simple breakpoint hook that opens a bash shell."""
+    old_ps1 = os.environ.get('PS1', '')
+    old_promptcmd = os.environ.get('PROMPT_COMMAND', '')
+    os.environ['PROMPT_COMMAND'] = ''
+    os.environ['PS1'] = '\e[01;32measybuild-breakpoint> \e[00m'
+    os.system('bash --norc --noprofile')
+    os.environ['PS1'] = old_ps1
+    os.environ['PROMPT_COMMAND'] = old_promptcmd
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
@@ -231,6 +240,17 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
+    breakpoints = build_option('breakpoints')
+    bk_hooks = {}
+    if breakpoints:
+        for bk in breakpoints.split(','):
+            if not bk.endswith(HOOK_SUFF):
+                bk += HOOK_SUFF
+            bk_hooks[bk] = lambda *a, **k: _breakpoint()
+    bp_hook = find_hook(label, bk_hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
+    if bp_hook:
+        bp_hook()
+
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     res = None
     if hook:
