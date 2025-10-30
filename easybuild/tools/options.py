@@ -627,6 +627,10 @@ class EasyBuildOptions(GeneralOption):
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
+            'breakpoints': (
+                "Drop into an interactive shell on the specified steps (use same names as for hooks comma separated)",
+                'strlist', 'store', None
+            ),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),

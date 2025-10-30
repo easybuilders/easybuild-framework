@@ -231,6 +231,7 @@ BUILD_OPTIONS_CMDLINE = {
         'amdgcn_capabilities',
         'backup_modules',
         'banned_linked_shared_libs',
+        'breakpoints',
         'checksum_priority',
         'container_config',
         'container_image_format',
