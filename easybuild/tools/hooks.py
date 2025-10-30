@@ -219,15 +219,17 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
 
     return res
 
+
 def _breakpoint():
     """Simple breakpoint hook that opens a bash shell."""
     old_ps1 = os.environ.get('PS1', '')
     old_promptcmd = os.environ.get('PROMPT_COMMAND', '')
     os.environ['PROMPT_COMMAND'] = ''
-    os.environ['PS1'] = '\e[01;32measybuild-breakpoint> \e[00m'
+    os.environ['PS1'] = 'easybuild-breakpoint> '
     os.system('bash --norc --noprofile')
     os.environ['PS1'] = old_ps1
     os.environ['PROMPT_COMMAND'] = old_promptcmd
+
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
