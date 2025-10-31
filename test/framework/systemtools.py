@@ -747,8 +747,8 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cpu_features(), expected)
 
     def test_isa_native(self):
-        """Test getting ISA strin."""
-        isa_string = get_isa()
+        """Test getting ISA string."""
+        isa_string = get_isa_riscv()
         self.assertIsInstance(isa_string, str)
 
     def test_isa_linux(self):
@@ -762,7 +762,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RISCV64
         expected = 'rv64imafdc'
-        self.assertEqual(get_isa(), expected)
+        self.assertEqual(get_isa_riscv(), expected)
 
     def test_cpu_architecture_native(self):
         """Test getting the CPU architecture."""
