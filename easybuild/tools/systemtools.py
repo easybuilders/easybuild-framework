@@ -627,7 +627,7 @@ def get_cpu_features():
     return cpu_feat
 
 
-def get_isa():
+def get_isa_riscv():
     """
     Get supported ISA string
     """
