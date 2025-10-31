@@ -255,6 +255,9 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
 
         fid.write('\n\nPS1="eb-shell> "')
 
+        # If set it would rely on functions that are not defined in this shell, messing up the prompt
+        fid.write('\nunset PROMPT_COMMAND\n')
+
         # define $EB_CMD_OUT_FILE to contain path to file with command output
         fid.write(f'\nEB_CMD_OUT_FILE="{out_file}"')
         # define $EB_CMD_ERR_FILE to contain path to file with command stderr output (if available)
