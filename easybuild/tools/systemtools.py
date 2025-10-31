@@ -631,7 +631,7 @@ def get_isa_riscv():
     """
     Get supported ISA string
     """
-    isa_string = ''
+    isa_string = 'rv64gc'
     os_type = get_os_type()
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
@@ -647,7 +647,7 @@ def get_isa_riscv():
         else:
             _log.debug("%s not found to determine ISA string", PROC_CPUINFO_FP)
     else:
-        raise SystemToolsException("Could not determine ISA string (OS: %s)" % os_type)
+        _log.debug("Could not determine ISA string (OS: %s), defaulting to: %s", os_type, isa_string)
     return isa_string
 
 
