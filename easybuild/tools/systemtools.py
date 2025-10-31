@@ -637,7 +637,7 @@ def get_isa():
         if is_readable(PROC_CPUINFO_FP):
             _log.debug("Trying to determine ISA string on Linux via %s", PROC_CPUINFO_FP)
             proc_cpuinfo = read_file(PROC_CPUINFO_FP)
-            isa_regex = re.compile(r"isa\s*:\s*(.*)")
+            isa_regex = re.compile(r"^isa\s*:\s*(.*)")
             res = isa_regex.search(proc_cpuinfo)
             if res:
                 isa_string = res.group(1)
