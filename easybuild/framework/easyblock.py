@@ -2954,11 +2954,11 @@ class EasyBlock:
         # $ORIGIN will be resolved by the loader to be the full path to the executable or shared object
         # see also https://linux.die.net/man/8/ld-linux;
         self.rpath_include_dirs.extend([
-            os.path.join(self.installdir, 'lib'),
-            os.path.join(self.installdir, 'lib64'),
             '$ORIGIN',
             '$ORIGIN/../lib',
             '$ORIGIN/../lib64',
+            os.path.join(self.installdir, 'lib'),
+            os.path.join(self.installdir, 'lib64'),
         ])
 
         # Location to store RPATH wrappers
