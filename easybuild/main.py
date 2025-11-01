@@ -604,7 +604,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     success_msg = "Build succeeded "
     if build_option('ignore_test_failure'):
         success_msg += "(with --ignore-test-failure) "
-    success_msg += f"for {correct_builds_cnt} out of {len(ordered_ecs)} in {time2str(datetime.now() - start_time)}"
+    success_msg += f"for {correct_builds_cnt} out of {len(ordered_ecs)} (total: {time2str(datetime.now() - start_time)})"
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
