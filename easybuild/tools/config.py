@@ -845,7 +845,12 @@ def get_module_syntax():
 
 def get_output_style():
     """Return output style to use."""
-    output_style = build_option('output_style')
+    try:
+        output_style = build_option('output_style')
+    except EasyBuildError:
+        # If BuildOptions was not initialized yet, fall back to default and reset singleton to force re-initialization
+        BuildOptions.__class__._instances.clear()
+        output_style = OUTPUT_STYLE_BASIC
 
     if output_style == OUTPUT_STYLE_AUTO:
         if HAVE_RICH:
