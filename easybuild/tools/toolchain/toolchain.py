@@ -259,7 +259,10 @@ class Toolchain:
 
     def _search_path_vars(self, search_object):
         """Return list of environment variables used as search paths for the given object"""
-        search_path_opt = self.search_path[search_object]
+        try:
+            search_path_opt = self.search_path[search_object]
+        except KeyError:
+            raise EasyBuildError("Failed to retrieve search path options for '%s'", search_object)
 
         # default 'flags' option does not use search paths in the build environment
         if search_path_opt == 'flags':
