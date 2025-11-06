@@ -45,10 +45,12 @@ import stat
 import sys
 import tempfile
 import traceback
+from datetime import datetime
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
 from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildExit
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -83,6 +85,7 @@ from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.utilities import time2str
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, UNKNOWN_EASYBLOCKS_VERSION
 from easybuild.tools.version import different_major_versions
 
@@ -243,10 +246,10 @@ def run_contrib_style_checks(ecs, check_contrib, check_style):
     return check_contrib or check_style
 
 
-def clean_exit(logfile, tmpdir, testing, silent=False):
+def clean_exit(logfile, tmpdir, testing, silent=False, exit_code=0):
     """Small utility function to perform a clean exit."""
     cleanup(logfile, tmpdir, testing, silent=silent)
-    sys.exit(0)
+    sys.exit(exit_code)
 
 
 def process_easystack(easystack_path, args, logfile, testing, init_session_state, do_build):
@@ -584,6 +587,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
             return True
 
     # build software, will exit when errors occurs (except when testing)
+    start_time = datetime.now()
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
@@ -600,7 +604,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     success_msg = "Build succeeded "
     if build_option('ignore_test_failure'):
         success_msg += "(with --ignore-test-failure) "
-    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg += f"for {correct_builds_cnt} out of {len(ordered_ecs)} "
+    success_msg += f"(total: {time2str(datetime.now() - start_time)})"
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
@@ -675,15 +680,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     else:
         _log.debug("Packaging not enabled, so not checking for packaging support.")
 
-    # search for easyconfigs, if a query is specified
-    if search_query:
-        search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
-                           terse=options.terse)
-
     if options.check_eb_deps:
         print_checks(check_easybuild_deps(modtool))
 
-    # GitHub options that warrant a silent cleanup & exit
+    # Exitcode to use when exiting directly after any of the following options
+    silent_exit_code = EasyBuildExit.SUCCESS
+
+    # Options that warrant a silent cleanup & exit
     if options.check_github:
         check_github()
 
@@ -713,6 +716,11 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     elif options.list_software:
         print(list_software(output_format=options.output_format, detailed=options.list_software == 'detailed'))
 
+    elif search_query:
+        if not search_easyconfigs(search_query, short=options.search_short, filename_only=options.search_filename,
+                                  terse=options.terse):
+            silent_exit_code = EasyBuildExit.MISSING_EASYCONFIG
+
     elif options.create_index:
         print_msg("Creating index for %s..." % options.create_index, prefix=False)
         index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
@@ -732,13 +740,13 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         options.list_prs,
         options.merge_pr,
         options.review_pr,
-        # --missing-modules is processed by process_eb_args,
+        # --missing-modules and dry_run(_short) are processed by process_eb_args,
         # so we can't exit just yet here if it's used in combination with --terse
-        options.terse and not options.missing_modules,
+        options.terse and not (options.missing_modules or options.dry_run or options.dry_run_short),
         search_query,
     ]
     if any(early_stop_options):
-        clean_exit(logfile, eb_tmpdir, testing, silent=True)
+        clean_exit(logfile, eb_tmpdir, testing, silent=True, exit_code=silent_exit_code)
 
     # update session state
     eb_config = eb_go.generate_cmd_line(add_default=True)

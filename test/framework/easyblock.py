@@ -30,11 +30,14 @@ Unit tests for easyblock.py
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
+import copy
+import fileinput
 import os
 import re
 import shutil
 import sys
 import tempfile
+import textwrap
 from inspect import cleandoc
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -216,6 +219,46 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+        # test HMNS module load when conflicting dependencies are available in both Core and
+        # toolchain-specific modulepaths
+        # see also https://github.com/easybuilders/easybuild-framework/issues/4986
+        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     'easyconfigs', 'test_ecs')
+        os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'HierarchicalMNS'
+        build_options = {
+            'generate_devel_module': True,  # go through EasyBlock.fake_module_environment()
+            'robot_path': [test_ecs_path],
+        }
+        init_config(build_options=build_options)
+
+        # setup pre-built test modules under test install path
+        mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
+        mkdir(mod_prefix, parents=True)
+        for mod_subdir in ['Core', 'Compiler']:
+            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        'modules', 'HierarchicalMNS', mod_subdir)
+            copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
+
+        # tweak use statements in toolchain module to ensure correct paths
+        modfile = os.path.join(mod_prefix, 'Core', 'GCCcore', '12.3.0')
+        for line in fileinput.input(modfile, inplace=1):
+            line = re.sub(r"(module\s*use\s*)/tmp/modules/all",
+                          r"\1%s/modules/all" % self.test_installpath,
+                          line)
+            sys.stdout.write(line)
+
+        test_eb_file = os.path.join(test_ecs_path, 'g', 'GLib', 'GLib-2.77.1-GCCcore-12.3.0.eb')
+        eb = EasyBlock(EasyConfig(test_eb_file))
+
+        self.reset_modulepath([os.path.join(mod_prefix)])
+
+        with self.mocked_stdout_stderr():
+            eb.check_readiness_step()
+            eb.make_builddir()
+            eb.prepare_step()
+            eb.make_module_step()
+            eb.load_module()
 
     def test_fake_module_load(self):
         """Testcase for fake module load"""
@@ -2473,7 +2516,10 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_patch_step(self):
         """Test patch step."""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        cwd = os.getcwd()
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        test_easyconfigs = os.path.join(testdir, 'easyconfigs', 'test_ecs')
         ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]['ec']
         orig_sources = ec['sources'][:]
 
@@ -2506,6 +2552,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check again with backup of patched files enabled
         update_build_option('backup_patched_files', True)
+        change_dir(cwd)
         eb = EasyBlock(ec)
         with self.mocked_stdout_stderr():
             eb.fetch_step()
@@ -2920,6 +2967,72 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             check_ext_start_dir(self.test_prefix, parent_startdir=self.test_prefix)
+            self.assertFalse(self.get_stderr())
+
+    def test_extension_patch_step(self):
+        """Test start dir with extensions."""
+        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
+        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]['ec']
+
+        cwd = os.getcwd()
+        self.assertExists(cwd)
+        # Take environment with test-specific variable set up
+        orig_environ = copy.deepcopy(os.environ)
+
+        def run_extension_step():
+            try:
+                change_dir(cwd)
+                eb = EasyBlock(ec)
+                # Cleanup build directory
+                if os.path.exists(eb.builddir):
+                    remove_dir(eb.builddir)
+                eb.make_builddir()
+                eb.update_config_template_run_step()
+                eb.extensions_step(fetch=True, install=True)
+                return os.path.join(eb.builddir)
+            finally:
+                # restore original environment to continue testing with a clean slate
+                modify_env(os.environ, orig_environ, verbose=False)
+
+        ec['exts_defaultclass'] = 'DummyExtension'
+        ec['exts_list'] = [('toy', '0.0', {'easyblock': 'DummyExtension'})]
+
+        # No patches, no errors
+        with self.mocked_stdout_stderr():
+            run_extension_step()
+            self.assertFalse(self.get_stderr())
+
+        # Patch present, source extracted
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['patches'] = [('toy-extra.txt', 'toy-0.0')]
+            ec['exts_list'][0][2]['unpack_source'] = True
+        with self.mocked_stdout_stderr():
+            builddir = run_extension_step()
+            self.assertTrue(os.path.isfile(os.path.join(builddir, 'toy', 'toy-0.0', 'toy-extra.txt')))
+            self.assertFalse(self.get_stderr())
+
+        # Patch but source not extracted
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['unpack_source'] = False
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'not extracted', run_extension_step)
+            self.assertFalse(self.get_stderr())
+
+        # Patch but no source
+        with ec.disable_templating():
+            ec['exts_list'][0][2]['nosource'] = True
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'no sources', run_extension_step)
+            self.assertFalse(self.get_stderr())
+
+        # Patch without source is possible if the start_dir is set
+        with ec.disable_templating():
+            ec['start_dir'] = '%(builddir)s'
+            ec['exts_list'][0][2]['nosource'] = True
+            ec['exts_list'][0][2]['patches'] = [('toy-extra.txt', '.')]
+        with self.mocked_stdout_stderr():
+            builddir = run_extension_step()
+            self.assertTrue(os.path.isfile(os.path.join(builddir, 'toy-extra.txt')))
             self.assertFalse(self.get_stderr())
 
     def test_prepare_step(self):
@@ -3558,6 +3671,9 @@ class EasyBlockTest(EnhancedTestCase):
         os.remove(eb.logfile)
 
     def test_report_current_step_method(self):
+        """
+        Check whether name of methods in installation steps are correctly reported
+        """
         testdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
@@ -3593,6 +3709,77 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Ran test', logtxt)
         self.assertRegex(logtxt, f'Running method {method_name} .* {step_name}')
         self.assertIn('Ran custom', logtxt)
+
+    def test_exts_deps_build_env(self):
+        """
+        Test whether dependencies are loaded in build environment for extensions.
+        """
+        # to verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5023
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += textwrap.dedent("""
+            toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+
+            dependencies = [
+                ('zlib', '1.2.13'),
+            ]
+
+            exts_list = [
+                ('bar', '0.0', {
+                    'prebuildopts': "(env | sort) && ",
+                })
+            ]
+
+            sanity_check_paths = {
+                'files': ['bin/bar', 'bin/toy'],
+                'dirs': ['bin'],
+            }
+        """)
+        write_file(test_ec, test_ec_txt)
+
+        # put dummy zlib module in place where we can control $EBROOTZLIB value
+        zlib_mod_file = os.path.join(testdir, 'modules', 'zlib', '1.2.13-GCCcore-12.3.0')
+        zlib_fn = os.path.basename(zlib_mod_file)
+
+        zlib_root = os.path.join(self.test_prefix, 'software', 'zlib', zlib_fn)
+        write_file(os.path.join(zlib_root, 'include', 'zlib.h'), '')
+
+        zlib_mod_txt = read_file(zlib_mod_file)
+        zlib_mod_txt = re.sub("set root.*", f"set root {zlib_root}", zlib_mod_txt)
+
+        test_mods = os.path.join(self.test_prefix, 'modules')
+        test_zlib_mod_file = os.path.join(test_mods, 'zlib', zlib_fn)
+        write_file(test_zlib_mod_file, zlib_mod_txt)
+        self.modtool.use(test_mods)
+
+        env_vars = {
+            'cpath': ['CPATH'],
+            'flags': ['CPPFLAGS'],
+            'include_paths': ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+        }
+
+        for search_path_cpp_headers in ('cpath', 'flags', 'include_paths'):
+            args = [
+                test_ec,
+                '--rebuild',
+                f'--search-path-cpp-headers={search_path_cpp_headers}',
+            ]
+            with self.mocked_stdout_stderr():
+                with self.log_to_testlogfile():
+                    self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+
+            log_txt = read_file(self.logfile)
+
+            # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
+            regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
+            self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
+            # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
+            for env_var in env_vars[search_path_cpp_headers]:
+                regex = re.compile(f"^{env_var}=.*/software/zlib/{zlib_fn}/include$", re.M)
+                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
 
 def suite(loader=None):

@@ -1,0 +1,19 @@
+easyblock = 'EB_toy'
+
+name = 'util-linux'
+version = '2.39'
+
+homepage = 'https://www.kernel.org/pub/linux/utils/util-linux'
+
+description = "Set of Linux utilities"
+
+toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+
+source_urls = ['%s/v%%(version_major_minor)s' % homepage]
+sources = [SOURCELOWER_TAR_GZ]
+
+dependencies = [
+    ('ncurses', '6.4'),
+]
+
+moduleclass = 'tools'
