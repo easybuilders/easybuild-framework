@@ -34,12 +34,12 @@ Authors:
 """
 
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.toolchains.compiler.llvm import LLVM
+from easybuild.toolchains.compiler.llvm_compilers import LLVMCompilers
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
-class LLVMtc(LLVM):
+class LLVMCompilersToolchain(LLVMCompilers):
     """Compiler toolchain with Clang and Flang compilers."""
-    NAME = 'LLVMtc'  # Using `...tc` to distinguish toolchain from package
+    NAME = 'llvm-compilers'  # Follows naming scheme used for intel-compilers & nvidia-compilers
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]

@@ -32,13 +32,13 @@ Authors:
 * Davide Grassano (CECAM EPFL)
 """
 
-from easybuild.toolchains.llvm import LLVMtc
+from easybuild.toolchains.llvm_compilers import LLVMCompilersToolchain
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.openblas import OpenBLAS
 
 
-class Lolf(LLVMtc, OpenBLAS, Fftw):
+class Lolf(LLVMCompilersToolchain, OpenBLAS, Fftw):
     """Compiler toolchain with LLVM, OpenBLAS, and FFTW."""
     NAME = 'lolf'
-    SUBTOOLCHAIN = LLVMtc.NAME
+    SUBTOOLCHAIN = LLVMCompilersToolchain.NAME
     OPTIONAL = True

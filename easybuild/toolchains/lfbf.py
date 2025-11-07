@@ -32,13 +32,13 @@ Authors:
 * Davide Grassano (CECAM EPFL)
 """
 
-from easybuild.toolchains.llvm import LLVMtc
+from easybuild.toolchains.llvm_compilers import LLVMCompilersToolchain
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 
 
-class Lfbf(LLVMtc, FlexiBLAS, Fftw):
+class Lfbf(LLVMCompilersToolchain, FlexiBLAS, Fftw):
     """Compiler toolchain with GCC, FlexiBLAS and FFTW."""
     NAME = 'lfbf'
-    SUBTOOLCHAIN = LLVMtc.NAME
+    SUBTOOLCHAIN = LLVMCompilersToolchain.NAME
     OPTIONAL = True

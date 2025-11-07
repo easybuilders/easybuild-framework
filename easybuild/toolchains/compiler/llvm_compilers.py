@@ -42,7 +42,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 TC_CONSTANT_LLVM = "LLVM"
 
 
-class LLVM(Compiler):
+class LLVMCompilers(Compiler):
     """Compiler toolchain with LLVM compilers (clang/flang)."""
     COMPILER_FAMILY = TC_CONSTANT_LLVM
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
@@ -127,23 +127,24 @@ class LLVM(Compiler):
     }
 
     # Ensure that compiler options only appear once, so that arguments do not appear multiple times when compiling.
-    COMPILER_OPTIONS = Compiler.COMPILER_OPTIONS
-    COMPILER_OPTIONS += ['lld_undefined_version']
-    COMPILER_OPTIONS = list(set(COMPILER_OPTIONS))
+    COMPILER_OPTIONS = list({
+        *(Compiler.COMPILER_OPTIONS or []),
+        'lld_undefined_version'
+    })
 
     # Options only available for Clang compiler
-    COMPILER_C_UNIQUE_OPTIONS = Compiler.COMPILER_C_UNIQUE_OPTIONS
-    COMPILER_C_UNIQUE_OPTIONS += [
+    COMPILER_C_UNIQUE_OPTIONS = list({
+        *(Compiler.COMPILER_C_UNIQUE_OPTIONS or []),
         'no_unused_args',
         'no_int_conversion_error'
-    ]
-    COMPILER_C_UNIQUE_OPTIONS = list(set(COMPILER_C_UNIQUE_OPTIONS))
+    })
 
     # Options only available for Flang compiler
     COMPILER_F_UNIQUE_OPTIONS = Compiler.COMPILER_F_UNIQUE_OPTIONS
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
+        **(Compiler.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or {}),
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.X86_64, systemtools.AMD): '-march=native',
@@ -152,6 +153,7 @@ class LLVM(Compiler):
 
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
+        **(Compiler.COMPILER_GENERIC_OPTION or {}),
         (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',

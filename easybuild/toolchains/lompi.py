@@ -33,14 +33,14 @@ Authors:
 from easybuild.tools import LooseVersion
 import re
 
-from easybuild.toolchains.llvm import LLVMtc
+from easybuild.toolchains.llvm_compilers import LLVMCompilersToolchain
 from easybuild.toolchains.mpi.openmpi import OpenMPI
 
 
-class Lompi(LLVMtc, OpenMPI):
+class Lompi(LLVMCompilersToolchain, OpenMPI):
     """Compiler toolchain with LLVM and OpenMPI."""
     NAME = 'lompi'
-    SUBTOOLCHAIN = LLVMtc.NAME
+    SUBTOOLCHAIN = LLVMCompilersToolchain.NAME
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""

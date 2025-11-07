@@ -31,11 +31,11 @@ Authors:
 * Jan Andre Reuter (JSC)
 """
 
-from easybuild.toolchains.llvm import LLVMtc
+from easybuild.toolchains.llvm_compilers import LLVMCompilersToolchain
 from easybuild.toolchains.mpi.mpich import Mpich
 
 
-class Lmpich(LLVMtc, Mpich):
+class Lmpich(LLVMCompilersToolchain, Mpich):
     """Compiler toolchain with LLVM and MPICH."""
     NAME = 'lmpich'
-    SUBTOOLCHAIN = LLVMtc.NAME
+    SUBTOOLCHAIN = LLVMCompilersToolchain.NAME
