@@ -44,8 +44,6 @@ TC_CONSTANT_LLVM = "LLVM"
 
 class LLVM(Compiler):
     """Compiler toolchain with LLVM compilers (clang/flang)."""
-    # NAME = 'LLVMcore'
-    # COMPILER_MODULE_NAME = [NAME]
     COMPILER_FAMILY = TC_CONSTANT_LLVM
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
 
@@ -79,10 +77,8 @@ class LLVM(Compiler):
         'lld_undefined_version': (True, "-Wl,--undefined-version - Allow unused version in version script"),
         'no_unused_args': (
             True,
-            (
-                "-Wno-unused-command-line-argument - Avoid some failures in CMake correctly recognizing "
-                "feature due to linker warnings"
-            )
+            "-Wno-unused-command-line-argument - Avoid some failures in CMake correctly recognizing "
+            "feature due to linker warnings"
         ),
         'no_int_conversion_error': (
             True,
@@ -130,18 +126,21 @@ class LLVM(Compiler):
         'no_int_conversion_error': ['-Wno-error=int-conversion'],
     }
 
-    COMPILER_OPTIONS = [
-        'lld_undefined_version',
-    ]
+    # Ensure that compiler options only appear once, so that arguments do not appear multiple times when compiling.
+    COMPILER_OPTIONS = Compiler.COMPILER_OPTIONS
+    COMPILER_OPTIONS += ['lld_undefined_version']
+    COMPILER_OPTIONS = list(set(COMPILER_OPTIONS))
 
     # Options only available for Clang compiler
-    COMPILER_C_OPTIONS = [
+    COMPILER_C_UNIQUE_OPTIONS = Compiler.COMPILER_C_UNIQUE_OPTIONS
+    COMPILER_C_UNIQUE_OPTIONS += [
         'no_unused_args',
         'no_int_conversion_error'
     ]
+    COMPILER_C_UNIQUE_OPTIONS = list(set(COMPILER_C_UNIQUE_OPTIONS))
 
     # Options only available for Flang compiler
-    COMPILER_F_OPTIONS = []
+    COMPILER_F_UNIQUE_OPTIONS = Compiler.COMPILER_F_UNIQUE_OPTIONS
 
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
@@ -150,6 +149,7 @@ class LLVM(Compiler):
         (systemtools.X86_64, systemtools.AMD): '-march=native',
         (systemtools.X86_64, systemtools.INTEL): '-march=native',
     }
+
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
         (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
@@ -159,12 +159,10 @@ class LLVM(Compiler):
 
     COMPILER_CC = 'clang'
     COMPILER_CXX = 'clang++'
-    COMPILER_C_UNIQUE_OPTIONS = []
 
     COMPILER_F77 = 'flang'
     COMPILER_F90 = 'flang'
     COMPILER_FC = 'flang'
-    COMPILER_F_UNIQUE_OPTIONS = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
