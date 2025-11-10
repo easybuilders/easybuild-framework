@@ -166,6 +166,8 @@ class LLVMCompilers(Compiler):
     COMPILER_F90 = 'flang'
     COMPILER_FC = 'flang'
 
+    LINKERS = ['lld', 'ld.lld', 'ld64.lld']
+
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']
 

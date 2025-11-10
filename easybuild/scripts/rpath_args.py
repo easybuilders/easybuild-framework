@@ -80,7 +80,7 @@ rpath_include = sys.argv[3]
 args = sys.argv[4:]
 
 # determine whether or not to use -Wl to pass options to the linker based on name of command
-if cmd in ['ld', 'ld.gold', 'ld.bfd']:
+if cmd in ['ld', 'ld.gold', 'ld.bfd', 'lld', 'ld.lld', 'ld64.lld']:
     ldflag_prefix = ''
 else:
     ldflag_prefix = '-Wl,'
@@ -113,6 +113,11 @@ while idx < len(args):
 
     # with '-c' no linking is done, so we must not inject any rpath
     elif arg == '-c':
+        add_rpath_args = False
+        cmd_args.append(arg)
+
+    # preprocess only mode, no linking is done
+    elif arg == '-E':
         add_rpath_args = False
         cmd_args.append(arg)
 
