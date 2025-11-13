@@ -3720,7 +3720,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt += textwrap.dedent("""
-            toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+            toolchain = {'name': 'gompi', 'version': '2023a'}
 
             dependencies = [
                 ('zlib', '1.2.13'),
@@ -3739,23 +3739,34 @@ class EasyBlockTest(EnhancedTestCase):
         """)
         write_file(test_ec, test_ec_txt)
 
-        # put dummy zlib module in place where we can control $EBROOTZLIB value
-        zlib_mod_file = os.path.join(testdir, 'modules', 'zlib', '1.2.13-GCCcore-12.3.0')
-        zlib_fn = os.path.basename(zlib_mod_file)
-
-        zlib_root = os.path.join(self.test_prefix, 'software', 'zlib', zlib_fn)
-        write_file(os.path.join(zlib_root, 'include', 'zlib.h'), '')
-        write_file(os.path.join(zlib_root, 'include', 'zlib', 'common.h'), '')
-
-        zlib_mod_txt = read_file(zlib_mod_file)
-        zlib_mod_txt = re.sub("set root.*", f"set root {zlib_root}", zlib_mod_txt)
-        # add statement to inject extra subdirectory to $CPATH,
-        # which is supposed to be retained in build environment
-        zlib_mod_txt += '\nprepend-path\tCPATH\t$root/include/zlib'
+        # put dummy modules in place where we can control $EBROOT value
+        openmpi_fn = '4.1.5-GCC-12.3.0'
+        zlib_fn = '1.2.13-GCCcore-12.3.0'
+        mod_files = [
+            ('OpenMPI', openmpi_fn),
+            ('zlib', zlib_fn),
+        ]
 
         test_mods = os.path.join(self.test_prefix, 'modules')
-        test_zlib_mod_file = os.path.join(test_mods, 'zlib', zlib_fn)
-        write_file(test_zlib_mod_file, zlib_mod_txt)
+
+        for name, mod_fn in mod_files:
+            mod_fp = os.path.join(testdir, 'modules', name, mod_fn)
+
+            header_fn = 'zlib.h' if name == 'zlib' else 'mpi.h'
+
+            dep_root = os.path.join(self.test_prefix, 'software', name, mod_fn)
+            write_file(os.path.join(dep_root, 'include', header_fn), '')
+            write_file(os.path.join(dep_root, 'include', name, 'common.h'), '')
+
+            mod_txt = read_file(mod_fp)
+            mod_txt = re.sub("set root.*", f"set root {dep_root}", mod_txt)
+            # add statement to inject extra subdirectory to $CPATH,
+            # which is supposed to be retained in build environment
+            mod_txt += f'\nprepend-path\tCPATH\t$root/include/{name}'
+
+            test_mod_file = os.path.join(test_mods, name, mod_fn)
+            write_file(test_mod_file, mod_txt)
+
         self.modtool.use(test_mods)
 
         env_vars = {
@@ -3771,7 +3782,6 @@ class EasyBlockTest(EnhancedTestCase):
                 f'--search-path-cpp-headers={search_path_cpp_headers}',
                 '--debug',
             ]
-            os.environ['C_INCLUDE_PATH'] = '/usr/local/include'
             with self.mocked_stdout_stderr():
                 with self.log_to_testlogfile():
                     self.eb_main(args, raise_error=True, do_build=True, verbose=True)
@@ -3785,7 +3795,12 @@ class EasyBlockTest(EnhancedTestCase):
             # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
             for env_var in env_vars[search_path_cpp_headers]:
                 # both 'include' and 'include/zlib' subdirectories should be retained
-                paths = [f'software/zlib/{zlib_fn}/include/zlib', f'software/zlib/{zlib_fn}/include']
+                paths = [
+                    f'software/OpenMPI/{openmpi_fn}/include/OpenMPI',
+                    f'software/OpenMPI/{openmpi_fn}/include',
+                    f'software/zlib/{zlib_fn}/include/zlib',
+                    f'software/zlib/{zlib_fn}/include',
+                ]
                 if env_var.endswith('PATH'):
                     regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths) + '$', re.M)
                 elif env_var == 'CPPFLAGS':
