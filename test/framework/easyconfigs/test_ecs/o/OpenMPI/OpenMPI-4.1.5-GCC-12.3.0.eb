@@ -1,0 +1,13 @@
+# minimal easyconfig, only really neededd so toolchain hierarchy for gompi/2023a can be determined
+
+easyblock = 'ConfigureMake'
+
+name = 'OpenMPI'
+version = '4.1.5'
+
+homepage = 'http://www.open-mpi.org/'
+description = """The Open MPI Project is an open source MPI-2 implementation."""
+
+toolchain = {'name': 'GCC', 'version': '12.3.0'}
+
+moduleclass = 'mpi'
