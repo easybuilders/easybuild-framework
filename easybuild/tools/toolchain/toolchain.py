@@ -1163,11 +1163,25 @@ class Toolchain:
         if extra_dirs is None:
             extra_dirs = ()
 
-        header_dirs = ["include"]
-        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+        for env_var in SEARCH_PATH['cpp_headers'][self.search_path['cpp_headers']]:
+            header_dirs = []
+            # take into account all $*PATH environment variables for dependencies
+            for key in [y for x in SEARCH_PATH['cpp_headers'].values() for y in x if y.endswith('PATH')]:
+                val = os.getenv(key)
+                if val:
+                    self.log.debug(f"${key} when determining subdirs of {dep_root} to retain for ${env_var}: {val}")
+                    paths = val.split(':')
+                    matching_paths = [p for p in paths if p.startswith(dep_root)]
+                    subdirs = [os.path.relpath(p, dep_root) for p in matching_paths]
+                    self.log.debug(f"Subdirectories of {dep_root} to add to ${env_var}: {subdirs}")
+                    header_dirs.extend(os.path.relpath(p, dep_root) for p in matching_paths)
+                else:
+                    self.log.debug(f"${key} not defined, not used to find subdirs of {dep_root} to use for ${env_var}")
 
-        for env_var in SEARCH_PATH["cpp_headers"][self.search_path["cpp_headers"]]:
-            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            # take into account extra_dirs + only retain unique entries
+            header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+
+            self.log.info(f"Adding header paths to toolchain variable '{env_var}': {dep_root} (subdirs: {header_dirs})")
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
 
     def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):

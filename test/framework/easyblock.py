@@ -3745,9 +3745,13 @@ class EasyBlockTest(EnhancedTestCase):
 
         zlib_root = os.path.join(self.test_prefix, 'software', 'zlib', zlib_fn)
         write_file(os.path.join(zlib_root, 'include', 'zlib.h'), '')
+        write_file(os.path.join(zlib_root, 'include', 'zlib', 'common.h'), '')
 
         zlib_mod_txt = read_file(zlib_mod_file)
         zlib_mod_txt = re.sub("set root.*", f"set root {zlib_root}", zlib_mod_txt)
+        # add statement to inject extra subdirectory to $CPATH,
+        # which is supposed to be retained in build environment
+        zlib_mod_txt += '\nprepend-path\tCPATH\t$root/include/zlib'
 
         test_mods = os.path.join(self.test_prefix, 'modules')
         test_zlib_mod_file = os.path.join(test_mods, 'zlib', zlib_fn)
@@ -3765,7 +3769,9 @@ class EasyBlockTest(EnhancedTestCase):
                 test_ec,
                 '--rebuild',
                 f'--search-path-cpp-headers={search_path_cpp_headers}',
+                '--debug',
             ]
+            os.environ['C_INCLUDE_PATH'] = '/usr/local/include'
             with self.mocked_stdout_stderr():
                 with self.log_to_testlogfile():
                     self.eb_main(args, raise_error=True, do_build=True, verbose=True)
@@ -3778,7 +3784,14 @@ class EasyBlockTest(EnhancedTestCase):
 
             # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
             for env_var in env_vars[search_path_cpp_headers]:
-                regex = re.compile(f"^{env_var}=.*/software/zlib/{zlib_fn}/include$", re.M)
+                # both 'include' and 'include/zlib' subdirectories should be retained
+                paths = [f'software/zlib/{zlib_fn}/include/zlib', f'software/zlib/{zlib_fn}/include']
+                if env_var.endswith('PATH'):
+                    regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths) + '$', re.M)
+                elif env_var == 'CPPFLAGS':
+                    regex = re.compile(f'^{env_var}=' + ' '.join('-I/[^ ]+/' + p for p in paths) + '$', re.M)
+                else:
+                    self.fail(f"Unknown type of environment variable: ${env_var}")
                 self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
 
