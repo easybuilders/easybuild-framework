@@ -136,5 +136,5 @@ class LoggedException(Exception):
                 logger = self.LOGGER_MODULE.getLogger()
 
         if backtrace:
-            msg += '\nBacktrace: \n\t' + '\n\t'.join(backtrace)
+            msg += '\nCallstack: \n\t' + '\n\t'.join(backtrace)
         getattr(logger, self.LOGGING_METHOD_NAME)(msg)
