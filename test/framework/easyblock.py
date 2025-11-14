@@ -3809,6 +3809,26 @@ class EasyBlockTest(EnhancedTestCase):
                     self.fail(f"Unknown type of environment variable: ${env_var}")
                 self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
+        # verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5048
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += textwrap.dedent("""
+            toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+        """)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--rebuild',
+            '--debug',
+        ]
+        with self.mocked_stdout_stderr():
+            with self.log_to_testlogfile():
+                self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+
+        log_txt = read_file(self.logfile)
+
+        regex = re.compile(r"\[SUCCESS\] toy/0.0-GCCcore-12.3.0", re.M)
+        self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
 
 def suite(loader=None):
     """ return all the tests in this file """
