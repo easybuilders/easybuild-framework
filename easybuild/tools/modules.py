@@ -2263,7 +2263,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, testing=False):
+def modules_tool(mod_paths=None, testing=False) -> ModulesTool:
     """
     Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
