@@ -3228,7 +3228,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mentionhdr = 'Custom HTTP header field set: %s'
         mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
 
-        def run_and_assert(args, _msg, words_expected=None, words_unexpected=None):
+        def run_and_assert(args, words_expected=None, words_unexpected=None):
             stdout, _stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
             if words_expected is not None:
                 self.assert_multi_regex(words_expected, stdout)
@@ -3243,7 +3243,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         # expect to find everything passed on cmdline
         expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case A", expected)
+        run_and_assert(args, expected)
 
         # all subsequent tests share this argument list
         args = common_args
@@ -3259,7 +3259,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # expect to find only the header key (not its value) and only for the appropriate url
         expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case B", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # C: recursion one: header value is another file
         txt = '\n'.join([
@@ -3274,7 +3274,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
                     mentionfile % (testincfile), mentionfile % (testexcfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case C", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # D: recursion two: header field+value is another file,
         write_file(testcmdfile, '\n'.join([
@@ -3288,7 +3288,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
                     mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case D", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # E: recursion three: url pattern + header field + value in another file
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
@@ -3301,7 +3301,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # expect to find only the header key (but not the literal filename) and only for the appropriate url
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case E", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # cleanup downloads
         shutil.rmtree(tmpdir)
