@@ -1130,12 +1130,12 @@ class ModulesTool:
         for mod in modules:
             self.run_module('load', mod)
 
-    def unload(self, modules, log_changes=True):
+    def unload(self, modules, hide_output=False):
         """
         Unload all requested modules.
         """
         for mod in modules:
-            self.run_module('unload', mod, log_changes=log_changes)
+            self.run_module('unload', mod, hide_output=hide_output)
 
     def purge(self):
         """
@@ -1259,13 +1259,13 @@ class ModulesTool:
                 self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                                key, old_value, new_value)
 
-        log_changes = kwargs.get('log_changes', True)
+        log_output = build_option('debug_module_cmds') and not kwargs.get('hide_output', False)
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
         res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, use_bash=False, split_stderr=True,
                             hidden=True, in_dry_run=True, output_file=False,
-                            log_output_on_success=log_changes)
+                            log_output_on_success=log_output)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -1312,7 +1312,7 @@ class ModulesTool:
 
                 if new_ld_val != curr_ld_val:
                     self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
-                    self.set_path_env_var(key, new_ld_val)
+                    self.set_path_env_var(key, new_ld_val, log_changes=log_output)
 
             # Process stderr
             result = []
@@ -1695,9 +1695,9 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     DEPR_VERSION = '9999.9'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
-    def set_path_env_var(self, key, paths):
+    def set_path_env_var(self, key, paths, log_changes=True):
         """Set environment variable with given name to the given list of paths."""
-        super().set_path_env_var(key, paths)
+        super().set_path_env_var(key, paths, log_changes)
         # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
