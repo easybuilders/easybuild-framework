@@ -1123,10 +1123,10 @@ class ModulesTool:
             if os.path.exists(full_mod_path):
                 self.prepend_module_path(full_mod_path, priority=priority)
 
-        loaded_modules = self.loaded_modules()
+        if not allow_reload:
+            modules = set(modules) - set(self.loaded_modules())
         for mod in modules:
-            if allow_reload or mod not in loaded_modules:
-                self.run_module('load', mod)
+            self.run_module('load', mod)
 
     def unload(self, modules, log_changes=True):
         """
