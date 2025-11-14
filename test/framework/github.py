@@ -201,7 +201,7 @@ class GithubTest(EnhancedTestCase):
                 ('a_directory', ['a_subdirectory'], ['a_file.txt']),
                 ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
             ]
-            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual(list(self.ghfs.walk(None)), expected)
         except IOError:
             pass
 

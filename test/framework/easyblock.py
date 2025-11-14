@@ -3558,7 +3558,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         paths, _, _ = eb._sanity_check_step_common(None, None)
 
-        self.assertEqual(set(paths.keys()), set(('files', 'dirs')))
+        self.assertEqual(set(paths.keys()), {'files', 'dirs'})
         self.assertEqual(paths['files'], ['correct.a', 'default.a'])
         self.assertEqual(paths['dirs'], [('correct', 'alternative')])
 
