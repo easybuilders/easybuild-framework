@@ -5682,6 +5682,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             print("Skipping test_debug_lmod, requires Lmod as modules tool")
 
+    def test_debug_module_cmds(self):
+        """Test use of --debug-module-cmds."""
+        patterns = [
+            "Output of ",
+            r"os\.env.*EBROOTGCC.*=",
+            r"os\.env.*PATH.*=",
+        ]
+        for enable in (True, False):
+            with self.subTest(debug_module_cmds=enable):
+                init_config(build_options={'debug_module_cmds': enable})
+                with self.log_to_testlogfile():
+                    self.modtool.load(['GCC/4.6.3'])
+                logtxt = read_file(self.logfile)
+                self.assertRegex(logtxt, "Running .*\n.*load GCC/4.6.3")
+                self.assert_multi_regex(patterns, logtxt, assert_true=enable)
+                self.modtool.purge()
+
     def test_use_color(self):
         """Test use_color function."""
         self.assertTrue(use_color('always'))
