@@ -136,7 +136,7 @@ def wrap_shell_vars(strng, wrap_prefix, wrap_suffix):
     mapping = {name: f'{wrap_prefix}{name}{wrap_suffix}' for name in names}
     wrapped = t.safe_substitute(mapping)
 
-    # remove quotes around the wrapped variables
+    # remove quotes around the wrapped variables (in case the variable was quoted)
     wrapped = re.sub(rf'"({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})"', r'\1\2\3', wrapped)
     wrapped = re.sub(rf"'({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})'", r'\1\2\3', wrapped)
 
