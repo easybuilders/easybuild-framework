@@ -1000,8 +1000,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ("/absolute/path",     True,    'setenv\tkey\t\t"/absolute/path"\n',              'setenv("key", pathJoin("/", "absolute", "path"))\n'),  # noqa
             ("/",                  False,   'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
             ("/",                  True,    'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
-            ("$$VAR",              False,   'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
-            ("$$VAR",              True,    'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
+            ("$$VAR",              False,   'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
+            ("$$VAR",              True,    'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
             ("$VAR",               False,   'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
             ("$VAR",               True,    'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
             ("$VAR/in/path",       False,   'setenv\tkey\t\t"$::env(VAR)/in/path"\n',         'setenv("key", os.getenv("VAR") .. "/in/path")\n'),  # noqa
