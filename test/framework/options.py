@@ -68,6 +68,7 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
+from test.framework.github import ignore_rate_limit_in_pr
 
 try:
     import pycodestyle  # noqa
@@ -1521,6 +1522,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
 
+    @ignore_rate_limit_in_pr
     def test_copy_ec_from_commit(self):
         """Test combination of --copy-ec with --from-commit."""
         # note: --from-commit does not involve using GitHub API, so no GitHub token required
