@@ -219,7 +219,7 @@ class Toolchain:
 
         self._init_class_constants(class_constants)
 
-        self.tcdeps = tcdeps
+        self.tcdeps = tcdeps if tcdeps else []
 
         # toolchain instances are created before initiating build options sometimes, e.g. for --list-toolchains
         self.dry_run = build_option('extended_dry_run', default=False)
@@ -628,13 +628,12 @@ class Toolchain:
                 dry_run_msg("module load %s" % tc_mod, silent=silent)
             else:
                 # first simulate loads for toolchain dependencies, if required information is available
-                if self.tcdeps is not None:
-                    for tcdep in self.tcdeps:
-                        modname = tcdep['short_mod_name']
-                        dry_run_msg("module load %s [SIMULATED]" % modname, silent=silent)
-                        # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
-                        deproot = '$%s' % get_software_root_env_var_name(tcdep['name'])
-                        self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': deproot})
+                for tcdep in self.tcdeps:
+                    modname = tcdep['short_mod_name']
+                    dry_run_msg("module load %s [SIMULATED]" % modname, silent=silent)
+                    # 'use '$EBROOTNAME' as value for dep install prefix (looks nice in dry run output)
+                    deproot = '$%s' % get_software_root_env_var_name(tcdep['name'])
+                    self._simulated_load_dependency_module(tcdep['name'], tcdep['version'], {'prefix': deproot})
 
                 dry_run_msg("module load %s [SIMULATED]" % tc_mod, silent=silent)
                 # use name of $EBROOT* env var as value for $EBROOT* env var (results in sensible dry run output)
@@ -1140,21 +1139,21 @@ class Toolchain:
         :names: list of strings containing the name of the dependency
         """
         # collect dependencies
-        dependencies = self.dependencies if names is None else [{"name": name} for name in names if name]
+        deps = self.dependencies if names is None else [{'name': name} for name in names if name]
 
-        # collect software install prefixes for dependencies
-        dependency_roots = []
-        for dep in dependencies:
-            if dep.get("external_module", False):
+        # collect software install prefixes for toolchain components + dependencies
+        dep_roots = []
+        for dep in deps + self.tcdeps:
+            if dep.get('external_module', False):
                 # for software names provided via external modules, install prefix may be unknown
-                names = dep["external_module_metadata"].get("name", [])
-                dependency_roots.extend([root for root in self.get_software_root(names) if root is not None])
+                names = dep['external_module_metadata'].get('name', [])
+                dep_roots.extend([x for x in self.get_software_root(names) if x is not None])
             else:
-                dependency_roots.extend(self.get_software_root(dep["name"]))
+                dep_roots.extend(self.get_software_root(dep['name']))
 
-        for root in dependency_roots:
-            self._add_dependency_cpp_headers(root, extra_dirs=cpp)
-            self._add_dependency_linker_paths(root, extra_dirs=ld)
+        for dep_root in dep_roots:
+            self._add_dependency_cpp_headers(dep_root, extra_dirs=cpp)
+            self._add_dependency_linker_paths(dep_root, extra_dirs=ld)
 
     def _add_dependency_cpp_headers(self, dep_root, extra_dirs=None):
         """
@@ -1163,11 +1162,25 @@ class Toolchain:
         if extra_dirs is None:
             extra_dirs = ()
 
-        header_dirs = ["include"]
-        header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+        for env_var in SEARCH_PATH['cpp_headers'][self.search_path['cpp_headers']]:
+            header_dirs = []
+            # take into account all $*PATH environment variables for dependencies
+            for key in [y for x in SEARCH_PATH['cpp_headers'].values() for y in x if y.endswith('PATH')]:
+                val = os.getenv(key)
+                if val:
+                    self.log.debug(f"${key} when determining subdirs of {dep_root} to retain for ${env_var}: {val}")
+                    paths = val.split(':')
+                    matching_paths = [p for p in paths if p.startswith(dep_root)]
+                    subdirs = [os.path.relpath(p, dep_root) for p in matching_paths]
+                    self.log.debug(f"Subdirectories of {dep_root} to add to ${env_var}: {subdirs}")
+                    header_dirs.extend(os.path.relpath(p, dep_root) for p in matching_paths)
+                else:
+                    self.log.debug(f"${key} not defined, not used to find subdirs of {dep_root} to use for ${env_var}")
 
-        for env_var in SEARCH_PATH["cpp_headers"][self.search_path["cpp_headers"]]:
-            self.log.debug("Adding header paths to toolchain variable '%s': %s", env_var, dep_root)
+            # take into account extra_dirs + only retain unique entries
+            header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
+
+            self.log.info(f"Adding header paths to toolchain variable '{env_var}': {dep_root} (subdirs: {header_dirs})")
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
 
     def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
