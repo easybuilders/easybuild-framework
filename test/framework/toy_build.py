@@ -4719,6 +4719,25 @@ class ToyBuildTest(EnhancedTestCase):
                                             raise_error=True, verbose=True)
         self.assertExists(toy_mod_path)
 
+    def test_system_ec_with_gcccore_build_dep(self):
+        """
+        Test building a SYSTEM level software that has a module from GCCcore as build dependency"""
+        test_ec_txt = TOY_EC_TXT
+        # Using a software with existing (test) module and no dependencies itself for simplicity
+        test_ec_txt += "\nbuilddependencies = [('ncurses', '6.4', '', ('GCCcore', '12.3.0'))]"
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+        common_args = ["--rebuild", test_ec]
+        for mns in ['EasyBuildMNS', 'HierarchicalMNS']:
+            with self.subTest(mns=mns):
+                args = common_args + [f'--module-naming-scheme={mns}']
+                modulepath = os.path.join(TEST_DIR, 'modules')
+                if mns == 'HierarchicalMNS':
+                    modulepath = os.path.join(modulepath, 'HierarchicalMNS')
+                os.environ['MODULEPATH'] = modulepath
+                outtxt = self.run_eb_main_capture_output(args, do_build=True, verbose=True, raise_error=True)
+                self.assertRegex(outtxt, r'\[SUCCESS\] .*toy/0.0')
+
     def test_eb_crash(self):
         """
         Test behaviour when EasyBuild crashes, for example due to a buggy hook
