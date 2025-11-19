@@ -1219,14 +1219,16 @@ class EasyConfig:
 
         return retained_deps
 
-    def dependency_names(self, build_only=False):
+    def dependency_names(self, build_only=False, runtime_only=False):
         """
         Return a set of names of all (direct) dependencies after filtering.
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        return {dep['name'] for dep in self.dependencies(build_only=build_only) if dep['name']}
+        return {dep['name'] for dep in self.dependencies(build_only=build_only, runtime_only=runtime_only)
+                if dep['name']}
 
     def builddependencies(self):
         """
