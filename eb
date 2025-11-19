@@ -127,8 +127,14 @@ if [ -z "${EB_PROFILE}" ]
 then
     EB_PROFILE_FLAGS=()
 else
-    verbose "Writing profile output to: \"${EB_PROFILE}\""
-    EB_PROFILE_FLAGS=(-m cProfile -o "${EB_PROFILE}")
+    if [ "${pyver_min}" -lt "9" ]
+    then
+        echo "EB_PROFILE not supported for Python < 3.9"
+        EB_PROFILE=""
+    else
+        verbose "Writing profile output to: \"${EB_PROFILE}\""
+        EB_PROFILE_FLAGS=(-m cProfile -o "${EB_PROFILE}")
+    fi
 fi
 
 export EB_SCRIPT_PATH="${0}"
