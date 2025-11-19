@@ -2501,12 +2501,12 @@ class EasyConfigTest(EnhancedTestCase):
             Helper function to sanity check we can use the quoted string in Python contexts.
             Returns the evaluated (i.e. unquoted) string
             """
-            scope = dict()
+            scope = {}
             try:
                 # this is needlessly complicated because we can't use 'exec' here without potentially running
                 # into a SyntaxError bug in old Python 2.7 versions (for example when running the tests in CentOS 7.9)
                 # cfr. https://stackoverflow.com/questions/4484872/why-doesnt-exec-work-in-a-function-with-a-subfunction
-                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), dict(), scope)
+                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), {}, scope)
             except Exception as err:  # pylint: disable=broad-except
                 self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, err))
             return scope['res']
@@ -3942,7 +3942,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
         subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-        optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+        optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}
         # missing gompic and double golfc should both give exceptions

@@ -5668,7 +5668,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             logs = glob.glob(os.path.join(toy_eb_install_dir, 'easybuild-toy-0.0*log*'))
             self.assertEqual(len(logs), 1, "Found exactly 1 log file in %s: %s" % (toy_eb_install_dir, logs))
 
-            zip_logs_arg = zip_logs.split('=')[-1]
+            zip_logs_arg = zip_logs.rsplit('=', maxsplit=1)[-1]
             if zip_logs == '--zip-logs' or zip_logs_arg == 'gzip':
                 ext = 'log.gz'
             elif zip_logs_arg == 'bzip2':

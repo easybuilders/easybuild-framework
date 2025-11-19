@@ -128,7 +128,7 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep)
-DEFAULT_SYS_CFGFILES = [[f for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_SYS_CFGFILES = [sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))
                         for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
@@ -136,7 +136,7 @@ DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
 
-RPATH_DEFAULT = False if get_os_type() == DARWIN else True
+RPATH_DEFAULT = get_os_type() != DARWIN
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -1135,7 +1135,7 @@ class EasyBuildOptions(GeneralOption):
             )
 
         reasons = self.options.close_pr_reasons.split(',')
-        if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
+        if any(reason not in VALID_CLOSE_PR_REASONS for reason in reasons):
             raise EasyBuildError(
                 "Argument to --close-pr_reasons must be a comma separated list of valid reasons among %s",
                 VALID_CLOSE_PR_REASONS.keys(), exit_code=EasyBuildExit.OPTION_ERROR
@@ -1561,7 +1561,7 @@ class EasyBuildOptions(GeneralOption):
             "* software:",
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
-            "  -> Python version: %s" % sys.version.split(' ')[0],
+            "  -> Python version: %s" % sys.version.split(' ', maxsplit=1)[0],
         ])
 
         return '\n'.join(lines)
@@ -1749,7 +1749,7 @@ def handle_include_easyblocks_from(options, log):
         if options.include_easyblocks:
             # check if you are including the same easyblock twice
             included_paths = expand_glob_paths(options.include_easyblocks)
-            included_easyblocks = set([os.path.basename(eb) for eb in included_paths])
+            included_easyblocks = {os.path.basename(eb) for eb in included_paths}
 
         if options.include_easyblocks_from_pr:
             try:
@@ -1762,7 +1762,7 @@ def handle_include_easyblocks_from(options, log):
 
             for easyblock_pr in easyblock_prs:
                 easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-                included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+                included_from_pr = {os.path.basename(eb) for eb in easyblocks_from_pr}
 
                 if options.include_easyblocks:
                     check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
@@ -1776,7 +1776,7 @@ def handle_include_easyblocks_from(options, log):
         easyblock_commit = options.include_easyblocks_from_commit
         if easyblock_commit:
             easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
-            included_from_commit = set([os.path.basename(eb) for eb in easyblocks_from_commit])
+            included_from_commit = {os.path.basename(eb) for eb in easyblocks_from_commit}
 
             if options.include_easyblocks:
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)

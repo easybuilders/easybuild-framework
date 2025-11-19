@@ -3752,7 +3752,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.clean_up_locks()
 
         ft.create_lock(lock_name)
-        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(ft.global_lock_names, {lock_name})
         self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
 
         ft.clean_up_locks()
