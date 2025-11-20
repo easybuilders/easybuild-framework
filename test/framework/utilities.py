@@ -431,6 +431,15 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
+    def assert_multi_regex(self, regexs, txt, assert_true=True):
+        """Helper function to assert presence/absence of list of regex patterns in a text"""
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            if assert_true:
+                self.assertRegex(txt, regex)
+            else:
+                self.assertNotRegex(txt, regex)
+
 
 class TestLoaderFiltered(unittest.TestLoader):
     """Test load that supports filtering of tests based on name."""
