@@ -131,7 +131,7 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep
 DEFAULT_SYS_CFGFILES = [sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))
                         for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
-DEFAULT_LOCAL_CFGFILE= os.path.join(os.path.normpath(os.getcwd()), 'config.cfg')
+DEFAULT_LOCAL_CFGFILE = os.path.join(os.path.normpath(os.getcwd()), 'config.cfg')
 
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
