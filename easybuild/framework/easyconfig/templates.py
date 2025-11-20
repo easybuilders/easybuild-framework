@@ -270,8 +270,6 @@ for ext in EXTENSIONS:
     TEMPLATE_CONSTANTS.update({
         'SOURCE_%s' % suffix: ('%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
         'SOURCELOWER_%s' % suffix: ('%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
-    })
-    TEMPLATE_CONSTANTS.update({
         'VERSION_%s' % suffix: ('%(version)s.' + ext, "Source filename <version>.%s common at GitHub" % ext),
         'VVERSION_%s' % suffix: ('v%(version)s.' + ext, "Source filename v<version>.%s common at GitHub" % ext),
     })
