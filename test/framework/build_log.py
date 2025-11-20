@@ -86,14 +86,13 @@ class BuildLogTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, 'Failed to read', tweak_one, '/does/not/exist', '/tmp/new', {})
             logtxt: str = read_file(logfile)
 
-        self.assertIn('EasyBuild encountered an error: Failed to read /does/not/exist:', logtxt)
-        self.assertIn('Callstack:', logtxt)
-        callstack = logtxt.split('Callstack:', maxsplit=1)[-1]
-        self.assert_multi_regex([
-            r'easybuild/tools/filetools\.py:\d+ in read_file',
-            r'easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
-            r'easybuild/base/testing\.py:\d+ in assertErrorRegex',
-            ], callstack)
+        self.assertRegex(logtxt, '\n'.join(
+            (r"EasyBuild encountered an error: Failed to read /does/not/exist:.*",
+             r"Callstack:",
+             r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
+             r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
+             r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
+             )), re.M)
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""
