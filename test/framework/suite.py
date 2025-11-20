@@ -137,12 +137,29 @@ class EasyBuildFrameworkTestSuite(unittest.TestSuite):
         return res
 
 
-def load_tests(loader, tests, pattern):
+class SkipSummaryResult(unittest.TextTestResult):
+    """Decorator that prints skipped tests at the end of the run if in CI environment."""
+    def __init__(self, stream, descriptions, verbosity, *args, **kwargs):
+        super().__init__(stream, descriptions, verbosity, *args, **kwargs)
+        self._verbosity = verbosity
+
+    def stopTestRun(self):
+        super().stopTestRun()
+        if 'CI' in os.environ and self.skipped:
+            print('\n=== Skipped tests ===')
+            print('\n'.join(f'\t{test}: {reason}' for test, reason in self.skipped))
+
+
+class SkipSummaryRunner(unittest.TextTestRunner):
+    resultclass = SkipSummaryResult
+
+
+def load_tests(loader, _tests, _pattern):
     return EasyBuildFrameworkTestSuite(loader)
 
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
-        unittest.main()
+        unittest.main(testRunner=SkipSummaryRunner())
     else:
-        unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
+        SkipSummaryRunner().run(EasyBuildFrameworkTestSuite(None))
