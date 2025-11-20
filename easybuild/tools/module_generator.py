@@ -120,7 +120,7 @@ def dependencies_for(mod_name, modtool, depth=None):
 
 def wrap_shell_vars(strng, wrap_prefix, wrap_suffix):
     """
-    Wrap variables $VAR or ${VAR} in wrap_tmpl template string
+    Wrap variables $VAR or ${VAR} between wrap_prefix and wrap_suffix
     Do not wrap escaped variables, but unescape them (e.g. $$VAR -> $VAR)
     Do not touch invalid variables (e.g. $1, $!, $-X, $ {bad})
     """
@@ -158,6 +158,11 @@ class ModuleGenerator:
 
     # a single level of indentation
     INDENTATION = ' ' * 4
+
+    # shell environment variable name: ${__}VAR_NAME_00_SUFFIX
+    REGEX_SHELL_VAR_PATTERN = r'[A-Z_]+[A-Z0-9_]+'
+    REGEX_SHELL_VAR = re.compile(rf'\$({REGEX_SHELL_VAR_PATTERN})')
+    REGEX_QUOTE_SHELL_VAR = re.compile(rf'[\"\']\$({REGEX_SHELL_VAR_PATTERN})[\"\']')
 
     # default options for modextravars
     DEFAULT_MODEXTRAVARS_USE_PUSHENV = False
@@ -1227,6 +1232,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = 'depends_on("%(mod_name)s")'
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
+    OS_GETENV_TEMPLATE = r'os.getenv("%s")'
     OS_GETENV_PREFIX = 'os.getenv("'
     OS_GETENV_SUFFIX = '")'
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
