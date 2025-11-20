@@ -131,6 +131,7 @@ XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep
 DEFAULT_SYS_CFGFILES = [sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))
                         for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
+DEFAULT_LOCAL_CFGFILE= os.path.join(os.path.normpath(os.getcwd()), 'config.cfg')
 
 DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
@@ -230,6 +231,9 @@ class EasyBuildOptions(GeneralOption):
 
     if os.path.exists(DEFAULT_USER_CFGFILE):
         DEFAULT_CONFIGFILES.append(DEFAULT_USER_CFGFILE)
+
+    if os.path.exists(DEFAULT_LOCAL_CFGFILE):
+        DEFAULT_CONFIGFILES.append(DEFAULT_LOCAL_CFGFILE)
 
     ALLOPTSMANDATORY = False  # allow more than one argument
     CONFIGFILES_RAISE_MISSING = True  # don't allow non-existing config files to be specified
@@ -1496,6 +1500,8 @@ class EasyBuildOptions(GeneralOption):
             '',
             "[with $XDG_CONFIG_HOME: %s, $XDG_CONFIG_DIRS: %s]" % (xdg_config_home, xdg_config_dirs),
             '',
+            "* local-level: %s" % os.path.join('.', 'config.cfg'),
+            "  -> %s => %s" % (DEFAULT_LOCAL_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_LOCAL_CFGFILE)]),
             "* user-level: %s" % os.path.join('${XDG_CONFIG_HOME:-$HOME/.config}', 'easybuild', 'config.cfg'),
             "  -> %s => %s" % (DEFAULT_USER_CFGFILE, ('not found', 'found')[os.path.exists(DEFAULT_USER_CFGFILE)]),
             "* system-level: %s" % os.path.join('${XDG_CONFIG_DIRS:-/etc/xdg}', 'easybuild.d', '*.cfg'),
