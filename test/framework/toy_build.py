@@ -53,7 +53,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax, get_repositorypath
+from easybuild.tools.config import get_module_syntax, get_repositorypath, update_build_option
 from easybuild.tools.environment import modify_env, setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
@@ -160,7 +160,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                         raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True):
+                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True, trace=True):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -176,6 +176,8 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         if debug:
             args.append('--debug')
+        if trace:
+            args.append('--trace')
         if force:
             args.append('--force')
         if tmpdir is not None:
@@ -3147,6 +3149,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_cuda_sanity_check(self):
         """Test the CUDA sanity check"""
+        update_build_option('trace', True)
         # We need to mock a cuobjdump executable and prepend in on the PATH
         # First, make sure we can restore environment at the end of this test
         start_env = copy.deepcopy(os.environ)
