@@ -13,6 +13,7 @@ print_usage()
     echo "Usage: $0 <github_username> <install_dir>"
     echo
     echo "    github_username:     username on GitHub for which the EasyBuild repositories should be cloned"
+    echo "                         Use 'easybuilders' if you don't want to use a fork"
     echo
     echo "    install_dir:         directory where all the EasyBuild files will be installed"
     echo
@@ -28,11 +29,13 @@ github_clone_branch()
     echo "=== Cloning ${GITHUB_USERNAME}/${REPO} ..."
     git clone --branch "${BRANCH}" "git@github.com:${GITHUB_USERNAME}/${REPO}.git"
 
-    echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
-    cd "${REPO}"
-    git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
-    git fetch github_easybuilders
-    git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    if [[ $GITHUB_USERNAME != "easybuilders" ]]; then
+        echo "=== Adding and fetching EasyBuilders GitHub repository @ easybuilders/${REPO} ..."
+        cd "${REPO}"
+        git remote add "github_easybuilders" "git@github.com:easybuilders/${REPO}.git"
+        git fetch github_easybuilders
+        git branch --set-upstream-to "github_easybuilders/${BRANCH}" "${BRANCH}"
+    fi
 }
 
 # Print the content of the module

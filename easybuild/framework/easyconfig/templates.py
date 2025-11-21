@@ -50,9 +50,12 @@ TEMPLATE_NAMES_EASYCONFIG = {
     'nameletter': 'First letter of software name',
     'toolchain_name': 'Toolchain name',
     'toolchain_version': 'Toolchain version',
+    'version_major_minor_patch': "Major.Minor.Patch version",
     'version_major_minor': "Major.Minor version",
     'version_major': 'Major version',
+    'version_minor_patch': 'Minor.Patch version',
     'version_minor': 'Minor version',
+    'version_patch': 'Patch version',
 }
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -88,6 +91,11 @@ TEMPLATE_SOFTWARE_VERSIONS = {
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
+    'amdgcn_capabilities': "Comma-separated list of AMDGCN capabilities, as specified via "
+                           "--amdgcn-capabilities configuration option or "
+                           "via amdgcn_capabilities easyconfig parameter",
+    'amdgcn_cc_space_sep': "Space-separated list of AMDGCN capabilities",
+    'amdgcn_cc_semicolon_sep': "Semicolon-separated list of AMDGCN capabilities",
     'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
@@ -199,9 +207,12 @@ ALTERNATIVE_EASYCONFIG_TEMPLATES = {
     'r_short_ver': 'rshortver',
     'r_ver': 'rver',
     'toolchain_ver': 'toolchain_version',
+    'ver_maj_min_patch': 'version_major_minor_patch',
     'ver_maj_min': 'version_major_minor',
     'ver_maj': 'version_major',
+    'ver_min_patch': 'version_minor_patch',
     'ver_min': 'version_minor',
+    'ver_patch': 'version_patch',
     'version_prefix': 'versionprefix',
     'version_suffix': 'versionsuffix',
 }
@@ -338,11 +349,16 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                     minor = version[1]
                     template_values['version_minor'] = minor
                     template_values['version_major_minor'] = '.'.join([major, minor])
+                    if len(version) > 2:
+                        patch = version[2]
+                        template_values['version_patch'] = patch
+                        template_values['version_minor_patch'] = '.'.join([minor, patch])
+                        template_values['version_major_minor_patch'] = '.'.join([major, minor, patch])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
                 # only go through this once
-                ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+                ignore.extend(name for name in TEMPLATE_NAMES_EASYCONFIG if name.startswith('version_'))
 
         elif name.endswith('letter'):
             # parse first letters
@@ -477,6 +493,14 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
+
+    # step 7. AMDGCN capabilities
+    #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
+    amdgcn_cc = build_option('amdgcn_capabilities') or config.get('amdgcn_capabilities')
+    if amdgcn_cc:
+        template_values['amdgcn_capabilities'] = ','.join(amdgcn_cc)
+        template_values['amdgcn_cc_space_sep'] = ' '.join(amdgcn_cc)
+        template_values['amdgcn_cc_semicolon_sep'] = ';'.join(amdgcn_cc)
 
     unknown_names = []
     for key in template_values:

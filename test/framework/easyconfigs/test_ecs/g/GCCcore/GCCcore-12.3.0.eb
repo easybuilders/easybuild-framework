@@ -1,0 +1,27 @@
+# should be EB_GCC, but OK for testing purposes
+easyblock = 'EB_toy'
+
+name = "GCCcore"
+version = '12.3.0'
+
+homepage = 'http://gcc.gnu.org/'
+description = """The GNU Compiler Collection includes front ends for C, C++, Objective-C, Fortran, Java, and Ada,
+ as well as libraries for these languages (libstdc++, libgcj,...)."""
+
+toolchain = SYSTEM
+
+source_urls = [
+    'http://ftpmirror.gnu.org/%(namelower)s/%(namelower)s-%(version)s',  # GCC auto-resolving HTTP mirror
+]
+
+# only here to verify the fix made in https://github.com/easybuilders/easybuild-framework/pull/5048,
+# see also test_exts_deps_build_env
+builddependencies = [
+    ('gzip', '1.4'),
+]
+
+sources = [
+    SOURCELOWER_TAR_BZ2,
+]
+
+moduleclass = 'compiler'

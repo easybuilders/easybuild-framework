@@ -29,7 +29,6 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 @author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
-import copy
 import glob
 import grp
 import os
@@ -54,7 +53,7 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, get_repositorypath
-from easybuild.tools.environment import modify_env, setvar
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
@@ -1355,25 +1354,27 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(os.path.join(self.test_prefix, 'test.txt'), 'test123')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = '\n'.join([
-            toy_ec_txt,
-            'exts_defaultclass = "DummyExtension"',
-            'exts_list = [',
-            '   ("bar", "0.0", {',
-            '       "buildopts": " && ls -l test.txt",',
-            '       "patches": [',
-            '           "bar-0.0_fix-silly-typo-in-printf-statement.patch",',  # normal patch
-            '           ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0),',  # patch with patch level
-            '           ("test.txt", "."),',  # file to copy to build dir (not a real patch file)
-            '       ],',
-            '       "postinstallcmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],',
-            '   }),',
-            ']',
-        ])
+        test_ec_txt = f"{toy_ec_txt}\n" + textwrap.dedent("""
+            exts_defaultclass = "DummyExtension"
+            exts_list = [
+               ("bar", "0.0", {
+                   "buildopts": " && ls -l test.txt",
+                   "patches": [
+                       "bar-0.0_fix-silly-typo-in-printf-statement.patch",  # normal patch
+                       ("bar-0.0_fix-very-silly-typo-in-printf-statement.patch", 0), # patch with patch level
+                       ("test.txt", "."),  # file to copy to build dir (not a real patch file)
+                   ],
+                   "post_install_cmds": ["touch %(installdir)s/created-via-postinstallcmds.txt"],
+                   "post_install_patches": [("test.txt", "test_ext.txt")],
+                   "post_install_msgs": ["Hello World!"],
+               }),
+            ]
+        """)
         write_file(test_ec, test_ec_txt)
 
         with self.mocked_stdout_stderr():
-            self._test_toy_build(ec_file=test_ec)
+            self._test_toy_build(ec_file=test_ec, extra_args=['--disable-cleanup-builddir'])
+            self.assertIn("Hello World!", self.get_stdout())
 
         installdir = os.path.join(self.test_installpath, 'software', 'toy', '0.0')
 
@@ -1386,6 +1387,20 @@ class ToyBuildTest(EnhancedTestCase):
         # verify that post-install command for 'bar' extension was executed
         fn = 'created-via-postinstallcmds.txt'
         self.assertExists(os.path.join(installdir, fn))
+        # Same for all patches
+        self.assertExists(os.path.join(self.test_buildpath, 'toy', '0.0', 'system-system',
+                                       'bar', 'bar-0.0', 'test.txt'))
+        self.assertExists(os.path.join(installdir, 'test_ext.txt'))
+
+        # make sure that patch file for extension was copied to 'easybuild' subdir in installation directory
+        easybuild_subdir = os.path.join(installdir, 'easybuild')
+        patches = sorted(os.path.basename(x) for x in glob.glob(os.path.join(easybuild_subdir, '*.patch')))
+        expected_patches = [
+            'bar-0.0_fix-silly-typo-in-printf-statement.patch',
+            'bar-0.0_fix-very-silly-typo-in-printf-statement.patch',
+            'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+        ]
+        self.assertEqual(patches, expected_patches)
 
     def test_toy_extension_sources(self):
         """Test install toy that includes extensions with 'sources' spec (as single-item list)."""
@@ -1743,18 +1758,14 @@ class ToyBuildTest(EnhancedTestCase):
         installed_test_modules = os.path.join(self.test_installpath, 'modules', 'all')
         self.reset_modulepath([modulepath, installed_test_modules])
 
-        start_env = copy.deepcopy(os.environ)
-
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
-        self.modtool.load(['toy/0.0-external-deps'])
-        # note build dependency is not loaded
-        mods = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'toy/0.0-external-deps']
-        self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
-
-        # restore original environment (to undo 'module load' done above)
-        modify_env(os.environ, start_env, verbose=False)
+        with self.saved_env():
+            self.modtool.load(['toy/0.0-external-deps'])
+            # note build dependency is not loaded
+            mods = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'toy/0.0-external-deps']
+            self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
         extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
@@ -3131,10 +3142,6 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_cuda_sanity_check(self):
         """Test the CUDA sanity check"""
-        # We need to mock a cuobjdump executable and prepend in on the PATH
-        # First, make sure we can restore environment at the end of this test
-        start_env = copy.deepcopy(os.environ)
-
         # Define the toy_ec file we want to use
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -3523,9 +3530,6 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
         self.assertTrue(expected_result.search(outtxt), msg)
         assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout, num_checked=0)
-
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
@@ -3937,7 +3941,8 @@ class ToyBuildTest(EnhancedTestCase):
                 # just undo
                 self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
 
-        check_toy_load()
+        with self.saved_env():
+            check_toy_load()
 
         # this behaviour can be disabled via "multi_dep_load_defaults = False"
         write_file(test_ec, test_ec_txt + "\nmulti_deps_load_default = False")
@@ -3949,8 +3954,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertNotIn(expected, toy_mod_txt)
 
-        self.modtool.load(['toy/0.0'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+        with self.saved_env():
+            self.modtool.load(['toy/0.0'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
         self.assertIn('toy/0.0', loaded_mod_names)
         self.assertNotIn('GCC/4.6.3', loaded_mod_names)
         self.assertNotIn('GCC/7.3.0-2.30', loaded_mod_names)
@@ -3972,10 +3978,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis_no_default, toy_mod_txt)
         self.assertIn(expected_whatis_no_default, toy_mod_txt, error_msg_whatis)
-
-        # restore original environment to continue testing with a clean slate
-        modify_env(os.environ, self.orig_environ, verbose=False)
-        self.modtool.use(test_mod_path)
 
         # disable showing of progress bars (again), doesn't make sense when running tests
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
@@ -5000,9 +5002,12 @@ class ToyBuildTest(EnhancedTestCase):
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
 
-def suite():
+def suite(loader=None):
     """ return all the tests in this file """
-    return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ToyBuildTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ToyBuildTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

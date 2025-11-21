@@ -43,7 +43,7 @@ from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -794,11 +794,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported for Tcl modules
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
             return
 
-        # currently requires opt-in via --module-extensions
+        # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -810,10 +810,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        patterns = [
-            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
-            r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
-        ]
+        req_version_pattern = re.escape(self.modtool.REQ_VERSION_EXTENSIONS)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            if isinstance(self.modtool, EnvironmentModules):
+                version_var = "::ModuleToolVersion"
+            else:
+                version_var = r"::env\(LMOD_VERSION\)"
+            patterns = [
+                (r'^if \{ \[ info exists %s \] && \[ string equal \[lindex \[lsort -dictionary '
+                 r'\[list %s \$%s\]\] 0\] %s \] \} \{\n') % (version_var, req_version_pattern,
+                                                             version_var, req_version_pattern),
+                r'\s*extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$',
+            ]
+        else:
+            patterns = [
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("%s"\) then\n' % req_version_pattern,
+                r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
+            ]
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -827,7 +840,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r"\s*extensions "
+        else:
+            pattern = r"\s*extensions\("
+
+        self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+
+        # check if the extensions is missing if 'module_extensions' is disabled
+        init_config(build_options={'module_extensions': False})
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
@@ -1757,11 +1788,16 @@ class LuaModuleGeneratorTest(ModuleGeneratorTest):
     MODULE_GENERATOR_CLASS = ModuleGeneratorLua
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
+    if loader:
+        args = []
+    else:
+        loader = TestLoaderFiltered()
+        args = [sys.argv[1:]]
     suite = TestSuite()
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(TclModuleGeneratorTest, sys.argv[1:]))
-    suite.addTests(TestLoaderFiltered().loadTestsFromTestCase(LuaModuleGeneratorTest, sys.argv[1:]))
+    suite.addTests(loader.loadTestsFromTestCase(TclModuleGeneratorTest, *args))
+    suite.addTests(loader.loadTestsFromTestCase(LuaModuleGeneratorTest, *args))
     return suite
 
 

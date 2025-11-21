@@ -84,6 +84,7 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'amdgcn_capabilities': [[], "List of AMDGCN capabilities to build with (if supported)", BUILD],
     'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
                                       "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"

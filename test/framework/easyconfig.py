@@ -566,15 +566,16 @@ class EasyConfigTest(EnhancedTestCase):
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
-            '   ("toy", "0.0", {',
+            '   ("toy", "0.0.1", {',
             # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
             # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
             # %(versionsuffix)s should get resolved with value of parent
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
-            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            '       "patches": ["%(name)s-%(version_major_minor)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
-            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version_minor_patch)s &&' +
+            ' mv toy-%(version_minor_patch)s toy # echo installdir is %(installdir)s #",',
+            '        "postbuildopts": "echo postbuild step for %(name)s-%(version)s",',
             '   }),',
             ']',
         ])
@@ -597,16 +598,15 @@ class EasyConfigTest(EnhancedTestCase):
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        patches = []
-        for patch in toy_ext.patches:
-            patches.append(patch['path'])
+        patches = [patch['path'] for patch in toy_ext.patches]
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
-        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
+        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.1 && mv toy-0.1 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
+            'postbuildopts': "echo postbuild step for toy-0.0.1",
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -2501,12 +2501,12 @@ class EasyConfigTest(EnhancedTestCase):
             Helper function to sanity check we can use the quoted string in Python contexts.
             Returns the evaluated (i.e. unquoted) string
             """
-            scope = dict()
+            scope = {}
             try:
                 # this is needlessly complicated because we can't use 'exec' here without potentially running
                 # into a SyntaxError bug in old Python 2.7 versions (for example when running the tests in CentOS 7.9)
                 # cfr. https://stackoverflow.com/questions/4484872/why-doesnt-exec-work-in-a-function-with-a-subfunction
-                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), dict(), scope)
+                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), {}, scope)
             except Exception as err:  # pylint: disable=broad-except
                 self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, err))
             return scope['res']
@@ -3723,7 +3723,7 @@ class EasyConfigTest(EnhancedTestCase):
         # also check result of template_constant_dict when dict representing extension is passed
         ext_dict = {
             'name': 'foo',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'options': {
                 'source_urls': ['https://example.com'],
                 'source_tmpl': '%(name)s-%(version)s.tar.gz',
@@ -3744,11 +3744,25 @@ class EasyConfigTest(EnhancedTestCase):
             'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'version_major': '1',
             'version_major_minor': '1.2',
-            'version_minor': '2'
+            'version_major_minor_patch': '1.2.3',
+            'version_minor': '2',
+            'version_minor_patch': '2.3',
+            'version_patch': '3',
         }
+        self.assertEqual(res, expected)
+
+        # No patch version makes the templates undefined
+        ext_dict['version'] = '1.2'
+        res = template_constant_dict(ext_dict)
+        res.pop('arch')
+
+        del expected['version_major_minor_patch']
+        del expected['version_minor_patch']
+        del expected['version_patch']
+        expected['version'] = '1.2'
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
@@ -3942,7 +3956,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
         subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-        optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+        optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}
         # missing gompic and double golfc should both give exceptions
@@ -4807,6 +4821,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
+    def test_amdgcn_capabilities(self):
+        self.contents = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'test'
+            version = '0.2'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            amdgcn_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
+            buildopts = ('comma="%(amdgcn_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
+                         'semi="%(amdgcn_cc_semicolon_sep)s"')
+            installopts = '%(amdgcn_capabilities)s'
+        """)
+        self.prep()
+
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101,gfx11-generic,gfx10-3-generic" '
+                                          'space="gfx90a gfx1101 gfx11-generic gfx10-3-generic" '
+                                          'semi="gfx90a;gfx1101;gfx11-generic;gfx10-3-generic"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101,gfx11-generic,gfx10-3-generic')
+
+        # build options overwrite it
+        init_config(build_options={'amdgcn_capabilities': ['gfx90a', 'gfx1101']})
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101" '
+                                          'space="gfx90a gfx1101" '
+                                          'semi="gfx90a;gfx1101"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101')
+
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
 
@@ -5111,6 +5154,56 @@ class EasyConfigTest(EnhancedTestCase):
         for key, expected in cuda_template_values.items():
             self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
 
+    def test_get_amdgcn_cc_template_value(self):
+        """
+        Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = ("foobar is not a template value based on "
+                         "--amdgcn-capabilities/amdgcn_capabilities")
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
+        amdgcn_template_values = {
+            'amdgcn_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
+            'amdgcn_cc_space_sep': 'gfx90a gfx1100 gfx10-3-generic',
+            'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
+        }
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+
+        update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
+
+        update_build_option('amdgcn_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
+
+        self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
+
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
@@ -5257,9 +5350,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertRegex(stderr.getvalue(), regex)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(EasyConfigTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyConfigTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

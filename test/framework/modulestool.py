@@ -259,9 +259,12 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ.pop('module', None)
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(ModulesToolTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(ModulesToolTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

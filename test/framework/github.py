@@ -78,16 +78,26 @@ def requires_github_access():
 
     Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
     """
-    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
-        return unittest.skipIf(False, None)
-    else:
-        # For pull requests silently skip to avoid rate limits
-        def decorator(test_item):
-            @functools.wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                return
-            return skip_wrapper
-        return decorator
+    return unittest.skipUnless(
+        os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request',
+        "Skipping test requiring GitHub access"
+    )
+
+
+def ignore_rate_limit_in_pr(test_item):
+    """Decorator: If tests are run in a pull request and fail with a rate limit error, ignore that"""
+    if os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return test_item
+
+    @functools.wraps(test_item)
+    def skip_wrapper(self, *args, **kwargs):
+        try:
+            test_item(self, *args, **kwargs)
+        except EasyBuildError as e:
+            if 'HTTP Error 403' in e.msg:
+                self.skipTest('Ignoring rate limit error')
+            raise
+    return skip_wrapper
 
 
 class GithubTest(EnhancedTestCase):
@@ -201,7 +211,7 @@ class GithubTest(EnhancedTestCase):
                 ('a_directory', ['a_subdirectory'], ['a_file.txt']),
                 ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
             ]
-            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual(list(self.ghfs.walk(None)), expected)
         except IOError:
             pass
 
@@ -254,11 +264,11 @@ class GithubTest(EnhancedTestCase):
 
         self.mock_stdout(True)
         self.mock_stderr(True)
-        gh.add_pr_labels(22380)
+        gh.add_pr_labels(21465)
         stdout = self.get_stdout()
         self.mock_stdout(False)
         self.mock_stderr(False)
-        self.assertIn("Could not determine any missing labels for PR #22380", stdout)
+        self.assertIn("Could not determine any missing labels for PR #21465", stdout)
 
         self.mock_stdout(True)
         self.mock_stderr(True)
@@ -518,6 +528,7 @@ class GithubTest(EnhancedTestCase):
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
 
+    @ignore_rate_limit_in_pr
     def test_fetch_files_from_commit(self):
         """Test fetch_files_from_commit function."""
 
@@ -551,6 +562,7 @@ class GithubTest(EnhancedTestCase):
         error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
+    @ignore_rate_limit_in_pr
     def test_fetch_easyconfigs_from_commit(self):
         """Test fetch_easyconfigs_from_commit function."""
 
@@ -1116,7 +1128,7 @@ class GithubTest(EnhancedTestCase):
         gist_id = gist_url.split('/')[-1]
         gh.delete_gist(gist_id, github_user=GITHUB_TEST_ACCOUNT, github_token=self.github_token)
 
-    def test_github_det_account_branch_for_pr(self):
+    def test_github_det_account_repo_branch_for_pr(self):
         """Test det_account_branch_for_pr."""
         if self.skip_github_tests:
             print("Skipping test_det_account_branch_for_pr, no GitHub token available?")
@@ -1129,9 +1141,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'boegel')
+        self.assertEqual(repo, 'easybuild-easyconfigs')
         self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
 
         init_config(build_options={
@@ -1141,9 +1154,10 @@ class GithubTest(EnhancedTestCase):
 
         # see https://github.com/easybuilders/easybuild-framework/pull/3069
         self.mock_stdout(True)
-        account, branch = gh.det_account_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
+        account, repo, branch = gh.det_account_repo_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
         self.mock_stdout(False)
         self.assertEqual(account, 'migueldiascosta')
+        self.assertEqual(repo, 'easybuild-framework')
         self.assertEqual(branch, 'fix_inject_checksums')
 
     def test_github_det_pr_target_repo(self):
@@ -1459,9 +1473,12 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(is_patch_for('ext_foo-1.2.3.patch', ec))
 
 
-def suite():
+def suite(loader=None):
     """ returns all the testcases in this module """
-    return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
+    if loader:
+        return loader.loadTestsFromTestCase(GithubTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(GithubTest, sys.argv[1:])
 
 
 if __name__ == '__main__':

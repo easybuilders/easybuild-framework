@@ -4,6 +4,81 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.1.2 (26 Sept 2025)
+---------------------
+
+update/bugfix release
+
+- enhancements:
+  - show readable error message when applying patch without (extracted) source (#4738)
+  - add support for `amdgcn-capabilities` configuration option and `amdgcn_capabilities` easyconfig parameter + related templates, similar to `cuda-compute-capabilities` (#4860)
+  - try to empty install dir if removing it fails (#4932)
+  - add support for "extensions" on Tcl modulefiles , but disable it for now (#4972, #4978, #4985)
+  - exit with appropriate error code for `--search` when no match is found (#4976)
+  - handle `post_install_patches` and `post_install_msgs` for extensions (#4980)
+  - skip RPATH sanity check for symlinks explicitely (#4988)
+  - take `--terse` into account for `--dry-run-short`/`-D` and `--dry-run` (#4989)
+- bug fixes:
+  - test if all extensions support parallel install before attempting parallel extension install (#4949)
+  - do not fail for read-only installation directory on `--module-only` (re)builds (#4958, #5004)
+  - store all patches (incl. the ones for extensions) that need to be copied to a repo/reprod dir in an `all_patches` set (#4960)
+  - fix error when adding files to existing PR with `--update-pr` and refactor + fixes in `options` tests (#4962)
+  - add back `OrderedDict` import in (deprecated) `easybuild.tools.py2vs3.py3` module (#4965)
+  - fixes for RPATH wrapper script:
+    - detect & replace `-Xlinker --enable-new-dtags` (#4970)
+    - do not add RPATH (linking) flags when `-c` flag specified (#4981)
+  - honor `--disable-module-extensions` configuration option (#4971)
+  - fix f-string in rpath check and skip check for linked libs on symlinks (#4975)
+  - fix passing command as list of strings to `run_shell_cmd` (#4977)
+  - add `f` for the f-string in a `git_config` error (#4982)
+  - keep `ModuleTool.mod_paths` in sync with `MODULEPATH` in `ModuleTool.load()` (#4991)
+  - fix failure to resolve template in tests (#4994)
+  - update regex used in `Lmod.get_setenv_value_from_modulefile` (#4998)
+- enhancements and fixes for test suite:
+  - only run tests for `--from-commit` for subset of test configurations (those for which a GitHub token is available) (#4967)
+  - adapt `module_extensions` disable test for Tcl modulefiles (#4973)
+- other changes:
+  - don't log variables (un)set + raw output of `module` command when cleaning up fake module (#4942)
+  - introduce `PYTHON_EXE` variable in template for RPATH wrapper script (to easily replace name of `python` command to use in `buildenv` easyblock) (#4984)
+  - remove deprecated license classifier in `setup.py` (#5002)
+
+
+v5.1.1 (6 July 2025)
+--------------------
+
+update/bugfix release
+
+- enhancements:
+  - don't allow using `--pr-commit-msg` when only adding new files with `--new-pr` (unless `--force` is used) (#4498)
+  - update `install-EasyBuild-develop.sh` script to allow installation without forking (#4899)
+  - add blue, cyan, purple as known colors that can be used in colorize function (#4907)
+  - trigger `post_run_shell_cmd_hook` before raising error if shell command failed + pass down full `RunShellCmdResult` instance (#4908)
+  - also pass value of `fail_on_error` and `hidden` options of `run_shell_cmd` call down to pre/post `run_shell_cmd` hook (#4911)
+  - add configuration option to ignore unversioned (0.0.0) Python packages (#4912)
+  - add `required` option to `EasyConfig.get_cuda_cc_template_value` method (#4913)
+  - add total iteration count to trace output (#4919, #4952)
+  - add support for pre/post `easyblock` hook (#4923, #4938)
+  - catch `HTTPException` when doing GitHub API request (#4926)
+- bug fixes:
+  - fix reporting of method name in `EasyBlock.run_step` (#4920)
+  - fix handling of broken symlinks in `filetools.remove` (#4921)
+  - keep symlinks when copying build dirs of failed installations (#4933)
+  - also copy patches of extensions to easybuild subdirectory of installation directory (#4939, #4946)
+  - also copy easyblocks of bundle components to reprod dir (#4944)
+  - take into account that forked repository may not have same name as origin `--sync-pr-with-develop` (#4947)
+- enhancements and fixes for test suite:
+  - add support for passing valid unittest options to test suite (#3790)
+  - enhance `LooseVersion` test to add cases with leading alphabetical characters (#4901)
+  - prefer using `importlib.metadata` over the deprecated `pkg_resources` in `det_pypkg_version` + switch container tests to Rocky Linux 8.10 (#4904)
+  - fix `TypeError` for Python version comparison in `test_fetch_sources_git` (#4934)
+  - fix broken tests for GitHub integration features (#4954)
+- other changes:
+  - change value of architectures constants RISCV32 and RISCV64 (#4915)
+  - remove some superflous Python 2 checks (#4917)
+  - remove use of unsupported `source` key in patch spec (#4924)
+  - remove super() arguments from mk_tmpl_easyblock_for (#4936)
+
+
 v5.1.0 (26 May 2025)
 --------------------
 

@@ -277,7 +277,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     end_time = strftime(time_format, end_time)
     test_report.extend(["#### Time info", " * start: %s" % start_time, " * end: %s" % end_time, ""])
 
-    eb_config = [x for x in sorted(init_session_state['easybuild_configuration'])]
+    eb_config = sorted(init_session_state['easybuild_configuration'])
     test_report.extend([
         "#### EasyBuild info",
         " * easybuild-framework version: %s" % FRAMEWORK_VERSION,

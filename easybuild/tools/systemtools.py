@@ -107,8 +107,8 @@ AARCH32 = 'AArch32'
 AARCH64 = 'AArch64'
 POWER = 'POWER'
 X86_64 = 'x86_64'
-RISCV32 = 'RISC-V-32'
-RISCV64 = 'RISC-V-64'
+RISCV32 = 'RISCV32'
+RISCV64 = 'RISCV64'
 
 # known values for ARCH constant (determined by _get_arch_constant in easybuild.framework.easyconfig.constants)
 KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
@@ -1118,6 +1118,9 @@ def get_linked_libs_raw(path):
     or None for other types of files.
     """
 
+    if os.path.islink(path):
+        _log.debug(f"{path} is a symbolic link, so skipping check for linked libs")
+        return None
     res = run_shell_cmd("file %s" % path, fail_on_error=False, hidden=True, output_file=False, stream_output=False)
     if res.exit_code != EasyBuildExit.SUCCESS:
         fail_msg = "Failed to run 'file %s': %s" % (path, res.output)
