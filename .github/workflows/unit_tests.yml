@@ -253,8 +253,7 @@ jobs:
             # run test suite
             python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
             # try and make sure output of running tests is clean (no printed messages/warnings)
-            IGNORE_PATTERNS="=== Skipped tests ==="
-            IGNORE_PATTERNS+="Ignoring rate limit error"
+            IGNORE_PATTERNS="^[s.]*$" # Only PASS (.) and SKIP (s) status on line
             IGNORE_PATTERNS+="|Skipping test_dep_graph"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
@@ -262,9 +261,9 @@ jobs:
             IGNORE_PATTERNS+="|Blowfish"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: TripleDES has been moved"
             IGNORE_PATTERNS+="|algorithms.TripleDES"
-            # ignore lines with only successful ('.') and skipped ('s') tests
-            IGNORE_PATTERNS+="|^[\.s]+$"
+
+            TEST_OUTPUT=$(sed -n '/------------------------------/q;p' test_framework_suite.log)  # Everything up to the result divider
             # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
-            PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
-            test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
+            PRINTED_MSG=$(echo "$TEST_OUTPUT" | egrep -v "${IGNORE_PATTERNS}" || true)
+            [[ -z $PRINTED_MSG ]] || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
           done
