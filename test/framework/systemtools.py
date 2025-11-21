@@ -28,7 +28,6 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-import copy
 import ctypes
 import logging
 import os
@@ -41,7 +40,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env, setvar
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
@@ -740,9 +739,9 @@ class SystemToolsTest(EnhancedTestCase):
             'x86_64': X86_64,
             'some_fancy_arch': UNKNOWN,
         }
-        for name in machine_names:
+        for name, arch in machine_names.items():
             MACHINE_NAME = name
-            self.assertEqual(get_cpu_architecture(), machine_names[name])
+            self.assertEqual(get_cpu_architecture(), arch)
 
     def test_cpu_arch_name_native(self):
         """Test getting CPU arch name."""
@@ -1323,9 +1322,6 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_get_cuda_object_dump_raw(self):
         """Test get_cuda_object_dump_raw function"""
-        # This test modifies environment, make sure we can revert the changes:
-        start_env = copy.deepcopy(os.environ)
-
         # Mock the shell command for certain known commands
         st.run_shell_cmd = mocked_run_shell_cmd
 
@@ -1373,14 +1369,8 @@ class SystemToolsTest(EnhancedTestCase):
         # Test case 7: call on CUDA static lib, which only contains device code
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_staticlib'), CUOBJDUMP_DEVICE_CODE_ONLY)
 
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
-
     def test_get_cuda_architectures(self):
         """Test get_cuda_architectures function"""
-        # This test modifies environment, make sure we can revert the changes:
-        start_env = copy.deepcopy(os.environ)
-
         # Mock the shell command for certain known commands
         st.run_shell_cmd = mocked_run_shell_cmd
 
@@ -1449,9 +1439,6 @@ class SystemToolsTest(EnhancedTestCase):
         fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
         self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
         self.assertIsNone(res_elf)
-
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
 
     def test_get_linked_libs_raw(self):
         """
