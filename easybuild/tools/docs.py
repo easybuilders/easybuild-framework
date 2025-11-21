@@ -1468,7 +1468,7 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
 
         table_titles = ['easyconfig parameter', 'description']
         table_values = [
-            [opt for opt in common_params[classname]],
+            common_params[classname],
             [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
         ]
 
@@ -1556,7 +1556,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
         table_titles = ['easyconfig parameter', 'description']
         table_values = [
-            [opt for opt in common_params[classname]],
+            common_params[classname],
             [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
         ]
 

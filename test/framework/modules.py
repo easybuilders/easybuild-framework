@@ -44,7 +44,6 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
@@ -103,11 +102,10 @@ class ModulesTest(EnhancedTestCase):
             os.environ.pop(key, None)
 
         # arguments can be passed in two ways: multiple arguments, or just 1 list argument
-        self.modtool.run_module('load', 'GCC/6.4.0-2.28')
-        self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
+        with self.saved_env():
+            self.modtool.run_module('load', 'GCC/6.4.0-2.28')
+            self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
-        # restore original environment
-        modify_env(os.environ, self.orig_environ, verbose=False)
         self.reset_modulepath([os.path.join(testdir, 'modules')])
 
         self.assertNotIn('EBROOTGCC', os.environ)

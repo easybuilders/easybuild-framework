@@ -53,7 +53,6 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError, EasyBuildLog
 from easybuild.tools.config import DEFAULT_MODULECLASSES, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
 from easybuild.tools.filetools import is_patch_file, mkdir, move_file, parse_http_header_fields_urlpat
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
@@ -68,6 +67,7 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
+from test.framework.github import ignore_rate_limit_in_pr
 
 try:
     import pycodestyle  # noqa
@@ -1521,6 +1521,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn("name = 'EasyBuild'", read_file(test_ec))
         remove_file(test_ec)
 
+    @ignore_rate_limit_in_pr
     def test_copy_ec_from_commit(self):
         """Test combination of --copy-ec with --from-commit."""
         # note: --from-commit does not involve using GitHub API, so no GitHub token required
@@ -4322,7 +4323,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # cleanup
             os.close(fd)
             shutil.rmtree(mytmpdir)
-            modify_env(os.environ, self.orig_environ)
             tempfile.tempdir = None
 
         orig_tmpdir = tempfile.gettempdir()
@@ -4333,7 +4333,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.path.join(orig_tmpdir, '[ab @cd]%/#*'),
         ]
         for tmpdir in cand_tmpdirs:
-            check_tmpdir(tmpdir)
+            with self.saved_env():
+                check_tmpdir(tmpdir)
 
     def test_minimal_toolchains(self):
         """End-to-end test for --minimal-toolchains."""
@@ -5666,7 +5667,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             logs = glob.glob(os.path.join(toy_eb_install_dir, 'easybuild-toy-0.0*log*'))
             self.assertEqual(len(logs), 1, "Found exactly 1 log file in %s: %s" % (toy_eb_install_dir, logs))
 
-            zip_logs_arg = zip_logs.split('=')[-1]
+            zip_logs_arg = zip_logs.rsplit('=', maxsplit=1)[-1]
             if zip_logs == '--zip-logs' or zip_logs_arg == 'gzip':
                 ext = 'log.gz'
             elif zip_logs_arg == 'bzip2':

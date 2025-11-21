@@ -221,6 +221,16 @@ class TestCase(OrigTestCase):
             if mock_stderr:
                 self.mock_stderr(False)
 
+    @contextmanager
+    def saved_env(self):
+        """Context manager to reset environment to state when it was entered"""
+        orig_env = os.environ.copy()
+        try:
+            yield
+        finally:
+            os.environ.clear()
+            os.environ.update(orig_env)
+
     def tearDown(self):
         """Cleanup after running a test."""
         self.mock_stdout(False)

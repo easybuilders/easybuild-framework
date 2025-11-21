@@ -1137,7 +1137,7 @@ class EasyBuildOptions(GeneralOption):
             )
 
         reasons = self.options.close_pr_reasons.split(',')
-        if not all(reason in VALID_CLOSE_PR_REASONS for reason in reasons):
+        if any(reason not in VALID_CLOSE_PR_REASONS for reason in reasons):
             raise EasyBuildError(
                 "Argument to --close-pr_reasons must be a comma separated list of valid reasons among %s",
                 VALID_CLOSE_PR_REASONS.keys(), exit_code=EasyBuildExit.OPTION_ERROR
@@ -1563,7 +1563,7 @@ class EasyBuildOptions(GeneralOption):
             "* software:",
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
-            "  -> Python version: %s" % sys.version.split(' ')[0],
+            "  -> Python version: %s" % sys.version.split(' ', maxsplit=1)[0],
         ])
 
         return '\n'.join(lines)

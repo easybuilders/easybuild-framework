@@ -581,11 +581,18 @@ class FileToolsTest(EnhancedTestCase):
         proxy_handler = request.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
         request.install_opener(request.build_opener(proxy_handler))
 
+        # for Python 3.14+, we need to make sure that proxy and original URL are using different protocol,
+        # or download will succeed anyway (due to improvemts in in urllib.request.FileHandler)
+        source_url = source_url.replace('file://', 'http://')
+
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, source_url, target_location), None,
                              "download over broken proxy fails")
+
+        # restore source URL using file://
+        source_url = source_url.replace('http://', 'file://')
 
         # modify existing download so we can verify re-download
         ft.write_file(target_location, '')
@@ -2287,8 +2294,8 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertExists(target_dir)
-        expected = ['GCC-10.2.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
-                    'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
+        expected = ['GCC-10.2.0.eb', 'GCC-12.3.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb',
+                    'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
         # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
         self.assertNotExists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb'))
@@ -2695,7 +2702,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 100)
+            self.assertEqual(len(index), 104)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2745,7 +2752,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 29)
+        self.assertEqual(len(index), 31)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -2775,7 +2782,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 29)
+        self.assertEqual(len(index), 31)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -3745,7 +3752,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.clean_up_locks()
 
         ft.create_lock(lock_name)
-        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(ft.global_lock_names, {lock_name})
         self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
 
         ft.clean_up_locks()
