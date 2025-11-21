@@ -597,7 +597,7 @@ class Toolchain:
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
+        return any(self.mns.is_short_modname_for(m, name) for m in self.toolchain_dep_mods)
 
     def _simulated_load_dependency_module(self, name, version, metadata, verbose=False):
         """
@@ -752,7 +752,7 @@ class Toolchain:
         self.log.debug("List of toolchain dependencies from toolchain module: %s", self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
-        toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
+        toolchain_definition = {e for es in self.definition().values() for e in es if not e == self.name}
 
         # filter out optional toolchain elements if they're not used in the module
         for elem_name in toolchain_definition.copy():

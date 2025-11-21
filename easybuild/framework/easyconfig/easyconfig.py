@@ -261,7 +261,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
 
     for subtoolchain_name in subtoolchain_names:
 
-        uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+        uniq_subtc_versions = {subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name}
 
         # system toolchain: bottom of the hierarchy
         if is_system_toolchain(subtoolchain_name):
@@ -318,8 +318,8 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
     subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-    optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
-    composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
+    optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
+    composite_toolchains = {tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1}
 
     # the parent toolchain is at the top of the hierarchy,
     # we need a copy so that adding capabilities (below) doesn't affect the original object
@@ -1219,14 +1219,16 @@ class EasyConfig:
 
         return retained_deps
 
-    def dependency_names(self, build_only=False):
+    def dependency_names(self, build_only=False, runtime_only=False):
         """
         Return a set of names of all (direct) dependencies after filtering.
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        return {dep['name'] for dep in self.dependencies(build_only=build_only) if dep['name']}
+        return {dep['name'] for dep in self.dependencies(build_only=build_only, runtime_only=runtime_only)
+                if dep['name']}
 
     def builddependencies(self):
         """

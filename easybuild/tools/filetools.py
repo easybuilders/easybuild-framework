@@ -786,7 +786,7 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
             if urlpat in urlpat_headers.keys():
                 urlpat_headers[urlpat].append(argline)  # add headers to the list
             else:
-                urlpat_headers[urlpat] = list([argline])  # new list headers for this urlpat
+                urlpat_headers[urlpat] = [argline]  # new list headers for this urlpat
         else:
             _log.warning("Non-empty argument to http-header-fields-urlpat ignored (missing URL pattern)")
 
@@ -838,7 +838,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
     # parse option HTTP header fields for URLs containing a pattern
     http_header_fields_urlpat = build_option('http_header_fields_urlpat')
     # compile a dict full of {urlpat: [header, list]}
-    urlpat_headers = dict()
+    urlpat_headers = {}
     if http_header_fields_urlpat is not None:
         # there may be multiple options given, parse them all, while updating urlpat_headers
         for arg in http_header_fields_urlpat:
@@ -2368,7 +2368,7 @@ def encode_string(name):
     """
 
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    result = ''.join(STRING_ENCODING_CHARMAP.get(x, x) for x in name)
     return result
 
 
