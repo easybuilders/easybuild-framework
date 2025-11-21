@@ -44,6 +44,7 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from http.client import HTTPException
 from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
@@ -834,7 +835,12 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
         status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-        status, data = g.gists.post(body=body)
+        try:
+            status, data = g.gists.post(body=body)
+        except HTTPError as err:
+            if err.code == HTTPStatus.UNAUTHORIZED:
+                err = f"GitHub token for {github_user} is {'required' if github_token is None else 'invalid'}"
+            raise EasyBuildError("Failed to create gist: %s", err, exit_code=EasyBuildExit.FAIL_GITHUB)
 
     if status != HTTP_STATUS_CREATED:
         raise EasyBuildError(
@@ -883,7 +889,13 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         pr_url = g.repos[account][repo].issues[issue]
 
-        status, data = pr_url.comments.post(body={'body': txt})
+        try:
+            status, data = pr_url.comments.post(body={'body': txt})
+        except HTTPError as err:
+            if err.code == HTTPStatus.UNAUTHORIZED:
+                err = f"GitHub token for {github_user} is {'required' if github_token is None else 'invalid'}"
+            raise EasyBuildError("Failed to create comment in PR %s#%d: %s", err, exit_code=EasyBuildExit.FAIL_GITHUB)
+
         if not status == HTTP_STATUS_CREATED:
             raise EasyBuildError(
                 "Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data,
