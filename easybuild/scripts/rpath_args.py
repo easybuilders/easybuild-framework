@@ -37,6 +37,13 @@ import os
 import re
 import sys
 
+LINKER_COMMANDS = (
+    # binutils
+    'ld', 'ld.gold', 'ld.bfd',
+    # LLVM
+    'lld', 'ld.lld', 'ld64.lld',
+)
+
 
 def is_new_existing_path(new_path, paths):
     """
@@ -80,7 +87,7 @@ rpath_include = sys.argv[3]
 args = sys.argv[4:]
 
 # determine whether or not to use -Wl to pass options to the linker based on name of command
-if cmd in ['ld', 'ld.gold', 'ld.bfd', 'lld', 'ld.lld', 'ld64.lld']:
+if cmd in LINKER_COMMANDS:
     ldflag_prefix = ''
 else:
     ldflag_prefix = '-Wl,'
@@ -117,7 +124,7 @@ while idx < len(args):
         cmd_args.append(arg)
 
     # preprocess only mode, no linking is done
-    elif arg == '-E':
+    elif arg == '-E' and cmd not in LINKER_COMMANDS:
         add_rpath_args = False
         cmd_args.append(arg)
 
