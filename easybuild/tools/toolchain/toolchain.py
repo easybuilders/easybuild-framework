@@ -836,7 +836,7 @@ class Toolchain:
         if self.is_system_toolchain():
             linkers = ['ld', 'ld.gold', 'ld.bfd']
         else:
-            linkers = self.LINKERS or []
+            linkers = list(self.LINKERS or [])
 
         return linkers
 
