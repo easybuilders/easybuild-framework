@@ -2382,7 +2382,7 @@ class EasyBlock:
                 # make sure start_dir subdir exists (cfr. check below)
                 mkdir(os.path.join(topdir, start_dir), parents=True)
 
-            abs_start_dir = os.path.join(topdir, start_dir)
+            abs_start_dir = os.path.join(topdir, start_dir) if start_dir else topdir
             if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
                 self.cfg['start_dir'] = topdir
             else:
