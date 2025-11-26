@@ -32,7 +32,6 @@ Authors:
 """
 from easybuild.toolchains.lompi import Lompi
 from easybuild.toolchains.lfbf import Lfbf
-from easybuild.toolchains.lolf import Lolf
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
@@ -44,7 +43,6 @@ class LFoss(Lompi, FlexiBLAS, ScaLAPACK, Fftw):
     NAME = 'lfoss'
     SUBTOOLCHAIN = [
         Lompi.NAME,
-        Lolf.NAME,
         Lfbf.NAME
     ]
 
