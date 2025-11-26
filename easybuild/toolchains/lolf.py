@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for golf compiler toolchain (includes GCC, OpenBLAS, LAPACK, and FFTW).
+EasyBuild support for lolf compiler toolchain (includes LLVM compilers, OpenBLAS, LAPACK, and FFTW).
 
 Authors:
 

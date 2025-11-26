@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gmpich compiler toolchain (includes GCC and MPICH).
+EasyBuild support for lmpich compiler toolchain (includes LLVM compilers and MPICH).
 
 Authors:
 
