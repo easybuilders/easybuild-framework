@@ -90,8 +90,6 @@ class LLVMCompilers(Compiler):
         'unroll': '-funroll-loops',
         'loop-vectorize': ['-fvectorize'],
         'basic-block-vectorize': ['-fslp-vectorize'],
-        'optarch': '',
-        # 'optarch': '-march=native',
         # Clang's options do not map well onto these precision modes.  The flags enable and disable certain classes of
         # optimizations.
         #
