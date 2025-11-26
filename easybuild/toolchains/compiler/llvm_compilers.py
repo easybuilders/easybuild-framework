@@ -74,7 +74,7 @@ class LLVMCompilers(Compiler):
         'basic-block-vectorize': (False, "Basic block vectorization"),
 
         # https://github.com/madler/zlib/issues/856
-        'lld_undefined_version': (True, "-Wl,--undefined-version - Allow unused version in version script"),
+        'lld_undefined_version': (False, "-Wl,--undefined-version - Allow unused version in version script"),
         'no_unused_args': (
             True,
             "-Wno-unused-command-line-argument - Avoid some failures in CMake correctly recognizing "
