@@ -730,9 +730,13 @@ class EasyBlock:
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
                         src_fn = ext_options.get('source_tmpl')
+                        is_pypi_source = False
                         if src_fn is None:
                             # use default template for name of source file if none is specified
                             src_fn = '%(name)s-%(version)s.tar.gz'
+                            if len(source_urls) == 1 and PYPI_PKG_URL_PATTERN in source_urls[0]:
+                                # allow retrying with alternative download_filename
+                                is_pypi_source = True
                         elif not isinstance(src_fn, str):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
@@ -742,7 +746,17 @@ class EasyBlock:
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                         force_download=force_download,
-                                                        download_instructions=download_instructions)
+                                                        download_instructions=download_instructions,
+                                                        warning_only=is_pypi_source)
+                            if not src_path and is_pypi_source:
+                                # retry with alternative download_filename
+                                alt_name = resolve_template('%(name)s', template_values).replace("-", "_")
+                                src_version = resolve_template('%(version)s', template_values)
+                                alt_download_fn = f'{alt_name}-{src_version}.tar.gz'
+                                src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                            force_download=force_download,
+                                                            download_instructions=download_instructions,
+                                                            download_filename=alt_download_fn)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
