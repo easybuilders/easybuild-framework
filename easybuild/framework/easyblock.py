@@ -301,6 +301,7 @@ class EasyBlock:
         self.orig_modulepath = os.getenv('MODULEPATH')
 
         # keep track of initial environment we start in, so we can restore it if needed
+        os.environ['___EASYBUILD___'] = "EasyBuild"  # set an environment variable to know we are in an EB session
         self.initial_environ = copy.deepcopy(os.environ)
         self.reset_environ = None
         self.tweaked_env_vars = {}
