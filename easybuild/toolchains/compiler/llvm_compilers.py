@@ -143,6 +143,7 @@ class LLVMCompilers(Compiler):
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         **(Compiler.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or {}),
+        (systemtools.AARCH64, systemtools.ARM): '-march=native',
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.X86_64, systemtools.AMD): '-march=native',
@@ -152,6 +153,7 @@ class LLVMCompilers(Compiler):
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
         **(Compiler.COMPILER_GENERIC_OPTION or {}),
+        (systemtools.AARCH64, systemtools.ARM): '-march=aarch64 -mtune=generic',
         (systemtools.RISCV64, systemtools.RISCV): '-march=rv64gc -mabi=lp64d',  # default for -mabi is system-dependent
         (systemtools.X86_64, systemtools.AMD): '-march=x86-64 -mtune=generic',
         (systemtools.X86_64, systemtools.INTEL): '-march=x86-64 -mtune=generic',
