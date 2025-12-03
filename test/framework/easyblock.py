@@ -1570,6 +1570,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
 
+        update_build_option('trace', True)
         self.mock_stdout(True)
         eb.extensions_step(fetch=True)
         stdout = self.get_stdout()
