@@ -3093,8 +3093,10 @@ class EasyBlock:
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
+        elif exts_defaultclass is None:
+            default_class = default_class_modpath = None
         else:
-            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            error_msg = "Improper default extension class specification, should be string or None: %s (%s)"
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
         exts_cnt = len(self.exts)
@@ -3146,8 +3148,11 @@ class EasyBlock:
                                          "for extension %s: %s",
                                          class_name, mod_path, ext_name, err)
 
-            # fallback attempt: use default class
+            # fallback attempt: use default class if any
             if inst is None:
+                if not default_class:
+                    raise EasyBuildError("ERROR: No default extension class set for %s and no explicit or custom "
+                                         "easyblock found for extension %s", self.name, ext_name)
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
@@ -3186,10 +3191,6 @@ class EasyBlock:
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
-
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and install:
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")
