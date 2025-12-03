@@ -103,7 +103,9 @@ if sys.version_info < (3, 9):
         "see https://docs.easybuild.io/installation/#more_pip_env_EB_PYTHON for more information."
         "\033[0m"
     ]
-    sys.stderr.write('\n' + '\n'.join(warning_lines) + '\n\n')
+    # only print the warning if we're not running in GitHub Actions
+    if os.getenv('GITHUB_ACTIONS') != 'true':
+        sys.stderr.write('\n' + '\n'.join(warning_lines) + '\n\n')
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
