@@ -91,6 +91,7 @@ class LoggedException(Exception):
         if args:
             msg = msg % args
 
+        backtrace = []
         if self.LOC_INFO_TOP_PKG_NAMES is not None:
             # determine correct frame to fetch location information from
             frames_up = 1
@@ -101,19 +102,30 @@ class LoggedException(Exception):
             if self.INCLUDE_LOCATION:
                 # figure out where error was raised from
                 # current frame: this constructor, one frame above: location where LoggedException was created/raised
-                frameinfo = inspect.getouterframes(inspect.currentframe())[frames_up]
-
-                # determine short location of Python module where error was raised from,
-                # i.e. starting with an entry from LOC_INFO_TOP_PKG_NAMES
-                path_parts = frameinfo[1].split(os.path.sep)
-                if path_parts[0] == '':
-                    path_parts[0] = os.path.sep
-                top_indices = [path_parts.index(n) for n in self.LOC_INFO_TOP_PKG_NAMES if n in path_parts]
-                relpath = os.path.join(*path_parts[max(top_indices or [0]):])
+                frames = inspect.getouterframes(inspect.currentframe())[frames_up:]
+                backtrace = []
+                for frame in frames:
+                    # determine short location of Python module where error was raised from,
+                    # i.e. starting with an entry from LOC_INFO_TOP_PKG_NAMES
+                    path_parts = frame[1].split(os.path.sep)
+                    if path_parts[0] == '':
+                        path_parts[0] = os.path.sep
+                    try:
+                        top_idx = max(path_parts.index(n) for n in self.LOC_INFO_TOP_PKG_NAMES if n in path_parts)
+                    except ValueError:
+                        # If none found (outside PKG) stop backtrace if we have at least 1 entry
+                        if backtrace:
+                            break
+                        relpath = frame[1]
+                    else:
+                        relpath = os.path.join(*path_parts[top_idx:])
+                    backtrace.append(f'{relpath}:{frame[2]} in {frame[3]}')
 
                 # include location info at the end of the message
                 # for example: "Nope, giving up (at easybuild/tools/somemodule.py:123 in some_function)"
-                msg = "%s (at %s:%s in %s)" % (msg, relpath, frameinfo[2], frameinfo[3])
+                msg = f"{msg} (at {backtrace[0]})"
+
+        super().__init__(msg)
 
         logger = kwargs.get('logger', None)
         # try to use logger defined in caller's environment
@@ -123,6 +135,6 @@ class LoggedException(Exception):
             if logger is None:
                 logger = self.LOGGER_MODULE.getLogger()
 
+        if backtrace:
+            msg += '\nCallstack:\n\t' + '\n\t'.join(backtrace)
         getattr(logger, self.LOGGING_METHOD_NAME)(msg)
-
-        super().__init__(msg)
