@@ -792,6 +792,9 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param testing: enable testing mode
     :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
     """
+    # set $___EASYBUILD___ environment variable to 'EasyBuild' to indicate that we're in an EasyBuild session
+    os.environ['___EASYBUILD___'] = 'EasyBuild'
+
     register_lock_cleanup_signal_handlers()
 
     # if $CDPATH is set, unset it, it'll only cause trouble...
