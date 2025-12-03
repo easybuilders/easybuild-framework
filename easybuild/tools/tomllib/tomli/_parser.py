@@ -2,8 +2,6 @@
 # SPDX-FileCopyrightText: 2021 Taneli Hukkinen
 # Licensed to PSF under a Contributor Agreement.
 
-from __future__ import annotations
-
 import sys
 from types import MappingProxyType
 
@@ -16,12 +14,9 @@ from ._re import (
     match_to_number,
 )
 
-TYPE_CHECKING = False
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import IO, Any, Final
+from typing import IO, Any, Dict, Tuple, Iterable, List
 
-    from ._types import Key, ParseFloat, Pos
+from ._types import Key, ParseFloat, Pos
 
 # Inline tables/arrays are implemented using recursion. Pathologically
 # nested documents cause pure Python to raise RecursionError (which is OK),
@@ -32,29 +27,29 @@ if TYPE_CHECKING:
 # Choosing `sys.getrecursionlimit()` as maximum inline table/array nesting
 # level, as it allows more nesting than pure Python, but still seems a far
 # lower number than where mypyc binaries crash.
-MAX_INLINE_NESTING: Final = sys.getrecursionlimit()
+MAX_INLINE_NESTING = sys.getrecursionlimit()
 
-ASCII_CTRL: Final = frozenset(chr(i) for i in range(32)) | frozenset(chr(127))
+ASCII_CTRL = frozenset(chr(i) for i in range(32)) | frozenset(chr(127))
 
 # Neither of these sets include quotation mark or backslash. They are
 # currently handled as separate cases in the parser functions.
-ILLEGAL_BASIC_STR_CHARS: Final = ASCII_CTRL - frozenset("\t")
-ILLEGAL_MULTILINE_BASIC_STR_CHARS: Final = ASCII_CTRL - frozenset("\t\n")
+ILLEGAL_BASIC_STR_CHARS = ASCII_CTRL - frozenset("\t")
+ILLEGAL_MULTILINE_BASIC_STR_CHARS = ASCII_CTRL - frozenset("\t\n")
 
-ILLEGAL_LITERAL_STR_CHARS: Final = ILLEGAL_BASIC_STR_CHARS
-ILLEGAL_MULTILINE_LITERAL_STR_CHARS: Final = ILLEGAL_MULTILINE_BASIC_STR_CHARS
+ILLEGAL_LITERAL_STR_CHARS = ILLEGAL_BASIC_STR_CHARS
+ILLEGAL_MULTILINE_LITERAL_STR_CHARS = ILLEGAL_MULTILINE_BASIC_STR_CHARS
 
-ILLEGAL_COMMENT_CHARS: Final = ILLEGAL_BASIC_STR_CHARS
+ILLEGAL_COMMENT_CHARS = ILLEGAL_BASIC_STR_CHARS
 
-TOML_WS: Final = frozenset(" \t")
-TOML_WS_AND_NEWLINE: Final = TOML_WS | frozenset("\n")
-BARE_KEY_CHARS: Final = frozenset(
+TOML_WS = frozenset(" \t")
+TOML_WS_AND_NEWLINE = TOML_WS | frozenset("\n")
+BARE_KEY_CHARS = frozenset(
     "abcdefghijklmnopqrstuvwxyz" "ABCDEFGHIJKLMNOPQRSTUVWXYZ" "0123456789" "-_"
 )
-KEY_INITIAL_CHARS: Final = BARE_KEY_CHARS | frozenset("\"'")
-HEXDIGIT_CHARS: Final = frozenset("abcdef" "ABCDEF" "0123456789")
+KEY_INITIAL_CHARS = BARE_KEY_CHARS | frozenset("\"'")
+HEXDIGIT_CHARS = frozenset("abcdef" "ABCDEF" "0123456789")
 
-BASIC_STR_ESCAPE_REPLACEMENTS: Final = MappingProxyType(
+BASIC_STR_ESCAPE_REPLACEMENTS = MappingProxyType(
     {
         "\\b": "\u0008",  # backspace
         "\\t": "\u0009",  # tab
@@ -85,9 +80,9 @@ class TOMLDecodeError(ValueError):
 
     def __init__(
         self,
-        msg: str | type[DEPRECATED_DEFAULT] = DEPRECATED_DEFAULT,
-        doc: str | type[DEPRECATED_DEFAULT] = DEPRECATED_DEFAULT,
-        pos: Pos | type[DEPRECATED_DEFAULT] = DEPRECATED_DEFAULT,
+        msg: str = DEPRECATED_DEFAULT,
+        doc: str = DEPRECATED_DEFAULT,
+        pos: Pos = DEPRECATED_DEFAULT,
         *args: Any,
     ):
         if (
@@ -133,7 +128,7 @@ class TOMLDecodeError(ValueError):
         self.colno = colno
 
 
-def load(__fp: IO[bytes], *, parse_float: ParseFloat = float) -> dict[str, Any]:
+def load(__fp: IO[bytes], *, parse_float: ParseFloat = float) -> Dict[str, Any]:
     """Parse TOML from a binary file object."""
     b = __fp.read()
     try:
@@ -145,7 +140,7 @@ def load(__fp: IO[bytes], *, parse_float: ParseFloat = float) -> dict[str, Any]:
     return loads(s, parse_float=parse_float)
 
 
-def loads(__s: str, *, parse_float: ParseFloat = float) -> dict[str, Any]:  # noqa: C901
+def loads(__s: str, *, parse_float: ParseFloat = float) -> Dict[str, Any]:  # noqa: C901
     """Parse TOML from a string."""
 
     # The spec allows converting "\r\n" to "\n", even in string
@@ -187,7 +182,7 @@ def loads(__s: str, *, parse_float: ParseFloat = float) -> dict[str, Any]:  # no
             pos = skip_chars(src, pos, TOML_WS)
         elif char == "[":
             try:
-                second_char: str | None = src[pos + 1]
+                second_char = src[pos + 1]
             except IndexError:
                 second_char = None
             out.flags.finalize_pending()
@@ -220,14 +215,14 @@ class Flags:
     """Flags that map to parsed keys/namespaces."""
 
     # Marks an immutable namespace (inline array or inline table).
-    FROZEN: Final = 0
+    FROZEN = 0
     # Marks a nest that has been explicitly created and can no longer
     # be opened using the "[table]" syntax.
-    EXPLICIT_NEST: Final = 1
+    EXPLICIT_NEST = 1
 
     def __init__(self) -> None:
-        self._flags: dict[str, dict[Any, Any]] = {}
-        self._pending_flags: set[tuple[Key, int]] = set()
+        self._flags: Dict[str, Dict[Any, Any]] = {}
+        self._pending_flags: set[Tuple[Key, int]] = set()
 
     def add_pending(self, key: Key, flag: int) -> None:
         self._pending_flags.add((key, flag))
@@ -277,14 +272,14 @@ class Flags:
 class NestedDict:
     def __init__(self) -> None:
         # The parsed content of the TOML document
-        self.dict: dict[str, Any] = {}
+        self.dict: Dict[str, Any] = {}
 
     def get_or_create_nest(
         self,
         key: Key,
         *,
         access_lists: bool = True,
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         cont: Any = self.dict
         for k in key:
             if k not in cont:
@@ -328,7 +323,7 @@ def skip_until(
     pos: Pos,
     expect: str,
     *,
-    error_on: frozenset[str],
+    error_on: frozenset,
     error_on_eof: bool,
 ) -> Pos:
     try:
@@ -347,7 +342,7 @@ def skip_until(
 
 def skip_comment(src: str, pos: Pos) -> Pos:
     try:
-        char: str | None = src[pos]
+        char = src[pos]
     except IndexError:
         char = None
     if char == "#":
@@ -366,7 +361,7 @@ def skip_comments_and_array_ws(src: str, pos: Pos) -> Pos:
             return pos
 
 
-def create_dict_rule(src: str, pos: Pos, out: Output) -> tuple[Pos, Key]:
+def create_dict_rule(src: str, pos: Pos, out: Output) -> Tuple[Pos, Key]:
     pos += 1  # Skip "["
     pos = skip_chars(src, pos, TOML_WS)
     pos, key = parse_key(src, pos)
@@ -386,7 +381,7 @@ def create_dict_rule(src: str, pos: Pos, out: Output) -> tuple[Pos, Key]:
     return pos + 1, key
 
 
-def create_list_rule(src: str, pos: Pos, out: Output) -> tuple[Pos, Key]:
+def create_list_rule(src: str, pos: Pos, out: Output) -> Tuple[Pos, Key]:
     pos += 2  # Skip "[["
     pos = skip_chars(src, pos, TOML_WS)
     pos, key = parse_key(src, pos)
@@ -445,10 +440,10 @@ def key_value_rule(
 
 def parse_key_value_pair(
     src: str, pos: Pos, parse_float: ParseFloat, nest_lvl: int
-) -> tuple[Pos, Key, Any]:
+) -> Tuple[Pos, Key, Any]:
     pos, key = parse_key(src, pos)
     try:
-        char: str | None = src[pos]
+        char = src[pos]
     except IndexError:
         char = None
     if char != "=":
@@ -459,13 +454,13 @@ def parse_key_value_pair(
     return pos, key, value
 
 
-def parse_key(src: str, pos: Pos) -> tuple[Pos, Key]:
+def parse_key(src: str, pos: Pos) -> Tuple[Pos, Key]:
     pos, key_part = parse_key_part(src, pos)
     key: Key = (key_part,)
     pos = skip_chars(src, pos, TOML_WS)
     while True:
         try:
-            char: str | None = src[pos]
+            char = src[pos]
         except IndexError:
             char = None
         if char != ".":
@@ -477,9 +472,9 @@ def parse_key(src: str, pos: Pos) -> tuple[Pos, Key]:
         pos = skip_chars(src, pos, TOML_WS)
 
 
-def parse_key_part(src: str, pos: Pos) -> tuple[Pos, str]:
+def parse_key_part(src: str, pos: Pos) -> Tuple[Pos, str]:
     try:
-        char: str | None = src[pos]
+        char = src[pos]
     except IndexError:
         char = None
     if char in BARE_KEY_CHARS:
@@ -493,16 +488,16 @@ def parse_key_part(src: str, pos: Pos) -> tuple[Pos, str]:
     raise TOMLDecodeError("Invalid initial character for a key part", src, pos)
 
 
-def parse_one_line_basic_str(src: str, pos: Pos) -> tuple[Pos, str]:
+def parse_one_line_basic_str(src: str, pos: Pos) -> Tuple[Pos, str]:
     pos += 1
     return parse_basic_str(src, pos, multiline=False)
 
 
 def parse_array(
     src: str, pos: Pos, parse_float: ParseFloat, nest_lvl: int
-) -> tuple[Pos, list[Any]]:
+) -> Tuple[Pos, List[Any]]:
     pos += 1
-    array: list[Any] = []
+    array: List[Any] = []
 
     pos = skip_comments_and_array_ws(src, pos)
     if src.startswith("]", pos):
@@ -526,7 +521,7 @@ def parse_array(
 
 def parse_inline_table(
     src: str, pos: Pos, parse_float: ParseFloat, nest_lvl: int
-) -> tuple[Pos, dict[str, Any]]:
+) -> Tuple[Pos, Dict[str, Any]]:
     pos += 1
     nested_dict = NestedDict()
     flags = Flags()
@@ -560,7 +555,7 @@ def parse_inline_table(
 
 def parse_basic_str_escape(
     src: str, pos: Pos, *, multiline: bool = False
-) -> tuple[Pos, str]:
+) -> Tuple[Pos, str]:
     escape_id = src[pos : pos + 2]
     pos += 2
     if multiline and escape_id in {"\\ ", "\\\t", "\\\n"}:
@@ -587,11 +582,11 @@ def parse_basic_str_escape(
         raise TOMLDecodeError("Unescaped '\\' in a string", src, pos) from None
 
 
-def parse_basic_str_escape_multiline(src: str, pos: Pos) -> tuple[Pos, str]:
+def parse_basic_str_escape_multiline(src: str, pos: Pos) -> Tuple[Pos, str]:
     return parse_basic_str_escape(src, pos, multiline=True)
 
 
-def parse_hex_char(src: str, pos: Pos, hex_len: int) -> tuple[Pos, str]:
+def parse_hex_char(src: str, pos: Pos, hex_len: int) -> Tuple[Pos, str]:
     hex_str = src[pos : pos + hex_len]
     if len(hex_str) != hex_len or not HEXDIGIT_CHARS.issuperset(hex_str):
         raise TOMLDecodeError("Invalid hex value", src, pos)
@@ -604,7 +599,7 @@ def parse_hex_char(src: str, pos: Pos, hex_len: int) -> tuple[Pos, str]:
     return pos, chr(hex_int)
 
 
-def parse_literal_str(src: str, pos: Pos) -> tuple[Pos, str]:
+def parse_literal_str(src: str, pos: Pos) -> Tuple[Pos, str]:
     pos += 1  # Skip starting apostrophe
     start_pos = pos
     pos = skip_until(
@@ -613,7 +608,7 @@ def parse_literal_str(src: str, pos: Pos) -> tuple[Pos, str]:
     return pos + 1, src[start_pos:pos]  # Skip ending apostrophe
 
 
-def parse_multiline_str(src: str, pos: Pos, *, literal: bool) -> tuple[Pos, str]:
+def parse_multiline_str(src: str, pos: Pos, *, literal: bool) -> Tuple[Pos, str]:
     pos += 3
     if src.startswith("\n", pos):
         pos += 1
@@ -644,7 +639,7 @@ def parse_multiline_str(src: str, pos: Pos, *, literal: bool) -> tuple[Pos, str]
     return pos, result + (delim * 2)
 
 
-def parse_basic_str(src: str, pos: Pos, *, multiline: bool) -> tuple[Pos, str]:
+def parse_basic_str(src: str, pos: Pos, *, multiline: bool) -> Tuple[Pos, str]:
     if multiline:
         error_on = ILLEGAL_MULTILINE_BASIC_STR_CHARS
         parse_escapes = parse_basic_str_escape_multiline
@@ -678,7 +673,7 @@ def parse_basic_str(src: str, pos: Pos, *, multiline: bool) -> tuple[Pos, str]:
 
 def parse_value(  # noqa: C901
     src: str, pos: Pos, parse_float: ParseFloat, nest_lvl: int
-) -> tuple[Pos, Any]:
+) -> Tuple[Pos, Any]:
     if nest_lvl > MAX_INLINE_NESTING:
         # Pure Python should have raised RecursionError already.
         # This ensures mypyc binaries eventually do the same.
@@ -688,7 +683,7 @@ def parse_value(  # noqa: C901
         )
 
     try:
-        char: str | None = src[pos]
+        char = src[pos]
     except IndexError:
         char = None
 

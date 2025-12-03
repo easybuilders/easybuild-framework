@@ -2,26 +2,22 @@
 # SPDX-FileCopyrightText: 2021 Taneli Hukkinen
 # Licensed to PSF under a Contributor Agreement.
 
-from __future__ import annotations
-
 from datetime import date, datetime, time, timedelta, timezone, tzinfo
 from functools import lru_cache
 import re
 
-TYPE_CHECKING = False
-if TYPE_CHECKING:
-    from typing import Any, Final
+from typing import Any
 
-    from ._types import ParseFloat
+from ._types import ParseFloat
 
 # E.g.
 # - 00:32:00.999999
 # - 00:32:00
-_TIME_RE_STR: Final = (
+_TIME_RE_STR = (
     r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(?:\.([0-9]{1,6})[0-9]*)?"
 )
 
-RE_NUMBER: Final = re.compile(
+RE_NUMBER = re.compile(
     r"""
 0
 (?:
@@ -40,8 +36,8 @@ RE_NUMBER: Final = re.compile(
 """,
     flags=re.VERBOSE,
 )
-RE_LOCALTIME: Final = re.compile(_TIME_RE_STR)
-RE_DATETIME: Final = re.compile(
+RE_LOCALTIME = re.compile(_TIME_RE_STR)
+RE_DATETIME = re.compile(
     rf"""
 ([0-9]{{4}})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])  # date, e.g. 1988-10-27
 (?:
@@ -54,7 +50,7 @@ RE_DATETIME: Final = re.compile(
 )
 
 
-def match_to_datetime(match: re.Match[str]) -> datetime | date:
+def match_to_datetime(match):
     """Convert a `RE_DATETIME` match to `datetime.datetime` or `datetime.date`.
 
     Raises ValueError if the match does not correspond to a valid date
@@ -79,7 +75,7 @@ def match_to_datetime(match: re.Match[str]) -> datetime | date:
     hour, minute, sec = int(hour_str), int(minute_str), int(sec_str)
     micros = int(micros_str.ljust(6, "0")) if micros_str else 0
     if offset_sign_str:
-        tz: tzinfo | None = cached_tz(
+        tz = cached_tz(
             offset_hour_str, offset_minute_str, offset_sign_str
         )
     elif zulu_time:
@@ -103,13 +99,13 @@ def cached_tz(hour_str: str, minute_str: str, sign_str: str) -> timezone:
     )
 
 
-def match_to_localtime(match: re.Match[str]) -> time:
+def match_to_localtime(match) -> time:
     hour_str, minute_str, sec_str, micros_str = match.groups()
     micros = int(micros_str.ljust(6, "0")) if micros_str else 0
     return time(int(hour_str), int(minute_str), int(sec_str), micros)
 
 
-def match_to_number(match: re.Match[str], parse_float: ParseFloat) -> Any:
+def match_to_number(match, parse_float: ParseFloat) -> Any:
     if match.group("floatpart"):
         return parse_float(match.group())
     return int(match.group(), 0)
