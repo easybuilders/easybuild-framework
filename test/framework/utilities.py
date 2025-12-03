@@ -137,6 +137,8 @@ class EnhancedTestCase(TestCase):
         # disable progress bars when running the tests,
         # since it messes with test suite progress output when test installations are performed
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+        # Also disable trace output to keep stdout clean during tests
+        os.environ['EASYBUILD_DISABLE_TRACE'] = '1'
 
         # Store the environment as setup (including the above paths) for tests to restore
         self.orig_environ = copy.deepcopy(os.environ)
@@ -431,6 +433,15 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
+    def assert_multi_regex(self, regexs, txt, assert_true=True):
+        """Helper function to assert presence/absence of list of regex patterns in a text"""
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            if assert_true:
+                self.assertRegex(txt, regex)
+            else:
+                self.assertNotRegex(txt, regex)
+
 
 class TestLoaderFiltered(unittest.TestLoader):
     """Test load that supports filtering of tests based on name."""
@@ -487,25 +498,24 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
-    # initialize build options
-    if build_options is None:
-        build_options = {}
-
-    default_build_options = {
+    # initialize default build options
+    options = {
         'extended_dry_run': False,
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
+        'show_progress_bar': False,
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
+        'trace': False,
         'unit_testing_mode': True,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
-    for key in default_build_options:
-        if key not in build_options:
-            build_options[key] = default_build_options[key]
 
-    config.init_build_options(build_options=build_options)
+    if build_options is not None:
+        options.update(build_options)
+
+    config.init_build_options(build_options=options)
 
     return eb_go.options
 

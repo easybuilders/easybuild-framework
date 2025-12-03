@@ -28,7 +28,6 @@ Unit tests for systemtools.py
 @author: Kenneth hoste (Ghent University)
 @author: Ward Poelmans (Ghent University)
 """
-import copy
 import ctypes
 import logging
 import os
@@ -41,7 +40,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env, setvar
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
@@ -54,7 +53,7 @@ from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_archi
 from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_cpu_model
 from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_os_type
 from easybuild.tools.systemtools import get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_total_memory
+from easybuild.tools.systemtools import get_system_info, get_total_memory, get_linked_libs_raw
 from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
@@ -740,9 +739,9 @@ class SystemToolsTest(EnhancedTestCase):
             'x86_64': X86_64,
             'some_fancy_arch': UNKNOWN,
         }
-        for name in machine_names:
+        for name, arch in machine_names.items():
             MACHINE_NAME = name
-            self.assertEqual(get_cpu_architecture(), machine_names[name])
+            self.assertEqual(get_cpu_architecture(), arch)
 
     def test_cpu_arch_name_native(self):
         """Test getting CPU arch name."""
@@ -1323,9 +1322,6 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_get_cuda_object_dump_raw(self):
         """Test get_cuda_object_dump_raw function"""
-        # This test modifies environment, make sure we can revert the changes:
-        start_env = copy.deepcopy(os.environ)
-
         # Mock the shell command for certain known commands
         st.run_shell_cmd = mocked_run_shell_cmd
 
@@ -1373,14 +1369,8 @@ class SystemToolsTest(EnhancedTestCase):
         # Test case 7: call on CUDA static lib, which only contains device code
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_staticlib'), CUOBJDUMP_DEVICE_CODE_ONLY)
 
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
-
     def test_get_cuda_architectures(self):
         """Test get_cuda_architectures function"""
-        # This test modifies environment, make sure we can revert the changes:
-        start_env = copy.deepcopy(os.environ)
-
         # Mock the shell command for certain known commands
         st.run_shell_cmd = mocked_run_shell_cmd
 
@@ -1450,8 +1440,34 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
         self.assertIsNone(res_elf)
 
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
+    def test_get_linked_libs_raw(self):
+        """
+        Test get_linked_libs_raw function.
+        """
+        os_type = get_os_type()
+        if os_type == LINUX:
+            libname = 'libc.so.6'
+        elif os_type == DARWIN:
+            libname = 'libSystem.B.dylib'
+        else:
+            self.skipTest(f"Unknown OS: {os_type}")
+
+        bin_ls = which('ls')
+        linked_libs_out = get_linked_libs_raw(bin_ls)
+
+        # check whether expected pattern is found
+        self.assertIn(libname, linked_libs_out)
+
+        # when specified path is a symlink or a non-binary file, None is the result
+        symlinked_ls = os.path.join(self.test_prefix, 'ls')
+        symlink(bin_ls, symlinked_ls)
+        res = get_linked_libs_raw(symlinked_ls)
+        self.assertIs(res, None)
+
+        txt_file = os.path.join(self.test_prefix, 'test.txt')
+        write_file(txt_file, 'not-a-binary')
+        res = get_linked_libs_raw(txt_file)
+        self.assertIs(res, None)
 
 
 def suite(loader=None):

@@ -78,16 +78,26 @@ def requires_github_access():
 
     Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
     """
-    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
-        return unittest.skipIf(False, None)
-    else:
-        # For pull requests silently skip to avoid rate limits
-        def decorator(test_item):
-            @functools.wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                return
-            return skip_wrapper
-        return decorator
+    return unittest.skipUnless(
+        os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request',
+        "Skipping test requiring GitHub access"
+    )
+
+
+def ignore_rate_limit_in_pr(test_item):
+    """Decorator: If tests are run in a pull request and fail with a rate limit error, ignore that"""
+    if os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return test_item
+
+    @functools.wraps(test_item)
+    def skip_wrapper(self, *args, **kwargs):
+        try:
+            test_item(self, *args, **kwargs)
+        except EasyBuildError as e:
+            if 'HTTP Error 403' in e.msg:
+                self.skipTest('Ignoring rate limit error')
+            raise
+    return skip_wrapper
 
 
 class GithubTest(EnhancedTestCase):
@@ -201,7 +211,7 @@ class GithubTest(EnhancedTestCase):
                 ('a_directory', ['a_subdirectory'], ['a_file.txt']),
                 ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
             ]
-            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual(list(self.ghfs.walk(None)), expected)
         except IOError:
             pass
 
@@ -518,6 +528,7 @@ class GithubTest(EnhancedTestCase):
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
 
+    @ignore_rate_limit_in_pr
     def test_fetch_files_from_commit(self):
         """Test fetch_files_from_commit function."""
 
@@ -551,6 +562,7 @@ class GithubTest(EnhancedTestCase):
         error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
+    @ignore_rate_limit_in_pr
     def test_fetch_easyconfigs_from_commit(self):
         """Test fetch_easyconfigs_from_commit function."""
 

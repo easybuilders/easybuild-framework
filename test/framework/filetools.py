@@ -581,11 +581,18 @@ class FileToolsTest(EnhancedTestCase):
         proxy_handler = request.ProxyHandler({'file': 'file://%s/nosuchfile' % test_dir})
         request.install_opener(request.build_opener(proxy_handler))
 
+        # for Python 3.14+, we need to make sure that proxy and original URL are using different protocol,
+        # or download will succeed anyway (due to improvemts in in urllib.request.FileHandler)
+        source_url = source_url.replace('file://', 'http://')
+
         # downloading over a broken proxy results in None return value (failed download)
         # this tests whether proxies are taken into account by download_file
         with self.mocked_stdout_stderr():
             self.assertEqual(ft.download_file(fn, source_url, target_location), None,
                              "download over broken proxy fails")
+
+        # restore source URL using file://
+        source_url = source_url.replace('http://', 'file://')
 
         # modify existing download so we can verify re-download
         ft.write_file(target_location, '')
@@ -2287,8 +2294,8 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertExists(target_dir)
-        expected = ['GCC-10.2.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb', 'GCC-4.8.3.eb', 'GCC-4.9.2.eb',
-                    'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
+        expected = ['GCC-10.2.0.eb', 'GCC-12.3.0.eb', 'GCC-4.6.3.eb', 'GCC-4.6.4.eb', 'GCC-4.8.2.eb',
+                    'GCC-4.8.3.eb', 'GCC-4.9.2.eb', 'GCC-4.9.3-2.25.eb', 'GCC-4.9.3-2.26.eb', 'GCC-7.3.0-2.30.eb']
         self.assertEqual(sorted(os.listdir(target_dir)), expected)
         # GCC-6.4.0-2.28.eb should not get copied, since it's specified as file too ignore
         self.assertNotExists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb'))
@@ -2501,6 +2508,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True
         }
         init_config(build_options=build_options)
 
@@ -2545,6 +2553,41 @@ class FileToolsTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertFalse(stderr)
         self.assertFalse(stdout)
+
+    def test_empty_dir(self):
+        """Test empty_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir, parents=True)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.empty_dir(test_dir)
+        self.assertExists(test_dir)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
+
+        # also test behaviour under --dry-run
+        build_options = {
+            'extended_dry_run': True,
+            'silent': False,
+        }
+        init_config(build_options=build_options)
+
+        self.mock_stdout(True)
+        ft.mkdir(test_dir)
+        ft.empty_dir(test_dir)
+        txt = self.get_stdout()
+        self.mock_stdout(False)
+
+        regex = re.compile("^directory [^ ]* emptied$")
+        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' found in: {txt}")
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -2622,6 +2665,25 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
+    def test_clean_dir(self):
+        """Test clean_dir function"""
+        test_dir = os.path.join(self.test_prefix, 'test123')
+        testfile = os.path.join(test_dir, 'foo')
+        testfile_hidden = os.path.join(test_dir, '.foo')
+        test_link = os.path.join(test_dir, 'foolink')
+        test_subdir = os.path.join(test_dir, 'foodir')
+
+        ft.mkdir(test_subdir, parents=True)
+        ft.write_file(testfile, 'bar')
+        ft.write_file(testfile_hidden, 'bar')
+        ft.symlink(testfile, test_link)
+        ft.clean_dir(test_dir)
+        ft.mkdir(test_dir, parents=True)
+        self.assertNotExists(testfile)
+        self.assertNotExists(testfile_hidden)
+        self.assertNotExists(test_link)
+        self.assertNotExists(test_subdir)
+
     def test_index_functions(self):
         """Test *_index functions."""
 
@@ -2641,7 +2703,7 @@ class FileToolsTest(EnhancedTestCase):
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 95)
+            self.assertEqual(len(index), 104)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -2691,7 +2753,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 31)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -2721,7 +2783,7 @@ class FileToolsTest(EnhancedTestCase):
         regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
         self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
 
-        self.assertEqual(len(index), 26)
+        self.assertEqual(len(index), 31)
         for fn in expected:
             self.assertIn(fn, index)
 
@@ -3010,6 +3072,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True,
         }
         init_config(build_options=build_options)
 
@@ -3691,7 +3754,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.clean_up_locks()
 
         ft.create_lock(lock_name)
-        self.assertEqual(ft.global_lock_names, set([lock_name]))
+        self.assertEqual(ft.global_lock_names, {lock_name})
         self.assertEqual(os.listdir(locks_dir), [lock_name + '.lock'])
 
         ft.clean_up_locks()

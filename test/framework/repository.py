@@ -33,7 +33,7 @@ import shutil
 import sys
 import tempfile
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
@@ -102,7 +102,9 @@ class RepositoryTest(EnhancedTestCase):
             repo.init()
             toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
             repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
-            repo.commit("toy/0.0")
+            with mock.patch.dict(os.environ, {'GIT_AUTHOR_NAME': 'test', 'GIT_AUTHOR_EMAIL': 'test@test.org',
+                                              'GIT_COMMITTER_NAME': 'test', 'GIT_COMMITTER_EMAIL': 'test@test.org'}):
+                repo.commit("toy/0.0")
 
             log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
             logmsg = repo.client.log('HEAD^!')
