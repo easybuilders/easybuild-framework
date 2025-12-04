@@ -61,19 +61,22 @@ from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set
 # involves ignoring any existing configuration files that are picked up, and cleaning the environment
 # this is tackled here rather than in suite.py, to make sure this is also done when test modules are ran separately
 
-# clean up environment from unwanted $EASYBUILD_X env vars
-for key in os.environ.keys():
-    if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
-        del os.environ[key]
+def remove_easybuild_environment_config_variables(exception=None):
+    """clean up environment from unwanted $EASYBUILD_X env vars"""
+    for key in list(os.environ):
+        if key.startswith(f'{CONFIG_ENV_VAR_PREFIX}_') and key != exception:
+            del os.environ[key]
+
 
 # Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
+remove_easybuild_environment_config_variables()
 go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
 test_env_var_prefix = 'TEST_EASYBUILD_'
-for key in os.environ.keys():
+for key in list(os.environ):
     if key.startswith(test_env_var_prefix):
         val = os.environ[key]
         del os.environ[key]
@@ -83,6 +86,11 @@ for key in os.environ.keys():
 
 class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+
+    def purge_environment(self):
+        """Remove any leftover easybuild variables"""
+        # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+        remove_easybuild_environment_config_variables(exception='EASYBUILD_IGNORECONFIGFILES')
 
     def setUp(self):
         """Set up testcase."""

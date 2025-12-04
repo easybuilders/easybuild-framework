@@ -120,13 +120,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         super().tearDown()
 
-    def purge_environment(self):
-        """Remove any leftover easybuild variables"""
-        for var in os.environ.keys():
-            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
-            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
-                del os.environ[var]
-
     def test_help_short(self, txt=None):
         """Test short help message."""
 
@@ -5249,7 +5242,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'EASYBUILD_SOURCEPATH',
             'EASYBUILD_SOURCEPATH_DATA',
         ]
-        for key in os.environ.keys():
+        for key in list(os.environ):
             if key.startswith('EASYBUILD_') and key not in retained_eb_env_vars:
                 del os.environ[key]
 
