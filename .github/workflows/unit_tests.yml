@@ -142,7 +142,7 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        LC_ALL: "" 
+        LC_ALL: ""
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -158,7 +158,7 @@ jobs:
           export PATH=$PREFIX/bin:$(cat $HOME/path)
           export PYTHONPATH=$PREFIX/lib/python$(echo ${{matrix.python}} | cut -f1,2 -d'.')/site-packages:$PYTHONPATH
           echo "PYTHONPATH=$PYTHONPATH"
-          ls $(echo $PYTHONPATH | cut -f1:)
+          ls $(echo $PYTHONPATH | cut -f1 -d':')
           python3 -m easybuild.main --version
           eb --version
           # tell EasyBuild which modules tool is available
