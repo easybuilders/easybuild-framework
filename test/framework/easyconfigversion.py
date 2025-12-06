@@ -190,9 +190,10 @@ class EasyConfigVersion(EnhancedTestCase):
                 self.assertEqual(tcversop.as_dict(), as_dict)
 
             # only accept known toolchain names
+            RANDOM_BIT = 'ShouldNotMatch___'
             fail_tests = [
-                "x%s >= 1.2.3" % tc,
-                "%sx >= 1.2.3" % tc,
+                f"{RANDOM_BIT}{tc} >= 1.2.3",
+                f"{tc}{RANDOM_BIT} >= 1.2.3",
                 "foo",
                 ">= 1.2.3",
             ]
@@ -205,6 +206,7 @@ class EasyConfigVersion(EnhancedTestCase):
     def test_toolchain_versop_test(self):
         """Test the ToolchainVersionOperator test"""
         _, tcs = search_toolchain('')
+        RANDOM_BIT = 'ShouldNotMatch___'
         tc_names = [x.NAME for x in tcs]
         for tc in tc_names:  # test all known toolchain names
             # test version expressions with optional version operator
@@ -213,8 +215,8 @@ class EasyConfigVersion(EnhancedTestCase):
                     (tc, '1.2.3', True),  # version ok, name ok
                     (tc, '1.2.4', True),  # version ok, name ok
                     (tc, '1.2.2', False),  # version not ok, name ok
-                    ('x' + tc, '1.2.3', False),  # version ok, name not ok
-                    ('x' + tc, '1.2.2', False),  # version not ok, name not ok
+                    (RANDOM_BIT + tc, '1.2.3', False),  # version ok, name not ok
+                    (RANDOM_BIT + tc, '1.2.2', False),  # version not ok, name not ok
                 )),
             ]
             for txt, subtests in tests:
