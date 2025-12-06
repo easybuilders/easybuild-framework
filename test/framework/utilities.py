@@ -61,19 +61,22 @@ from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set
 # involves ignoring any existing configuration files that are picked up, and cleaning the environment
 # this is tackled here rather than in suite.py, to make sure this is also done when test modules are ran separately
 
-# clean up environment from unwanted $EASYBUILD_X env vars
-for key in os.environ.keys():
-    if key.startswith('%s_' % CONFIG_ENV_VAR_PREFIX):
-        del os.environ[key]
+def remove_easybuild_environment_config_variables(exception=None):
+    """clean up environment from unwanted $EASYBUILD_X env vars"""
+    for key in list(os.environ):
+        if key.startswith(f'{CONFIG_ENV_VAR_PREFIX}_') and key != exception:
+            del os.environ[key]
+
 
 # Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
+remove_easybuild_environment_config_variables()
 go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
 test_env_var_prefix = 'TEST_EASYBUILD_'
-for key in os.environ.keys():
+for key in list(os.environ):
     if key.startswith(test_env_var_prefix):
         val = os.environ[key]
         del os.environ[key]
@@ -83,6 +86,11 @@ for key in os.environ.keys():
 
 class EnhancedTestCase(TestCase):
     """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+
+    def purge_environment(self):
+        """Remove any leftover easybuild variables"""
+        # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
+        remove_easybuild_environment_config_variables(exception='EASYBUILD_IGNORECONFIGFILES')
 
     def setUp(self):
         """Set up testcase."""
@@ -137,6 +145,8 @@ class EnhancedTestCase(TestCase):
         # disable progress bars when running the tests,
         # since it messes with test suite progress output when test installations are performed
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
+        # Also disable trace output to keep stdout clean during tests
+        os.environ['EASYBUILD_DISABLE_TRACE'] = '1'
 
         # Store the environment as setup (including the above paths) for tests to restore
         self.orig_environ = copy.deepcopy(os.environ)
@@ -438,6 +448,15 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
+    def assert_multi_regex(self, regexs, txt, assert_true=True):
+        """Helper function to assert presence/absence of list of regex patterns in a text"""
+        for regex in regexs:
+            regex = re.compile(regex, re.M)
+            if assert_true:
+                self.assertRegex(txt, regex)
+            else:
+                self.assertNotRegex(txt, regex)
+
 
 class TestLoaderFiltered(unittest.TestLoader):
     """Test load that supports filtering of tests based on name."""
@@ -494,25 +513,24 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
     eb_go = eboptions.parse_options(args=args, with_include=with_include)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
-    # initialize build options
-    if build_options is None:
-        build_options = {}
-
-    default_build_options = {
+    # initialize default build options
+    options = {
         'extended_dry_run': False,
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
+        'show_progress_bar': False,
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
+        'trace': False,
         'unit_testing_mode': True,
         'valid_module_classes': module_classes(),
         'valid_stops': [x[0] for x in EasyBlock.get_steps()],
     }
-    for key, def_option in default_build_options.items():
-        if key not in build_options:
-            build_options[key] = def_option
 
-    config.init_build_options(build_options=build_options)
+    if build_options is not None:
+        options.update(build_options)
+
+    config.init_build_options(build_options=options)
 
     return eb_go.options
 

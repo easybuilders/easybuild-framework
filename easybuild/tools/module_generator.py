@@ -42,6 +42,7 @@ import re
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
+from string import Template
 from textwrap import wrap
 
 from easybuild.base import fancylogger
@@ -115,6 +116,31 @@ def dependencies_for(mod_name, modtool, depth=None):
                 mods.append(dep)
 
     return mods
+
+
+def wrap_shell_vars(strng, wrap_prefix, wrap_suffix):
+    """
+    Wrap variables $VAR or ${VAR} between wrap_prefix and wrap_suffix
+    Do not wrap escaped variables, but unescape them (e.g. $$VAR -> $VAR)
+    Do not touch invalid variables (e.g. $1, $!, $-X, $ {bad})
+    """
+    t = Template(strng)
+    mapping = {}
+
+    names = {
+        m.group('named') or m.group('braced')
+        for m in t.pattern.finditer(strng)
+        if (m.group('named') or m.group('braced'))
+    }
+
+    mapping = {name: f'{wrap_prefix}{name}{wrap_suffix}' for name in names}
+    wrapped = t.safe_substitute(mapping)
+
+    # remove quotes around the wrapped variables (in case the variable was quoted)
+    wrapped = re.sub(rf'"({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})"', r'\1\2\3', wrapped)
+    wrapped = re.sub(rf"'({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})'", r'\1\2\3', wrapped)
+
+    return wrapped
 
 
 class ModuleGenerator:
@@ -1112,11 +1138,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
+        if resolve_env_vars:
+            set_value = wrap_shell_vars(set_value, r'$::env(', r')')
+
         if relpath:
             set_value = os.path.join('$root', set_value) if set_value else '$root'
-
-        if resolve_env_vars:
-            set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         set_value = quote_str(set_value, tcl=True)
@@ -1207,6 +1233,8 @@ class ModuleGeneratorLua(ModuleGenerator):
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
     OS_GETENV_TEMPLATE = r'os.getenv("%s")'
+    OS_GETENV_PREFIX = 'os.getenv("'
+    OS_GETENV_SUFFIX = '")'
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
     UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
@@ -1365,7 +1393,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        cmd = self.OS_GETENV_TEMPLATE % envvar
+        cmd = f'{self.OS_GETENV_PREFIX}{envvar}{self.OS_GETENV_SUFFIX}'
         if default is not None:
             cmd += f' or "{default}"'
         return cmd
@@ -1592,16 +1620,17 @@ class ModuleGeneratorLua(ModuleGenerator):
             if resolve_env_vars:
                 # replace quoted substring with env var with os.getenv statement
                 # example: pathJoin(root, "$HOME") -> pathJoin(root, os.getenv("HOME"))
-                set_value = self.REGEX_QUOTE_SHELL_VAR.sub(self.OS_GETENV_TEMPLATE % r"\1", set_value)
+                set_value = wrap_shell_vars(set_value, self.OS_GETENV_PREFIX, self.OS_GETENV_SUFFIX)
         else:
             if resolve_env_vars:
                 # replace env var with os.getenv statement
                 # example: $HOME -> os.getenv("HOME")
-                concat_getenv = self.CONCAT_STR + self.OS_GETENV_TEMPLATE % r"\1" + self.CONCAT_STR
-                set_value = self.REGEX_SHELL_VAR.sub(concat_getenv, set_value)
+                concat_prefix = self.CONCAT_STR + self.OS_GETENV_PREFIX
+                concat_suffix = self.OS_GETENV_SUFFIX + self.CONCAT_STR
+                set_value = wrap_shell_vars(set_value, concat_prefix, concat_suffix)
             set_value = self.CONCAT_STR.join([
                 # quote any substrings that are not a os.getenv Lua statement
-                x if x.startswith(self.OS_GETENV_TEMPLATE[:10]) else quote_str(x)
+                x if x.startswith(self.OS_GETENV_PREFIX) else quote_str(x)
                 for x in set_value.strip(self.CONCAT_STR).split(self.CONCAT_STR)
             ])
 

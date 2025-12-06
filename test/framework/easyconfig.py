@@ -83,7 +83,7 @@ from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa # pylint:disable=unused-import
 except ImportError:
     pass
 
@@ -386,7 +386,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only non-POWER arch, dependency is retained
         for arch in (AARCH64, X86_64):
-            st.get_cpu_architecture = lambda: arch
+            st.get_cpu_architecture = lambda: arch  # pylint: disable=cell-var-from-loop
             eb = EasyConfig(self.eb_file)
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
@@ -540,6 +540,46 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
+    def test_extensions_default_class(self):
+        """Test that exts_defaultclass doesn't need to be specified if explicit one is present."""
+
+        init_config(build_options={'silent': True})
+
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+               ("toy", "0.0"),  # Custom block by name
+               ("bar", "0.0", { # Explicit
+                    'easyblock': 'EB_toy',
+                    'sources': ['toy-%(version)s.tar.gz'],
+                }),
+            ]
+        """)
+        self.prep()
+        # Ensure source is found
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, self.test_prefix)
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config(build_options={'silent': True})
+
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            eb.extensions_step()
+
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'PI', '3.14')
+
+        # check whether files expected to be installed for both extensions are in place
+        self.assertExists(os.path.join(pi_installdir, 'bin', 'toy'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libtoy.a'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libbar.a'))
+
     def test_extensions_templates(self):
         """Test whether templates used in exts_list are resolved properly."""
 
@@ -562,7 +602,6 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'dependencies = [("Python", "3.6.6")]',
-            'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
@@ -1510,8 +1549,8 @@ class EasyConfigTest(EnhancedTestCase):
             eb.run_all_steps(False)
         logtxt = read_file(eb.logfile)
         start_dir = os.path.join(eb.builddir, 'toy-0.0')
-        self.assertIn('start_dir in configure is %s/ &&' % start_dir, logtxt)
-        self.assertIn('start_dir in build is %s/ &&' % start_dir, logtxt)
+        self.assertIn('start_dir in configure is %s &&' % start_dir, logtxt)
+        self.assertIn('start_dir in build is %s &&' % start_dir, logtxt)
         ext_start_dir = os.path.join(eb.builddir, 'bar', 'bar-0.0')
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
@@ -2743,13 +2782,14 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
         try:
-            import autopep8  # noqa
-            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
-            init_config()
-            self.test_dump()
-            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+            import autopep8 # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dump_autopep8, since autopep8 is not available")
+            return
+        os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+        init_config()
+        self.test_dump()
+        del os.environ['EASYBUILD_DUMP_AUTOPEP8']
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
@@ -3241,46 +3281,46 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dep_graph(self):
         """Test for dep_graph."""
         try:
-            import pygraph  # noqa
-
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
-
-            ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
-            ec_files = [(ec_file, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
-
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
-
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
-
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
-
-            # compare sorted output, since order of lines can change
-            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
-            ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
-            self.assertEqual(ordered_dottxt, ordered_expected)
-
+            import pygraph  # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
+            return
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
+
+        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_files = [(ec_file, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
+
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
+
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
+
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+        # compare sorted output, since order of lines can change
+        ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
+        ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
+        self.assertEqual(ordered_dottxt, ordered_expected)
 
     def test_dep_graph_multi_deps(self):
         """
         Test for dep_graph using easyconfig that uses multi_deps.
         """
         try:
-            import pygraph  # noqa
+            import pygraph  # noqa # pylint:disable=unused-import
 
             test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
             build_options = {

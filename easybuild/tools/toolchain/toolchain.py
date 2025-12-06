@@ -829,6 +829,16 @@ class Toolchain:
 
         return (c_comps, fortran_comps)
 
+    def linkers(self):
+        """Return list of relevant linkers for this toolchain"""
+
+        if self.is_system_toolchain():
+            linkers = ['ld', 'ld.gold', 'ld.bfd']
+        else:
+            linkers = list(self.LINKERS or [])
+
+        return linkers
+
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
         return False
@@ -1024,6 +1034,7 @@ class Toolchain:
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
+        linkers = self.linkers()
 
         rpath_args_py = find_eb_script('rpath_args.py')
 
@@ -1051,7 +1062,7 @@ class Toolchain:
         self.log.debug("Combined RPATH include paths: '%s'", rpath_include)
 
         # create wrappers
-        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd'] + linkers):
             # Not all toolchains have fortran compilers (e.g. Clang), in which case they are 'None'
             if cmd is None:
                 continue

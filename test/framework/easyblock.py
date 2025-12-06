@@ -1342,7 +1342,6 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
@@ -1571,6 +1570,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
 
+        update_build_option('trace', True)
         self.mock_stdout(True)
         eb.extensions_step(fetch=True)
         stdout = self.get_stdout()
@@ -2845,6 +2845,8 @@ class EasyBlockTest(EnhancedTestCase):
             abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
             self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
             self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            self.assertTrue(eb.cfg['start_dir'].endswith(abs_expected_start_dir))
+            self.assertFalse(eb.cfg['start_dir'].endswith(os.path.sep))
 
         # default (no start_dir specified): use unpacked dir as start dir
         self.assertEqual(ec['ec']['start_dir'], None)

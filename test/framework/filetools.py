@@ -2508,6 +2508,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True
         }
         init_config(build_options=build_options)
 
@@ -3071,6 +3072,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True,
         }
         init_config(build_options=build_options)
 
