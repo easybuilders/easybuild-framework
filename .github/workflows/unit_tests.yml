@@ -9,6 +9,9 @@ concurrency:
   group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
   cancel-in-progress: true
 
+env:
+  PYENV_ROOT: /opt/pyenv
+
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -22,6 +25,8 @@ jobs:
   build:
     needs: setup
     runs-on: ${{matrix.os || 'ubuntu-24.04'}}
+    env: 
+      JOB_OS: ${{matrix.os || 'ubuntu-24.04'}}
     strategy:
       matrix:
         # Python 3.10 is default in Ubuntu 22.04
@@ -34,6 +39,9 @@ jobs:
           - ${{needs.setup.outputs.modules5}}
         include:
           # Test different Python 3 versions with Lmod 8.x (with both Lua and Tcl module syntax)
+          - python: '3.6.1'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
+            use_pyenv: '2.6.15'
           - python: '3.7'
             modules_tool: ${{needs.setup.outputs.lmod8}}
             os: ubuntu-22.04
@@ -56,13 +64,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
 
-    - name: set up Python
-      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-      with:
-        python-version: ${{matrix.python}}
-        architecture: x64
-
-    - name: install OS & Python packages
+    - name: install OS packages
       run: |
         # for modules tool
         APT_PKGS="lua5.3 liblua5.3-dev lua-filesystem lua-posix tcl tcl-dev"
@@ -71,6 +73,14 @@ jobs:
         # dep for GC3Pie
         APT_PKGS+=" time"
 
+        if [[ -n "${{matrix.use_pyenv}}" ]]; then
+          # See https://github.com/pyenv/pyenv/wiki#suggested-build-environment
+          APT_PKGS+=" libssl-dev zlib1g-dev \
+                    libbz2-dev libreadline-dev libsqlite3-dev curl git \
+                    libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev"
+          # Avoid segfault with older Pythons: https://github.com/pyenv/pyenv/issues/2239#issuecomment-1079275184
+          APT_PKGS+=" clang"
+        fi
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
         if ! sudo apt-get install $APT_PKGS; then
@@ -79,7 +89,40 @@ jobs:
           sudo apt-get install $APT_PKGS
         fi
 
-        # Python packages
+    - name: set up Python
+      if: '!matrix.use_pyenv'
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+      with:
+        python-version: ${{matrix.python}}
+        architecture: x64
+
+    - name: Cache PyEnv
+      id: cache-pyenv
+      if: matrix.use_pyenv
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # 4.3.0
+      with:
+        path: ${{env.PYENV_ROOT}}
+        key: ${{env.JOB_OS}}-py${{matrix.python}}-pyenv${{matrix.use_pyenv}}
+
+    - name: Setup PyEnv
+      if: matrix.use_pyenv
+      run: |
+        if [[ -z "${{steps.cache-pyenv.outputs.cache-hit}}" ]]; then
+          mkdir "$PYENV_ROOT"
+          wget https://github.com/pyenv/pyenv/archive/refs/tags/v${{matrix.use_pyenv}}.tar.gz -O- | tar xzf - -C "$PYENV_ROOT" --strip-components=1
+        fi
+        echo "${PYENV_ROOT}/bin" >> $GITHUB_PATH
+        export PATH="$PYENV_ROOT/bin:$PATH"
+        echo 'eval "$(pyenv init -)"' > ~/init_pyenv
+        . ~/init_pyenv
+        CC=clang pyenv install --skip-existing ${{matrix.python}}
+        echo 'pyenv global ${{matrix.python}}' >> ~/init_pyenv
+
+    - name: install Python packages
+      run: |
+        touch ~/init_pyenv # In case it doesn't exist, make empty file
+        . ~/init_pyenv
+        python -V
         pip --version
         pip install --upgrade pip
         pip --version
@@ -100,6 +143,7 @@ jobs:
         # and are only run after the PR gets merged
         GITHUB_TOKEN: ${{secrets.CI_UNIT_TESTS_GITHUB_TOKEN}}
       run: |
+        . ~/init_pyenv
         # only install GitHub token when testing with Lmod 8.x + Python 3.9, to avoid hitting GitHub rate limit
         # tests that require a GitHub token are skipped automatically when no GitHub token is available
         if [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${{matrix.python}}" =~ 3.9 ]]; then
@@ -126,6 +170,7 @@ jobs:
 
     - name: check sources
       run: |
+          . ~/init_pyenv
           # make sure there are no (top-level) "import setuptools" or "import pkg_resources" statements,
           # since EasyBuild should not have a runtime requirement on setuptools
           SETUPTOOLS_IMPORTS=$(egrep --exclude setup.py -RI '^(from|import)[ ]*pkg_resources|^(from|import)[ ]*setuptools' * || true)
@@ -133,6 +178,7 @@ jobs:
 
     - name: install sources
       run: |
+          . ~/init_pyenv
           # install from source distribution tarball, to test release as published on PyPI
           python setup.py sdist
           ls dist
@@ -142,7 +188,7 @@ jobs:
     - name: run test suite
       env:
         EB_VERBOSE: 1
-        LC_ALL: "" 
+        LC_ALL: ""
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -158,7 +204,13 @@ jobs:
           export PATH=$PREFIX/bin:$(cat $HOME/path)
           export PYTHONPATH=$PREFIX/lib/python$(echo ${{matrix.python}} | cut -f1,2 -d'.')/site-packages:$PYTHONPATH
           echo "PYTHONPATH=$PYTHONPATH"
-          ls $(echo $PYTHONPATH | cut -f1:)
+          ls $(echo $PYTHONPATH | cut -f1 -d':')
+
+          # Do AFTER setting $PATH above
+          . ~/init_pyenv
+          which python3
+          python3 --version
+
           python3 -m easybuild.main --version
           eb --version
           # tell EasyBuild which modules tool is available

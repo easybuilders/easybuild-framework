@@ -64,7 +64,7 @@ class StyleTest(EnhancedTestCase):
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
         if 'pycodestyle' not in sys.modules:
-            print("Skipping test_check_trailing_whitespace is not available")
+            print("Skipping test_check_trailing_whitespace pycodestyle is not available")
             return
 
         lines = [

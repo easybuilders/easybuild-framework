@@ -2632,6 +2632,16 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
+def is_recursive_symlink(path) -> bool:
+    """Check if the given path is a symlink and points to itself"""
+    if not os.path.islink(path):
+        return False
+    abs_path = os.path.abspath(path)
+    linkpath = os.path.realpath(abs_path)
+    abs_path += os.sep  # To catch the case where both are equal
+    return abs_path.startswith(linkpath + os.sep)
+
+
 def has_recursive_symlinks(path):
     """
     Check the given directory for recursive symlinks.
@@ -2643,12 +2653,9 @@ def has_recursive_symlinks(path):
     for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
         for name in itertools.chain(dirnames, filenames):
             fullpath = os.path.join(dirpath, name)
-            if os.path.islink(fullpath):
-                linkpath = os.path.realpath(fullpath)
-                fullpath += os.sep  # To catch the case where both are equal
-                if fullpath.startswith(linkpath + os.sep):
-                    _log.info("Recursive symlink detected at %s", fullpath)
-                    return True
+            if is_recursive_symlink(fullpath):
+                _log.info("Recursive symlink detected at %s", fullpath)
+                return True
     return False
 
 
@@ -2713,7 +2720,20 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, che
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
-                shutil.copytree(path, target_path, **kwargs)
+                if sys.version_info < (3, 7) and kwargs.get('symlinks'):
+                    # Python 3.6 might not correctly detect support for chmod on broken symlinks
+                    # This was fixed in 3.7.0
+                    # Approach taken from https://bugs.python.org/issue6547: Fail only if all errors are due to symlinks
+                    try:
+                        shutil.copytree(path, target_path, **kwargs)
+                    except shutil.Error as e:
+                        if all(os.path.islink(src) and not os.path.exists(src) or is_recursive_symlink(src)
+                               for src, _dst, _err in e.args[0]):
+                            _log.info("Ignoring errors when copying broken symlinks: %s", e.args[0])
+                        else:
+                            raise
+                else:
+                    shutil.copytree(path, target_path, **kwargs)
 
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
