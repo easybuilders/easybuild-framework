@@ -249,7 +249,7 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
                         error_descr = '(build issue)'
                     else:
                         error_descr = '(unhandled exception: `%s`)' % ec_res['err']
-                        additional_info = f"```{ec_res['traceback']}\n```"
+                        additional_info = f"```\n{ec_res['traceback']}\n```"
                 else:
                     error_descr = '(unknown cause, not an exception?!)'
 
