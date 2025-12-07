@@ -1775,7 +1775,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchbuilddep/0.0.0\\' failed"
+            err_msg = r"Module command '.*load nosuchbuilddep/0.0.0' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
@@ -1788,7 +1788,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchmodule/1.2.3\\' failed"
+            err_msg = r"Module command '.*load nosuchmodule/1.2.3' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
@@ -4831,7 +4831,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += '\nruntest = "RAISE_ERROR"'
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"An error was raised during test step: 'TOY_TEST_FAIL'"
+        error_pattern = "An error was raised during test step: TOY_TEST_FAIL\nDescription"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
                               ec_file=test_ec, raise_error=True)
 
