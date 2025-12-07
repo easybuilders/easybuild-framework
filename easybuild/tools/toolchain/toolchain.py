@@ -247,6 +247,29 @@ class Toolchain:
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
+    @property
+    def search_path_vars_headers(self):
+        """Return list of environment variables used as search paths for headers"""
+        return self._search_path_vars('cpp_headers')
+
+    @property
+    def search_path_vars_linker(self):
+        """Return list of environment variables used as search paths by the linker"""
+        return self._search_path_vars('linker')
+
+    def _search_path_vars(self, search_object):
+        """Return list of environment variables used as search paths for the given object"""
+        try:
+            search_path_opt = self.search_path[search_object]
+        except KeyError:
+            raise EasyBuildError("Failed to retrieve search path options for '%s'", search_object)
+
+        # default 'flags' option does not use search paths in the build environment
+        if search_path_opt == 'flags':
+            return []
+
+        return SEARCH_PATH[search_object][search_path_opt]
+
     def is_system_toolchain(self):
         """Return boolean to indicate whether this toolchain is a system toolchain."""
         return is_system_toolchain(self.name)
