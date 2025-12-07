@@ -1370,7 +1370,7 @@ class GithubTest(EnhancedTestCase):
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
-            "**FAIL (build issue)** _fail.eb_",
+            "**FAIL** _fail.eb_ **(build issue)**",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
             "USER = test",
