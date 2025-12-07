@@ -255,6 +255,9 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
 
         fid.write('\n\nPS1="eb-shell> "')
 
+        # If set it would rely on functions that are not defined in this shell, messing up the prompt
+        fid.write('\nunset PROMPT_COMMAND\n')
+
         # define $EB_CMD_OUT_FILE to contain path to file with command output
         fid.write(f'\nEB_CMD_OUT_FILE="{out_file}"')
         # define $EB_CMD_ERR_FILE to contain path to file with command stderr output (if available)
@@ -462,8 +465,12 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
 
-        log_str = f'Command environment of\n\t"{cmd_str}"\nwill be saved to {cmd_sh}\n'
-        log_str += f'Output will be logged to {cmd_out_fp}'
+        log_str = '\n'.join([
+            'Script to start debug shell for command',
+            f'\t{cmd_str}',
+            f'will be saved to {cmd_sh}',
+            f'Output will be logged to {cmd_out_fp}',
+        ])
         if cmd_err_fp:
             log_str += f'\nErrors and warnings will be logged to {cmd_err_fp}'
         _log.info(f'run_shell_cmd: {log_str}')

@@ -78,16 +78,26 @@ def requires_github_access():
 
     Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
     """
-    if 'FORCE_EB_GITHUB_TESTS' in os.environ or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
-        return unittest.skipIf(False, None)
-    else:
-        # For pull requests silently skip to avoid rate limits
-        def decorator(test_item):
-            @functools.wraps(test_item)
-            def skip_wrapper(*args, **kwargs):
-                return
-            return skip_wrapper
-        return decorator
+    return unittest.skipUnless(
+        os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request',
+        "Skipping test requiring GitHub access"
+    )
+
+
+def ignore_rate_limit_in_pr(test_item):
+    """Decorator: If tests are run in a pull request and fail with a rate limit error, ignore that"""
+    if os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return test_item
+
+    @functools.wraps(test_item)
+    def skip_wrapper(self, *args, **kwargs):
+        try:
+            test_item(self, *args, **kwargs)
+        except EasyBuildError as e:
+            if 'HTTP Error 403' in e.msg:
+                self.skipTest('Ignoring rate limit error')
+            raise
+    return skip_wrapper
 
 
 class GithubTest(EnhancedTestCase):
@@ -201,7 +211,7 @@ class GithubTest(EnhancedTestCase):
                 ('a_directory', ['a_subdirectory'], ['a_file.txt']),
                 ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
             ]
-            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual(list(self.ghfs.walk(None)), expected)
         except IOError:
             pass
 
@@ -518,6 +528,7 @@ class GithubTest(EnhancedTestCase):
         res = gh.fetch_easyblocks_from_pr(12345, tmpdir)
         self.assertEqual(sorted(pr12345_files), sorted(res))
 
+    @ignore_rate_limit_in_pr
     def test_fetch_files_from_commit(self):
         """Test fetch_files_from_commit function."""
 
@@ -551,6 +562,7 @@ class GithubTest(EnhancedTestCase):
         error_pattern = r"Failed to download diff for easybuilders/easybuild-easyconfigs commit c0ff33c0ff33"
         self.assertErrorRegex(EasyBuildError, error_pattern, fetch_files_from_commit, 'c0ff33c0ff33')
 
+    @ignore_rate_limit_in_pr
     def test_fetch_easyconfigs_from_commit(self):
         """Test fetch_easyconfigs_from_commit function."""
 
@@ -803,20 +815,20 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(res, None)
 
         # recent commit with cancelled checks (GitHub Actions only);
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled
-        commit_sha = '52b964c3387d6d6f149ec304f9e23f535e799957'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled+branch%3Adevelop
+        commit_sha = '51a875b40f0627e24d9cd8e44b8f316d57b6a584'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'cancelled')
 
         # recent commit with failing checks (GitHub Actions only)
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure
-        commit_sha = '85e6c2bbc2fd515a1d4dab607b8d43d0a1ed668f'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure+branch%3Adevelop
+        commit_sha = 'e72d5ea16df56d8151bb980d21cbf3ced4dcd8fb'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'failure')
 
         # recent commit with successful checks (GitHub Actions only)
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess
-        commit_sha = 'f82a563b8e1f8118c7c3ab23374d0e28e1691fea'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess+branch%3Adevelop
+        commit_sha = '9e6b01cfd29692944cb57bef9493ae7253103e42'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'success')
 

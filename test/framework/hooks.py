@@ -271,7 +271,7 @@ class HooksTest(EnhancedTestCase):
             "== Running pre-single_extension hook...",
             "this is run before installing an extension",
             "== Running fail hook...",
-            "EasyBuild FAIL: 'oops'",
+            "EasyBuild FAIL: oops",
             "== Running crash hook...",
             "EasyBuild CRASHED, oh no! => boom!",
             "== Running post-easyblock hook...",

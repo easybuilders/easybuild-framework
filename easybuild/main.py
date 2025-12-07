@@ -45,6 +45,7 @@ import stat
 import sys
 import tempfile
 import traceback
+from datetime import datetime
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
@@ -84,11 +85,27 @@ from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
+from easybuild.tools.utilities import time2str
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, UNKNOWN_EASYBLOCKS_VERSION
 from easybuild.tools.version import different_major_versions
 
 
 _log = None
+
+
+if sys.version_info < (3, 9):
+    full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
+    warning_lines = [
+        "\033[1;33m"
+        "WARNING: Running EasyBuild with Python < 3.9 is deprecated (you are using Python %s)" % full_py_ver,
+        '',
+        "You should use a more recent Python version to run EasyBuild with,",
+        "see https://docs.easybuild.io/installation/#more_pip_env_EB_PYTHON for more information."
+        "\033[0m"
+    ]
+    # only print the warning if we're not running in GitHub Actions
+    if os.getenv('GITHUB_ACTIONS') != 'true':
+        sys.stderr.write('\n' + '\n'.join(warning_lines) + '\n\n')
 
 
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
@@ -585,6 +602,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
             return True
 
     # build software, will exit when errors occurs (except when testing)
+    start_time = datetime.now()
     if not testing or (testing and do_build):
         exit_on_failure = not (options.dump_test_report or options.upload_test_report)
 
@@ -601,7 +619,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     success_msg = "Build succeeded "
     if build_option('ignore_test_failure'):
         success_msg += "(with --ignore-test-failure) "
-    success_msg += "for %s out of %s" % (correct_builds_cnt, len(ordered_ecs))
+    success_msg += f"for {correct_builds_cnt} out of {len(ordered_ecs)} "
+    success_msg += f"(total: {time2str(datetime.now() - start_time)})"
 
     repo = init_repository(get_repository(), get_repositorypath())
     repo.cleanup()
@@ -788,6 +807,9 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param testing: enable testing mode
     :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
     """
+    # set $___EASYBUILD___ environment variable to 'EasyBuild' to indicate that we're in an EasyBuild session
+    os.environ['___EASYBUILD___'] = 'EasyBuild'
+
     register_lock_cleanup_signal_handlers()
 
     # if $CDPATH is set, unset it, it'll only cause trouble...

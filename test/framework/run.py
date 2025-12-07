@@ -541,9 +541,6 @@ class RunTest(EnhancedTestCase):
         def handler(signum, _):
             raise RuntimeError("Signal handler called with signal %s" % signum)
 
-        # disable trace output for this test (so stdout remains empty)
-        update_build_option('trace', False)
-
         orig_sigalrm_handler = signal.getsignal(signal.SIGALRM)
 
         try:
@@ -811,6 +808,8 @@ class RunTest(EnhancedTestCase):
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
 
+        update_build_option('trace', True)
+
         # use of run_cmd is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
@@ -837,8 +836,7 @@ class RunTest(EnhancedTestCase):
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        init_config(build_options={'trace': False})
-
+        update_build_option('trace', False)
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd("echo hello")
@@ -851,9 +849,8 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         self.assertEqual(stdout, '')
 
-        init_config(build_options={'trace': True})
-
         # also test with command that is fed input via stdin
+        update_build_option('trace', True)
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd('cat', inp='hello')
@@ -869,8 +866,7 @@ class RunTest(EnhancedTestCase):
         regex = re.compile('\n'.join(pattern))
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
-        init_config(build_options={'trace': False})
-
+        update_build_option('trace', False)
         self.mock_stdout(True)
         self.mock_stderr(True)
         (out, ec) = run_cmd('cat', inp='hello')
@@ -902,6 +898,8 @@ class RunTest(EnhancedTestCase):
     def test_run_shell_cmd_trace(self):
         """Test run_shell_cmd function in trace mode, and with tracing disabled."""
 
+        update_build_option('trace', True)
+
         pattern = [
             r"^  >> running shell command:",
             r"\techo hello",
@@ -911,7 +909,6 @@ class RunTest(EnhancedTestCase):
             r"  >> command completed: exit 0, ran in .*",
         ]
 
-        # trace output is enabled by default (since EasyBuild v5.0)
         self.mock_stdout(True)
         self.mock_stderr(True)
         res = run_shell_cmd("echo hello")
@@ -926,7 +923,6 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
 
         init_config(build_options={'trace': False})
-
         self.mock_stdout(True)
         self.mock_stderr(True)
         res = run_shell_cmd("echo hello")
@@ -938,8 +934,6 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
         self.assertEqual(stdout, '')
-
-        init_config(build_options={'trace': True})
 
         # trace output can be disabled on a per-command basis via 'hidden' option
         for trace in (True, False):
@@ -1297,6 +1291,7 @@ class RunTest(EnhancedTestCase):
 
     def test_run_cmd_qa_trace(self):
         """Test run_cmd under --trace"""
+        update_build_option('trace', True)
 
         # use of run_cmd/run_cmd_qa is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
@@ -1331,8 +1326,8 @@ class RunTest(EnhancedTestCase):
 
     def test_run_shell_cmd_qa_trace(self):
         """Test run_shell_cmd with qa_patterns under --trace"""
+        update_build_option('trace', True)
 
-        # --trace is enabled by default
         self.mock_stdout(True)
         self.mock_stderr(True)
         run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')])
@@ -1572,6 +1567,7 @@ class RunTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True,
         }
         init_config(build_options=build_options)
 
@@ -1718,6 +1714,7 @@ class RunTest(EnhancedTestCase):
 
     def test_run_shell_cmd_stream(self):
         """Test use of run_shell_cmd with streaming output."""
+        init_config(build_options={'trace': True})
         self.mock_stdout(True)
         self.mock_stderr(True)
         cmd = '; '.join([
@@ -2059,9 +2056,6 @@ class RunTest(EnhancedTestCase):
         write_file(hooks_file, hooks_file_txt)
         update_build_option('hooks', hooks_file)
 
-        # disable trace output to make checking of generated output produced by hooks easier
-        update_build_option('trace', False)
-
         with self.mocked_stdout_stderr():
             run_cmd("make")
             stdout = self.get_stdout()
@@ -2132,9 +2126,6 @@ class RunTest(EnhancedTestCase):
         """)
         write_file(hooks_file, hooks_file_txt)
         update_build_option('hooks', hooks_file)
-
-        # disable trace output to make checking of generated output produced by hooks easier
-        update_build_option('trace', False)
 
         with self.mocked_stdout_stderr():
             run_shell_cmd("make")
