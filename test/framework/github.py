@@ -130,7 +130,6 @@ class GithubTest(EnhancedTestCase):
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""
-        # check if patches for extensions are found
         rawtxt = textwrap.dedent("""
             easyblock = 'ConfigureMake'
             name = '%s'
@@ -1007,9 +1006,8 @@ class GithubTest(EnhancedTestCase):
         file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
 
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
-        self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
 
         rawtxt = textwrap.dedent("""
             easyblock = 'ConfigureMake'
@@ -1019,12 +1017,11 @@ class GithubTest(EnhancedTestCase):
             description = ''
             toolchain = {"name":"GCC", "version": "4.6.3"}
 
-            patches = [('3.patch', 'subdir'), '2.patch']
+            postinstallpatches = [('3.patch', 'subdir'), '2.patch']
         """)
         file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
         self.assertEqual([i[1] for i in res], ['A', 'C', 'C'])
@@ -1043,20 +1040,24 @@ class GithubTest(EnhancedTestCase):
                 ('bar', '1.2.3'),
                 ('patched', '4.5.6', {
                     'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                    'postinstallpatches': ['%(name)s-4.patch'],
                 }),
             ]
+            postinstallpatches = ['%(name)s-5.patch'],
         """)
-        patch_paths[1:3] = [os.path.join(self.test_prefix, p) for p in ['patched-2.patch', 'patched-3.patch']]
+        patch_paths[1:] = [os.path.join(self.test_prefix, p) for p in
+                           ['patched-2.patch', 'patched-3.patch', 'patched-4.patch', 'patched_ext-5.patch']]
         file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
 
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
-        self.assertEqual([i[1] for i in res], ['A', 'patched_ext', 'patched_ext'])
+        self.assertEqual([i[1] for i in res], ['A'] + ['patched_ext'] * 4)
 
         # check if patches for components are found
+        # NOTE: Using alternative name and tuple format for post_install_patches, different to above test case
+        #       to verify handling either way works without adding another sub-test
         rawtxt = textwrap.dedent("""
             easyblock = 'PythonBundle'
             name = 'patched_bundle'
@@ -1069,17 +1070,19 @@ class GithubTest(EnhancedTestCase):
                 ('bar', '1.2.3'),
                 ('patched', '4.5.6', {
                     'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                    'post_install_patches': [('%(name)s-4.patch', 1)],
                 }),
             ]
+            post_install_patches = [('%(name)s-5.patch', 2)]
         """)
+        patch_paths[-1] = 'patched_bundle-5.patch'
         file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
 
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
-        self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
+        self.assertEqual([i[1] for i in res], ['A'] + ['patched_bundle'] * 4)
 
     def test_github_restclient(self):
         """Test use of RestClient."""
