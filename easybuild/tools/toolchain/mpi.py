@@ -136,27 +136,15 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None, oversubscribe=Fal
                     osub_cmd = f'{varname}=1'
                 else:
                     varname = 'PRTE_MCA_rmaps_default_mapping_policy'
-                    varvalue = os.getenv(varname)
+                    varvalue = os.getenv(varname, '')
 
-                    # This logic should account for:
-                    # - var not set -> set to 'core:oversubscribe'
-                    # - unit set to value without `:` eg package -> 'package:oversubscribe'
-                    # - unit set to value with `:` eg ppr:4:numa -> 'ppr:4:numa:oversubscribe'
-                    # - all of the above but with oversubscribe already in flags
-                    flags = ''
-                    if varvalue.startswith('ppr'):
-                        _log.warning("Can't handle ppr mapping with oversubscription yet, overwriting unit with 'core'")
-                        unit = 'core'
-                        flags = 'oversubscribe'
-                    else:
-                        unit, flags = (varvalue.rsplit(':', maxsplit=1) + [''])[:2]
-                    unit = unit or 'core'
-                    flags = list(filter(None, flags.split(',')))
+                    # This logic should account for adding a `:oversubscribe` flag to the mapping policy if not
+                    # already present.
+                    # See https://docs.open-mpi.org/en/main/man-openmpi/man1/mpirun.1.html#the-map-by-option
+                    flags = varvalue.lower().split(':')
                     if 'oversubscribe' not in flags:
-                        flags.append('oversubscribe')
-                    newvalue = f"{unit}:{','.join(flags)}"
-
-                    osub_cmd = f'{varname}={newvalue}'
+                        varvalue = f'{varvalue}:oversubscribe'
+                    osub_cmd = f'{varname}={varvalue}'
             elif mpi_family in [toolchain.INTELMPI]:
                 _log.info("INTELMPI always oversubscribe by default, nothing to do...")
             elif mpi_family in [toolchain.MVAPICH2, toolchain.MPICH, toolchain.MPICH2]:
@@ -165,7 +153,7 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None, oversubscribe=Fal
                 raise EasyBuildError("Oversubscribe not supported for MPI family '%s'", mpi_family)
 
             mpi_cmd_template = f'%(oversubscribe)s {mpi_cmd_template}'
-            params.update({'oversubscribe': osub_cmd})  # just a placeholder
+            params.update({'oversubscribe': osub_cmd})
 
     missing = []
     for key in sorted(params.keys()):
