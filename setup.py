@@ -78,6 +78,22 @@ easybuild_packages = [
     "easybuild.tools.py2vs3", "easybuild.tools.repository", "test.framework", "test",
 ]
 
+# Verify the above list is complete, if setuptools is installed
+try:
+    import setuptools
+except ImportError:
+    pass
+else:
+    packages = set(setuptools.find_packages())
+    easybuild_packages_set = set(easybuild_packages)
+    if easybuild_packages_set != packages:
+        # Warning only
+        print("="*80 + "\n"
+              "=== WARNING: Wrong list of easybuild_packages.\n"
+              f"Missing: {packages - easybuild_packages_set}\n"
+              f"Unneccessary: {easybuild_packages_set - packages}"
+              "\n" + "="*80 + "\n")
+
 setup(
     name="easybuild-framework",
     version=str(VERSION),
