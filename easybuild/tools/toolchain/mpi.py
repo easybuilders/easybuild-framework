@@ -315,7 +315,10 @@ class Mpi(Toolchain):
 
         # this fails when it's done too early (before modules for toolchain/dependencies are loaded),
         # but it's safe to ignore this
-        mpi_version = self.get_software_version(self.MPI_MODULE_NAME, required=False)[0]
+        if self.MPI_MODULE_NAME is None:
+            mpi_version = None
+        else:
+            mpi_version = self.get_software_version(self.MPI_MODULE_NAME, required=False)[0]
 
         if mpi_family == toolchain.INTELMPI:
             if not mpi_version:
