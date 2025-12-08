@@ -1915,9 +1915,9 @@ class ToolchainTest(EnhancedTestCase):
 
         # With IntelMPI and MPICH
         for mpi_fam in [toolchain.INTELMPI, toolchain.MPICH, toolchain.MPICH2, toolchain.MVAPICH2]:
-             mpi_cmd_tmpl, params = get_mpi_cmd_template(mpi_fam, input_params, mpi_version='1.0', oversubscribe=True)
-             self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
-             self.assertEqual(params['oversubscribe'], '')
+            mpi_cmd_tmpl, params = get_mpi_cmd_template(mpi_fam, input_params, mpi_version='1.0', oversubscribe=True)
+            self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+            self.assertEqual(params['oversubscribe'], '')
 
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
