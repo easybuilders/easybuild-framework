@@ -1078,7 +1078,7 @@ def get_cuda_architectures(path, section_type):
     # compile_size = 64bit
 
     # Pattern to extract elf code architectures and ptx code architectures respectively
-    code_regex = re.compile(f'Fatbin {section_type} code:\n=+\narch = sm_([0-9]+)([0-9]a?)')
+    code_regex = re.compile(f'Fatbin {section_type} code:\n=+\narch = sm_([0-9]+)([0-9][af]?)')
 
     # resolve symlinks
     if os.path.islink(path) and os.path.exists(path):
