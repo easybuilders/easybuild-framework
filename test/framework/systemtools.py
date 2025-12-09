@@ -428,16 +428,22 @@ ptxasOptions ="""
 CUOBJDUMP_DEVICE_CODE_ONLY = """
 Fatbin elf code:
 ================
-arch = sm_90
-code version = [1,7]
+arch = sm_100f
+code version = [1,8]
 host = linux
 compile_size = 64bit
-compressed
 
 Fatbin elf code:
 ================
-arch = sm_90a
-code version = [1,7]
+arch = sm_100
+code version = [1,8]
+host = linux
+compile_size = 64bit
+
+Fatbin elf code:
+================
+arch = sm_100a
+code version = [1,8]
 host = linux
 compile_size = 64bit"""
 
@@ -1425,7 +1431,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertIsNone(res_ptx)
         fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_ptx.pattern, logtxt)
         self.assertTrue(warning_regex_ptx.search(logtxt), fail_msg)
-        self.assertEqual(res_elf, ['9.0', '9.0a'])
+        self.assertEqual(res_elf, ['10.0', '10.0a', '10.0f'])
 
         # Test case 6: call on CUDA shared lib which lacks an arch = sm_XX entry (should never happen)
         warning_regex_elf = re.compile(r"WARNING Found Fatbin elf code section\(s\) in cuobjdump output for "

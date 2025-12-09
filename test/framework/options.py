@@ -6816,10 +6816,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_cuda_compute_capabilities(self):
         """Test --cuda-compute-capabilities configuration option."""
-        args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
+        args = ['--cuda-compute-capabilities=3.5,6.2,7.0,9.0a,10.0f', '--show-config']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0, 9\.0a, 10\.0f$", re.M)
         self.assertRegex(txt, regex)
 
     def test_create_index(self):
