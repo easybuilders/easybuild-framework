@@ -640,8 +640,8 @@ def get_isa_riscv():
     # - d: Double-precicion floating-point
     # - c: Compressed instructions (16-bit encodings)
     #
-    # This combination matches the most common full-featured RISC-V Linux systems, 
-    # provides all the capabilities expected by modern toolchains and runtimes, 
+    # This combination matches the most common full-featured RISC-V Linux systems,
+    # provides all the capabilities expected by modern toolchains and runtimes,
     # and ensures broad compatibility and good performance.
     isa_string = 'rv64imafdc'
     os_type = get_os_type()
