@@ -631,6 +631,18 @@ def get_isa_riscv():
     """
     Get supported ISA string
     """
+    # 'rv64imafdc identifies the baseline RISC-V CPU architecture we are targetting.
+    # - rv64: 64-bit RISC-V
+    # - i: Integer instruction set (mandatory base ISA)
+    # - m: Integer multiplication/division
+    # - a: Atomic instructions
+    # - f: Single-precision floating-point
+    # - d: Double-precicion floating-point
+    # - c: Compressed instructions (16-bit encodings)
+    #
+    # This combination matches the most common full-featured RISC-V Linux systems, 
+    # provides all the capabilities expected by modern toolchains and runtimes, 
+    # and ensures broad compatibility and good performance.
     isa_string = 'rv64imafdc'
     os_type = get_os_type()
     if os_type == LINUX:
