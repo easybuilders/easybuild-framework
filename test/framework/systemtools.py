@@ -61,28 +61,40 @@ from easybuild.tools.systemtools import find_library_path, locate_solib, pick_de
 PROC_CPUINFO_TXT = None
 
 PROC_CPUINFO_TXT_RISCV64 = """processor       : 0
-hart            : 2
-isa             : rv64imafdc
-mmu             : sv39
-uarch           : sifive,u74-mc
+hart            : 1
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
 
 processor       : 1
-hart            : 1
-isa             : rv64imafdc
-mmu             : sv39
-uarch           : sifive,u74-mc
+hart            : 0
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
 
 processor       : 2
-hart            : 3
-isa             : rv64imafdc
-mmu             : sv39
-uarch           : sifive,u74-mc
+hart            : 2
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
 
 processor       : 3
-hart            : 4
-isa             : rv64imafdc
-mmu             : sv39
-uarch           : sifive,u74-mc
+hart            : 3
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
 """
 
 PROC_CPUINFO_TXT_RASPI2 = """processor : 0
@@ -760,7 +772,7 @@ class SystemToolsTest(EnhancedTestCase):
         global PROC_CPUINFO_TXT
 
         PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RISCV64
-        expected = 'rv64imafdc'
+        expected = 'rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf'
         self.assertEqual(get_isa_riscv(), expected)
 
     def test_cpu_architecture_native(self):
