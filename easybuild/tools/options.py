@@ -990,7 +990,7 @@ class EasyBuildOptions(GeneralOption):
         # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
         # see https://developer.nvidia.com/cuda-gpus
         if self.options.cuda_compute_capabilities:
-            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+a?$')
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+[af]?$')
             faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
             if faulty_cuda_ccs:
                 error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"
