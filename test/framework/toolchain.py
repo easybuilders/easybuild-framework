@@ -974,6 +974,11 @@ class ToolchainTest(EnhancedTestCase):
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
+                # check return of tc.search_path_vars_headers
+                expected_search_path_vars = cpp_headers_mode[build_opt]
+                if build_opt == 'flags':
+                    expected_search_path_vars = []
+                self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in cpp_headers_mode:
@@ -989,6 +994,11 @@ class ToolchainTest(EnhancedTestCase):
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
+                    # check return of tc.search_path_vars_headers
+                    expected_search_path_vars = cpp_headers_mode[tc_opt]
+                    if tc_opt == 'flags':
+                        expected_search_path_vars = []
+                    self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
@@ -1016,6 +1026,11 @@ class ToolchainTest(EnhancedTestCase):
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
+                # check return of tc.search_path_vars_linker
+                expected_search_path_vars = linker_mode[build_opt]
+                if build_opt == 'flags':
+                    expected_search_path_vars = []
+                self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in linker_mode:
@@ -1031,6 +1046,11 @@ class ToolchainTest(EnhancedTestCase):
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
+                    # check return of tc.search_path_vars_linker
+                    expected_search_path_vars = linker_mode[tc_opt]
+                    if tc_opt == 'flags':
+                        expected_search_path_vars = []
+                    self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
@@ -2023,8 +2043,7 @@ class ToolchainTest(EnhancedTestCase):
         scalapack_mt_shared_libs_fosscuda = scalapack_mt_static_libs_fosscuda.replace('.a', '.' + shlib_ext)
 
         tc = self.get_toolchain('fosscuda', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
@@ -2116,8 +2135,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('BLAS_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
         self.assertEqual(os.environ.get('BLAS_STATIC_LIBS', "(not set)"), blas_static_libs_intel4)
         self.assertEqual(os.environ.get('LAPACK_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
@@ -2130,22 +2148,19 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
         self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
         self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
         self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
@@ -2154,15 +2169,13 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('intel', version='2018a')
         opts = {'i8': True}
         tc.set_options(opts)
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('fosscuda', version='2018a')
         tc.set_options({'openmp': True})
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
