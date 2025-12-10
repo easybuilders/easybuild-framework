@@ -141,6 +141,7 @@ class Compiler(Toolchain):
     COMPILER_F_OPTIONS = ['i8', 'r8']
     COMPILER_F_UNIQUE_OPTIONS = []
 
+    LINKERS = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
         'start': '--start-group',

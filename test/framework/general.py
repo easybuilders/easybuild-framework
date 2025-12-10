@@ -154,6 +154,33 @@ class GeneralTest(EnhancedTestCase):
         import test123.three
         self.assertEqual([test123.one, test123.three, test123.two], res)
 
+    def test_vendored_packages(self):
+        """Smoke-test for vendored packages"""
+        from easybuild.tools import tomllib
+        # Example from toml.io
+        res = tomllib.loads("""
+            title = "TOML Example"
+
+            [owner]
+            name = "Tom Preston-Werner"
+            dob = 1979-05-27T07:32:00-08:00
+
+            [database]
+            enabled = true
+            ports = [ 8000, 8001, 8002 ]
+            data = [ ["delta", "phi"], [3.14] ]
+            temp_targets = { cpu = 79.5, case = 72.0 }
+
+            [servers]
+
+            [servers.alpha]
+            role = "frontend"
+
+            [servers.beta]
+            role = "backend"
+        """)
+        self.assertTrue(res)  # Should just be non-empty
+
 
 def suite(loader=None):
     """ returns all the testcases in this module """

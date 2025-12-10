@@ -189,7 +189,7 @@ DEFAULT_CONFIG = {
     # EXTENSIONS easyconfig parameters
     'exts_download_dep_fail': [False, "Fail if downloaded dependencies are detected for extensions", EXTENSIONS],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
-    'exts_defaultclass': [None, "List of module for and name of the default extension class", EXTENSIONS],
+    'exts_defaultclass': [None, "Name of default easyblock for extensions", EXTENSIONS],
     'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
                            "(templates for ext_name, ext_version and src)."), EXTENSIONS],

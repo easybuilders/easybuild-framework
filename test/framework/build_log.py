@@ -36,6 +36,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base.fancylogger import getLogger, logToFile, setLogFormat
+from easybuild.framework.easyconfig.tweak import tweak_one
 from easybuild.tools.build_log import (
     LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error, print_msg,
     print_warning, stop_logging, time_str_since, raise_nosupport)
@@ -58,33 +59,40 @@ class BuildLogTest(EnhancedTestCase):
 
     def test_easybuilderror(self):
         """Tests for EasyBuildError."""
-        fd, tmplog = tempfile.mkstemp()
-        os.close(fd)
-
         # set log format, for each regex searching
         setLogFormat("%(name)s :: %(message)s")
 
-        # if no logger is available, and no logger is specified, use default 'root' fancylogger
-        logToFile(tmplog, enable=True)
-        self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
-        logToFile(tmplog, enable=False)
+        with self.log_to_testlogfile() as logfile:
+            self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
+            logtxt = read_file(logfile)
 
         log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        logtxt = read_file(tmplog, 'r')
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
         self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
 
         # a '%s' in a value used to template the error message should not print a traceback!
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        # stderr should be *empty* (there should definitely not be a traceback)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+        # stdout/stderr should be *empty* (there should definitely not be a traceback)
+        self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
 
-        os.remove(tmplog)
+        # Need to all call a method in the "easybuild" package as everything else will be filtered out
+        with self.log_to_testlogfile() as logfile:
+            self.assertErrorRegex(EasyBuildError, 'Failed to read', tweak_one, '/does/not/exist', '/tmp/new', {})
+            logtxt: str = read_file(logfile)
+
+        self.assertRegex(logtxt, '\n'.join(
+            (r"EasyBuild encountered an error: Failed to read /does/not/exist:.*",
+             r"Callstack:",
+             r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
+             r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
+             r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
+             )), re.M)
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""

@@ -93,6 +93,21 @@ from easybuild.tools.version import different_major_versions
 _log = None
 
 
+if sys.version_info < (3, 9):
+    full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
+    warning_lines = [
+        "\033[1;33m"
+        "WARNING: Running EasyBuild with Python < 3.9 is deprecated (you are using Python %s)" % full_py_ver,
+        '',
+        "You should use a more recent Python version to run EasyBuild with,",
+        "see https://docs.easybuild.io/installation/#more_pip_env_EB_PYTHON for more information."
+        "\033[0m"
+    ]
+    # only print the warning if we're not running in GitHub Actions
+    if os.getenv('GITHUB_ACTIONS') != 'true':
+        sys.stderr.write('\n' + '\n'.join(warning_lines) + '\n\n')
+
+
 def find_easyconfigs_by_specs(build_specs, robot_path, try_to_generate, testing=False):
     """Find easyconfigs by build specifications."""
     generated, ec_file = obtain_ec_for(build_specs, robot_path, None)
@@ -792,6 +807,9 @@ def prepare_main(args=None, logfile=None, testing=None):
     :param testing: enable testing mode
     :return: 3-tuple with initial session state data, EasyBuildOptions instance, and tuple with configuration settings
     """
+    # set $___EASYBUILD___ environment variable to 'EasyBuild' to indicate that we're in an EasyBuild session
+    os.environ['___EASYBUILD___'] = 'EasyBuild'
+
     register_lock_cleanup_signal_handlers()
 
     # if $CDPATH is set, unset it, it'll only cause trouble...

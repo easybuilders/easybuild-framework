@@ -1095,6 +1095,8 @@ class ModulesTool:
         :param init_env: original environment to restore after running 'module purge'
         :param allow_reload: allow reloading an already loaded module
         """
+        if not any((modules, mod_paths, purge)):
+            return  # Avoid costly module paths if nothing to do
         if mod_paths is None:
             mod_paths = []
 
@@ -1123,10 +1125,10 @@ class ModulesTool:
             if os.path.exists(full_mod_path):
                 self.prepend_module_path(full_mod_path, priority=priority)
 
-        loaded_modules = self.loaded_modules()
+        if not allow_reload:
+            modules = set(modules) - set(self.loaded_modules())
         for mod in modules:
-            if allow_reload or mod not in loaded_modules:
-                self.run_module('load', mod)
+            self.run_module('load', mod)
 
     def unload(self, modules, log_changes=True):
         """
@@ -1289,7 +1291,7 @@ class ModulesTool:
             # keep track of current values of select env vars, so we can correct the adjusted values below
             # Identical to `{key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}`
             # but Python 2 treats that as a local function and refused the `exec` below
-            prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
+            prev_ld_values = {key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}
 
             # Change the environment
             try:
