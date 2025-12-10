@@ -261,9 +261,9 @@ class ParallelBuildTest(EnhancedTestCase):
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
-        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_easyblocks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox')
-        cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (topdir, test_easyblocks_path)
+        pythonpath = ':'.join((os.environ.get('PYTHONPATH', ''), test_easyblocks_path))
+        cmd = f"PYTHONPATH={pythonpath} eb %(spec)s -df"
 
         with self.mocked_stdout_stderr():
             build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
