@@ -435,7 +435,7 @@ def thread_name():
     """
     returns the current threads name
     """
-    return threading.currentThread().getName()
+    return threading.current_thread().name
 
 
 def getLogger(name=None, fname=False, clsname=False, fancyrecord=None):
@@ -577,8 +577,8 @@ def logToFile(filename, enable=True, filehandler=None, name=None, max_bytes=MAX_
         'mode': 'a',
         'maxBytes': max_bytes,
         'backupCount': backup_count,
+        'encoding': 'utf-8',
     }
-    handleropts['encoding'] = 'utf-8'
     # logging to a file is going to create the file later on, so let's try to be helpful and create the path if needed
     directory = os.path.dirname(filename)
     if not os.path.exists(directory):
@@ -783,7 +783,7 @@ def getAllExistingLoggers():
     """
     # not-so-well documented manager (in 2.6 and later)
     # return list of (name,logger) tuple
-    return [x for x in logging.Logger.manager.loggerDict.items()] + [(logging.root.name, logging.root)]
+    return list(logging.Logger.manager.loggerDict.items()) + [(logging.root.name, logging.root)]
 
 
 def getAllNonFancyloggers():

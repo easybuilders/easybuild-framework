@@ -457,17 +457,24 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         cmd_name = fileprefix_from_cmd(os.path.basename(cmd_str.split(' ')[0]))
         tmpdir = tempfile.mkdtemp(dir=toptmpdir, prefix=f'{cmd_name}-')
 
-        _log.info(f'run_shell_cmd: command environment of "{cmd_str}" will be saved to {tmpdir}')
-
         cmd_out_fp = os.path.join(tmpdir, 'out.txt')
-        _log.info(f'run_shell_cmd: Output of "{cmd_str}" will be logged to {cmd_out_fp}')
         if split_stderr:
             cmd_err_fp = os.path.join(tmpdir, 'err.txt')
-            _log.info(f'run_shell_cmd: Errors and warnings of "{cmd_str}" will be logged to {cmd_err_fp}')
         else:
             cmd_err_fp = None
 
         cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
+
+        log_str = '\n'.join([
+            'Script to start debug shell for command',
+            f'\t{cmd_str}',
+            f'will be saved to {cmd_sh}',
+            f'Output will be logged to {cmd_out_fp}',
+        ])
+        if cmd_err_fp:
+            log_str += f'\nErrors and warnings will be logged to {cmd_err_fp}'
+        _log.info(f'run_shell_cmd: {log_str}')
+
     else:
         tmpdir, cmd_out_fp, cmd_err_fp, cmd_sh = None, None, None, None
 

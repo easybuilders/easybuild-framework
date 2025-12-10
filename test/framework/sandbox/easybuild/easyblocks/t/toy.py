@@ -135,7 +135,7 @@ class EB_toy(ExtensionEasyBlock):
     def test_step(self, *args, **kwargs):
         """Test toy."""
         if self.cfg['runtest'] == 'RAISE_ERROR':
-            raise EasyBuildError("TOY_TEST_FAIL")
+            raise EasyBuildError("TOY_TEST_FAIL\nDescription on new line")
         else:
             super().test_step(*args, **kwargs)
 
