@@ -34,6 +34,7 @@ import re
 
 from easybuild.tools.toolchain.linalg import LinAlg
 
+from easybuild.tools.options import build_option
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
 
@@ -48,18 +49,20 @@ def det_flexiblas_backend_libs():
     # System-wide (config directory):
     #  OPENBLAS
     #    library = libflexiblas_openblas.so
-    res = run_shell_cmd("flexiblas list", hidden=True)
-
-    shlib_ext = get_shared_lib_ext()
-    flexiblas_lib_regex = re.compile(r'library = (?P<lib>lib.*\.%s)' % shlib_ext, re.M)
-    flexiblas_libs = flexiblas_lib_regex.findall(res.output)
-
     backend_libs = []
-    for flexiblas_lib in flexiblas_libs:
-        # assumption here is that the name of FlexiBLAS library (like 'libflexiblas_openblas.so')
-        # maps directly to name of the backend library ('libopenblas.so')
-        backend_lib = 'lib' + flexiblas_lib.replace('libflexiblas_', '')
-        backend_libs.append(backend_lib)
+    # in a unittest context the flexiblas command does not exist, but in a normal context it always does
+    if not build_option('unit_testing_mode'):
+        res = run_shell_cmd("flexiblas list", hidden=True)
+
+        shlib_ext = get_shared_lib_ext()
+        flexiblas_lib_regex = re.compile(r'library = (?P<lib>lib.*\.%s)' % shlib_ext, re.M)
+        flexiblas_libs = flexiblas_lib_regex.findall(res.output)
+
+        for flexiblas_lib in flexiblas_libs:
+            # assumption here is that the name of FlexiBLAS library (like 'libflexiblas_openblas.so')
+            # maps directly to name of the backend library ('libopenblas.so')
+            backend_lib = 'lib' + flexiblas_lib.replace('libflexiblas_', '')
+            backend_libs.append(backend_lib)
 
     return backend_libs
 
