@@ -230,6 +230,7 @@ def _bash_breakpoint(*args, **kwargs):
     os.environ['PS1'] = old_ps1
     os.environ['PROMPT_COMMAND'] = old_promptcmd
 
+
 def _python_breakpoint(*args, **kwargs):
     """Simple breakpoint hook that opens a Python shell."""
     print('Python breakpoint reached, entering pdb shell...')
@@ -240,10 +241,12 @@ def _python_breakpoint(*args, **kwargs):
     import pdb
     pdb.set_trace()
 
+
 breakpoint_types = {
     'bash': _bash_breakpoint,
     'python': _python_breakpoint,
 }
+
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
