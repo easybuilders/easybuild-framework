@@ -164,6 +164,7 @@ class GeneralTest(EnhancedTestCase):
             [owner]
             name = "Tom Preston-Werner"
             dob = 1979-05-27T07:32:00-08:00
+            odt1 = 1979-05-27T07:32:00Z
 
             [database]
             enabled = true
