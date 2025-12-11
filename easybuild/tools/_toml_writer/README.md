@@ -10,3 +10,5 @@ The stable interface is `easybuild.tools.dump_toml`.
 
 Currently, a copy of [`tomli-w`](https://github.com/hukkin/tomli-w) is vendored in this folder.
 The used version is 1.2.
+
+Minor modifications to make it compatible with Python 3.6.

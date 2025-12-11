@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Mapping
 from datetime import date, datetime, time
 from types import MappingProxyType
@@ -8,7 +6,7 @@ TYPE_CHECKING = False
 if TYPE_CHECKING:
     from collections.abc import Generator
     from decimal import Decimal
-    from typing import IO, Any, Final
+    from typing import IO, Any, Union
 
 ASCII_CTRL = frozenset(chr(i) for i in range(32)) | frozenset(chr(127))
 ILLEGAL_BASIC_STR_CHARS = frozenset('"\\') | ASCII_CTRL - frozenset("\t")
@@ -34,16 +32,15 @@ class Context:
     def __init__(self, allow_multiline: bool, indent: int):
         if indent < 0:
             raise ValueError("Indent width must be non-negative")
-        self.allow_multiline: Final = allow_multiline
+        self.allow_multiline = allow_multiline
         # cache rendered inline tables (mapping from object id to rendered inline table)
-        self.inline_table_cache: Final[dict[int, str]] = {}
-        self.indent_str: Final = " " * indent
+        self.inline_table_cache: dict[int, str] = {}
+        self.indent_str = " " * indent
 
 
 def dump(
-    obj: Mapping[str, Any],
+    obj: Mapping,
     fp: IO[bytes],
-    /,
     *,
     multiline_strings: bool = False,
     indent: int = 4,
@@ -54,19 +51,19 @@ def dump(
 
 
 def dumps(
-    obj: Mapping[str, Any], /, *, multiline_strings: bool = False, indent: int = 4
+    obj: Mapping, *, multiline_strings: bool = False, indent: int = 4
 ) -> str:
     ctx = Context(multiline_strings, indent)
     return "".join(gen_table_chunks(obj, ctx, name=""))
 
 
 def gen_table_chunks(
-    table: Mapping[str, Any],
+    table: Mapping,
     ctx: Context,
     *,
     name: str,
     inside_aot: bool = False,
-) -> Generator[str, None, None]:
+) -> Generator:
     yielded = False
     literals = []
     tables: list[tuple[str, Any, bool]] = []  # => [(key, value, inside_aot)]
@@ -153,7 +150,7 @@ def format_inline_table(obj: Mapping, ctx: Context) -> str:
     return rendered
 
 
-def format_inline_array(obj: tuple | list, ctx: Context, nest_level: int) -> str:
+def format_inline_array(obj: Union[tuple, list], ctx: Context, nest_level: int) -> str:
     if not obj:
         return "[]"
     item_indent = ctx.indent_str * (1 + nest_level)
