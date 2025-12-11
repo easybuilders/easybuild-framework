@@ -158,8 +158,11 @@ class GeneralTest(EnhancedTestCase):
         """Smoke-test for vendored packages"""
         from easybuild.tools import tomllib, dump_toml
         # Example from toml.io
-        res = tomllib.loads("""
+        res = tomllib.loads('''
             title = "TOML Example"
+            description = """Test
+                this\u1234
+            """
 
             [owner]
             name = "Tom Preston-Werner"
@@ -170,16 +173,20 @@ class GeneralTest(EnhancedTestCase):
             enabled = true
             ports = [ 8000, 8001, 8002 ]
             data = [ ["delta", "phi"], [3.14] ]
-            temp_targets = { cpu = 79.5, case = 72.0 }
+            temp_targets = { cpu = { x = 79.5 }, case = -inf }
 
             [servers]
-
             [servers.alpha]
             role = "frontend"
-
             [servers.beta]
             role = "backend"
-        """)
+
+            [[products]]
+            name = "Hammer"
+            [[products]]
+            [[products]]
+            name = "Nail"
+        ''')
         self.assertTrue(res)  # Should just be non-empty
         # Dumping should round-trip
         res_str = dump_toml(res)
