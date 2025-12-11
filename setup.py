@@ -75,7 +75,8 @@ easybuild_packages = [
     "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
     "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
     "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.py2vs3", "easybuild.tools.repository", "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli",
+    "easybuild.tools.py2vs3", "easybuild.tools.repository",
+    "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli", "easybuild.tools._toml_writer",
     "test.framework", "test",
 ]
 

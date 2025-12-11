@@ -156,7 +156,7 @@ class GeneralTest(EnhancedTestCase):
 
     def test_vendored_packages(self):
         """Smoke-test for vendored packages"""
-        from easybuild.tools import tomllib
+        from easybuild.tools import tomllib, dump_toml
         # Example from toml.io
         res = tomllib.loads("""
             title = "TOML Example"
@@ -180,6 +180,10 @@ class GeneralTest(EnhancedTestCase):
             role = "backend"
         """)
         self.assertTrue(res)  # Should just be non-empty
+        # Dumping should round-trip
+        res_str = dump_toml(res)
+        res_parsed = tomllib.loads(res_str)
+        self.assertEqual(res_parsed, res)
 
 
 def suite(loader=None):
