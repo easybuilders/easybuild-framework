@@ -220,7 +220,7 @@ def find_hook(label, hooks, pre_step_hook=False, post_step_hook=False):
     return res
 
 
-def _breakpoint():
+def _bash_breakpoint(*args, **kwargs):
     """Simple breakpoint hook that opens a bash shell."""
     old_ps1 = os.environ.get('PS1', '')
     old_promptcmd = os.environ.get('PROMPT_COMMAND', '')
@@ -230,6 +230,20 @@ def _breakpoint():
     os.environ['PS1'] = old_ps1
     os.environ['PROMPT_COMMAND'] = old_promptcmd
 
+def _python_breakpoint(*args, **kwargs):
+    """Simple breakpoint hook that opens a Python shell."""
+    print('Python breakpoint reached, entering pdb shell...')
+    print('You can inspect/modify the state of the program from here and use `continue` to proceed.')
+    print('Arguments passed to this hook (will contain EasyBlock object to inspect/modify if available):')
+    print('  args = %s' % (args,))
+    print('  kwargs = %s' % (kwargs,))
+    import pdb
+    pdb.set_trace()
+
+breakpoint_types = {
+    'bash': _bash_breakpoint,
+    'python': _python_breakpoint,
+}
 
 def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None, kwargs=None, msg=None):
     """
@@ -242,25 +256,30 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     :param args: arguments to pass to hook function
     :param msg: custom message that is printed when hook is called
     """
+    args = args or []
+    kwargs = kwargs or {}
+
     breakpoints = build_option('breakpoints')
     bk_hooks = {}
     if breakpoints:
         for bk in breakpoints:
-            if not bk.endswith(HOOK_SUFF):
-                bk += HOOK_SUFF
-            bk_hooks[bk] = lambda *a, **k: _breakpoint()
+            if ':' in bk:
+                bk_type, bk_label = bk.split(':', 1)
+            else:
+                bk_type = 'bash'
+                bk_label = bk
+            hook_func = breakpoint_types.get(bk_type)
+            if not bk_label.endswith(HOOK_SUFF):
+                bk_label += HOOK_SUFF
+            bk_hooks[bk_label] = hook_func
+
     bp_hook = find_hook(label, bk_hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     if bp_hook:
-        bp_hook()
+        bp_hook(*args, **kwargs)
 
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     res = None
     if hook:
-        if args is None:
-            args = []
-        if kwargs is None:
-            kwargs = {}
-
         if pre_step_hook:
             label = 'pre-' + label
         elif post_step_hook:
