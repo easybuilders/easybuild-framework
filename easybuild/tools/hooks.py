@@ -266,11 +266,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     bk_hooks = {}
     if breakpoints:
         for bk in breakpoints:
-            if ':' in bk:
-                bk_type, bk_label = bk.split(':', 1)
-            else:
-                bk_type = 'bash'
-                bk_label = bk
+            bk_type, bk_label = (['bash'] + bk.split(':', 1))[-2:]
+            if bk_type not in breakpoint_types:
+                raise EasyBuildError("Unknown breakpoint type '%s' specified for breakpoint '%s'", bk_type, bk)
             hook_func = breakpoint_types.get(bk_type)
             if not bk_label.endswith(HOOK_SUFF):
                 bk_label += HOOK_SUFF
