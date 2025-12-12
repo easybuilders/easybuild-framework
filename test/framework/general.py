@@ -156,7 +156,8 @@ class GeneralTest(EnhancedTestCase):
 
     def test_vendored_packages(self):
         """Smoke-test for vendored packages"""
-        from easybuild.tools import tomllib, dump_toml
+        from easybuild.tools import tomllib
+        from easybuild.tools.filetools import dump_toml
         # Example from toml.io
         res = tomllib.loads('''
             title = "TOML Example"

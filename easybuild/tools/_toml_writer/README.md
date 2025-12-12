@@ -4,7 +4,7 @@ This is an implementation of a library for writing TOML files.
 To be able to update, change and remove it without breaking backwards compatibility in EasyBuild
 it is in a "private" sub-package and should not be used directly: **It can be changed without warning!**
 
-The stable interface is `easybuild.tools.dump_toml`.
+The stable interface is `easybuild.tools.filetools.dump_toml`.
 
 ## Implementation
 

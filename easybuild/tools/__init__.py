@@ -38,11 +38,3 @@ __path__ = __import__('pkgutil').extend_path(__path__, __name__)
 
 
 from easybuild.tools.loose_version import LooseVersion  # noqa(F401)
-
-
-def dump_toml(o: dict) -> str:
-    """Convert the input directory to a string in TOML format"""
-    # Import and redirect here on purpose as the conversion method (or Python package)
-    # is an implementation detail that can be changed at any time
-    import easybuild.tools._toml_writer
-    return easybuild.tools._toml_writer.dumps(o)
