@@ -682,7 +682,7 @@ class EasyConfig:
         # For easyconfig parameters that are dictionaries, input value must also be a dictionary
         if isinstance(self[key], dict) and not isinstance(value, dict):
             msg = "Can't update configuration value for %s, because the attempted"
-            msg += "update value (%s), is not a dictionary (type: %s)."
+            msg += " update value (%s), is not a dictionary (type: %s)."
             raise EasyBuildError(msg, key, value, type(value))
 
         # Grab current parameter value so we can modify it
