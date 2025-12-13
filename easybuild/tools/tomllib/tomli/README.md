@@ -1,6 +1,6 @@
 # Tomllib
 
-Vendored `tomli` from https://github.com/hukkin/tomli version 2.3.0.
+Vendored [`tomli`](https://github.com/hukkin/tomli) version 2.3.0, commit 3fccd16.
 PEP 680 added a version of it as `tomllib` to Python 3.11.
 
 Patched to remove features not available in Python 3.6, mostly type hints.
