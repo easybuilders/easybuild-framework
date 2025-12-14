@@ -1,12 +1,14 @@
-# -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2025 Ghent University
+# Copyright 2015-2025 Bart Oldeman
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
-# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # https://github.com/easybuilders/easybuild
@@ -24,18 +26,23 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for nvofbf compiler toolchain (NVHPC + OpenMPI + FlexiBLAS + ScaLAPACK + FFTW).
+EasyBuild support for NVHPC compiler toolchain.
 
-:author: Mikael Öhman <micketeer@gmail.com> (Chalmers University of Technology)
+Authors:
+
+* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
+* Andreas Herten (Forschungszentrum Juelich)
 """
 
-from easybuild.toolchains.fft.fftw import Fftw
-from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
-from easybuild.toolchains.linalg.scalapack import ScaLAPACK
-from easybuild.toolchains.nvompi import Nvompi
+from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
+from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
-class Nvofbf(Nvompi, FlexiBLAS, ScaLAPACK, Fftw):
-    """Compiler toolchain with NVHPC, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
-    NAME = 'nvofbf'
-    SUBTOOLCHAIN = Nvompi.NAME
+class NvidiaCompilersToolchain(NvidiaCompilers):
+    """Simple toolchain with just the NVIDIA HPC SDK compilers."""
+    NAME = 'nvidia-compilers'
+    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
+    # in particular in a hierarchical module naming scheme
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+    OPTIONAL = False
