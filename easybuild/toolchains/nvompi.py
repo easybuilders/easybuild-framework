@@ -37,4 +37,6 @@ from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
 class Nvompi(NvidiaCompilersToolchain, OpenMPI):
     """Compiler toolchain with NVHPC and Open MPI."""
     NAME = 'nvompi'
-    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME
+    # NVHPC is only listed here as subtoolchain for legacy reasons;
+    # old nvompi toolchain don't have nvidia-compilers as subtoolchain
+    SUBTOOLCHAIN = ['NVHPC', NvidiaCompilersToolchain.NAME]

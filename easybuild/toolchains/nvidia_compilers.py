@@ -45,4 +45,6 @@ class NvidiaCompilersToolchain(NvidiaCompilers):
     # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
     # in particular in a hierarchical module naming scheme
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
-    OPTIONAL = False
+    # nvidia-compilers is only an optional subtoolchain because of legacy reasons;
+    # recent NVHPC toolchains (versions >= 25.0) always have nvidia-compilers are subtoolchain
+    OPTIONAL = True
