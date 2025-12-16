@@ -4923,7 +4923,7 @@ class EasyBlock:
                     except RunShellCmdError as err:
                         err.print()
                         error_msg = (
-                            f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code} "
+                            f"shell command '{err.cmd}' failed with exit code {err.exit_code} "
                             f"in {step_name} step for {os.path.basename(self.cfg.path)}"
                         )
                         try:
