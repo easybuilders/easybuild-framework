@@ -237,20 +237,21 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     else:
         build_overview = ["#### Overview of tested easyconfigs (in order)"]
         for (ec, ec_res) in ecs_with_res:
-            test_log = ''
+            additional_info = ''
             if ec_res.get('success', False):
                 test_result = 'SUCCESS'
+                error_descr = ''
             else:
+                test_result = 'FAIL'
                 # compose test result string
-                test_result = 'FAIL '
                 if 'err' in ec_res:
                     if isinstance(ec_res['err'], EasyBuildError):
-                        test_result += '(build issue)'
+                        error_descr = '(build issue)'
                     else:
-                        test_result += '(unhandled exception: %s)' % ec_res['err']
-                        test_result += ec_res['traceback']
+                        error_descr = '(unhandled exception: `%s`)' % ec_res['err']
+                        additional_info = f"```\n{ec_res['traceback']}\n```"
                 else:
-                    test_result += '(unknown cause, not an exception?!)'
+                    error_descr = '(unknown cause, not an exception?!)'
 
                 # create gist for log file (if desired and available)
                 if gist_log and 'log_file' in ec_res:
@@ -266,9 +267,12 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
 
                     fn = '%s_partial.log' % os.path.basename(ec['spec'])[:-3]
                     gist_url = create_gist(partial_log_txt, fn, descr=descr, github_user=github_user)
-                    test_log = "(partial log available at %s)" % gist_url
+                    additional_info += f"(partial log available at {gist_url})"
 
-            build_overview.append(" * **%s** _%s_ %s" % (test_result, os.path.basename(ec['spec']), test_log))
+            filename = os.path.basename(ec['spec'])
+            if error_descr:
+                error_descr = f"**{error_descr}**"  # Make bold if set
+            build_overview.append(f" * **{test_result}** _{filename}_ {error_descr}\n  {additional_info}")
         build_overview.append("")
         test_report.extend(build_overview)
 

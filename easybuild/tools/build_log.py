@@ -271,7 +271,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             if tmp_logdir and not os.path.exists(tmp_logdir):
                 try:
                     os.makedirs(tmp_logdir)
-                except (IOError, OSError) as err:
+                except OSError as err:
                     raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
 
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
@@ -404,9 +404,8 @@ def print_error(msg, *args, **kwargs):
     if exitCode is not None:
         _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
 
-    # use 1 as defaut exit code
     if exit_code is None:
-        exit_code = 1
+        exit_code = EasyBuildExit.ERROR
 
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
@@ -420,7 +419,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exit_code)
+        sys.exit(int(exit_code))
     elif log is not None:
         raise EasyBuildError(msg)
 

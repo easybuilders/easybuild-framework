@@ -3232,8 +3232,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mentionhdr = 'Custom HTTP header field set: %s'
         mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
 
-        def run_and_assert(args, msg, words_expected=None, words_unexpected=None):
-            stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        def run_and_assert(args, _msg, words_expected=None, words_unexpected=None):
+            stdout, _stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
             if words_expected is not None:
                 self.assert_multi_regex(words_expected, stdout)
             if words_unexpected is not None:
@@ -6450,7 +6450,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--force-download',
             '--sourcepath=%s' % self.test_prefix,
         ]
-        stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
+        _stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, verbose=True, strip=True)
         regex = re.compile(r"^WARNING: Found file toy-0.0.tar.gz at .*, but re-downloading it anyway\.\.\.$")
         self.assertTrue(regex.match(stderr), "Pattern '%s' matches: %s" % (regex.pattern, stderr))
 
@@ -6734,6 +6734,43 @@ class CommandLineOptionsTest(EnhancedTestCase):
         import easybuild.easyblocks.generic.toy_extension
         reload(easybuild.easyblocks.generic.toy_extension)
 
+    def test_keep_going(self):
+        """Test use of --keep-going."""
+        topdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += '\nsources=["toy-0.0.tar.gz"]'
+        write_file(test_ec, test_ec_txt + '\nversion="broken"\npreconfigopts = "false && "')
+        test_ec2 = os.path.join(self.test_prefix, 'test2.eb')
+        write_file(test_ec2, test_ec_txt + '\nversion="working"')
+
+        args = [test_ec, test_ec2, '--rebuild']
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code, error_thrown = self.eb_main(args, do_build=True, return_error=True,
+                                                           return_exit_code=True)
+        self.assertIn("Installation of test.eb failed", str(error_thrown))
+        self.assertNotEqual(exit_code, 0)
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SKIPPED\] *toy/working')
+
+        args.append('--keep-going')
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code = self.eb_main(args, do_build=True, raise_error=True,
+                                             return_exit_code=True)
+        self.assertNotEqual(exit_code, 0)
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SUCCESS\] *toy/working')
+
+        args.append(f"--dump-test-report={os.path.join(tempfile.gettempdir(), 'report.md')}")
+        with self.mocked_stdout_stderr():
+            outtxt, exit_code = self.eb_main(args, do_build=True, raise_error=True,
+                                             return_exit_code=True)
+        self.assertEqual(exit_code, 1)  # Return failure also when creating a test report
+        self.assertRegex(outtxt, r'\[FAILED\] *toy/broken')
+        self.assertRegex(outtxt, r'\[SUCCESS\] *toy/working')
+
     def test_skip_extensions(self):
         """Test use of --skip-extensions."""
         topdir = os.path.abspath(os.path.dirname(__file__))
@@ -6816,10 +6853,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_cuda_compute_capabilities(self):
         """Test --cuda-compute-capabilities configuration option."""
-        args = ['--cuda-compute-capabilities=3.5,6.2,7.0', '--show-config']
+        args = ['--cuda-compute-capabilities=3.5,6.2,7.0,9.0a,10.0f', '--show-config']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
 
-        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0$", re.M)
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0, 9\.0a, 10\.0f$", re.M)
         self.assertRegex(txt, regex)
 
     def test_create_index(self):

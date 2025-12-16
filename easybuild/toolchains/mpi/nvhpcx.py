@@ -23,25 +23,33 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for NVHPC compiler toolchain with support for MPI
+Support for NVHPCX as toolchain MPI library.
 
 Authors:
 
-* Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
-* Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
-from easybuild.toolchains.gcccore import GCCcore
-from easybuild.toolchains.linalg.nvblas import NVBLAS
-from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
-from easybuild.toolchains.mpi.nvhpcx import NVHPCX
-from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
-from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
+from easybuild.toolchains.mpi.openmpi import OpenMPI
+from easybuild.tools.toolchain.constants import MPI_COMPILER_VARIABLES
+
+TC_CONSTANT_OPENMPI = "OpenMPI"
+TC_CONSTANT_MPI_TYPE_OPENMPI = "MPI_TYPE_OPENMPI"
 
 
-class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
-    """Toolchain with Nvidia compilers and NVHPCX."""
-    NAME = 'NVHPC'
-    # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
-    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
-    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+class NVHPCX(OpenMPI):
+    """NVHPCX MPI class"""
+    MPI_MODULE_NAME = ['NVHPC']
+    MPI_FAMILY = TC_CONSTANT_OPENMPI
+    MPI_TYPE = TC_CONSTANT_MPI_TYPE_OPENMPI
+
+    MPI_LIBRARY_NAME = 'mpi'
+
+    # version-dependent, so defined at runtime
+    MPI_COMPILER_MPIF77 = None
+    MPI_COMPILER_MPIF90 = None
+    MPI_COMPILER_MPIFC = None
+
+    # OpenMPI reads from CC etc env variables
+    MPI_SHARED_OPTION_MAP = {'_opt_%s' % var: '' for var, _ in MPI_COMPILER_VARIABLES}
+
+    MPI_LINK_INFO_OPTION = '-showme:link'

@@ -33,14 +33,14 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Kenneth Hoste (Ghent University)
 """
-import re
+import os
 import platform
+import re
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 from easybuild.tools.config import build_option
-
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
@@ -88,6 +88,10 @@ TEMPLATE_SOFTWARE_VERSIONS = {
     'Python': 'py',
     'R': 'r',
 }
+TEMPLATE_CUDA_VERSION_NVHPC = [
+    'nvidia_compilers',
+    'NVHPC',
+]
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
@@ -100,6 +104,7 @@ TEMPLATE_NAMES_DYNAMIC = {
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
     'cuda_cc_cmake': 'List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
+    'cuda_cc_nvhpc': 'List of CUDA compute capabilities suitable for use with -gpu option in NVHPC compilers',
     'cuda_cc_space_sep': 'Space-separated list of CUDA compute capabilities',
     'cuda_cc_space_sep_no_period':
     "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90').",
@@ -443,6 +448,17 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                     template_values['%sminver' % pref] = dep_version_parts[1]
                 template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
+    # step 2.1: CUDA templates in NVHPC
+    if toolchain is not None and hasattr(toolchain, 'name') and toolchain.name in TEMPLATE_CUDA_VERSION_NVHPC:
+        cuda_version = os.getenv("EBNVHPCCUDAVER", None)
+        if cuda_version:
+            cuda_version_parts = cuda_version.split('.')
+            template_values['cudaver'] = cuda_version
+            template_values['cudamajver'] = cuda_version_parts[0]
+            if len(cuda_version_parts) > 1:
+                template_values['cudaminver'] = cuda_version_parts[1]
+            template_values['cudashortver'] = '.'.join(cuda_version_parts[:2])
+
     # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
         if name in ignore:
@@ -489,6 +505,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         template_values['cuda_cc_space_sep_no_period'] = ' '.join(cc.replace('.', '') for cc in cuda_cc)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_cc)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_cc)
+        template_values['cuda_cc_nvhpc'] = ','.join(f"cc{cc.replace('.', '')}" for cc in cuda_cc)
         int_values = [cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_int_comma_sep'] = ','.join(int_values)
         template_values['cuda_int_space_sep'] = ' '.join(int_values)

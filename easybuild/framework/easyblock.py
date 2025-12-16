@@ -42,6 +42,7 @@ Authors:
 * Caspar van Leeuwen (SURF)
 * Jan Andre Reuter (Juelich Supercomputing Centre)
 * Jasper Grimm (UoY)
+* Alex Domingo (Vrije Universiteit Brussel)
 """
 import concurrent
 import copy
@@ -3026,8 +3027,20 @@ class EasyBlock:
             self.modules_tool.load(extra_modules)
 
         # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
-        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+        if get_software_root('CUDA') or get_software_root('CUDAcore') or get_software_root('nvidia-compilers'):
             self.set_up_cuda_cache()
+
+        # Set CUDA compute capabilities from default value in nvidia-compiler/NVHPC toolchains
+        if get_software_root('nvidia-compilers'):
+            cuda_cc_cfg = self.cfg.get('cuda_compute_capabilities')
+            cuda_cc_opt = build_option('cuda_compute_capabilities')
+            cuda_cc_nvhpc = os.getenv('EBNVHPCCUDACC', None)
+            if not cuda_cc_cfg and not cuda_cc_opt and cuda_cc_nvhpc:
+                self.cfg['cuda_compute_capabilities'] = cuda_cc_nvhpc.split(',')
+                self.log.info(
+                    "Updated empty 'cuda_compute_capabilities' option with default CUDA compute capability "
+                    f"defined in nvidia-compilers: {self.cfg['cuda_compute_capabilities']}"
+                )
 
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
