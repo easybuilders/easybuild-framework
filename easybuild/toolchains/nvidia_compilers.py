@@ -1,11 +1,14 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2015-2025 Bart Oldeman
+#
+# This file is triple-licensed under GPLv2 (see below), MIT, and
+# BSD three-clause licenses.
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
 # with support of Ghent University (http://ugent.be/hpc),
 # the Flemish Supercomputer Centre (VSC) (https://www.vscentrum.be),
-# Flemish Research Foundation (FWO) (http://www.fwo.be/en)
+# the Hercules foundation (http://www.herculesstichting.be/in_English)
 # and the Department of Economy, Science and Innovation (EWI) (http://www.ewi-vlaanderen.be/en).
 #
 # https://github.com/easybuilders/easybuild
@@ -23,25 +26,25 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for NVHPC compiler toolchain with support for MPI
+EasyBuild support for NVHPC compiler toolchain.
 
 Authors:
 
 * Bart Oldeman (McGill University, Calcul Quebec, Compute Canada)
 * Andreas Herten (Forschungszentrum Juelich)
-* Alex Domingo (Vrije Universiteit Brussel)
 """
+
+from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.toolchains.linalg.nvblas import NVBLAS
-from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
-from easybuild.toolchains.mpi.nvhpcx import NVHPCX
-from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
-class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
-    """Toolchain with Nvidia compilers and NVHPCX."""
-    NAME = 'NVHPC'
-    # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
-    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
-    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+class NvidiaCompilersToolchain(NvidiaCompilers):
+    """Simple toolchain with just the NVIDIA HPC SDK compilers."""
+    NAME = 'nvidia-compilers'
+    # use GCCcore as subtoolchain rather than GCC, since two 'real' compiler-only toolchains don't mix well,
+    # in particular in a hierarchical module naming scheme
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+    # nvidia-compilers is only an optional subtoolchain because of legacy reasons;
+    # recent NVHPC toolchains (versions >= 25.0) always have nvidia-compilers are subtoolchain
+    OPTIONAL = True

@@ -328,6 +328,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_test_failure',
         'install_latest_eb_release',
         'keep_debug_symbols',
+        'keep_going',
         'logtostdout',
         'minimal_toolchains',
         'module_only',

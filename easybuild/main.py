@@ -291,7 +291,7 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
 
     # Loop over each item in the EasyStack file, each time updating the config
     # This is because each item in an EasyStack file can have options associated with it
-    do_cleanup = True
+    is_successful = True
     for (path, ec_opts) in easystack.ec_opt_tuples:
         _log.debug("Starting build for %s" % path)
 
@@ -328,10 +328,10 @@ def process_easystack(easystack_path, args, logfile, testing, init_session_state
         modtool = modules_tool(testing=testing)
 
         # Process actual item in the EasyStack file
-        do_cleanup &= process_eb_args([path], eb_go, cfg_settings, modtool, testing, init_session_state,
-                                      hooks, do_build)
+        is_successful &= process_eb_args([path], eb_go, cfg_settings, modtool, testing, init_session_state,
+                                         hooks, do_build)
 
-    return do_cleanup
+    return is_successful
 
 
 def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session_state, hooks, do_build):
@@ -354,7 +354,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     global _log
     # Unpack cfg_settings
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
+    (build_specs, _log, _logfile, robot_path, search_query, _eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
 
     # determine easybuild-easyconfigs package install path
@@ -604,7 +604,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     # build software, will exit when errors occurs (except when testing)
     start_time = datetime.now()
     if not testing or (testing and do_build):
-        exit_on_failure = not (options.dump_test_report or options.upload_test_report)
+        exit_on_failure = not any((options.dump_test_report, options.upload_test_report, options.keep_going))
 
         with rich_live_cm():
             run_hook(PRE_PREF + BUILD_AND_INSTALL_LOOP, hooks, args=[ordered_ecs])
@@ -644,7 +644,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     return overall_success
 
 
-def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, prepared_cfg_data=None):
+def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, prepared_cfg_data=None) -> EasyBuildExit:
     """
     Main function: parse command line options, and act accordingly.
     :param args: command line arguments to use
@@ -652,6 +652,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     :param do_build: whether or not to actually perform the build
     :param testing: enable testing mode
     :param prepared_cfg_data: prepared configuration data for main function, as returned by prepare_main (or None)
+
+    :return: error code
     """
     if prepared_cfg_data is None or any([args, logfile, testing]):
         init_session_state, eb_go, cfg_settings = prepare_main(args=args, logfile=logfile, testing=testing)
@@ -661,8 +663,8 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
     options, orig_paths = eb_go.options, eb_go.args
 
     global _log
-    (build_specs, _log, logfile, robot_path, search_query, eb_tmpdir, try_to_generate,
-     from_pr_list, tweaked_ecs_paths) = cfg_settings
+    (_build_specs, _log, logfile, _robot_path, search_query, eb_tmpdir, _try_to_generate,
+     _from_pr_list, _tweaked_ecs_paths) = cfg_settings
 
     # compare running Framework and EasyBlocks versions
     if EASYBLOCKS_VERSION == UNKNOWN_EASYBLOCKS_VERSION:
@@ -788,15 +790,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
                 "The following arguments will be ignored:",
             ] + orig_paths)
             print_warning(msg)
-        do_cleanup = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
+        is_successful = process_easystack(options.easystack, args, logfile, testing, init_session_state, do_build)
     else:
-        do_cleanup = process_eb_args(orig_paths, eb_go, cfg_settings, modtool, testing, init_session_state,
-                                     hooks, do_build)
+        is_successful = process_eb_args(orig_paths, eb_go, cfg_settings, modtool, testing, init_session_state,
+                                        hooks, do_build)
 
     # stop logging and cleanup tmp log file, unless one build failed (individual logs are located in eb_tmpdir)
     stop_logging(logfile, logtostdout=options.logtostdout)
-    if do_cleanup:
+    if is_successful:
         cleanup(logfile, eb_tmpdir, testing, silent=options.terse)
+    return EasyBuildExit.SUCCESS if is_successful else EasyBuildExit.ERROR
 
 
 def prepare_main(args=None, logfile=None, testing=None):
@@ -838,7 +841,8 @@ def main_with_hooks(args=None):
     hooks = load_hooks(eb_go.options.hooks)
 
     try:
-        main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
         print_error(err.msg, exit_on_error=True, exit_code=err.exit_code)

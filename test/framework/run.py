@@ -447,8 +447,8 @@ class RunTest(EnhancedTestCase):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex_start_cmd = re.compile("Running shell command 'echo hello' in /")
-        regex_cmd_exit = re.compile(r"Shell command completed successfully: echo hello")
+        regex_start_cmd = re.compile(r"Running 'echo ...' shell command in .*:\n\techo hello", re.M)
+        regex_cmd_exit = re.compile(r"'echo ...' shell command completed successfully")
         regex_cmd_output = re.compile(r"Output of 'echo \.\.\.' shell command \(stdout \+ stderr\):\nhello", re.M)
 
         # command output is logged
@@ -2250,7 +2250,8 @@ class RunTest(EnhancedTestCase):
             f"rm -rf {workdir} && echo 'Working directory removed.'"
         )
 
-        error_pattern = rf"Failed to return to .*/{os.path.basename(self.test_prefix)}/workdir after executing command"
+        error_pattern = rf"Failed to return to .*/{os.path.basename(self.test_prefix)}/workdir "
+        error_pattern += r"after executing 'echo ...' shell command"
 
         mkdir(workdir, parents=True)
         with self.mocked_stdout_stderr():

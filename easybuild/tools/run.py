@@ -439,15 +439,18 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
             _log.info("Command to run was changed by pre-%s hook: '%s' (was: '%s')", RUN_SHELL_CMD, cmd, old_cmd)
 
     cmd_str = to_cmd_str(cmd)
+    cmd_name = cmd_str.split(' ', 1)[0]
+    cmd_type_msg = ('interactive ' if interactive else '') + ('shell command' if use_bash else 'command')
+    short_cmd_msg = f"'{cmd_name} ...' {cmd_type_msg}"  # E.g. "'gcc ...' shell command"
 
     thread_id = None
     if asynchronous:
         thread_id = get_thread_id()
-        _log.info(f"Initiating running of shell command '{cmd_str}' via thread with ID {thread_id}")
+        _log.info(f"Initiating running of shell command '{short_cmd_msg}' via thread with ID {thread_id}")
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
     if stream_output is None and build_option('logtostdout'):
-        _log.info(f"Auto-enabling streaming output of '{cmd_str}' command because logging to stdout is enabled")
+        _log.info(f"Auto-enabling streaming output of '{short_cmd_msg}' command because logging to stdout is enabled")
         stream_output = True
 
     # temporary output file(s) for command output, along with helper scripts
@@ -465,11 +468,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
 
-        log_str = '\n'.join([
-            'Script to start debug shell for command',
-            f'\t{cmd_str}',
-            f'will be saved to {cmd_sh}',
-            f'Output will be logged to {cmd_out_fp}',
+        log_str = ' '.join([
+            f'Script to start debug shell for {short_cmd_msg}',
+            f'will be saved to {cmd_sh},',
+            f'output will be logged to {cmd_out_fp}',
         ])
         if cmd_err_fp:
             log_str += f'\nErrors and warnings will be logged to {cmd_err_fp}'
@@ -478,13 +480,11 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     else:
         tmpdir, cmd_out_fp, cmd_err_fp, cmd_sh = None, None, None, None
 
-    interactive_msg = 'interactive ' if interactive else ''
-
     # early exit in 'dry run' mode, after printing the command that would be run (unless 'hidden' is enabled)
     if not in_dry_run and build_option('extended_dry_run'):
         if not hidden or verbose_dry_run:
             silent = build_option('silent')
-            msg = f"  running {interactive_msg}shell command \"{cmd_str}\"\n"
+            msg = f"  running {cmd_type_msg} \"{cmd_str}\"\n"
             msg += f"  (in {work_dir})"
             dry_run_msg(msg, silent=silent)
 
@@ -494,7 +494,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     start_time = datetime.now()
     if not hidden:
-        _cmd_trace_msg(cmd_str, start_time, work_dir, stdin, tmpdir, thread_id, interactive=interactive)
+        _cmd_trace_msg(cmd_type_msg, cmd_str, start_time, work_dir, stdin, tmpdir, thread_id)
 
     # use bash as shell instead of the default /bin/sh used by subprocess.run
     # (which could be dash instead of bash, like on Ubuntu, see https://wiki.ubuntu.com/DashAsBinSh)
@@ -512,7 +512,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
     stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
-    log_msg = f"Running {interactive_msg}shell command '{cmd_str}' in {work_dir}"
+    log_msg = f"Running {short_cmd_msg} in {work_dir}:\n\t{cmd_str}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
@@ -621,19 +621,19 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         run_hook(RUN_SHELL_CMD, hooks, post_step_hook=True, args=[cmd], kwargs=run_hook_kwargs)
 
     # log command output (unless command was successful and log_output_on_success is disabled)
-    cmd_name = cmd_str.split(' ')[0]
     if split_stderr:
-        log_msg = f"Output of '{cmd_name} ...' shell command (stdout only):\n{res.output}\n\n"
-        log_msg += f"Warnings and errors of '{cmd_name} ...' shell command (stderr only):\n{res.stderr}"
+        log_msg = f"Output of {short_cmd_msg} (stdout only):\n{res.output}\n\n"
+        log_msg += f"Warnings and errors of {short_cmd_msg} (stderr only):\n{res.stderr}"
     else:
-        log_msg = f"Output of '{cmd_name} ...' shell command (stdout + stderr):\n{res.output}"
+        log_msg = f"Output of {short_cmd_msg} (stdout + stderr):\n{res.output}"
 
+    cmd_type_msg = cmd_type_msg[:1].upper() + cmd_type_msg[1:]  # capitalize first letter
     if res.exit_code == EasyBuildExit.SUCCESS:
-        _log.info(f"Shell command completed successfully: {cmd_str}")
+        _log.info(f"{short_cmd_msg} completed successfully")
         if log_output_on_success:
             _log.info(log_msg)
     else:
-        _log.warning(f"Shell command FAILED (exit code {res.exit_code}): {cmd_str}")
+        _log.warning(f"{short_cmd_msg} FAILED (exit code {res.exit_code})")
         _log.info(log_msg)
         if fail_on_error:
             raise_run_shell_cmd_error(res)
@@ -644,13 +644,13 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.getcwd()
     except FileNotFoundError:
         _log.warning(
-            f"Shell command `{cmd_str}` completed successfully but left the system in an unknown working directory. "
+            f"{short_cmd_msg} completed successfully but left the system in an unknown working directory. "
             f"Changing back to initial working directory: {initial_work_dir}"
         )
         try:
             os.chdir(initial_work_dir)
         except OSError as err:
-            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing command `{cmd_str}`: {err}")
+            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing {short_cmd_msg}: {err}")
 
     if not hidden:
         time_since_start = time_str_since(start_time)
@@ -659,25 +659,24 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     return res
 
 
-def _cmd_trace_msg(cmd, start_time, work_dir, stdin, tmpdir, thread_id, interactive=False):
+def _cmd_trace_msg(cmd_type, cmd, start_time, work_dir, stdin, tmpdir, thread_id):
     """
     Helper function to construct and print trace message for command being run
 
+    :param cmd_type: string describing the type of command being run (e.g., 'interactive shell command')
     :param cmd: command being run
     :param start_time: datetime object indicating when command was started
     :param work_dir: path of working directory in which command is run
     :param stdin: stdin input value for command
     :param tmpdir: path to temporary output directory for command
     :param thread_id: thread ID (None when not running shell command asynchronously)
-    :param interactive: boolean indicating whether it is an interactive command, or not
     """
     start_time = start_time.strftime('%Y-%m-%d %H:%M:%S')
 
-    interactive = 'interactive ' if interactive else ''
     if thread_id:
-        run_cmd_msg = f"running {interactive}shell command (asynchronously, thread ID: {thread_id}):"
+        run_cmd_msg = f"running {cmd_type} (asynchronously, thread ID: {thread_id}):"
     else:
-        run_cmd_msg = f"running {interactive}shell command:"
+        run_cmd_msg = f"running {cmd_type}:"
 
     lines = [
         run_cmd_msg,

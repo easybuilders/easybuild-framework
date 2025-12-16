@@ -305,8 +305,9 @@ class EnhancedTestCase(TestCase):
             self.modtool.add_module_path(modpath, set_mod_paths=False)
         self.modtool.set_mod_paths()
 
-    def eb_main(self, args, do_build=False, return_error=False, logfile=None, verbose=False, raise_error=False,
-                reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True, clear_caches=True):
+    def eb_main(self, args, do_build=False, return_error=False, return_exit_code=False, logfile=None, verbose=False,
+                raise_error=False, reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True,
+                clear_caches=True):
         """Helper method to call EasyBuild main function."""
 
         cleanup(clear_caches=clear_caches)
@@ -325,6 +326,7 @@ class EnhancedTestCase(TestCase):
 
         env_before = copy.deepcopy(os.environ)
 
+        exit_code = eb_build_log.EasyBuildExit.ERROR
         try:
             if '--fetch' in args:
                 # The config sets modules_tool to None if --fetch is specified,
@@ -332,7 +334,7 @@ class EnhancedTestCase(TestCase):
                 modtool = None
             else:
                 modtool = self.modtool
-            main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
+            exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
         except SystemExit as err:
             if raise_systemexit:
                 raise err
@@ -340,6 +342,8 @@ class EnhancedTestCase(TestCase):
             myerr = err
             if verbose:
                 print("err: %s" % err)
+            if isinstance(err, eb_build_log.EasyBuildError):
+                exit_code = err.exit_code
 
         if logfile and os.path.exists(logfile):
             logtxt = read_file(logfile)
@@ -362,9 +366,12 @@ class EnhancedTestCase(TestCase):
             raise myerr
 
         if return_error:
+            if return_exit_code:
+                return logtxt, exit_code, myerr
             return logtxt, myerr
-        else:
-            return logtxt
+        if return_exit_code:
+            return logtxt, exit_code
+        return logtxt
 
     def setup_hierarchical_modules(self):
         """Setup hierarchical modules to run tests on."""
