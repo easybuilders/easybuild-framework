@@ -1529,11 +1529,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
-        self.assertIn(pattern, stdout)
-        copied_ecs = os.listdir(test_dir)
-        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+        else:
+            pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
+            self.assertIn(pattern, stdout)
+            copied_ecs = os.listdir(test_dir)
+            self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
 
         # cleanup
         remove_dir(test_dir)
@@ -1547,10 +1547,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        self.assertIn(pattern, stdout)
-        copied_ecs = os.listdir(test_dir)
-        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+        else:
+            self.assertIn(pattern, stdout)
+            copied_ecs = os.listdir(test_dir)
+            self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
 
         # cleanup
         change_dir(cwd)
@@ -1574,10 +1574,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        copied_ecs = os.listdir(test_dir)
-        for ec in expected_ecs:
-            self.assertIn(ec, copied_ecs)
+        else:
+            copied_ecs = os.listdir(test_dir)
+            for ec in expected_ecs:
+                self.assertIn(ec, copied_ecs)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
@@ -2063,7 +2063,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
         # test with multiple prs
         tmpdir = tempfile.mkdtemp()
@@ -2096,7 +2095,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
     def test_github_from_pr_token_log(self):
         """Check that --from-pr doesn't leak GitHub token in log."""
@@ -2180,7 +2178,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
     def test_github_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
@@ -2304,7 +2301,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
-            shutil.rmtree(tmpdir)
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
@@ -2356,7 +2352,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_include_easyblocks_from_commit" % err)
-            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
