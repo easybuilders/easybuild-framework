@@ -43,7 +43,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
-from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, X86_64
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, RISCV, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
 from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
@@ -51,13 +51,50 @@ from easybuild.tools.systemtools import check_linked_shared_libs, check_os_depen
 from easybuild.tools.systemtools import det_parallelism, det_pypkg_version, get_avail_core_count
 from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_architectures, get_cpu_arch_name
 from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_cpu_model
-from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_os_type
-from easybuild.tools.systemtools import get_os_name, get_os_version, get_platform_name, get_shared_lib_ext
+from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_isa_riscv
+from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version, get_platform_name, get_shared_lib_ext
 from easybuild.tools.systemtools import get_system_info, get_total_memory, get_linked_libs_raw
 from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
 PROC_CPUINFO_TXT = None
+
+PROC_CPUINFO_TXT_RISCV64 = """processor       : 0
+hart            : 1
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
+
+processor       : 1
+hart            : 0
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
+
+processor       : 2
+hart            : 2
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
+
+processor       : 3
+hart            : 3
+isa             : rv64imafdch_zicsr_zifencei_zba_zbb_sscofpmf
+mmu             : sv48
+uarch           : sifive,p550
+mvendorid       : 0x489
+marchid         : 0x8000000000000008
+mimpid          : 0x6220425
+"""
 
 PROC_CPUINFO_TXT_RASPI2 = """processor : 0
 model name : ARMv7 Processor rev 5 (v7l)
@@ -535,6 +572,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Set up systemtools test."""
         super().setUp()
         self.orig_get_cpu_architecture = st.get_cpu_architecture
+        self.orig_get_cpu_family = st.get_cpu_family
         self.orig_get_os_name = st.get_os_name
         self.orig_get_os_type = st.get_os_type
         self.orig_is_readable = st.is_readable
@@ -554,6 +592,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.is_readable = self.orig_is_readable
         st.read_file = self.orig_read_file
         st.get_cpu_architecture = self.orig_get_cpu_architecture
+        st.get_cpu_family = self.orig_get_cpu_family
         st.get_os_name = self.orig_get_os_name
         st.get_os_type = self.orig_get_os_type
         st.run_shell_cmd = self.orig_run_shell_cmd
@@ -724,6 +763,29 @@ class SystemToolsTest(EnhancedTestCase):
                     'sse4.2', 'ssse3', 'syscall', 'tm', 'tm2', 'tpr', 'tsc', 'tsc_thread_offset', 'tsci', 'tsctmr',
                     'vme', 'vmx', 'x2apic', 'xd', 'xsave']
         self.assertEqual(get_cpu_features(), expected)
+
+    def test_isa_riscv_native(self):
+        """Test getting ISA string (for RISC-V)."""
+        isa_string = get_isa_riscv()
+
+        if get_cpu_family() == RISCV:
+            self.assertIsInstance(isa_string, str)
+        else:
+            self.assertEqual(isa_string, None)
+
+    def test_isa_riscv_linux(self):
+        """Test getting ISA string (mocked for Linux)."""
+        st.get_cpu_family = lambda: RISCV
+        st.get_os_type = lambda: st.LINUX
+        st.read_file = mocked_read_file
+        st.is_readable = lambda fp: mocked_is_readable(PROC_CPUINFO_FP, fp)
+
+        # tweak global constant used by mocked_read_file
+        global PROC_CPUINFO_TXT
+
+        PROC_CPUINFO_TXT = PROC_CPUINFO_TXT_RISCV64
+        expected = 'rv64imafdch_sscofpmf_zba_zbb_zicsr_zifencei'
+        self.assertEqual(get_isa_riscv(), expected)
 
     def test_cpu_architecture_native(self):
         """Test getting the CPU architecture."""
