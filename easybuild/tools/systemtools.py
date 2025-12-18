@@ -629,8 +629,11 @@ def get_cpu_features():
 
 def get_isa_riscv():
     """
-    Get supported ISA string
+    Get supported ISA string on RISC-V Linux systems
     """
+    if get_cpu_family() != RISCV:
+        return None
+
     # 'rv64imafdc identifies the baseline RISC-V CPU architecture we are targetting.
     # - rv64: 64-bit RISC-V
     # - i: Integer instruction set (mandatory base ISA)
@@ -644,6 +647,7 @@ def get_isa_riscv():
     # provides all the capabilities expected by modern toolchains and runtimes,
     # and ensures broad compatibility and good performance.
     isa_string = 'rv64imafdc'
+    _log.debug(f"Default ISA string: {isa_string}")
     os_type = get_os_type()
     if os_type == LINUX:
         if is_readable(PROC_CPUINFO_FP):
@@ -653,13 +657,16 @@ def get_isa_riscv():
             res = isa_regex.search(proc_cpuinfo)
             if res:
                 isa_string = res.group(1)
-                _log.debug("Found ISA string using regex '%s': %s", isa_regex.pattern, isa_string)
+                _log.debug(f"Found ISA string using regex '{isa_regex.pattern}': {isa_string}")
+                # sort parts separated by underscore alphabetically, as required by older GCC versions (< 14)
+                isa_string = '_'.join(sorted(isa_string.split('_')))
+                _log.debug(f"Sorted ISA string {isa_string}")
             else:
-                _log.debug("Failed to determine ISA string from %s", PROC_CPUINFO_FP)
+                _log.debug(f"Failed to determine ISA string from {PROC_CPUINFO_FP}")
         else:
-            _log.debug("%s not found to determine ISA string", PROC_CPUINFO_FP)
+            _log.debug(f"{PROC_CPUINFO_FP} not found to determine ISA string")
     else:
-        _log.debug("Could not determine ISA string (OS: %s), defaulting to: %s", os_type, isa_string)
+        _log.debug(f"Could not determine ISA string (OS: {os_type}), defaulting to {isa_string}")
     return isa_string
 
 

@@ -94,14 +94,17 @@ class Gcc(Compiler):
         # no support for -march on POWER; implies -mtune=native
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',
+        (systemtools.X86_64, systemtools.AMD): '-march=native',  # implies -mtune=native
+        (systemtools.X86_64, systemtools.INTEL): '-march=native',  # implies -mtune=native
+    }
+    if systemtools.get_cpu_family() == systemtools.RISCV:
         # documentation about the RISC-V ISA field and GCC's -march option:
         # https://github.com/riscv-non-isa/riscv-toolchain-conventions/blob/main/src/toolchain-conventions.adoc
         # https://docs.riscv.org/reference/isa/unpriv/naming.html
         # https://gcc.gnu.org/gcc-14/changes.html
-        (systemtools.RISCV64, systemtools.RISCV): '-march=' + systemtools.get_isa_riscv(),  # use all extensions
-        (systemtools.X86_64, systemtools.AMD): '-march=native',  # implies -mtune=native
-        (systemtools.X86_64, systemtools.INTEL): '-march=native',  # implies -mtune=native
-    }
+        march_opt = '-march=' + systemtools.get_isa_riscv()
+        COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(systemtools.RISCV64, systemtools.RISCV)] = march_opt
+
     # used with --optarch=GENERIC
     COMPILER_GENERIC_OPTION = {
         (systemtools.AARCH32, systemtools.ARM): '-mcpu=generic-armv7',  # implies -march=armv7 and -mtune=generic-armv7
