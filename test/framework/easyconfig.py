@@ -1344,10 +1344,10 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_template_constant_import(self):
         """Test importing template constants works"""
-        from easybuild.framework.easyconfig.templates import GITHUB_SOURCE, GNU_SOURCE, SHLIB_EXT
+        from easybuild.framework.easyconfig.templates import GITHUB_SOURCE, GNU_FTP_URLS, SHLIB_EXT
         from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS
         self.assertEqual(GITHUB_SOURCE, TEMPLATE_CONSTANTS['GITHUB_SOURCE'][0])
-        self.assertEqual(GNU_SOURCE, TEMPLATE_CONSTANTS['GNU_SOURCE'][0])
+        self.assertEqual(GNU_FTP_URLS, TEMPLATE_CONSTANTS['GNU_FTP_URLS'][0])
         self.assertEqual(SHLIB_EXT, get_shared_lib_ext())
 
     def test_ec_method_resolve_template(self):
