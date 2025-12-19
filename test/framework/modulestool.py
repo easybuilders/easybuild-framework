@@ -111,7 +111,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
         os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         error_regex = ".*pattern .* not found in defined 'module' function"
-        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
+        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, mod_paths=["/nonexisting]"], testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
