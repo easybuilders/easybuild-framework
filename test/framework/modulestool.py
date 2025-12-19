@@ -198,13 +198,6 @@ class ModulesToolTest(EnhancedTestCase):
         modulecmd_abspath = next((cmd for cmd in (which(EnvironmentModules.COMMAND),
                                                   os.environ.get(EnvironmentModules.COMMAND_ENVIRONMENT))
                                  if cmd and os.path.exists(cmd)), None)
-        # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
-        # command in EnvironmentModules)
-        os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
-        os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
-        error_regex = ".*pattern .* not found in defined 'module' function"
-        self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
-
         # redefine '_module_raw' function with correct module command
         if modulecmd_abspath is not None:
             os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % modulecmd_abspath
@@ -249,6 +242,13 @@ class ModulesToolTest(EnhancedTestCase):
         EnvironmentModules.COMMAND = fake_path
         mt = EnvironmentModules(testing=True)
         self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+
+        # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
+        # command in EnvironmentModules)
+        os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
+        os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
+        error_regex = ".*pattern .* not found in defined 'module' function"
+        self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
 
     def tearDown(self):
         """Testcase cleanup."""
