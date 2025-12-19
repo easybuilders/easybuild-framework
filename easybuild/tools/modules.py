@@ -615,10 +615,6 @@ class ModulesTool:
         else:
             env_cmd_path = None
 
-        self.mod_paths = None
-        if mod_paths is not None:
-            self.set_mod_paths(mod_paths)
-
         if env_cmd_path:
             cmd_path = which(self.cmd, log_ok=False, on_error=IGNORE)
             # only use command path in environment variable if command in not available in $PATH
@@ -641,7 +637,6 @@ class ModulesTool:
 
         # some initialisation/verification
         self.check_cmd_avail()
-        self.check_module_path()
         self.check_module_function(allow_mismatch=build_option('allow_modules_tool_mismatch'))
         self.set_and_check_version()
         self.supports_depends_on = False
@@ -649,6 +644,11 @@ class ModulesTool:
         self.supports_tcl_check_group = False
         self.supports_safe_auto_load = False
         self.supports_extensions = False
+
+        self.mod_paths = None
+        if mod_paths is not None:
+            self.set_mod_paths(mod_paths)
+        self.check_module_path()
 
     def __str__(self):
         """String representation of this ModulesTool instance."""
