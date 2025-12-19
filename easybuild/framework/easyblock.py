@@ -3071,8 +3071,9 @@ class EasyBlock:
         except RunShellCmdError as err:
             err.print()
             ec_path = os.path.basename(self.cfg.path)
-            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
-            self.report_test_failure(error_msg)
+            error_msg = "shell command '{cmd}' failed in test step for " + ec_path
+            self.log.warning(error_msg.format(cmd=err.cmd))
+            self.report_test_failure(error_msg.format(cmd=f"{err.cmd_name} ..."))
 
     def stage_install_step(self):
         """Install in a stage directory before actual installation."""
@@ -4922,15 +4923,16 @@ class EasyBlock:
                         self.run_step(step_name, step_methods)
                     except RunShellCmdError as err:
                         err.print()
-                        error_msg = (
-                            f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code} "
-                            f"in {step_name} step for {os.path.basename(self.cfg.path)}"
+                        msg = (
+                            "shell command '{cmd}' failed with exit code "
+                            f"{err.exit_code} in {step_name} step for {os.path.basename(self.cfg.path)}"
                         )
+                        self.log.warning(msg.format(cmd=err.cmd))  # pylint: disable=logging-format-interpolation
                         try:
                             step_exit_code = EasyBuildExit[f"FAIL_{step_name.upper()}_STEP"]
                         except KeyError:
                             step_exit_code = EasyBuildExit.ERROR
-                        raise EasyBuildError(error_msg, exit_code=step_exit_code) from err
+                        raise EasyBuildError(msg.format(cmd=f"{err.cmd_name} ..."), exit_code=step_exit_code) from err
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
