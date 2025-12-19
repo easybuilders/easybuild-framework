@@ -43,6 +43,7 @@ Authors:
 
 import copy
 import difflib
+import filecmp
 import functools
 import os
 import re
@@ -2623,15 +2624,19 @@ def det_file_info(paths, target_dir):
     for path in paths:
         ecs = process_easyconfig(path, validate=False)
         if len(ecs) == 1:
-            file_info['paths'].append(path)
-            file_info['ecs'].append(ecs[0]['ec'])
-
-            soft_name = file_info['ecs'][-1].name
-            ec_filename = file_info['ecs'][-1].filename()
+            ec = ecs[0]['ec']
+            soft_name = ec.name
+            ec_filename = ec.filename()
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
             new_file = not os.path.exists(target_path)
+            if not new_file and filecmp.cmp(path, target_path):
+                continue  # Ignore unchanged files
+
+            file_info['paths'].append(path)
+            file_info['ecs'].append(ec)
+
             new_folder = not os.path.exists(os.path.dirname(target_path))
             file_info['new'].append(new_file)
             file_info['new_folder'].append(new_folder)
@@ -2675,6 +2680,8 @@ def copy_patch_files(patch_specs, target_dir):
     }
     for patch_path, soft_name in patch_specs:
         target_path = det_location_for(patch_path, target_dir, soft_name, os.path.basename(patch_path))
+        if os.path.exists(target_path) and filecmp.cmp(patch_path, target_path):
+            continue  # Skip copy and entry if not modified
         copy_file(patch_path, target_path, force_in_dry_run=True)
         patched_files['paths_in_repo'].append(target_path)
 
