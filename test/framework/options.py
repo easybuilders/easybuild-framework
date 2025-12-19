@@ -995,6 +995,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 EasyBlock
                 |-- bar
                 |-- Bundle
+                |-- Cargo
                 |-- CMakeMake
                 |-- CmdCp
                 |-- ConfigureMake
@@ -6384,6 +6385,55 @@ class CommandLineOptionsTest(EnhancedTestCase):
              '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'}
         ]
         self.assertEqual(ext_opts['checksums'], expected_checksums)
+
+        # Also works for cargo crates
+        cargo_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-cargo.eb')
+        copy_file(cargo_ec, test_ec)
+        stdout, stderr = self._run_mock_eb([test_ec, '--inject-checksums'], raise_error=True, strip=True)
+        self.assertIn("injecting sha256 checksums in", stdout)
+        self.assertEqual(stderr, '')
+        expected_checksums = [
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
+            {'toy-0.0_gzip.patch.gz': 'c5c51dd4b00fd490f8f8226f5fa609c30b66bda7ef6d3391ab2631508f3d5e41'},
+        ]
+        patterns = [r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$"]
+        patterns.extend(r"^== \* %s: %s$" % next(iter(entry.items())) for entry in expected_checksums)
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        self.assertEqual(ec['checksums'], expected_checksums)
+
+        # crates also work with sources and patches (unusual use case)
+        copy_file(cargo_ec, test_ec)
+        write_file(test_ec, textwrap.dedent("""
+            sources = [SOURCE_TAR_GZ]
+            patches = [
+                'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+            ]
+        """), append=True)
+        stdout, stderr = self._run_mock_eb([test_ec, '--inject-checksums'], raise_error=True, strip=True)
+        self.assertIn("injecting sha256 checksums in", stdout)
+        self.assertEqual(stderr, '')
+        expected_checksums = [
+            # Main source
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            # Specified as "crates"
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
+            {'toy-0.0_gzip.patch.gz': 'c5c51dd4b00fd490f8f8226f5fa609c30b66bda7ef6d3391ab2631508f3d5e41'},
+            # Patch
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+        ]
+        patterns = [r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$"]
+        patterns.extend(r"^== \* %s: %s$" % next(iter(entry.items())) for entry in expected_checksums)
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        self.assertEqual(ec['checksums'], expected_checksums)
 
         # passing easyconfig filename as argument to --inject-checksums results in error being reported,
         # because it's not a valid type of checksum
