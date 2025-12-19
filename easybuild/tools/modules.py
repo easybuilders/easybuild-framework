@@ -1924,8 +1924,6 @@ class Lmod(ModulesTool):
         setvar('LMOD_QUIET', '1', verbose=False)
         # make sure Lmod ignores the spider cache ($LMOD_IGNORE_CACHE supported since Lmod 5.2)
         setvar('LMOD_IGNORE_CACHE', '1', verbose=False)
-        # hard disable output redirection, we expect output messages (list, avail) to always go to stderr
-        setvar('LMOD_REDIRECT', 'no', verbose=False)
         # disable extended defaults within Lmod (introduced and set as default in Lmod 8.0.7)
         setvar('LMOD_EXTENDED_DEFAULT', 'no', verbose=False)
         # disabled decorations in "ml --terse avail" output
