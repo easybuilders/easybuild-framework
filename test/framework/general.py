@@ -83,14 +83,14 @@ class GeneralTest(EnhancedTestCase):
 
         err_pat = r"None of the specified modules \(nosuchmoduleoutthere\) is available.*"
         err_pat += r"package nosuchpkg.*pypi/nosuchpkg"
-        self.assertErrorRegex(EasyBuildError, err_pat, bar)
+        self.assertRaisesRegex(EasyBuildError, err_pat, bar)
 
         @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
         def bar2():
             pass
 
         err_pat = r"ImportError: None of the specified modules \(nosuchmodule, anothernosuchmodule\) is available"
-        self.assertErrorRegex(EasyBuildError, err_pat, bar2)
+        self.assertRaisesRegex(EasyBuildError, err_pat, bar2)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
@@ -99,7 +99,7 @@ class GeneralTest(EnhancedTestCase):
 
         err_pat = r"None of the specified modules \(thisdoesnotexist\) is available "
         err_pat += r"\(available from http://example.com\)"
-        self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
+        self.assertRaisesRegex(EasyBuildError, err_pat, Foo().foobar)
 
     def test_docstrings(self):
         """Make sure tags included in docstrings are correctly formatted."""

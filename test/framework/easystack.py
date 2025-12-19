@@ -87,7 +87,7 @@ class EasyStackTest(EnhancedTestCase):
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_dict.yaml')
 
         error_pattern = r"Found dict value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_easyconfigs_str(self):
         """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
@@ -96,7 +96,7 @@ class EasyStackTest(EnhancedTestCase):
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_str.yaml')
 
         error_pattern = r"Found str value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_easyconfig_opts(self):
         """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
@@ -118,7 +118,7 @@ class EasyStackTest(EnhancedTestCase):
         test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key.yaml')
 
         error_pattern = r"Found one or more invalid keys for .* \(only 'options' supported\).*"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_invalid_key2(self):
         """Test easystack files with invalid key at the same level as the key that names the easyconfig"""
@@ -127,7 +127,7 @@ class EasyStackTest(EnhancedTestCase):
 
         error_pattern = r"expected a dictionary with one key \(the EasyConfig name\), "
         error_pattern += r"instead found keys: .*, invalid_key"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_restore_env_after_each_build(self):
         """Test that the build environment and tmpdir is reset for each easystack item"""
@@ -182,14 +182,14 @@ class EasyStackTest(EnhancedTestCase):
         test_easystack = os.path.join(topdir, 'easystacks', 'test_missing_easyconfigs_key.yaml')
 
         error_pattern = r"Top-level key 'easyconfigs' missing in easystack file %s" % test_easystack
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_parse_fail(self):
         """Test for clean error when easystack file fails to parse."""
         test_yml = os.path.join(self.test_prefix, 'test.yml')
         write_file(test_yml, 'easyconfigs: %s')
         error_pattern = "Failed to parse .*/test.yml: while scanning for the next token"
-        self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_yml)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, parse_easystack, test_yml)
 
     def test_check_value(self):
         """Test check_value function."""
@@ -201,7 +201,7 @@ class EasyStackTest(EnhancedTestCase):
         context = "<some context>"
         for version in (1.2, 100, None):
             error_pattern = r"Value .* \(of type .*\) obtained for <some context> is not valid!"
-            self.assertErrorRegex(EasyBuildError, error_pattern, check_value, version, context)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, check_value, version, context)
 
 
 def suite(loader=None):

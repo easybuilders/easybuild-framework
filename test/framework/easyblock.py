@@ -81,7 +81,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
         """ empty files should not parse! """
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "Value of incorrect type passed", EasyBlock, "")
+        self.assertRaisesRegex(EasyBuildError, "Value of incorrect type passed", EasyBlock, "")
 
     def test_easyblock(self):
         """ make sure easyconfigs defining extensions work"""
@@ -726,7 +726,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         with eb.module_generator.start_module_creation():
             err_regex = "Expansion of search path glob.*pointing outside of parent directory.*"
-            self.assertErrorRegex(EasyBuildError, err_regex, eb.make_module_req)
+            self.assertRaisesRegex(EasyBuildError, err_regex, eb.make_module_req)
 
         # Test modextrapaths: with absolute + empty paths, appending and custom delimiters
         remove_dir(eb.installdir)
@@ -876,7 +876,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         error_pattern = "Unknown value selected for option module-search-path-headers"
         with eb.module_generator.start_module_creation():
-            self.assertErrorRegex(EasyBuildError, error_pattern, EasyBlock, ec)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, EasyBlock, ec)
 
         # cleanup
         eb.close_log()
@@ -1202,7 +1202,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
 
         error_pattern = "lists for iterated build should have same length"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_handle_iterate_opts(self):
         """Test for handle_iterate_opts method."""
@@ -1289,7 +1289,7 @@ class EasyBlockTest(EnhancedTestCase):
         depr_msg = r"EasyBlock.post_install_step\(\) is deprecated, use EasyBlock.post_processing_step\(\) instead"
         expected_error = r"DEPRECATED \(since v6.0\).*" + depr_msg
         with self.mocked_stdout_stderr(), self.saved_env():
-            self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
+            self.assertRaisesRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
 
         change_dir(cwd)
         toy_ec = EasyConfig(toy_ec_fn)
@@ -1342,7 +1342,7 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
+        self.assertRaisesRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
         self.contents += "\nexts_defaultclass = 'DummyExtension'"
@@ -1354,7 +1354,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # test for proper error message when skip is set, but no exts_filter is set
         self.assertRaises(EasyBuildError, eb.skip_extensions)
-        self.assertErrorRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
+        self.assertRaisesRegex(EasyBuildError, "no exts_filter set", eb.skip_extensions)
 
         # cleanup
         eb.close_log()
@@ -1403,7 +1403,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(ext.__class__.__name__, "DeprecatedDummyExtension")
         for substep in install_substeps:
             expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
-            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+            self.assertRaisesRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
         # ChildCustomDummyExtension
         ext = eb.ext_instances[3]
         self.assertEqual(ext.__class__.__name__, "ChildCustomDummyExtension")
@@ -1415,7 +1415,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(ext.__class__.__name__, "ChildDeprecatedDummyExtension")
         for substep in install_substeps:
             expected_error = rf"DEPRECATED \(since v6.0\).*use {substep}\(\) instead.*"
-            self.assertErrorRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
+            self.assertRaisesRegex(EasyBuildError, expected_error, ext.install_extension_substep, substep)
 
     def test_init_extensions(self):
         """Test creating extension instances."""
@@ -1451,7 +1451,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         eb.prepare_for_extensions()
         error_pattern = "ConfigureMake easyblock can not be used to install extensions"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.init_ext_instances)
 
     def test_extension_source_tmpl(self):
         """Test type checking for 'source_tmpl' value of an extension."""
@@ -1473,7 +1473,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         error_pattern = r"source_tmpl value must be a string! "
         error_pattern += r"\(found value of type 'list'\): \['%\(name\)s-%\(version\)s.tar.gz'\]"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
 
         self.contents = self.contents.replace("'source_tmpl': [SOURCE_TAR_GZ]", "'source_tmpl': SOURCE_TAR_GZ")
         self.writeEC()
@@ -1768,7 +1768,7 @@ class EasyBlockTest(EnhancedTestCase):
                 eb.installdir = os.path.join(config.install_path(), 'pi', '3.14')
                 eb.check_readiness_step()
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, error_pattern, eb.make_module_step)
+                    self.assertRaisesRegex(EasyBuildError, error_pattern, eb.make_module_step)
 
     def test_gen_dirs(self):
         """Test methods that generate/set build/install directory names."""
@@ -1969,13 +1969,13 @@ class EasyBlockTest(EnhancedTestCase):
         # old format for specifying source with custom extract command is deprecated
         eb.src = []
         error_msg = r"DEPRECATED \(since v4.0\).*Using a 2-element list/tuple.*"
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.fetch_sources,
-                              [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
+        self.assertRaisesRegex(EasyBuildError, error_msg, eb.fetch_sources,
+                               [('toy-0.0_gzip.patch.gz', "gunzip %s")], checksums=[])
 
         # unknown dict keys in sources are reported
         sources[0]['nosuchkey'] = 'foobar'
         error_pattern = "Found one or more unexpected keys in 'sources' specification: {'nosuchkey': 'foobar'}"
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_sources, sources, checksums=[])
 
     @requires_github_access()
     def test_fetch_sources_git(self):
@@ -2046,7 +2046,7 @@ class EasyBlockTest(EnhancedTestCase):
         common_error_pattern = "^Couldn't find file software_with_missing_sources-0.0.tar.gz anywhere"
         error_pattern = common_error_pattern + ", and downloading it didn't work either"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
 
         download_instructions = "download_instructions = 'Manual download from example.com required'"
         sources = "sources = [SOURCE_TAR_GZ]"
@@ -2057,7 +2057,7 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = common_error_pattern + ", please follow the download instructions above"
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.assertIn("Download instructions:\n\n    Manual download from example.com required", stderr)
@@ -2071,7 +2071,7 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = "^Couldn't find file ext_with_missing_sources-0.0.tar.gz anywhere"
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -2086,7 +2086,7 @@ class EasyBlockTest(EnhancedTestCase):
         # no download instructions printed anymore now
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -2101,7 +2101,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -2115,7 +2115,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.mock_stderr(True)
         self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, eb.fetch_step)
         stderr = self.get_stderr().strip()
         self.mock_stderr(False)
         self.mock_stdout(False)
@@ -2209,8 +2209,8 @@ class EasyBlockTest(EnhancedTestCase):
         urls = ['file://%s' % tmpdir_subdir]
         error_pattern = "Couldn't find file 'toy-0.0.tar.gz' anywhere, and downloading it is disabled"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, eb.obtain_file,
-                                  toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, eb.obtain_file,
+                                   toy_tarball, urls=urls, alt_location='alt_toy', no_download=True)
 
         # 'downloading' a file to (first) alternative sourcepath works
         with self.mocked_stdout_stderr():
@@ -2272,14 +2272,14 @@ class EasyBlockTest(EnhancedTestCase):
         fn = 'thisisclearlyanonexistingfile'
         error_regex = "Couldn't find file %s anywhere, and downloading it didn't work either" % fn
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
+            self.assertRaisesRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=['file://%s' % tmpdir_subdir])
 
         # also test triggering error when downloading from a URL that includes URL-encoded characters
         # cfr. https://github.com/easybuilders/easybuild-framework/pull/4005
         url = 'file://%s' % os.path.dirname(tmpdir_subdir)
         url += '%2F' + os.path.basename(tmpdir_subdir)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=[url])
+            self.assertRaisesRegex(EasyBuildError, error_regex, eb.obtain_file, fn, urls=[url])
 
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
@@ -2399,7 +2399,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertNotIn('patches', exts_file_info[3])
 
         error_msg = "Can't verify checksums for extension files if they are not being fetched"
-        self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
+        self.assertRaisesRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
 
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
@@ -2532,7 +2532,7 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             eb.fetch_step()
             eb.extract_step()
-            self.assertErrorRegex(EasyBuildError, '.*', eb.patch_step)
+            self.assertRaisesRegex(EasyBuildError, '.*', eb.patch_step)
 
         # test actual patching of unpacked sources
         ec['sources'] = orig_sources
@@ -2604,7 +2604,7 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern += r"failing sanity check for 'toy' extension: "
         error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
         with self.mocked_stdout_stderr(), self.saved_env():
-            self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
         # to check whether sanity check is only run once;
@@ -2860,7 +2860,7 @@ class EasyBlockTest(EnhancedTestCase):
         # clean error when specified start dir does not exist
         ec['ec']['start_dir'] = 'thisstartdirisnotthere'
         err_pattern = "Specified start dir .*/toy-0.0/thisstartdirisnotthere does not exist"
-        self.assertErrorRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
+        self.assertRaisesRegex(EasyBuildError, err_pattern, check_start_dir, 'whatever')
 
     def test_extension_set_start_dir(self):
         """Test start dir with extensions."""
@@ -2929,7 +2929,7 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         with self.mocked_stdout_stderr():
             err_pattern = r"Provided start dir \(nonexistingdir\) for extension barbar does not exist:.*"
-            self.assertErrorRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
+            self.assertRaisesRegex(EasyBuildError, err_pattern, check_ext_start_dir, 'whatever')
 
         # No error when using relative path in non-extracted source for some reason
         ec['ec']['exts_list'] = [
@@ -3010,14 +3010,14 @@ class EasyBlockTest(EnhancedTestCase):
         with ec.disable_templating():
             ec['exts_list'][0][2]['unpack_source'] = False
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'not extracted', run_extension_step)
+            self.assertRaisesRegex(EasyBuildError, 'not extracted', run_extension_step)
             self.assertFalse(self.get_stderr())
 
         # Patch but no source
         with ec.disable_templating():
             ec['exts_list'][0][2]['nosource'] = True
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, 'no sources', run_extension_step)
+            self.assertRaisesRegex(EasyBuildError, 'no sources', run_extension_step)
             self.assertFalse(self.get_stderr())
 
         # Patch without source is possible if the start_dir is set
@@ -3235,11 +3235,11 @@ class EasyBlockTest(EnhancedTestCase):
         eb = get_easyblock_instance(ec)
         eb.fetch_sources()
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
+        self.assertRaisesRegex(EasyBuildError, error_msg, eb.checksum_step)
 
         # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+        self.assertRaisesRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
 
         # create test easyconfig from which checksums have been stripped
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -3286,11 +3286,11 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(build_options=build_options)
         eb.fetch_sources()
         error_msg = "Checksum verification for .*/toy-0.0.tar.gz using .* failed"
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.checksum_step)
+        self.assertRaisesRegex(EasyBuildError, error_msg, eb.checksum_step)
 
         # also check verification of checksums for extensions, which is part of collect_exts_file_info
         error_msg = "Checksum verification for extension source bar-0.0.tar.gz failed"
-        self.assertErrorRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
+        self.assertRaisesRegex(EasyBuildError, error_msg, eb.collect_exts_file_info)
 
         # if --ignore-checksums is enabled, faulty checksums are reported but otherwise ignored (no error)
         build_options = {
@@ -3592,7 +3592,7 @@ class EasyBlockTest(EnhancedTestCase):
         ]
         for test_case in test_cases:
             # without enhanced sanity check, these are all invalid sanity_check_paths values
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
 
             # if enhance_sanity_check is enabled, these are acceptable sanity_check_step values
             run_sanity_check_step(test_case, True)
@@ -3605,8 +3605,8 @@ class EasyBlockTest(EnhancedTestCase):
             {'dirs': [], 'libs': ['libfoo.a']},
         ]
         for test_case in test_cases:
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, True)
 
         # non-list values yield different errors with/without enhance_sanity_check
         error_pattern_bis = r"Incorrect value type in sanity_check_paths, should be a list: .*"
@@ -3617,8 +3617,8 @@ class EasyBlockTest(EnhancedTestCase):
             {'files': [], 'dirs': 'foo'},
         ]
         for test_case in test_cases:
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
-            self.assertErrorRegex(EasyBuildError, error_pattern_bis, run_sanity_check_step, test_case, True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_sanity_check_step, test_case, False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern_bis, run_sanity_check_step, test_case, True)
 
         # empty sanity_check_paths is always OK, since then the fallback to default bin + lib/lib64 kicks in
         run_sanity_check_step({}, False)
