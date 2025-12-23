@@ -253,6 +253,8 @@ jobs:
             IGNORE_PATTERNS+="|GC3Pie not available, skipping test"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: TripleDES has been moved"
             IGNORE_PATTERNS+="|algorithms.TripleDES"
+            # ignore lines with only successful ('.') and skipped ('s') tests
+            IGNORE_PATTERNS+="|^[\.s]+$"
             # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
             PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
             test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
