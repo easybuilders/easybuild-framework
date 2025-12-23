@@ -42,6 +42,7 @@ Authors:
 * Caspar van Leeuwen (SURF)
 * Jan Andre Reuter (Juelich Supercomputing Centre)
 * Jasper Grimm (UoY)
+* Alex Domingo (Vrije Universiteit Brussel)
 """
 import concurrent
 import copy
@@ -730,9 +731,13 @@ class EasyBlock:
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
                         src_fn = ext_options.get('source_tmpl')
+                        is_pypi_source = False
                         if src_fn is None:
                             # use default template for name of source file if none is specified
                             src_fn = '%(name)s-%(version)s.tar.gz'
+                            if len(source_urls) == 1 and PYPI_PKG_URL_PATTERN in source_urls[0]:
+                                # allow retrying with alternative download_filename
+                                is_pypi_source = True
                         elif not isinstance(src_fn, str):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
@@ -742,7 +747,17 @@ class EasyBlock:
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                         force_download=force_download,
-                                                        download_instructions=download_instructions)
+                                                        download_instructions=download_instructions,
+                                                        warning_only=is_pypi_source)
+                            if not src_path and is_pypi_source:
+                                # retry with alternative download_filename
+                                alt_name = resolve_template('%(name)s', template_values).replace("-", "_")
+                                src_version = resolve_template('%(version)s', template_values)
+                                alt_download_fn = f'{alt_name}-{src_version}.tar.gz'
+                                src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                            force_download=force_download,
+                                                            download_instructions=download_instructions,
+                                                            download_filename=alt_download_fn)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
@@ -2126,7 +2141,8 @@ class EasyBlock:
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
                     # don't reload modules for toolchain, there is no need
                     # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                          silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs,
                                           rpath_include_dirs=self.rpath_include_dirs,
                                           rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2288,7 +2304,8 @@ class EasyBlock:
                         with self.fake_module_environment(with_build_deps=True):
                             # don't reload modules for toolchain, there is no
                             # need since they will be loaded by the fake module
-                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                                  silent=True, loadmod=False,
                                                   rpath_filter_dirs=self.rpath_filter_dirs,
                                                   rpath_include_dirs=self.rpath_include_dirs,
                                                   rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2366,7 +2383,7 @@ class EasyBlock:
                 # make sure start_dir subdir exists (cfr. check below)
                 mkdir(os.path.join(topdir, start_dir), parents=True)
 
-            abs_start_dir = os.path.join(topdir, start_dir)
+            abs_start_dir = os.path.join(topdir, start_dir) if start_dir else topdir
             if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
                 self.cfg['start_dir'] = topdir
             else:
@@ -2743,7 +2760,8 @@ class EasyBlock:
         try:
             sources = ent.get('sources', [])
             data_sources = ent.get('data_sources', [])
-            patches = ent.get('patches', []) + ent.get('postinstallpatches', [])
+            patches = ent.get('patches', []) + ent.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                                       ent.get('post_install_patches', []))
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
@@ -3009,8 +3027,20 @@ class EasyBlock:
             self.modules_tool.load(extra_modules)
 
         # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
-        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+        if get_software_root('CUDA') or get_software_root('CUDAcore') or get_software_root('nvidia-compilers'):
             self.set_up_cuda_cache()
+
+        # Set CUDA compute capabilities from default value in nvidia-compiler/NVHPC toolchains
+        if get_software_root('nvidia-compilers'):
+            cuda_cc_cfg = self.cfg.get('cuda_compute_capabilities')
+            cuda_cc_opt = build_option('cuda_compute_capabilities')
+            cuda_cc_nvhpc = os.getenv('EBNVHPCCUDACC', None)
+            if not cuda_cc_cfg and not cuda_cc_opt and cuda_cc_nvhpc:
+                self.cfg['cuda_compute_capabilities'] = cuda_cc_nvhpc.split(',')
+                self.log.info(
+                    "Updated empty 'cuda_compute_capabilities' option with default CUDA compute capability "
+                    f"defined in nvidia-compilers: {self.cfg['cuda_compute_capabilities']}"
+                )
 
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
@@ -3076,8 +3106,10 @@ class EasyBlock:
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
+        elif exts_defaultclass is None:
+            default_class = default_class_modpath = None
         else:
-            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            error_msg = "Improper default extension class specification, should be string or None: %s (%s)"
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
         exts_cnt = len(self.exts)
@@ -3129,8 +3161,11 @@ class EasyBlock:
                                          "for extension %s: %s",
                                          class_name, mod_path, ext_name, err)
 
-            # fallback attempt: use default class
+            # fallback attempt: use default class if any
             if inst is None:
+                if not default_class:
+                    raise EasyBuildError("ERROR: No default extension class set for %s and no explicit or custom "
+                                         "easyblock found for extension %s", self.name, ext_name)
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
@@ -3169,10 +3204,6 @@ class EasyBlock:
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
-
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and install:
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")

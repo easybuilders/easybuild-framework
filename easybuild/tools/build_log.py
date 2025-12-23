@@ -33,6 +33,7 @@ Authors:
 * Pieter De Baets (Ghent University)
 * Jens Timmerman (Ghent University)
 """
+import inspect
 import logging
 import os
 import re
@@ -139,7 +140,7 @@ class EasyBuildError(LoggedException):
 
     def __str__(self):
         """Return string representation of this EasyBuildError instance."""
-        return repr(self.msg)
+        return self.msg
 
 
 def raise_easybuilderror(msg, *args):
@@ -162,8 +163,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
     def caller_info(self):
         """Return string with caller info."""
-        # findCaller returns a 3-tupe in Python 2, a 4-tuple in Python 3 (stack info as extra element)
-        (filepath, line, function_name) = self.findCaller()[:3]
+        filepath, line, function_name = self.findCaller()[:3]
         filepath_dirs = filepath.split(os.path.sep)
 
         for dirName in copy(filepath_dirs):
@@ -217,13 +217,20 @@ class EasyBuildLog(fancylogger.FancyLogger):
             fancylogger.FancyLogger.deprecated(self, msg, ver, max_ver, *args, **kwargs)
 
     def nosupport(self, msg, ver):
-        """Raise error message for no longer supported behaviour, and raise an EasyBuildError."""
+        """Raise error message for no longer supported behaviour."""
         raise_nosupport(msg, ver)
 
     def error(self, msg, *args, **kwargs):
-        """Print error message and raise an EasyBuildError."""
-        ebmsg = "EasyBuild encountered an error %s: " % self.caller_info()
-        fancylogger.FancyLogger.error(self, ebmsg + msg, *args, **kwargs)
+        """Print error message."""
+        ebmsg = "EasyBuild encountered an error"
+        # Don't show caller info when error is raised from within LoggedException.__init__
+        frames = inspect.getouterframes(inspect.currentframe())
+        if frames and len(frames) > 1:
+            frame = frames[1]
+            if not (frame.filename.endswith('exceptions.py') and frame.function == '__init__'):
+                ebmsg += " " + self.caller_info()
+
+        fancylogger.FancyLogger.error(self, f"{ebmsg}: {msg}", *args, **kwargs)
 
     def devel(self, msg, *args, **kwargs):
         """Print development log message"""
@@ -264,7 +271,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             if tmp_logdir and not os.path.exists(tmp_logdir):
                 try:
                     os.makedirs(tmp_logdir)
-                except (IOError, OSError) as err:
+                except OSError as err:
                     raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
 
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
@@ -397,9 +404,8 @@ def print_error(msg, *args, **kwargs):
     if exitCode is not None:
         _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
 
-    # use 1 as defaut exit code
     if exit_code is None:
-        exit_code = 1
+        exit_code = EasyBuildExit.ERROR
 
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
@@ -413,7 +419,7 @@ def print_error(msg, *args, **kwargs):
             if opt_parser:
                 opt_parser.print_shorthelp()
             sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exit_code)
+        sys.exit(int(exit_code))
     elif log is not None:
         raise EasyBuildError(msg)
 

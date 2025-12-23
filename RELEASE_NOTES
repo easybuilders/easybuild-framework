@@ -4,6 +4,60 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.2.0 (23 Dec 2025)
+--------------------
+
+feature release
+
+- new features:
+  - add support for NVHPC toolchain with nvidia-compilers, NVHPCX, NVBLAS, and NVScaLAPACK (#4927, #5073)
+  - add support for LLVM-based toolchains `lfoss` and `lmpflf` (+ subtoolchains `llvm-compilers`, `lfbf`, `lompi`, `lmpich`) (#4914)
+- various other enhancements, including:
+  - add support for `--disable-robot` (#4781)
+  - make specifying `exts_defaultclass` optional (#4800)
+  - retry fetching source file for extensions from PyPI with alternative filename (with `-` replaced with `_` in extension name) (#4943)
+  - handle `post_install_patches` in GitHub uploads (#5016)
+  - take into account alternative name `post_install_patches` when checking checksums (#5017)
+  - improve test report formatting (#5018)
+  - add `--keep-going` option to fail at the end not at first failing installation + use proper exit code as determined by `main` function (#5022)
+  - add templates for source with just version numbers (like `VERSION_TAR_GZ` and `V_VERSION_TAR_GZ`) (#5025)
+  - add templates for patch versions (#5028)
+  - add `search_path_vars_headers` and `search_path_vars_linker` properties to `Toolchain` (#5031)
+  - print total runtime of all builds (#5032)
+  - unset `$PROMPT_COMMAND` in `cmd.sh` shell (#5034)
+  - add `runtime_only` options to `EasyConfig.dependency_names` method (#5044)
+  - remove superflous `module list` call in `ModulesTool.load` (#5046)
+  - add backtrace to logged exception (#5047)
+  - add support for both `$VAR` and `${VAR}` variable formats in `modextravars` (#5049)
+  - show more readable error message when uploading gist or posting comment failed (#5056)
+  - set `$___EASYBUILD___` environment variable to '`EasyBuild`' to indicate that you're in an EasyBuild session (#5058)
+  - vendor a copy of `tomli` in `easybuild.tools.tomllib` (#5063)
+  - allow `f` suffix in CUDA compute capabilities (#5067)
+  - vendor copy of tomli-w 1.2.0, use it to implement `dump_toml` function in `easybuild.tools.filetools` (#5071)
+- various bug fixes, including:
+  - pass correct `-march` option on RISC-V systems when `optarch` toolchain option is enabled (#5029)
+  - pass dependencies to `toolchain.prepare` when setting up build environment for extensions (#5023, #5041)
+  - also pick up on toolchain components in `Toolchain._add_dependency_variables` (#5042, #5048)
+  - don't append empty component to `start_dir` in `EasyBlock.guess_start_dir` (#5057)
+- enhancements and fixes for test suite:
+  - also with test Python 3.14 (#4992)
+  - fix `test_gitrepo` in case global Git configuration is not in place (#5013)
+  - introduce `saved_env` context manager for restoring environment in tests (#5015)
+  - add decorator to ignore PR test failures due to rate limit (#5019)
+  - also run tests with Lmod 9.0 (#5026)
+  - enable flake8-comprehension code style check and fix issues (#5043)
+  - disable trace output by default in tests (#5053)
+  - add back CI for Python 3.6 by using `pyenv` (#5064)
+  - fix `test_github_det_commit_status` by using more recent commits (#5066)
+  - fix ignoring of URLError in `test_copy_ec_from_commit` (#5077)
+- other changes:
+  - deprecate support for running EasyBuild with Python < 3.9 (#4966)
+  - make command environment of shell commands more discoverable in the log (#4999, #5078)
+  - don't show command string again when showing in which folder it runs (#5003)
+  - remove escaping when converting `EasyBuildError` to a string (#5009)
+  - add example hook for updating OpenSSL 1.x dependency to 3.x (#5035)
+
+
 v5.1.2 (26 Sept 2025)
 ---------------------
 

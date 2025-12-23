@@ -39,15 +39,13 @@ Authors:
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
-
 TC_CONSTANT_NVHPC = "NVHPC"
 
 
-class NVHPC(Compiler):
-    """NVHPC compiler class
-    """
+class NvidiaCompilers(Compiler):
+    "NVHPC compiler class"
 
-    COMPILER_MODULE_NAME = ['NVHPC']
+    COMPILER_MODULE_NAME = ['nvidia-compilers']
 
     COMPILER_FAMILY = TC_CONSTANT_NVHPC
 
@@ -63,7 +61,8 @@ class NVHPC(Compiler):
         'i8': '-i8',
         'r8': '-r8',
         'optarch': '',  # PGI by default generates code for the arch it is running on!
-        'openmp': '-mp',
+        # OpenMP runtime is always linked by NVIDIA compilers, unless -nomp is used...
+        'openmp': {False: '-nomp', True: '-mp'},
         'ieee': '-Kieee',
         'strict': ['-Mnoflushz', '-Kieee'],
         'precise': ['-Mnoflushz'],

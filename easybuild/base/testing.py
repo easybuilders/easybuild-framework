@@ -202,6 +202,15 @@ class TestCase(OrigTestCase):
         return sys.stderr.getvalue()
 
     @contextmanager
+    def mocked_stdout(self):
+        """Context manager to mock stdout"""
+        self.mock_stdout(True)
+        try:
+            yield sys.stdout
+        finally:
+            self.mock_stdout(False)
+
+    @contextmanager
     def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
         """Context manager to mock stdout and stderr"""
         if mock_stdout:
@@ -220,6 +229,16 @@ class TestCase(OrigTestCase):
                 self.mock_stdout(False)
             if mock_stderr:
                 self.mock_stderr(False)
+
+    @contextmanager
+    def saved_env(self):
+        """Context manager to reset environment to state when it was entered"""
+        orig_env = os.environ.copy()
+        try:
+            yield
+        finally:
+            os.environ.clear()
+            os.environ.update(orig_env)
 
     def tearDown(self):
         """Cleanup after running a test."""

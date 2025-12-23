@@ -185,6 +185,8 @@ class ExtOption(CompleterOption):
            - set default to None if no option passed,
            - set to default if option without value passed,
            - set to value if option with value passed
+         - store_or_False: Same as store_or_None, but set to False instead of None
+           - Additionally supports --disable-
 
         Types:
           - strlist, strtuple : convert comma-separated string in a list resp. tuple of strings
@@ -196,14 +198,15 @@ class ExtOption(CompleterOption):
 
     ENABLE = 'enable'  # do nothing
     DISABLE = 'disable'  # inverse action
+    STORE_OR_FALSE = 'store_or_False'
 
     EXTOPTION_EXTRA_OPTIONS = ('date', 'datetime', 'regex', 'add', 'add_first', 'add_flex',)
-    EXTOPTION_STORE_OR = ('store_or_None', 'help')  # callback type
+    EXTOPTION_STORE_OR = ('store_or_None', STORE_OR_FALSE, 'help')  # callback type
     EXTOPTION_LOG = ('store_debuglog', 'store_infolog', 'store_warninglog',)
     EXTOPTION_HELP = ('shorthelp', 'confighelp', 'help')
 
     ACTIONS = Option.ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_STORE_OR + EXTOPTION_LOG + EXTOPTION_HELP
-    STORE_ACTIONS = Option.STORE_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_LOG + ('store_or_None',)
+    STORE_ACTIONS = Option.STORE_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_LOG + ('store_or_None', STORE_OR_FALSE)
     TYPED_ACTIONS = Option.TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS + EXTOPTION_STORE_OR
     ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS
 
@@ -232,7 +235,9 @@ class ExtOption(CompleterOption):
                 """Callback for supporting options with optional values."""
                 # see http://stackoverflow.com/questions/1229146/parsing-empty-options-in-python
                 # ugly code, optparse is crap
-                if parser.rargs and not parser.rargs[0].startswith('-'):
+                if option.store_or == self.STORE_OR_FALSE and opt_str.startswith("--%s-" % self.DISABLE):
+                    val = False
+                elif parser.rargs and not parser.rargs[0].startswith('-'):
                     val = option.check_value(opt_str, parser.rargs.pop(0))
                 else:
                     val = kwargs.get('orig_default', None)
@@ -250,11 +255,7 @@ class ExtOption(CompleterOption):
                 'orig_default': copy.deepcopy(self.default),
             }
             self.action = 'callback'  # act as callback
-
-            if self.store_or in self.EXTOPTION_STORE_OR:
-                self.default = None
-            else:
-                self.log.raiseException("_set_attrs: unknown store_or %s" % self.store_or, exception=ValueError)
+            self.default = False if self.action == self.STORE_OR_FALSE else None
 
     def process(self, opt, value, values, parser):
         """Handle option-as-value issues before actually processing option."""
@@ -1218,6 +1219,8 @@ class GeneralOption:
             if hasattr(self.parser.option_class, 'ENABLE') and hasattr(self.parser.option_class, 'DISABLE'):
                 if action in self.parser.option_class.BOOLEAN_ACTIONS:
                     args.append("--%s-%s" % (self.parser.option_class.ENABLE, opt_name))
+                    args.append("--%s-%s" % (self.parser.option_class.DISABLE, opt_name))
+                elif action == self.parser.option_class.STORE_OR_FALSE:
                     args.append("--%s-%s" % (self.parser.option_class.DISABLE, opt_name))
 
             # force passed_kwargs as final nameds
