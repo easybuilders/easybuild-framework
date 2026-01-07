@@ -116,6 +116,7 @@ class Extension:
             'postinstallcmds',
             'sanity_check_commands',
             'sanity_check_paths',
+            'skipsteps',
             'sources',
         )
         for opt_name in restore_options:
