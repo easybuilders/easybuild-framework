@@ -103,10 +103,6 @@ class NvidiaCompilers(Compiler):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
         super()._set_compiler_flags()
 
-    def _set_compiler_vars(self):
-        """Set the compiler variables"""
-        super()._set_compiler_vars()
-
 
 # Former name used in EasyBuild until 5.2.0, now a DEPRECATED alias
 class NVHPC(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods

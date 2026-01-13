@@ -528,7 +528,7 @@ class ToolchainTest(EnhancedTestCase):
 
         pass_by_value = True
         ids = []
-        for k, v in tc.variables.items():
+        for _, v in tc.variables.items():
             for x in v:
                 idx = id(x)
                 if idx not in ids:
@@ -908,8 +908,6 @@ class ToolchainTest(EnhancedTestCase):
                 flag = tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 if isinstance(flag, list):
                     flag = ' '.join(flag)
-                else:
-                    flag = flag
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
