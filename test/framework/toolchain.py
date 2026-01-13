@@ -3389,6 +3389,21 @@ class ToolchainTest(EnhancedTestCase):
             tc.options.options_map['openmp'] = flags
             self.assertEqual(tc.get_flag('openmp'), flagstring)
 
+    def test_nvhpc_compatibility(self):
+        """Test that software using EasyBuild before 5.2.0 continues working
+        the compiler.nvhpc toolchain being renamed to NvidiaCompilers"""
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            from easybuild.toolchains.compiler.nvhpc import NVHPC
+        from easybuild.toolchains.nvompi import Nvompi
+        from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
+        tc = NvidiaCompilers(name='NvidiaCompilers', version='2024a')  # Common usage
+        self.assertIsInstance(tc, NVHPC)  # Might be checked by pre-5.2.0 users
+        tc = Nvompi(version='2024a')  # Common usage
+        self.assertIsInstance(tc, NVHPC)  # Might be checked by pre-5.2.0 users
+        self.assertIsInstance(tc, NvidiaCompilers)
+        tc = NVHPC(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
+        self.assertIsInstance(tc, NvidiaCompilers)
+
 
 def suite(loader=None):
     """ return all the tests"""
