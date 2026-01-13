@@ -36,6 +36,8 @@ from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
 from easybuild.toolchains.mpi.nvhpcx import NVHPCX
 from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
+# Backwards compatibility
+from easybuild.toolchains.nvidia_compilers import NVHPCToolchain  # noqa # pylint:disable=unused-import
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 

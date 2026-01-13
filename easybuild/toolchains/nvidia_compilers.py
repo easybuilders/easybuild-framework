@@ -34,6 +34,7 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 """
 
+import abc
 from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
@@ -48,3 +49,16 @@ class NvidiaCompilersToolchain(NvidiaCompilers):
     # nvidia-compilers is only an optional subtoolchain because of legacy reasons;
     # recent NVHPC toolchains (versions >= 25.0) always have nvidia-compilers are subtoolchain
     OPTIONAL = True
+
+
+class NVHPCToolchain(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+    """DEPRECATED alias for NvidiaCompilersToolchain."""
+    def __new__(cls, *args, **kwargs):
+        if cls is NVHPCToolchain:
+            inst = NvidiaCompilersToolchain(*args, **kwargs)
+            inst.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
+            return inst
+        return super().__new__(cls)
+
+
+NVHPCToolchain.register(NvidiaCompilersToolchain)
