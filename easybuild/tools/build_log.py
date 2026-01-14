@@ -416,24 +416,21 @@ def print_error(msg, *args, **kwargs):
             opt_parser.print_shorthelp()
         if exit_code is None:
             exit_code = EasyBuildExit.ERROR
-        print_error_and_exit(msg, *args, exit_code=exit_code, log=log, silent=silent)
+        print_error_and_exit(msg, *args, exit_code=exit_code, silent=silent)
     elif log is not None:
         raise EasyBuildError(msg)  # Handle legacy weirdness
 
 
-def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, log=None, silent=False):
+def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False):
     """
     Print error message and exit EasyBuild, supports format strings
 
     :param msg: Message to show
     :exit_code: EasyBuildExit or integer to exit with
-    :log: When set also log the error
     :silent: When True don't print to stderr
     """
     if args:
         msg = msg % args
-    if log:
-        log.error(msg)
     if not silent:
         print("ERROR: %s" % msg, file=sys.stderr)
     sys.exit(int(exit_code))

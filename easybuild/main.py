@@ -433,7 +433,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         if testing:
             raise EasyBuildError(msg)
         eb_go.parser.print_shorthelp()
-        print_error_and_exit(msg, log=_log)
+        print_error_and_exit(msg)
     _log.debug("Paths: %s", paths)
 
     # run regtest
