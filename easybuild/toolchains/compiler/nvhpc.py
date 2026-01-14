@@ -26,11 +26,28 @@
 can be used interchangeably
 """
 
+import abc
 from easybuild.base import fancylogger
-from easybuild.toolchains.compiler.nvidia_compilers import NVHPC  # noqa # pylint:disable=unused-import
+from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
 
 _log = fancylogger.getLogger('compiler.nvhpc', fname=False)
 _log.deprecated("easybuild.toolchains.compiler.nvhpc was replaced by "
                 "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0')
+
+
+# Former name used in EasyBuild until 5.2.0, now a DEPRECATED alias
+class NVHPC(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+    """DEPRECATED alias for NvidiaCompilers."""
+    def __new__(cls, *args, **kwargs):
+        if cls is NVHPC:
+            inst = NvidiaCompilers(*args, **kwargs)
+            inst.log.deprecated(
+                "easybuild.toolchains.compiler.nvhpc was replaced by "
+                "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0')
+            return inst
+        return super().__new__(cls)
+
+
+NVHPC.register(NvidiaCompilers)
 
 # TODO EasyBuild 6.0: Remove NVHPC name from NvidiaCompilers.COMPILER_MODULE_NAME

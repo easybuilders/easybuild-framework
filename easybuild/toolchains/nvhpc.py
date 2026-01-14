@@ -31,13 +31,12 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
+import abc
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
 from easybuild.toolchains.mpi.nvhpcx import NVHPCX
 from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
-# Backwards compatibility
-from easybuild.toolchains.nvidia_compilers import NVHPCToolchain  # noqa # pylint:disable=unused-import
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
@@ -47,3 +46,16 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
     # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+
+
+class NVHPCToolchain(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+    """DEPRECATED alias for NvidiaCompilersToolchain."""
+    def __new__(cls, *args, **kwargs):
+        if cls is NVHPCToolchain:
+            inst = NvidiaCompilersToolchain(*args, **kwargs)
+            inst.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
+            return inst
+        return super().__new__(cls)
+
+
+NVHPCToolchain.register(NvidiaCompilersToolchain)

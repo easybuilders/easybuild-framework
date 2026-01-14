@@ -36,7 +36,6 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich GmbH)
 """
 
-import abc
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools.toolchain.compiler import Compiler
 
@@ -102,19 +101,3 @@ class NvidiaCompilers(Compiler):
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
         super()._set_compiler_flags()
-
-
-# Former name used in EasyBuild until 5.2.0, now a DEPRECATED alias
-class NVHPC(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
-    """DEPRECATED alias for NvidiaCompilers."""
-    def __new__(cls, *args, **kwargs):
-        if cls is NVHPC:
-            inst = NvidiaCompilers(*args, **kwargs)
-            inst.log.deprecated(
-                "easybuild.toolchains.compiler.nvhpc was replaced by "
-                "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0')
-            return inst
-        return super().__new__(cls)
-
-
-NVHPC.register(NvidiaCompilers)
