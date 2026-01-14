@@ -432,7 +432,8 @@ def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False
     if args:
         msg = msg % args
     if not silent:
-        print("ERROR: %s" % msg, file=sys.stderr)
+        from easybuild.tools.output import print_error as show_error
+        show_error("ERROR: " + msg, rich_highlight=False)
     sys.exit(int(exit_code))
 
 

@@ -399,11 +399,12 @@ def print_error(error_msg, rich_highlight=True):
 
     :param rich_highlight: boolean indicating whether automatic highlighting by Rich should be enabled
     """
+    error_msg = f'\n\n{error_msg}\n'
     if use_rich():
         console = Console(stderr=True)
-        console.print('\n\n' + error_msg + '\n', highlight=rich_highlight)
+        console.print(error_msg, highlight=rich_highlight)
     else:
-        sys.stderr.write('\n' + error_msg + '\n\n')
+        print(error_msg, file=sys.stderr)
 
 
 # this constant must be defined at the end, since functions used as values need to be defined

@@ -277,7 +277,7 @@ class BuildLogTest(EnhancedTestCase):
 
     def test_print_error_and_exit(self):
         """Test print_error_and_exit and (deprecated) print_error functions"""
-        def run_check(args, silent=False, expected_stderr=None):
+        def run_check(args, silent=False, expected_stderr=''):
             """Helper function to check stdout/stderr produced via print_error."""
             for func in ("print_error_and_exit", "print_error"):
                 with self.subTest(f"Function {func}"):
@@ -291,14 +291,11 @@ class BuildLogTest(EnhancedTestCase):
                             stderr = self.get_stderr()
                         stdout = self.get_stdout()
                     self.assertEqual(stdout, '')
-                    if expected_stderr:
-                        self.assertTrue(stderr.endswith(expected_stderr))
-                    else:
-                        self.assertEqual(stderr, '')
+                    self.assertEqual(stderr, expected_stderr)
 
-        run_check(['You have failed.'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['You have %s.', 'failed'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['You have failed.'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['You have %s.', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
         run_check(['You have failed.'], silent=True)
         run_check(['You have %s.', 'failed'], silent=True)
         run_check(['%s %s %s.', 'You', 'have', 'failed'], silent=True)
