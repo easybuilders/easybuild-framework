@@ -40,7 +40,7 @@ import re
 import sys
 import tempfile
 from copy import copy
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 
 from easybuild.base import fancylogger
@@ -453,7 +453,7 @@ def time_str_since(start_time):
     tot_time = datetime.now() - start_time
     tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
     if tot_secs > 0:
-        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
+        res = datetime.fromtimestamp(tot_secs, tz=timezone.utc).strftime('%Hh%Mm%Ss')
     else:
         res = "< 1s"
 
