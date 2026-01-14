@@ -394,8 +394,8 @@ def print_error(msg, *args, **kwargs):
     """
     Print error message and exit EasyBuild
     """
-    if args:
-        msg = msg % args
+
+    _init_easybuildlog.deprecated("Function 'build_log.print_error' is replaced with 'print_error_and_exit'", '6.0')
 
     # grab exit code, if specified;
     # also consider deprecated 'exitCode' option
@@ -403,9 +403,6 @@ def print_error(msg, *args, **kwargs):
     exit_code = kwargs.pop('exit_code', exitCode)
     if exitCode is not None:
         _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
-
-    if exit_code is None:
-        exit_code = EasyBuildExit.ERROR
 
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
@@ -415,13 +412,31 @@ def print_error(msg, *args, **kwargs):
         raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
 
     if exit_on_error:
-        if not silent:
-            if opt_parser:
-                opt_parser.print_shorthelp()
-            sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(int(exit_code))
+        if not silent and opt_parser:
+            opt_parser.print_shorthelp()
+        if exit_code is None:
+            exit_code = EasyBuildExit.ERROR
+        print_error_and_exit(msg, *args, exit_code=exit_code, log=log, silent=silent)
     elif log is not None:
-        raise EasyBuildError(msg)
+        raise EasyBuildError(msg)  # Handle legacy weirdness
+
+
+def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, log=None, silent=False):
+    """
+    Print error message and exit EasyBuild, supports format strings
+
+    :param msg: Message to show
+    :exit_code: EasyBuildExit or integer to exit with
+    :log: When set also log the error
+    :silent: When True don't print to stderr
+    """
+    if args:
+        msg = msg % args
+    if log:
+        log.error(msg)
+    if not silent:
+        print("ERROR: %s" % msg, file=sys.stderr)
+    sys.exit(int(exit_code))
 
 
 def print_warning(msg, *args, **kwargs):
