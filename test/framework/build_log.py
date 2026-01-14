@@ -276,7 +276,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertIn("WARNING Test log message with a logger involved.", log_txt)
 
     def test_print_error_and_exit(self):
-        """Test print_error"""
+        """Test print_error_and_exit and (deprecated) print_error functions"""
         def run_check(args, silent=False, expected_stderr=None):
             """Helper function to check stdout/stderr produced via print_error."""
             for func in ("print_error_and_exit", "print_error"):
