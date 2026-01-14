@@ -392,15 +392,15 @@ def print_checks(checks_data):
             print('\n'.join(lines))
 
 
-def print_error(error_msg, rich_highlight=True):
+def print_error(error_msg, rich_highlight=True, disable_rich=False):
     """
-    Print error message, using a Rich Console instance if possible.
+    Print error message, using a Rich Console instance if possible unless disable_rich=True.
     Newlines before/after message are automatically added.
 
     :param rich_highlight: boolean indicating whether automatic highlighting by Rich should be enabled
     """
     error_msg = f'\n\n{error_msg}\n'
-    if use_rich():
+    if not disable_rich and use_rich():
         console = Console(stderr=True)
         console.print(error_msg, highlight=rich_highlight)
     else:
