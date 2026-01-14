@@ -1554,12 +1554,14 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_err = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_log = r"shell command 'unzip .*bar-0.0.tar.gz' failed with exit code 9 in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
-            self.assertErrorRegex(EasyBuildError, error_pattern,
+            self.assertErrorRegex(EasyBuildError, pat_in_err,
                                   self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
+            self.assertRegex(read_file(self.logfile), pat_in_log)
 
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
