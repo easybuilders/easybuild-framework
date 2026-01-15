@@ -395,7 +395,7 @@ def print_error(msg, *args, **kwargs):
     Print error message and exit EasyBuild
     """
 
-    _init_easybuildlog.deprecated("Function 'build_log.print_error' is replaced with 'print_error_and_exit'", '6.0')
+    _init_easybuildlog.deprecated("Function 'print_error' from easybuild.tools.build_log is replaced with 'print_error_and_exit'", '6.0')
 
     # grab exit code, if specified;
     # also consider deprecated 'exitCode' option
