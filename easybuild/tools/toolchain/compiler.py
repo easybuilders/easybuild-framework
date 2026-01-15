@@ -126,7 +126,7 @@ class Compiler(Toolchain):
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_OPTIONS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
+    COMPILER_OPTIONS = ['debug', 'ieee', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
     COMPILER_OPT_OPTIONS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_OPTIONS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
@@ -271,6 +271,12 @@ class Compiler(Toolchain):
         # Avoiding all flags as there may be legitimate use for flags that lack -
         if optflags and optflags[0] and not optflags[0][0].startswith('-'):
             print_warning(f'Compiler flag "{optflags[0][0]}" does not start with a dash. See changes in EasyBuild 5.')
+
+        # handle OpenMP separately, since toolchains might define flags for disabling OpenMP
+        # as well as enabling OpenMP via a dict instead of only using a string
+        openmpoptions = self.options.get('openmp')
+        if openmpoptions is not None:
+            raise EasyBuildError(f"{openmpoptions}, {self.options.option('openmp')}")
 
         # only apply if the vectorize toolchainopt is explicitly set
         # otherwise the individual compiler toolchain file should make sure that
