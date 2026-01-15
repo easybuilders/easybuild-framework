@@ -280,6 +280,9 @@ class Compiler(Toolchain):
             # not passing that flag. Convert the passed options to a dict for further handling
             if not isinstance(openmpoptions, dict):
                 openmpoptions = {False: '', True: openmpoptions}
+            if self.options['openmp'] not in openmpoptions.keys():
+                raise EasyBuildError(f"Unknown value for openmp: {self.options['openmp']} "
+                                     f"(possibilities are {', '.join(str(key) for key in openmpoptions.keys())}).")
             openmpflags = openmpoptions[self.options['openmp']]
             # avoid double use of such flags, or e.g. -hnomp followed by -homp
             if isinstance(optflags[0], list):
@@ -291,6 +294,9 @@ class Compiler(Toolchain):
         # vectorization is disabled for noopt and lowopt, and enabled otherwise.
         if self.options.get('vectorize') is not None:
             vectoptions = self.options.option('vectorize')
+            if self.options['vectorize'] not in vectoptions.keys():
+                raise EasyBuildError(f"Unknown value for 'vectorize': {self.options['vectorize']} "
+                                     f"(possibilities are {', '.join(str(key) for key in vectoptions.keys())}).")
             vectflags = vectoptions[self.options['vectorize']]
             # avoid double use of such flags, or e.g. -fno-tree-vectorize followed by -ftree-vectorize
             if isinstance(optflags[0], list):
