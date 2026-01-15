@@ -274,9 +274,14 @@ class Compiler(Toolchain):
 
         # handle OpenMP separately, since toolchains might define flags for disabling OpenMP
         # as well as enabling OpenMP via a dict instead of only using a string
-        openmpoptions = self.options.get('openmp')
-        if openmpoptions is not None:
-            raise EasyBuildError(f"{openmpoptions}, {self.options.option('openmp')}")
+        if self.options.get('openmp') is not None:
+            openmpoptions = self.options.option('openmp')
+            openmpflags = self.options['openmp']
+            # avoid double use of such flags, or e.g. -hnomp followed by -homp
+            if isinstance(optflags[0], list):
+                optflags[0] = [flag for flag in optflags[0] if flag not in openmpoptions.values()]
+            optflags.append(openmpflags)
+        raise EasyBuildError("{optflags}")
 
         # only apply if the vectorize toolchainopt is explicitly set
         # otherwise the individual compiler toolchain file should make sure that
