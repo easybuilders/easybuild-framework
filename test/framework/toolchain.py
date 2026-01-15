@@ -2294,11 +2294,11 @@ class ToolchainTest(EnhancedTestCase):
 
             tc_cflags = {
                 'CrayCCE': "-O2 -homp -craype-verbose",
-                'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
-                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
-                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
+                'CrayGNU': "-O2 -fopenmp -fno-math-errno -craype-verbose",
+                'CrayIntel': "-O2 -fopenmp -ftz -fp-speculation=safe -fp-model source -craype-verbose",
+                'GCC': "-O2 -ftree-vectorize -fopenmp -test -fno-math-errno",
+                'iccifort': "-O2 -fopenmp -test -ftz -fp-speculation=safe -fp-model source",
+                'intel-compilers': "-O2 -qopenmp -test -ftz -fp-speculation=safe -fp-model precise",
             }
 
             toolchains = [
