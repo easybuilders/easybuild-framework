@@ -3398,18 +3398,18 @@ class ToolchainTest(EnhancedTestCase):
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             from easybuild.toolchains.compiler.nvhpc import NVHPC
             self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
-            
+
         # load NVidiaCompilers, deprecated NVHPC corresponds to it
         tc = NvidiaCompilers(name='NvidiaCompilers', version='2024a')  # Common usage
         # Might be checked by pre-5.2.0 users
         self.assertIsInstance(tc, NVHPC)
 
-        # load deprecated NVHPC, NvidiaCompilers corresponds to it 
+        # load deprecated NVHPC, NvidiaCompilers corresponds to it
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             tc = NVHPC(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
             self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
         self.assertIsInstance(tc, NvidiaCompilers)
-        
+
         # load deprecated NVHPCToolchain, it corresponds to NvidiaCompilersToolchain
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             tc = NVHPCToolchain(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
@@ -3420,7 +3420,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertIsInstance(tc, NvidiaCompilers)
         self.assertIsInstance(tc, NvidiaCompilersToolchain)
         self.assertIsInstance(tc, NVHPCToolchain)
-        # deprecated in 5.2.0
+        # compiler toolchain NVHPC is deprecated in 5.2.0, but might still be checked by existing code
         self.assertIsInstance(tc, NVHPC)
 
 
