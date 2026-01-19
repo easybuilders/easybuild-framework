@@ -45,7 +45,8 @@ TC_CONSTANT_NVHPC = "NVHPC"
 class NvidiaCompilers(Compiler):
     "NVHPC compiler class"
 
-    COMPILER_MODULE_NAME = ['nvidia-compilers']
+    # TODO EasyBuild 6.0: Remove NVHPC name
+    COMPILER_MODULE_NAME = ['nvidia-compilers', 'NVHPC']
 
     COMPILER_FAMILY = TC_CONSTANT_NVHPC
 
@@ -100,7 +101,3 @@ class NvidiaCompilers(Compiler):
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
         super()._set_compiler_flags()
-
-    def _set_compiler_vars(self):
-        """Set the compiler variables"""
-        super()._set_compiler_vars()
