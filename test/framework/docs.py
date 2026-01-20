@@ -1016,7 +1016,7 @@ class DocsTest(EnhancedTestCase):
                 self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
         # expect NotImplementedError for json output format
-        with (self.temporarily_allow_deprecated_behaviour(),self.mocked_stdout_stderr(),
+        with (self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr(),
               self.assertRaises(NotImplementedError)):
             list_toolchains(output_format='json')
 
