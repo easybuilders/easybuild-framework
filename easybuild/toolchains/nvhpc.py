@@ -31,7 +31,6 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
-import abc
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
