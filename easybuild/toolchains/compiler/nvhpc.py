@@ -22,11 +22,11 @@
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
-"""Compatibility module such that compiler.nvhpc.NVHPC and compiler.compiler.nvidia_compilers.NvidiaCompilers
-can be used interchangeably
+"""
+Compatibility module to allow using old compiler toolchain NVHPC
+Deprecated in EasyBuild 5.2.0
 """
 
-import abc
 from easybuild.base import fancylogger
 from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
 
@@ -35,19 +35,12 @@ _log.deprecated("easybuild.toolchains.compiler.nvhpc was replaced by "
                 "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0')
 
 
-# Former name used in EasyBuild until 5.2.0, now a DEPRECATED alias
-class NVHPC(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+class NVHPC(NvidiaCompilers):
     """DEPRECATED alias for NvidiaCompilers."""
-    def __new__(cls, *args, **kwargs):
-        if cls is NVHPC:
-            inst = NvidiaCompilers(*args, **kwargs)
-            inst.log.deprecated(
-                "easybuild.toolchains.compiler.nvhpc was replaced by "
-                "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0')
-            return inst
-        return super().__new__(cls)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-
-NVHPC.register(NvidiaCompilers)
-
-# TODO EasyBuild 6.0: Remove NVHPC name from NvidiaCompilers.COMPILER_MODULE_NAME
+        self.log.deprecated(
+            "easybuild.toolchains.compiler.nvhpc was replaced by "
+            "easybuild.toolchains.compiler.nvidia_compilers in EasyBuild 5.2.0", '6.0'
+        )
