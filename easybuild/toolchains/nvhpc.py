@@ -48,14 +48,9 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
 
 
-class NVHPCToolchain(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+class NVHPCToolchain(NvidiaCompilersToolchain):
     """DEPRECATED alias for NvidiaCompilersToolchain."""
-    def __new__(cls, *args, **kwargs):
-        if cls is NVHPCToolchain:
-            inst = NvidiaCompilersToolchain(*args, **kwargs)
-            inst.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
-            return inst
-        return super().__new__(cls)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-
-NVHPCToolchain.register(NvidiaCompilersToolchain)
+        self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
