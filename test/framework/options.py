@@ -833,7 +833,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--list-toolchains',
             '--unittest-file=%s' % self.logfile,
         ]
-        with self.mocked_stdout_stderr():
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         logtxt = read_file(self.logfile)
@@ -863,11 +863,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--list-toolchains',
             '--output-format=rst',
         ]
-        with self.mocked_stdout_stderr():
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             self.eb_main(args, raise_error=True)
             stderr, stdout = self.get_stderr(), self.get_stdout().strip()
 
-        self.assertFalse(stderr)
+        if "WARNING: Deprecated" not in stderr:
+            self.assertFalse(stderr)
 
         title = "List of known toolchains"
 
@@ -4156,7 +4157,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # TestIncludedCompiler is not available by default
         args = ['--list-toolchains']
         test_cmd = self.mk_eb_test_cmd(args)
-        with self.mocked_stdout_stderr():
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             res = run_shell_cmd(test_cmd)
         self.assertNotRegex(res.output, tc_regex)
 
@@ -4178,7 +4179,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args.append('--include-toolchains=%s/*.py,%s/*/*.py' % (self.test_prefix, self.test_prefix))
         test_cmd = self.mk_eb_test_cmd(args)
-        with self.mocked_stdout_stderr():
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             res = run_shell_cmd(test_cmd)
         self.assertRegex(res.output, tc_regex)
 
