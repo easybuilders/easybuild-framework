@@ -49,6 +49,8 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
 
 class NVHPCToolchain(NvidiaCompilersToolchain):
     """DEPRECATED alias for NvidiaCompilersToolchain."""
+    DEPRECATED = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

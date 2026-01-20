@@ -37,6 +37,8 @@ _log.deprecated("easybuild.toolchains.compiler.nvhpc was replaced by "
 
 class NVHPC(NvidiaCompilers):
     """DEPRECATED alias for NvidiaCompilers."""
+    DEPRECATED = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
