@@ -983,11 +983,11 @@ class DocsTest(EnhancedTestCase):
             r"^\s+intel: icc, ifort, imkl, impi",
             r"^\s+system:\s*$",
         ]
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
-            for txt in (list_toolchains(), list_toolchains(output_format='txt')):
-                for pattern in txt_patterns:
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+
+        for txt in (list_toolchains(), list_toolchains(output_format='txt')):
+            for pattern in txt_patterns:
+                regex = re.compile(pattern, re.M)
+                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
 
         md_patterns = [
             r"^# List of known toolchains",
@@ -996,11 +996,10 @@ class DocsTest(EnhancedTestCase):
             r"^\*\*intel\*\*\s+\|icc, ifort\s+\|impi\s+\|imkl\s+\|imkl",
             r"^\*\*system\*\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*$",
         ]
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
-            txt_md = list_toolchains(output_format='md')
-            for pattern in md_patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        txt_md = list_toolchains(output_format='md')
+        for pattern in md_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
 
         rst_patterns = [
             r"^List of known toolchains\n\-{24}",
@@ -1009,15 +1008,13 @@ class DocsTest(EnhancedTestCase):
             r"^\*\*intel\*\*\s+icc, ifort\s+impi\s+imkl\s+imkl",
             r"^\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*$",
         ]
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
-            txt_rst = list_toolchains(output_format='rst')
-            for pattern in rst_patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        txt_rst = list_toolchains(output_format='rst')
+        for pattern in rst_patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
 
         # expect NotImplementedError for json output format
-        with (self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr(),
-              self.assertRaises(NotImplementedError)):
+        with self.assertRaises(NotImplementedError):
             list_toolchains(output_format='json')
 
     def test_avail_cfgfile_constants(self):
