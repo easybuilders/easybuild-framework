@@ -1110,7 +1110,11 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     # filter deprecated 'dummy' toolchain
-    tcs = {tc.NAME: tc for tc in all_tcs}
+    tcs = {
+        tc.NAME: tc
+        for tc in all_tcs
+        if not hasattr(tc, "DEPRECATED")
+    }
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]

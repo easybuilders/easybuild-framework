@@ -31,7 +31,6 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
-import abc
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
@@ -48,14 +47,11 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
 
 
-class NVHPCToolchain(metaclass=abc.ABCMeta):  # pylint: disable=too-few-public-methods
+class NVHPCToolchain(NvidiaCompilersToolchain):
     """DEPRECATED alias for NvidiaCompilersToolchain."""
-    def __new__(cls, *args, **kwargs):
-        if cls is NVHPCToolchain:
-            inst = NvidiaCompilersToolchain(*args, **kwargs)
-            inst.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
-            return inst
-        return super().__new__(cls)
+    DEPRECATED = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-NVHPCToolchain.register(NvidiaCompilersToolchain)
+        self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
