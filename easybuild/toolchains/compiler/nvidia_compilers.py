@@ -45,8 +45,7 @@ TC_CONSTANT_NVHPC = "NVHPC"
 class NvidiaCompilers(Compiler):
     "NVHPC compiler class"
 
-    # TODO EasyBuild 6.0: Remove NVHPC name
-    COMPILER_MODULE_NAME = ['nvidia-compilers', 'NVHPC']
+    COMPILER_MODULE_NAME = ['nvidia-compilers']
 
     COMPILER_FAMILY = TC_CONSTANT_NVHPC
 
