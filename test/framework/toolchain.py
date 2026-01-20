@@ -3390,7 +3390,6 @@ class ToolchainTest(EnhancedTestCase):
     def test_nvhpc_compatibility(self):
         """Test that software using EasyBuild before 5.2.0 continues working
         the compiler.nvhpc toolchain being renamed to NvidiaCompilers"""
-        from easybuild.toolchains.nvompi import Nvompi
         from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
         from easybuild.toolchains.nvhpc import NvidiaCompilersToolchain, NVHPCToolchain
 
@@ -3399,29 +3398,25 @@ class ToolchainTest(EnhancedTestCase):
             from easybuild.toolchains.compiler.nvhpc import NVHPC
             self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
 
-        # load NVidiaCompilers, deprecated NVHPC corresponds to it
-        tc = NvidiaCompilers(name='NvidiaCompilers', version='2024a')  # Common usage
-        # Might be checked by pre-5.2.0 users
-        self.assertIsInstance(tc, NVHPC)
-
-        # load deprecated NVHPC, NvidiaCompilers corresponds to it
+        # load deprecated NVHPC and check it corresponds to NvidiaCompilers
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             tc = NVHPC(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
             self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
         self.assertIsInstance(tc, NvidiaCompilers)
 
-        # load deprecated NVHPCToolchain, it corresponds to NvidiaCompilersToolchain
+        # load deprecated NVHPCToolchain and check it corresponds to NvidiaCompilersToolchain
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             tc = NVHPCToolchain(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
             self.assertIn("NVHPCToolchain was replaced by NvidiaCompilersToolchain", self.get_stderr())
         self.assertIsInstance(tc, NvidiaCompilersToolchain)
 
+        from easybuild.toolchains.nvompi import Nvompi
         tc = Nvompi(version='2024a')  # Common usage
         self.assertIsInstance(tc, NvidiaCompilers)
         self.assertIsInstance(tc, NvidiaCompilersToolchain)
-        self.assertIsInstance(tc, NVHPCToolchain)
-        # compiler toolchain NVHPC is deprecated in 5.2.0, but might still be checked by existing code
-        self.assertIsInstance(tc, NVHPC)
+        # Nvompi migrated to new NvidiaCompiler in v5.2.0, compiler toolchain NVHPC deprecated
+        self.assertNotIsInstance(tc, NVHPCToolchain)
+        self.assertNotIsInstance(tc, NVHPC)
 
 
 def suite(loader=None):
