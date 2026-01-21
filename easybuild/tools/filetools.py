@@ -2821,6 +2821,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # checkout is done separately below for specific commits
     clone_cmd.append('--no-checkout')
 
+    # Ensure URL is also processed correctly by tools that don't collapse double slashes
+    url = url.rstrip('/')
     clone_cmd.append(f'{url}/{repo_name}.git')
 
     if clone_into:
