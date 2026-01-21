@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option, update_build_option
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.environment import restore_env
@@ -489,6 +489,18 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         options.inject_checksums, options.inject_checksums_to_json, options.sanity_check_only
     ))
 
+    if build_option('developer'):
+        for ec in easyconfigs:
+            _ec = ec['ec']
+            old_vers = _ec['version']
+            new_vers = old_vers + '-dev'
+            _ec['version'] = new_vers
+            for key in ['short_mod_name', 'full_mod_name']:
+                prev = getattr(_ec, key)
+                new = prev.replace(f'/{old_vers}', f'/{new_vers}')
+                ec[key] = new
+                setattr(_ec, key, new)
+
     # skip modules that are already installed unless forced, or unless an option is used that warrants not skipping
     if not keep_available_modules:
         retained_ecs = skip_available(easyconfigs, modtool)
@@ -743,6 +755,16 @@ def main(args=None, logfile=None, do_build=None, testing=False, modtool=None, pr
         index_fp = dump_index(options.create_index, max_age_sec=options.index_max_age)
         index = load_index(options.create_index)
         print_msg("Index created at %s (%d files)" % (index_fp, len(index)), prefix=False)
+
+    if options.developer:
+        pth = build_option('developer')
+        if not os.path.exists(pth):
+            raise EasyBuildError("Developer mode path %s does not exist" % pth)
+
+        pth = os.path.abspath(pth)
+        options.developer = pth
+        update_build_option('developer', pth)
+        print_msg("Developer mode running from %s" % build_option('developer'), log=_log)
 
     # non-verbose cleanup after handling GitHub integration stuff or printing terse info
     early_stop_options = [
