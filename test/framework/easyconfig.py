@@ -2900,6 +2900,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"versionsuffix = '-test'",
             r"homepage = 'http://foo.com/'",
             r'description = "foo description"',  # no templating for description
+            r"toolchain = {'name': 'dummy', 'version': 'dummy'}",
             r"sources = \[SOURCELOWER_TAR_GZ\]",
             # use of templates in *dependencies is disabled for now, since it can cause problems
             # r"dependencies = \[\n    \('bar', '1.2.3', '%\(versionsuffix\)s'\),\n\]",
