@@ -312,6 +312,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
+        'disable_multi_deps_load_default',
         'dump_autopep8',
         'dump_env_script',
         'enforce_checksums',
