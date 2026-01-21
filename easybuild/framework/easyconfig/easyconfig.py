@@ -1909,6 +1909,10 @@ class EasyConfig:
     def __setitem__(self, key, value):
         """Set value of specified easyconfig parameter (help text & co is left untouched)"""
         if key in self._config:
+            # display a warning if we are replacing a value with templates by a value with templates resolved
+            if "%(" in str(self._config[key][0]) and "%(" not in str(value):
+                self.log.warning("Replacing value of templated parameter '%s' with a value with templates"
+                                 "resolved. Old value: %s, new value: %s" % (key, self._config[key][0], value))
             self._config[key][0] = value
         else:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'",
