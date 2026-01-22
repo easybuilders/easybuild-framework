@@ -4286,6 +4286,15 @@ class EasyBlock:
                 self.sanity_check_fail_msgs.append("loading fake module failed: %s" % err)
                 self.log.warning("Sanity check: %s" % self.sanity_check_fail_msgs[-1])
 
+        # This should happen after `self.load_module` or `load_fake_module` as this calls purge the
+        # current modules
+        sanitycheck_deps = self.cfg['sanitycheck_dependencies']
+        if sanitycheck_deps:
+            self.log.info("Sanity check dependencies enabled, loading dependencies before sanity check...")
+            # load dependencies (if any) before running sanity check commands
+            mod_names = [d['short_mod_name'] for d in sanitycheck_deps]
+            self.modules_tool.load(mod_names, allow_reload=True)
+
         return self.fake_mod_data
 
     def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
