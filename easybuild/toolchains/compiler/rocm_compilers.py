@@ -34,7 +34,7 @@ Authors:
 """
 
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
-from easybuild.tools.toolchain.compiler.llvm_compilers import LLVMCompilers
+from easybuild.toolchains.compiler.llvm_compilers import LLVMCompilers
 
 TC_CONSTANT_ROCM = "ROCm"
 
