@@ -38,7 +38,7 @@ from easybuild.toolchains.compiler.rocm_compilers import ROCmCompilers
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
-class ROCmCompilersToolchain(LLVMCompilers):
+class ROCmCompilersToolchain(ROCmCompilers):
     """Compiler toolchain with AMDClang and AMDFlang compilers."""
     NAME = 'rocm-compilers'  # Follows naming scheme used for intel-compilers & nvidia-compilers
     COMPILER_MODULE_NAME = [NAME]
