@@ -36,12 +36,12 @@ Authors:
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.toolchain.compiler import LLVMCompilers
 
-TC_CONSTANT_LLVM = "ROCm"
+TC_CONSTANT_ROCM = "ROCm"
 
 
 class ROCmCompilers(LLVMCompilers):
     """Compiler toolchain with ROCm compilers (amdclang/amdflang)."""
-    COMPILER_FAMILY = TC_CONSTANT_LLVM
+    COMPILER_FAMILY = TC_CONSTANT_ROCM
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
 
     COMPILER_CC = 'amdclang'
