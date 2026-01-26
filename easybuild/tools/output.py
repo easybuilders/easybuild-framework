@@ -39,6 +39,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 
 try:
+    import rich.markup
     from rich.console import Console, Group
     from rich.live import Live
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -88,6 +89,13 @@ def colorize(txt, color):
         raise EasyBuildError("Unknown color: %s", color)
 
     return coltxt
+
+
+def escape_for_rich(txt):
+    """Make sure the text can be printed with rich if that is used"""
+    if use_rich():
+        txt = rich.markup.escape(txt)
+    return txt
 
 
 class DummyRich:
