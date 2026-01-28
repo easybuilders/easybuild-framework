@@ -1405,6 +1405,44 @@ class ToolchainTest(EnhancedTestCase):
         # check CUDA runtime lib
         self.assertIn("-lrt -lcudart", tc.get_variable('LIBS'))
 
+    def test_nvidia_compilers(self):
+        """Test whether nvidia-compilers is handled properly."""
+        # Test OpenMP support
+        openmp_true = "-mp"
+        openmp_false = "-nomp"
+        openmp_none = "-nomp"
+        general_optflags = "-O2 %s %s -Mflushz"
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, omp_flag in [({}, openmp_none), ({'openmp': True}, openmp_true), ({'openmp': False}, openmp_false)]:
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            optflags = general_optflags % (omp_flag, archflags)
+            # strip double spaces
+            optflags = optflags.replace("  ", " ")
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(re.compile(optflags).match(val), "'%s' matches '%s'" % (val, optflags))
+
+        # Test vectorize support
+        vec_true = "-Mvect"
+        vec_false = "-Mnovect"
+        vec_none = ""
+        general_optflags = "-O2 -nomp %s %s -Mflushz"
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, vec_flag in [({}, vec_none), ({'vectorize': True}, vec_true), ({'vectorize': False}, vec_false)]:
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            optflags = general_optflags % (vec_flag, archflags)
+            # strip double spaces
+            optflags = optflags.replace("  ", " ")
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(re.compile(optflags).match(val), "'%s' matches '%s'" % (val, optflags))
+
     def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
         """Set up sandbox for foss FFTW and FFTW.MPI"""
         # hack to make foss FFTW lib check pass
