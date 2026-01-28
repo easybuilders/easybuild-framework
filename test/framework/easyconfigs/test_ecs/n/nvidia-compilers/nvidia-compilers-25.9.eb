@@ -36,7 +36,7 @@ dependencies = [
 # Specify default CUDA version that should be used by nvidia-compilers (NVHPC),
 # it should match one of the CUDA versions that are included with this version of NVHPC
 # (see install_components/Linux_x86_64/*/cuda/)
-default_cuda_version = '12.9'
+# default_cuda_version = '12.9'
 
 # (optional) Define default CUDA Compute Capability used by all easyconfigs in this toolchain
 # cuda_compute_capabilities = ['5.2', '6.0', '7.0', '7.5', '8.0', '8.6', '9.0']
