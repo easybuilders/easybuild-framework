@@ -1,4 +1,4 @@
-# should be EB_NVIDIAMINCOMPILERS, but OK for testing purposes
+# should be EB_nvidia_minus_compilers, but OK for testing purposes
 easyblock = 'EB_toy'
 
 name = 'nvidia-compilers'
