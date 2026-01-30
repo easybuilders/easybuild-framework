@@ -135,6 +135,7 @@ def check_str_list_tuple(option, opt, value):  # pylint: disable=unused-argument
     else:
         return klass(split)
 
+
 def check_choice_case_insensitive(option, opt, value):
     """
     Case-insensitive check function for choice type.
