@@ -42,14 +42,23 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     """Toolchain with Nvidia compilers and NVHPCX."""
     NAME = 'NVHPC'
-    # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
-    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
-    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
 
+    def __new__(cls, *args, **kwargs):
+        tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
+        if 'GCCcore' in tcdepnames:
+            # The newer higher level toolchains depend on nvidia-compilers
+            # instead of GCCcore
+            return NVHPCToolchain(*args, **kwargs)
+        else:
+            return super().__new__(cls)
 
 class NVHPCToolchain(NvidiaCompilersToolchain):
     """DEPRECATED alias for NvidiaCompilersToolchain."""
     DEPRECATED = True
+    NAME = 'NVHPC'
+    COMPILER_MODULE_NAME = ['NVHPC']
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
