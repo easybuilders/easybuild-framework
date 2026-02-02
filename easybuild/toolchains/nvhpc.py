@@ -44,6 +44,7 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     NAME = 'NVHPC'
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
 
+
     def __new__(cls, *args, **kwargs):
         tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
         if 'GCCcore' in tcdepnames:
