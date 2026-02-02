@@ -44,7 +44,6 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     NAME = 'NVHPC'
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
 
-
     def __new__(cls, *args, **kwargs):
         tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
         if 'GCCcore' in tcdepnames:
@@ -53,6 +52,7 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
             return NVHPCToolchain(*args, **kwargs)
         else:
             return super().__new__(cls)
+
 
 class NVHPCToolchain(NvidiaCompilersToolchain):
     """DEPRECATED alias for NvidiaCompilersToolchain."""
