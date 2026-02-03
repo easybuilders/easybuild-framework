@@ -3418,6 +3418,19 @@ class ToolchainTest(EnhancedTestCase):
         self.assertNotIsInstance(tc, NVHPCToolchain)
         self.assertNotIsInstance(tc, NVHPC)
 
+        # check new NVHPC toolchain with nvidia-compilers dependency
+        from easybuild.toolchains.nvhpc import NVHPC as NVHPC
+        tc = NVHPC(version='25.1', tcdeps=[{'name': 'nvidia-compilers', 'version': '25.1'}])
+        self.assertIsInstance(tc, NVHPC)
+        self.assertNotIsInstance(tc, NVHPCToolchain)
+
+        # check NVHPC toolchain for older easyconfigs with GCCcore dependency
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            tc = NVHPC(version='21.11', tcdeps=[{'name': 'GCCcore', 'version': '11.2.0'}])
+            self.assertIn("NVHPCToolchain was replaced by NvidiaCompilersToolchain", self.get_stderr())
+        self.assertIsInstance(tc, NVHPCToolchain)
+        self.assertNotIsInstance(tc, NVHPC)
+
 
 def suite(loader=None):
     """ return all the tests"""
