@@ -1381,7 +1381,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize %s -fno-math-errno -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize -fopenmp %s -fno-math-errno" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
@@ -1402,6 +1402,40 @@ class ToolchainTest(EnhancedTestCase):
 
         # check CUDA runtime lib
         self.assertIn("-lrt -lcudart", tc.get_variable('LIBS'))
+
+    def test_nvidia_compilers(self):
+        """Test whether nvidia-compilers is handled properly."""
+        # Test OpenMP support
+        openmp_cases = {
+            # (input parameter, resulting flag)
+            'false': ({'openmp': False}, "-nomp"),
+            'true': ({'openmp': True}, "-mp"),
+            'none': ({}, "-nomp"),
+        }
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, omp_flag in openmp_cases.values():
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(omp_flag in val, "'%s' not found in '%s'" % (omp_flag, val))
+
+        # Test vectorize support
+        vec_cases = {
+            # (input parameter, resulting flag)
+            'true': ({'vectorize': True}, "-Mvect"),
+            'false': ({'vectorize': False}, "-Mnovect"),
+            'none': ({}, ""),
+        }
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, vec_flag in vec_cases.values():
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(vec_flag in val, "'%s' not found in '%s'" % (vec_flag, val))
 
     def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
         """Set up sandbox for foss FFTW and FFTW.MPI"""
@@ -2292,11 +2326,11 @@ class ToolchainTest(EnhancedTestCase):
 
             tc_cflags = {
                 'CrayCCE': "-O2 -homp -craype-verbose",
-                'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
-                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
-                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
+                'CrayGNU': "-O2 -fopenmp -fno-math-errno -craype-verbose",
+                'CrayIntel': "-O2 -fopenmp -ftz -fp-speculation=safe -fp-model source -craype-verbose",
+                'GCC': "-O2 -ftree-vectorize -fopenmp -test -fno-math-errno",
+                'iccifort': "-O2 -fopenmp -test -ftz -fp-speculation=safe -fp-model source",
+                'intel-compilers': "-O2 -qopenmp -test -ftz -fp-speculation=safe -fp-model precise",
             }
 
             toolchains = [
