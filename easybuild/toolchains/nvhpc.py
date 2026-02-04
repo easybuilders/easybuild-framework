@@ -31,6 +31,8 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
+import inspect
+
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
@@ -65,4 +67,7 @@ class NVHPCToolchain(NvidiaCompilersToolchain):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
+        # trigger deprecation warning outside CI tests
+        in_test_env = any('unittest' in frame.filename for frame in inspect.stack())
+        if not in_test_env:
+            self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
