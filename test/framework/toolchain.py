@@ -1408,12 +1408,15 @@ class ToolchainTest(EnhancedTestCase):
     def test_nvidia_compilers(self):
         """Test whether nvidia-compilers is handled properly."""
         # Test OpenMP support
-        openmp_true = "-mp"
-        openmp_false = "-nomp"
-        openmp_none = "-nomp"
+        openmp_cases = {
+            # (input parameter, resulting flag)
+            'true': ({'openmp': True}, "-mp")
+            'false': ({'openmp': False}, "-nomp")
+            'none': ({}, "-nomp"),
+        }
         general_optflags = "-O2 %s %s -Mflushz"
         # Create new toolchain object in each iteration to start from clean state
-        for opts, omp_flag in [({}, openmp_none), ({'openmp': True}, openmp_true), ({'openmp': False}, openmp_false)]:
+        for opts, omp_flag in openmp_cases.values():
             tc = self.get_toolchain("nvidia-compilers", version="25.9")
             archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
             tc.set_options(opts)
