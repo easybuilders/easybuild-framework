@@ -67,7 +67,10 @@ class NVHPCToolchain(NvidiaCompilersToolchain):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # trigger deprecation warning outside CI tests
+        # print deprecation warning (stick to warning level in CI tests)
+        warn_msg = "NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0"
         in_test_env = any('unittest' in frame.filename for frame in inspect.stack())
-        if not in_test_env:
-            self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')
+        if in_test_env:
+            self.log.warning(warn_msg)
+        else:
+            self.log.deprecated(warn_msg, '6.0')
