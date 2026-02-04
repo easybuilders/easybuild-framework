@@ -42,6 +42,7 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     """Toolchain with Nvidia compilers and NVHPCX."""
     NAME = 'NVHPC'
+    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers as subtoolchain
     SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
 
     def __new__(cls, *args, **kwargs):
