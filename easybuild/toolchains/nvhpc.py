@@ -56,7 +56,7 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
 
 
 class NVHPCToolchain(NvidiaCompilersToolchain):
-    """DEPRECATED alias for NvidiaCompilersToolchain."""
+    """DEPRECATED legacy compiler-only toolchain for NVHPC."""
     DEPRECATED = True
     NAME = 'NVHPC'
     COMPILER_MODULE_NAME = ['NVHPC']
