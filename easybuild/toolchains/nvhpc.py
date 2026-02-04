@@ -53,8 +53,8 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
             # legacy NVHPC toolchains are compiler-only toolchains
             # on top of GCCcore, switch to corresponding class
             return NVHPCToolchain(*args, **kwargs)
-        else:
-            return super().__new__(cls)
+
+        return super().__new__(cls)
 
 
 class NVHPCToolchain(NvidiaCompilersToolchain):
