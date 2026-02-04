@@ -42,6 +42,27 @@ from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     """Toolchain with Nvidia compilers and NVHPCX."""
     NAME = 'NVHPC'
-    # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
-    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
-    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers as subtoolchain
+    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
+
+    def __new__(cls, *args, **kwargs):
+        tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
+        if 'GCCcore' in tcdepnames:
+            # legacy NVHPC toolchains are compiler-only toolchains
+            # on top of GCCcore, switch to corresponding class
+            return NVHPCToolchain(*args, **kwargs)
+        else:
+            return super().__new__(cls)
+
+
+class NVHPCToolchain(NvidiaCompilersToolchain):
+    """DEPRECATED legacy compiler-only toolchain for NVHPC."""
+    DEPRECATED = True
+    NAME = 'NVHPC'
+    COMPILER_MODULE_NAME = ['NVHPC']
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.log.deprecated("NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0", '6.0')

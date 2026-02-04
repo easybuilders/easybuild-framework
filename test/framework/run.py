@@ -74,6 +74,52 @@ class RunTest(EnhancedTestCase):
         # restore log.experimental
         easybuild.tools.utilities._log.experimental = self.orig_experimental
 
+    def test_RunShellCmdError_print(self):
+        """Test RunShellCmdError.print function"""
+        res = RunShellCmdResult(cmd='echo hello', exit_code=1, output='hello\n', stderr=None, work_dir='/work',
+                                out_file='/tmp/out.txt', err_file=None, cmd_sh='/tmp/cmd.sh',
+                                thread_id=None, task_id=None)
+        err = RunShellCmdError(res, caller_info=('file.py', 123, 'function_name'))
+        with self.mocked_stdout_stderr():
+            err.print()
+            stderr = self.get_stderr()
+        pattern = textwrap.dedent(r"""
+            ERROR: Shell command failed!.*
+                full command              ->  echo hello
+                exit code                 ->  1
+                called from               ->  'function_name' function in file.py \(line 123\)
+                working directory         ->  /work
+                output \(stdout \+ stderr\)  ->  /tmp/out.txt
+                interactive shell script  ->  /tmp/cmd.sh
+            """).strip()
+        re_clr = re.compile(r'.\[\d+(;\d+)?m')  # ANSI colors
+        stderr = re_clr.sub('', stderr)
+        self.assertRegex(stderr, pattern)
+
+        # Use command using unusual argument style possibly conflicting with rich:
+        cmd = res._asdict()
+        cmd['cmd'] = 'foo --bar=[/lib/baz]'
+        pattern = pattern.replace('echo hello', r'foo --bar=\[/lib/baz\]')
+        cmd['work_dir'] = '/x[123]'
+        pattern = pattern.replace('/work', r'/x\[123\]')
+
+        res = RunShellCmdResult(**cmd)
+        err = RunShellCmdError(res, err.caller_info)
+        use_rich_args = [False]
+        try:
+            import rich.progress  # noqa # pylint:disable=unused-import
+            use_rich_args.append(True)
+        except ImportError:
+            pass
+        for use_rich in use_rich_args:
+            with self.subTest(use_rich=use_rich):
+                update_build_option('output_style', 'rich' if use_rich else 'basic')
+                with self.mocked_stdout_stderr():
+                    err.print()
+                    stderr = self.get_stderr()
+                stderr = re_clr.sub('', stderr)
+                self.assertRegex(stderr, pattern)
+
     def test_get_output_from_process(self):
         """Test for get_output_from_process utility function."""
 
