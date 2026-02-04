@@ -48,8 +48,8 @@ class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     def __new__(cls, *args, **kwargs):
         tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
         if 'GCCcore' in tcdepnames:
-            # The newer higher level toolchains depend on nvidia-compilers
-            # instead of GCCcore
+            # legacy NVHPC toolchains are compiler-only toolchains
+            # on top of GCCcore, switch to corresponding class
             return NVHPCToolchain(*args, **kwargs)
         else:
             return super().__new__(cls)
