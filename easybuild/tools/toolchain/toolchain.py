@@ -441,9 +441,9 @@ class Toolchain:
         self.log.debug("show_variables:\n%s", txt)
         return txt
 
-    def get_software_root(self, names):
+    def get_software_root(self, names, required=True):
         """Try to get the software root for all names"""
-        return self._get_software_multiple(names, self._get_software_root)
+        return self._get_software_multiple(names, self._get_software_root, required=required)
 
     def get_software_version(self, names, required=True):
         """Try to get the software version for all names"""
@@ -462,8 +462,11 @@ class Toolchain:
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
+            msg = "get_software_root software root for %s was not found in environment"
             if required:
-                raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
+                raise EasyBuildError(msg, name)
+            else:
+                self.log.debug(msg, name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
@@ -472,8 +475,11 @@ class Toolchain:
         """Try to get the software version for name"""
         version = get_software_version(name)
         if version is None:
+            msg = "get_software_version software version for %s was not found in environment"
             if required:
-                raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
+                raise EasyBuildError(msg, name)
+            else:
+                self.log.debug(msg, name)
         else:
             self.log.debug("get_software_version software version %s for %s was found in environment", version, name)
 
@@ -1181,7 +1187,7 @@ class Toolchain:
             if dep.get('external_module', False):
                 # for software names provided via external modules, install prefix may be unknown
                 names = dep['external_module_metadata'].get('name', [])
-                dep_roots.extend([x for x in self.get_software_root(names) if x is not None])
+                dep_roots.extend([x for x in self.get_software_root(names, required=False) if x is not None])
             else:
                 dep_roots.extend(self.get_software_root(dep['name']))
 
