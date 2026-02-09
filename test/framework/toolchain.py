@@ -34,6 +34,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
@@ -3464,6 +3465,62 @@ class ToolchainTest(EnhancedTestCase):
             self.assertIn("NVHPCToolchain was replaced by NvidiaCompilersToolchain", self.get_stderr())
         self.assertIsInstance(tc, NVHPCToolchain)
         self.assertNotIsInstance(tc, NVHPC)
+
+    def test_toolchain_external(self):
+        """
+        Test use of toolchain that has components which are external modules
+        """
+
+        mods_dir = os.path.join(self.test_prefix, 'modules')
+        empty_mod = "#%Module"
+        gcccore_ext_mod = os.path.join(mods_dir, 'GCCcore', 'external')
+        write_file(gcccore_ext_mod, empty_mod)
+        binutils_ext_mod = os.path.join(mods_dir, 'binutils', 'external')
+        write_file(binutils_ext_mod, empty_mod)
+        self.modtool.prepend_module_path(mods_dir)
+
+        tc_ec = os.path.join(self.test_prefix, 'GCC-external.eb')
+        tc_ec_txt = textwrap.dedent("""
+            easyblock = 'Toolchain'
+
+            name = 'GCC'
+            version = 'external'
+
+            homepage = 'none'
+            description = 'GCC toolchain with external modules as components'
+
+            toolchain = SYSTEM
+
+            dependencies = [
+                ('GCCcore/external', EXTERNAL_MODULE),
+                ('binutils/external', EXTERNAL_MODULE),
+            ]
+        """)
+        write_file(tc_ec, tc_ec_txt)
+        self.eb_main([tc_ec], raise_error=True, do_build=True)
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec_txt = re.sub('toolchain.*', "toolchain = {'name': 'GCC', 'version': 'external'}", toy_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        ext_mods_meta = os.path.join(self.test_prefix, 'ext-mods-meta.cfg')
+        ext_mods_meta_txt = textwrap.dedent("""
+            [GCCcore/external]
+            name = GCCcore
+        """)
+        write_file(ext_mods_meta, ext_mods_meta_txt)
+
+        args = [
+            test_ec,
+            '--robot=' + self.test_prefix,
+            '--external-modules-metadata=' + ext_mods_meta,
+        ]
+        self.eb_main(args, raise_error=True, do_build=True, verbose=True)
 
 
 def suite(loader=None):
