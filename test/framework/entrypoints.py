@@ -479,8 +479,12 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
             self.assertEqual(val, key == 'post_cfg', "Should only run post-configure hooks")
 
 
-def suite():
-    return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildEntrypointsTest, sys.argv[1:])
+def suite(loader=None):
+    """ returns all the testcases in this module """
+    if loader:
+        return loader.loadTestsFromTestCase(EasyBuildEntrypointsTest)
+    else:
+        return TestLoaderFiltered().loadTestsFromTestCase(EasyBuildEntrypointsTest, sys.argv[1:])
 
 
 if __name__ == '__main__':
