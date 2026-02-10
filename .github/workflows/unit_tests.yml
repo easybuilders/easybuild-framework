@@ -129,7 +129,7 @@ jobs:
         pip install -r requirements.txt
         if ! python -c "import distutils" 2> /dev/null; then
             # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
-            pip install --upgrade setuptools
+            pip install --upgrade setuptools==81.0.0
         fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)
         git config --global user.name "Github Actions"
