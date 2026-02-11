@@ -211,6 +211,15 @@ class TestCase(OrigTestCase):
             self.mock_stdout(False)
 
     @contextmanager
+    def mocked_stderr(self):
+        """Context manager to mock stdout"""
+        self.mock_stderr(True)
+        try:
+            yield sys.stderr
+        finally:
+            self.mock_stderr(False)
+
+    @contextmanager
     def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
         """Context manager to mock stdout and stderr"""
         if mock_stdout:

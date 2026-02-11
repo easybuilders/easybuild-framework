@@ -81,7 +81,7 @@ from easybuild.framework.extension import Extension, resolve_exts_filter_templat
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
@@ -2982,7 +2982,8 @@ class EasyBlock:
             if os.path.isabs(self.rpath_wrappers_dir):
                 _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
             else:
-                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s",
+                                     self.rpath_wrappers_dir)
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
@@ -5066,8 +5067,8 @@ def build_and_install_one(ecdict, init_env):
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
-                    silent=silent)
+        print_error_and_exit("Failed to get application instance for %s (easyblock: %s): %s", name, easyblock, err.msg,
+                             silent=silent, exit_code=err.exit_code)
 
     # application settings
     stop = build_option('stop')

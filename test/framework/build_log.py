@@ -38,8 +38,8 @@ from unittest import TextTestRunner
 from easybuild.base.fancylogger import getLogger, logToFile, setLogFormat
 from easybuild.framework.easyconfig.tweak import tweak_one
 from easybuild.tools.build_log import (
-    LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error, print_msg,
-    print_warning, stop_logging, time_str_since, raise_nosupport)
+    LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error,
+    print_error_and_exit, print_msg, print_warning, stop_logging, time_str_since, raise_nosupport)
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -275,28 +275,33 @@ class BuildLogTest(EnhancedTestCase):
         log_txt = read_file(tmp_logfile)
         self.assertIn("WARNING Test log message with a logger involved.", log_txt)
 
-    def test_print_error(self):
-        """Test print_error"""
+    def test_print_error_and_exit(self):
+        """Test print_error_and_exit and (deprecated) print_error functions"""
         def run_check(args, silent=False, expected_stderr=''):
             """Helper function to check stdout/stderr produced via print_error."""
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            self.assertErrorRegex(SystemExit, '1', print_error, *args, silent=silent)
-            stderr = self.get_stderr()
-            stdout = self.get_stdout()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
-            self.assertEqual(stdout, '')
-            self.assertTrue(stderr.startswith(expected_stderr))
+            for func in ("print_error_and_exit", "print_error"):
+                with self.subTest(f"Function {func}"):
+                    with self.mocked_stdout_stderr():
+                        if func == "print_error":  # Deprecated variant
+                            with self.temporarily_allow_deprecated_behaviour():
+                                self.assertRaisesRegex(SystemExit, '1', print_error, *args, silent=silent)
+                            stderr = re.sub(r'\nWARNING: Deprecated.*\n\n', '', self.get_stderr())
+                        else:
+                            self.assertRaisesRegex(SystemExit, '1', print_error_and_exit, *args, silent=silent)
+                            stderr = self.get_stderr()
+                        stdout = self.get_stdout()
+                    self.assertEqual(stdout, '')
+                    self.assertEqual(stderr, expected_stderr)
 
-        run_check(['You have failed.'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['You have %s.', 'failed'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['You have failed.'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['You have %s.', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
         run_check(['You have failed.'], silent=True)
         run_check(['You have %s.', 'failed'], silent=True)
         run_check(['%s %s %s.', 'You', 'have', 'failed'], silent=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
 
     def test_print_msg(self):
         """Test print_msg"""
