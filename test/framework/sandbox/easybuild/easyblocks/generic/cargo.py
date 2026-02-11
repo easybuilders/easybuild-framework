@@ -39,7 +39,7 @@ class Cargo(EasyBlock):
 
     @staticmethod
     def src_parameter_names():
-        return super(Cargo, Cargo).src_parameter_names() + ['crates']
+        return EasyBlock.src_parameter_names() + ['crates']
 
     def __init__(self, *args, **kwargs):
         """Constructor for Cargo easyblock."""
