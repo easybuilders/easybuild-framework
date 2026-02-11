@@ -57,6 +57,8 @@ jobs:
             modules_tool: ${{needs.setup.outputs.lmod8}}
           - python: '3.14'
             modules_tool: ${{needs.setup.outputs.lmod8}}
+          - python: '3.15.0-alpha.5'
+            modules_tool: ${{needs.setup.outputs.lmod8}}
           # also test with Lmod 9.x
           - python: '3.9'
             modules_tool: ${{needs.setup.outputs.lmod9}}
