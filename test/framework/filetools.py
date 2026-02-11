@@ -2699,11 +2699,13 @@ class FileToolsTest(EnhancedTestCase):
         # load_index just returns None if there is no index in specified directory
         self.assertEqual(ft.load_index(self.test_prefix), None)
 
+        num_files = len(glob.glob(test_ecs + '/**/*.*', recursive=True))
+
         # create index for test easyconfigs;
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 105)
+            self.assertEqual(len(index), num_files)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
