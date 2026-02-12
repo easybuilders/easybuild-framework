@@ -1127,8 +1127,8 @@ class ModulesTool:
 
         if not allow_reload:
             modules = set(modules) - set(self.loaded_modules())
-        for mod in modules:
-            self.run_module('load', mod)
+
+        self.run_module('load', *modules)
 
     def unload(self, modules, log_changes=True):
         """
