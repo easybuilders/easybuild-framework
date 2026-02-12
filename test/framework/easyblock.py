@@ -1298,30 +1298,41 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertRaisesRegex(EasyBuildError, f'invalid path: {os.path.basename(mock_test_bin)}', eb.test_cases_step)
 
         init_config(args=[f"--sourcepath={self.test_prefix}"])
+        write_file(eb.logfile, '')
         eb.test_cases_step()
         self.assertIn('Test case success', read_file(eb.logfile))
 
         # Also works with non-executable file
-        write_file(eb.logfile, '')
         perms = stat.S_IREAD
         adjust_permissions(mock_test_bin, perms, relative=False)
         eb.cfg['tests'] = [os.path.basename(mock_test_bin)]
+        write_file(eb.logfile, '')
         eb.test_cases_step()
         self.assertEqual(stat.S_IMODE(os.lstat(mock_test_bin).st_mode), perms)  # Permissions unchanged
         self.assertIn('Test case success', read_file(eb.logfile))
 
         # Similar for absolute paths
-        write_file(eb.logfile, '')
         eb.cfg['tests'] = [mock_test_bin]
+        write_file(eb.logfile, '')
         eb.test_cases_step()
         self.assertIn('Test case success', read_file(eb.logfile))
 
         # Detect failure
         adjust_permissions(mock_test_bin, stat.S_IWRITE)
-        write_file(mock_test_bin, "#!/bin/bash\necho 'Test case failure' && exit 1")
+        mock_test_bin_fail = mock_test_bin + "_fail"
+        write_file(mock_test_bin_fail, "#!/bin/bash\necho 'Test case failure' && exit 1")
+        eb.cfg['tests'] = [mock_test_bin_fail]
         write_file(eb.logfile, '')
-        self.assertRaisesRegex(EasyBuildError, f'Running test {mock_test_bin} failed', eb.test_cases_step)
+        self.assertRaisesRegex(EasyBuildError, f'Running test {mock_test_bin_fail} failed', eb.test_cases_step)
         self.assertIn('Test case failure', read_file(eb.logfile))
+
+        # Multiple tests
+        eb.cfg['tests'] = [mock_test_bin, mock_test_bin_fail]
+        write_file(eb.logfile, '')
+        self.assertRaisesRegex(EasyBuildError, f'Running test {mock_test_bin_fail} failed', eb.test_cases_step)
+        log_txt = read_file(eb.logfile)
+        self.assertIn('Test case success', log_txt)
+        self.assertIn('Test case failure', log_txt)
 
     def test_post_processing_step(self):
         """Test post_processing_step and deprecated post_install_step."""
