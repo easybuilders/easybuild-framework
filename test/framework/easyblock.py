@@ -34,6 +34,7 @@ import fileinput
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import textwrap
@@ -52,8 +53,8 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
-from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
-from easybuild.tools.filetools import symlink, verify_checksum, write_file
+from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, mkdir, read_file
+from easybuild.tools.filetools import remove_dir, remove_file, symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
 from easybuild.tools.version import get_git_revision, this_is_easybuild
@@ -1270,6 +1271,57 @@ class EasyBlockTest(EnhancedTestCase):
         eb.post_iter_step()
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
+
+    def test_test_cases_step(self):
+        """Test test_cases_step"""
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            "toolchain = {'name': 'gompi', 'version': '2018a'}",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.cfg['tests'] = ['does-not-exist']
+        self.assertRaisesRegex(EasyBuildError, 'invalid path: does-not-exist', eb.test_cases_step)
+        eb.cfg['tests'] = ['/abs/path/does-not-exist']
+        self.assertRaisesRegex(EasyBuildError, 'invalid path: /abs/path/does-not-exist', eb.test_cases_step)
+
+        mock_test_bin = os.path.join(self.test_prefix, 'pi', 'test_me')
+        os.environ['PATH'] += f':{os.path.dirname(mock_test_bin)}'
+        write_file(mock_test_bin, "#!/bin/bash\necho 'Test case success'")
+
+        adjust_permissions(mock_test_bin, stat.S_IXUSR)
+        eb.cfg['tests'] = [os.path.basename(mock_test_bin)]
+        self.assertRaisesRegex(EasyBuildError, f'invalid path: {os.path.basename(mock_test_bin)}', eb.test_cases_step)
+
+        init_config(args=[f"--sourcepath={self.test_prefix}"])
+        eb.test_cases_step()
+        self.assertIn('Test case success', read_file(eb.logfile))
+
+        # Also works with non-executable file
+        write_file(eb.logfile, '')
+        perms = stat.S_IREAD
+        adjust_permissions(mock_test_bin, perms, relative=False)
+        eb.cfg['tests'] = [os.path.basename(mock_test_bin)]
+        eb.test_cases_step()
+        self.assertEqual(stat.S_IMODE(os.lstat(mock_test_bin).st_mode), perms)  # Permissions unchanged
+        self.assertIn('Test case success', read_file(eb.logfile))
+
+        # Similar for absolute paths
+        write_file(eb.logfile, '')
+        eb.cfg['tests'] = [mock_test_bin]
+        eb.test_cases_step()
+        self.assertIn('Test case success', read_file(eb.logfile))
+
+        # Detect failure
+        adjust_permissions(mock_test_bin, stat.S_IWRITE)
+        write_file(mock_test_bin, "#!/bin/bash\necho 'Test case failure' && exit 1")
+        write_file(eb.logfile, '')
+        self.assertRaisesRegex(EasyBuildError, f'Running test {mock_test_bin} failed', eb.test_cases_step)
+        self.assertIn('Test case failure', read_file(eb.logfile))
 
     def test_post_processing_step(self):
         """Test post_processing_step and deprecated post_install_step."""
