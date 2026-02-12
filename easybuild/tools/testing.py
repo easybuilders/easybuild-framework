@@ -369,7 +369,7 @@ def post_pr_test_report(pr_nrs, repo_type, test_report, msg, init_session_state,
         system_info['cpu_model'] += " (%s)" % system_info['cpu_arch_name']
 
     # add GPU info, if known
-    gpu_info = get_gpu_info()
+    gpu_info = get_gpu_info(init_session_state['environment'])
     gpu_str = ""
     if gpu_info:
         for vendor, vendor_gpu in gpu_info.items():
