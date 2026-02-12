@@ -1,15 +1,16 @@
-import sys
+from easybuild.main import main_with_hooks
 
 try:
     import click as original_click
 except ImportError:
     def eb():
         """Placeholder function to inform the user that `click` is required."""
-        print('Using `eb2` requires `click` to be installed.')
-        print('Either use `eb` or install `click` with `pip install click`.')
-        print('`eb2` also uses `rich` and `rich_click` as optional dependencies for enhanced CLI experience.')
-        print('Exiting...')
-        sys.exit(0)
+        main_with_hooks()
+        # print('Using `eb2` requires `click` to be installed.')
+        # print('Either use `eb` or install `click` with `pip install click`.')
+        # print('`eb2` also uses `rich` and `rich_click` as optional dependencies for enhanced CLI experience.')
+        # print('Exiting...')
+        # sys.exit(0)
 else:
     try:
         import rich_click as click
@@ -26,8 +27,6 @@ else:
         ])
 
     from .options import EasyBuildCliOption, EasyconfigParam
-
-    from easybuild.main import main_with_hooks
 
     @click.command()
     @EasyBuildCliOption.apply_options
