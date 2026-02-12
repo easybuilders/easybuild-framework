@@ -155,16 +155,16 @@ def summary(ecs_with_res):
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True, testing=False):
     """
     Build and install software for all provided parsed easyconfig files.
-    The build environment is reset to the one passed by init_session_state between builds.
-    However, the environment is _not_ reset after the last build.
+    The environment used for building the software matches the one used to enter this function.
+    The environment is reset upon finishing a build.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
-    :param exit_on_failure: whether or not to exit on installation failure
+    :param exit_on_failure: whether to exit on installation failure
     """
-    # obtain a copy of the starting environment so each build can start afresh
-    # we shouldn't use the environment from init_session_state, since relevant env vars might have been set since
-    # e.g. via easyconfig.handle_allowed_system_deps
+    # Obtain a copy of the environment when starting to build, so each build can start afresh.
+    # We shouldn't use the environment from init_session_state, since relevant env vars might have been set since
+    # e.g. via easyconfig.handle_allowed_system_deps.
     init_env = copy.deepcopy(os.environ)
 
     start_progress_bar(STATUS_BAR, size=len(ecs))
@@ -186,6 +186,11 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, te
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+        finally:
+            # Do not wait for final build, since we might raise an error on a failed build,
+            # leaving a tainted environment. With this, we ensure that we always properly clean up.
+            _log.info("Resetting environment after completed build")
+            restore_env(init_env)
 
         if ec_res['success']:
             ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')
