@@ -31,12 +31,12 @@ Authors:
 * Robert Mijakovic <robert.mijakovic@lxp.lu> (LuxProvide)
 """
 
-from easybuild.toolchains.nvhpc import NVHPCToolchain
 from easybuild.toolchains.mpi.psmpi import Psmpi
+from easybuild.toolchains.nvhpc import NvidiaCompilersToolchain
 
 
 # Order matters!
-class NVpsmpi(NVHPCToolchain, Psmpi):
+class NVpsmpi(NvidiaCompilersToolchain, Psmpi):
     """Compiler toolchain with NVHPC and ParaStationMPI."""
     NAME = 'nvpsmpi'
-    SUBTOOLCHAIN = NVHPCToolchain.NAME
+    SUBTOOLCHAIN = NvidiaCompilersToolchain.NAME

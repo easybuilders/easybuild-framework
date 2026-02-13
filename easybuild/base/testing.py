@@ -114,13 +114,13 @@ class TestCase(OrigTestCase):
             raise AssertionError("%s:\nDIFF%s:\n%s" % (msg, limit, ''.join(diff[:self.ASSERT_MAX_DIFF]))) from None
 
     def assertExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path exists"""
         if msg is None:
             msg = "'%s' should exist" % path
         self.assertTrue(os.path.exists(path), msg)
 
     def assertNotExists(self, path, msg=None):
-        """Assert the given path exists"""
+        """Assert that the given path does not exist"""
         if msg is None:
             msg = "'%s' should not exist" % path
         self.assertFalse(os.path.exists(path), msg)
@@ -202,6 +202,24 @@ class TestCase(OrigTestCase):
         return sys.stderr.getvalue()
 
     @contextmanager
+    def mocked_stdout(self):
+        """Context manager to mock stdout"""
+        self.mock_stdout(True)
+        try:
+            yield sys.stdout
+        finally:
+            self.mock_stdout(False)
+
+    @contextmanager
+    def mocked_stderr(self):
+        """Context manager to mock stdout"""
+        self.mock_stderr(True)
+        try:
+            yield sys.stderr
+        finally:
+            self.mock_stderr(False)
+
+    @contextmanager
     def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
         """Context manager to mock stdout and stderr"""
         if mock_stdout:
@@ -220,6 +238,16 @@ class TestCase(OrigTestCase):
                 self.mock_stdout(False)
             if mock_stderr:
                 self.mock_stderr(False)
+
+    @contextmanager
+    def saved_env(self):
+        """Context manager to reset environment to state when it was entered"""
+        orig_env = os.environ.copy()
+        try:
+            yield
+        finally:
+            os.environ.clear()
+            os.environ.update(orig_env)
 
     def tearDown(self):
         """Cleanup after running a test."""

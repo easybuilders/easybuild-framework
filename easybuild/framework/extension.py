@@ -38,6 +38,7 @@ Authors:
 import copy
 import os
 
+from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, raise_nosupport
@@ -107,10 +108,19 @@ class Extension:
 
         name, version = self.ext['name'], self.ext.get('version', None)
 
-        # parent sanity check paths/commands and postinstallcmds are not relevant for extension
-        self.cfg['sanity_check_commands'] = []
-        self.cfg['sanity_check_paths'] = []
-        self.cfg['postinstallcmds'] = []
+        # Reset some options that should not be inherited from the parent
+        restore_options = (
+            'checksums',
+            'data_sources',
+            'patches',
+            'postinstallcmds',
+            'sanity_check_commands',
+            'sanity_check_paths',
+            'skipsteps',
+            'sources',
+        )
+        for opt_name in restore_options:
+            self.cfg[opt_name] = get_easyconfig_parameter_default(opt_name)
 
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
@@ -232,6 +242,8 @@ class Extension:
         Stuff to do after installing a extension.
         """
         self.master.run_post_install_commands(commands=self.cfg.get('postinstallcmds', []))
+        self.master.apply_post_install_patches(patches=[p for p in self.patches if p['postinstall']])
+        self.master.print_post_install_messages(msgs=self.cfg.get('postinstallmsgs', []))
 
     def install_extension_substep(self, substep, *args, **kwargs):
         """

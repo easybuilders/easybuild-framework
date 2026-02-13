@@ -36,9 +36,10 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base.fancylogger import getLogger, logToFile, setLogFormat
+from easybuild.framework.easyconfig.tweak import tweak_one
 from easybuild.tools.build_log import (
-    LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error, print_msg,
-    print_warning, stop_logging, time_str_since, raise_nosupport)
+    LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error,
+    print_error_and_exit, print_msg, print_warning, stop_logging, time_str_since, raise_nosupport)
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -58,33 +59,40 @@ class BuildLogTest(EnhancedTestCase):
 
     def test_easybuilderror(self):
         """Tests for EasyBuildError."""
-        fd, tmplog = tempfile.mkstemp()
-        os.close(fd)
-
         # set log format, for each regex searching
         setLogFormat("%(name)s :: %(message)s")
 
-        # if no logger is available, and no logger is specified, use default 'root' fancylogger
-        logToFile(tmplog, enable=True)
-        self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
-        logToFile(tmplog, enable=False)
+        with self.log_to_testlogfile() as logfile:
+            self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
+            logtxt = read_file(logfile)
 
         log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        logtxt = read_file(tmplog, 'r')
         self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
 
         # test formatting of message
         self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
 
         # a '%s' in a value used to template the error message should not print a traceback!
-        self.mock_stderr(True)
-        self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
-        # stderr should be *empty* (there should definitely not be a traceback)
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'err: msg: %s', raise_easybuilderror, "err: %s", "msg: %s")
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+        # stdout/stderr should be *empty* (there should definitely not be a traceback)
+        self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
 
-        os.remove(tmplog)
+        # Need to all call a method in the "easybuild" package as everything else will be filtered out
+        with self.log_to_testlogfile() as logfile:
+            self.assertErrorRegex(EasyBuildError, 'Failed to read', tweak_one, '/does/not/exist', '/tmp/new', {})
+            logtxt: str = read_file(logfile)
+
+        self.assertRegex(logtxt, '\n'.join(
+            (r"EasyBuild encountered an error: Failed to read /does/not/exist:.*",
+             r"Callstack:",
+             r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
+             r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
+             r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
+             )), re.M)
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""
@@ -267,28 +275,33 @@ class BuildLogTest(EnhancedTestCase):
         log_txt = read_file(tmp_logfile)
         self.assertIn("WARNING Test log message with a logger involved.", log_txt)
 
-    def test_print_error(self):
-        """Test print_error"""
+    def test_print_error_and_exit(self):
+        """Test print_error_and_exit and (deprecated) print_error functions"""
         def run_check(args, silent=False, expected_stderr=''):
             """Helper function to check stdout/stderr produced via print_error."""
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            self.assertErrorRegex(SystemExit, '1', print_error, *args, silent=silent)
-            stderr = self.get_stderr()
-            stdout = self.get_stdout()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
-            self.assertEqual(stdout, '')
-            self.assertTrue(stderr.startswith(expected_stderr))
+            for func in ("print_error_and_exit", "print_error"):
+                with self.subTest(f"Function {func}"):
+                    with self.mocked_stdout_stderr():
+                        if func == "print_error":  # Deprecated variant
+                            with self.temporarily_allow_deprecated_behaviour():
+                                self.assertRaisesRegex(SystemExit, '1', print_error, *args, silent=silent)
+                            stderr = re.sub(r'\nWARNING: Deprecated.*\n\n', '', self.get_stderr())
+                        else:
+                            self.assertRaisesRegex(SystemExit, '1', print_error_and_exit, *args, silent=silent)
+                            stderr = self.get_stderr()
+                        stdout = self.get_stdout()
+                    self.assertEqual(stdout, '')
+                    self.assertEqual(stderr, expected_stderr)
 
-        run_check(['You have failed.'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['You have %s.', 'failed'], expected_stderr="ERROR: You have failed.\n")
-        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="ERROR: You have failed.\n")
+        run_check(['You have failed.'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['You have %s.', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
+        run_check(['%s %s %s.', 'You', 'have', 'failed'], expected_stderr="\n\nERROR: You have failed.\n\n")
         run_check(['You have failed.'], silent=True)
         run_check(['You have %s.', 'failed'], silent=True)
         run_check(['%s %s %s.', 'You', 'have', 'failed'], silent=True)
 
-        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_error, 'foo', unknown_arg='bar')
 
     def test_print_msg(self):
         """Test print_msg"""

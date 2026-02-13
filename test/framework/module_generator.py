@@ -38,12 +38,12 @@ from unittest import TextTestRunner, TestSuite
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for
+from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for, wrap_shell_vars
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.modules import EnvironmentModulesC, EnvironmentModulesTcl, Lmod
+from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -794,11 +794,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported for Tcl modules
-        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
             return
 
-        # currently requires opt-in via --module-extensions
+        # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -810,10 +810,23 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        patterns = [
-            r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("8\.2\.8"\) then\n' +
-            r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
-        ]
+        req_version_pattern = re.escape(self.modtool.REQ_VERSION_EXTENSIONS)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            if isinstance(self.modtool, EnvironmentModules):
+                version_var = "::ModuleToolVersion"
+            else:
+                version_var = r"::env\(LMOD_VERSION\)"
+            patterns = [
+                (r'^if \{ \[ info exists %s \] && \[ string equal \[lindex \[lsort -dictionary '
+                 r'\[list %s \$%s\]\] 0\] %s \] \} \{\n') % (version_var, req_version_pattern,
+                                                             version_var, req_version_pattern),
+                r'\s*extensions bar/0.0 barbar/1.2 toy/0.0 ulimit$',
+            ]
+        else:
+            patterns = [
+                r'^if convertToCanonical\(LmodVersion\(\)\) >= convertToCanonical\("%s"\) then\n' % req_version_pattern,
+                r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
+            ]
 
         for pattern in patterns:
             regex = re.compile(pattern, re.M)
@@ -827,7 +840,25 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assertFalse(re.search(r"\s*extensions\(", desc), "No extensions found in: %s" % desc)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+            pattern = r"\s*extensions "
+        else:
+            pattern = r"\s*extensions\("
+
+        self.assertFalse(re.search(pattern, desc), "No extensions found in: %s" % desc)
+
+        # check if the extensions is missing if 'module_extensions' is disabled
+        init_config(build_options={'module_extensions': False})
+        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+
+        ec = EasyConfig(test_ec)
+        eb = EasyBlock(ec)
+        modgen = self.MODULE_GENERATOR_CLASS(eb)
+        desc = modgen.get_description()
+
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertFalse(regex.search(desc), "Pattern '%s' not found in: %s" % (regex.pattern, desc))
 
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
@@ -951,6 +982,33 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ])
             self.assertEqual(self.modgen.use(["/some/path"], prefix=quote_str("/foo"), guarded=True), expected)
 
+    def test_wrap_shell_vars(self):
+        """Test function wrap_shell_vars."""
+        reference = (
+            ('abcd $VAR1 efgh $VAR2 ijkl', 'abcd PREFIX-VAR1-SUFFIX efgh PREFIX-VAR2-SUFFIX ijkl'),
+            ('abcd ${VAR1} efgh ${VAR2} ijkl', 'abcd PREFIX-VAR1-SUFFIX efgh PREFIX-VAR2-SUFFIX ijkl'),
+            ('abcd$VAR1efgh$VAR2ijkl', 'abcdPREFIX-VAR1efgh-SUFFIXPREFIX-VAR2ijkl-SUFFIX'),
+            ('abcd${VAR1}efgh${VAR2}ijkl', 'abcdPREFIX-VAR1-SUFFIXefghPREFIX-VAR2-SUFFIXijkl'),
+            ('abcd/$VAR1/efgh/$VAR2/ijkl', 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),
+            ('abcd/${VAR1}/efgh/${VAR2}/ijkl', 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),
+            ('abcd/$var1/efgh/$var2/ijkl', 'abcd/PREFIX-var1-SUFFIX/efgh/PREFIX-var2-SUFFIX/ijkl'),
+            ('abcd/${var1}/efgh/${var2}/ijkl', 'abcd/PREFIX-var1-SUFFIX/efgh/PREFIX-var2-SUFFIX/ijkl'),
+            ('abcd/"$VAR1"/efgh/"$VAR2"/ijkl', 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),  # unquoted
+            ('abcd/"${VAR1}"/efgh/"${VAR2}"/ijkl', 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),  # unquoted
+            ("abcd/'$VAR1'/efgh/'$VAR2'/ijkl", 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),  # unquoted
+            ("abcd/'${VAR1}'/efgh/'${VAR2}'/ijkl", 'abcd/PREFIX-VAR1-SUFFIX/efgh/PREFIX-VAR2-SUFFIX/ijkl'),  # unquoted
+            ('abcd/$$VAR1/efgh/$$VAR2/ijkl', 'abcd/$VAR1/efgh/$VAR2/ijkl'),  # unescaped
+            ('abcd/$${VAR1}/efgh/$${VAR2}/ijkl', 'abcd/${VAR1}/efgh/${VAR2}/ijkl'),  # unescaped
+            ('abcd/$1VAR/efgh/$2VAR/ijkl', 'abcd/$1VAR/efgh/$2VAR/ijkl'),  # unchanged
+            ('abcd/${1VAR}/efgh/${2VAR}/ijkl', 'abcd/${1VAR}/efgh/${2VAR}/ijkl'),  # unchanged
+            ('abcd/$ VAR/efgh/$-VAR/ijkl', 'abcd/$ VAR/efgh/$-VAR/ijkl'),  # unchanged
+            ('abcd/${ VAR}/efgh/${-VAR}/ijkl', 'abcd/${ VAR}/efgh/${-VAR}/ijkl'),  # unchanged
+            ('abcd/$ {VAR}/efgh/${!VAR}/ijkl', 'abcd/$ {VAR}/efgh/${!VAR}/ijkl'),  # unchanged
+
+        )
+        for strng, expected in reference:
+            self.assertEqual(wrap_shell_vars(strng, 'PREFIX-', '-SUFFIX'), expected)
+
     def test_env(self):
         """Test setting of environment variables."""
         collection = (
@@ -969,6 +1027,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ("/absolute/path",     True,    'setenv\tkey\t\t"/absolute/path"\n',              'setenv("key", pathJoin("/", "absolute", "path"))\n'),  # noqa
             ("/",                  False,   'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
             ("/",                  True,    'setenv\tkey\t\t"/"\n',                           'setenv("key", "/")\n'),  # noqa
+            ("$$VAR",              False,   'setenv\tkey\t\t"$VAR"\n',                        'setenv("key", "$VAR")\n'),  # noqa
+            ("$$VAR",              True,    'setenv\tkey\t\t"$root/$VAR"\n',                  'setenv("key", pathJoin(root, "$VAR"))\n'),  # noqa
             ("$VAR",               False,   'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
             ("$VAR",               True,    'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
             ("$VAR/in/path",       False,   'setenv\tkey\t\t"$::env(VAR)/in/path"\n',         'setenv("key", os.getenv("VAR") .. "/in/path")\n'),  # noqa
@@ -983,6 +1043,20 @@ class ModuleGeneratorTest(EnhancedTestCase):
             ("/abspath/with/$VAR", True,    'setenv\tkey\t\t"/abspath/with/$::env(VAR)"\n',   'setenv("key", pathJoin("/", "abspath", "with", os.getenv("VAR")))\n'),  # noqa
             ("/abspath/$VAR/dir",  False,   'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", "/abspath/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
             ("/abspath/$VAR/dir",  True,    'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", pathJoin("/", "abspath", os.getenv("VAR"), "dir"))\n'),  # noqa
+            ("${VAR}",               False,   'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
+            ("${VAR}",               True,    'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
+            ("${VAR}/in/path",       False,   'setenv\tkey\t\t"$::env(VAR)/in/path"\n',         'setenv("key", os.getenv("VAR") .. "/in/path")\n'),  # noqa
+            ("${VAR}/in/path",       True,    'setenv\tkey\t\t"$root/$::env(VAR)/in/path"\n',   'setenv("key", pathJoin(root, os.getenv("VAR"), "in", "path"))\n'),  # noqa
+            ("path/with/${VAR}",     False,   'setenv\tkey\t\t"path/with/$::env(VAR)"\n',       'setenv("key", "path/with/" .. os.getenv("VAR"))\n'),  # noqa
+            ("path/with/${VAR}",     True,    'setenv\tkey\t\t"$root/path/with/$::env(VAR)"\n', 'setenv("key", pathJoin(root, "path", "with", os.getenv("VAR")))\n'),  # noqa
+            ("path/${VAR}/dir",      False,   'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ("path/${VAR}/dir",      True,    'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
+            ("/${VAR}/in/abspath",   False,   'setenv\tkey\t\t"/$::env(VAR)/in/abspath"\n',     'setenv("key", "/" .. os.getenv("VAR") .. "/in/abspath")\n'),  # noqa
+            ("/${VAR}/in/abspath",   True,    'setenv\tkey\t\t"/$::env(VAR)/in/abspath"\n',     'setenv("key", pathJoin("/", os.getenv("VAR"), "in", "abspath"))\n'),  # noqa
+            ("/abspath/with/${VAR}", False,   'setenv\tkey\t\t"/abspath/with/$::env(VAR)"\n',   'setenv("key", "/abspath/with/" .. os.getenv("VAR"))\n'),  # noqa
+            ("/abspath/with/${VAR}", True,    'setenv\tkey\t\t"/abspath/with/$::env(VAR)"\n',   'setenv("key", pathJoin("/", "abspath", "with", os.getenv("VAR")))\n'),  # noqa
+            ("/abspath/${VAR}/dir",  False,   'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", "/abspath/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ("/abspath/${VAR}/dir",  True,    'setenv\tkey\t\t"/abspath/$::env(VAR)/dir"\n',    'setenv("key", pathJoin("/", "abspath", os.getenv("VAR"), "dir"))\n'),  # noqa
             # modextravars defined with dicts
             ({'value': 'value'},    False,  'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
             ({'value': 'value',
@@ -1005,6 +1079,22 @@ class ModuleGeneratorTest(EnhancedTestCase):
               'resolve_env_vars': False}, False,  'setenv\tkey\t\t"path/$VAR/dir"\n',               'setenv("key", "path/$VAR/dir")\n'),  # noqa
             ({'value': "path/$VAR/dir",
               'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/path/$VAR/dir"\n',         'setenv("key", pathJoin(root, "path", "$VAR", "dir"))\n'),  # noqa
+            ({'value': "${VAR}",
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"$::env(VAR)"\n',                 'setenv("key", os.getenv("VAR"))\n'),  # noqa
+            ({'value': "${VAR}",
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/$::env(VAR)"\n',           'setenv("key", pathJoin(root, os.getenv("VAR")))\n'),  # noqa
+            ({'value': "${VAR}",
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"${VAR}"\n',                        'setenv("key", "${VAR}")\n'),  # noqa
+            ({'value': "${VAR}",
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/${VAR}"\n',                  'setenv("key", pathJoin(root, "${VAR}"))\n'),  # noqa
+            ({'value': "path/${VAR}/dir",
+              'resolve_env_vars': True},  False,  'setenv\tkey\t\t"path/$::env(VAR)/dir"\n',        'setenv("key", "path/" .. os.getenv("VAR") .. "/dir")\n'),  # noqa
+            ({'value': "path/${VAR}/dir",
+              'resolve_env_vars': True},  True,   'setenv\tkey\t\t"$root/path/$::env(VAR)/dir"\n',  'setenv("key", pathJoin(root, "path", os.getenv("VAR"), "dir"))\n'),  # noqa
+            ({'value': "path/${VAR}/dir",
+              'resolve_env_vars': False}, False,  'setenv\tkey\t\t"path/${VAR}/dir"\n',               'setenv("key", "path/${VAR}/dir")\n'),  # noqa
+            ({'value': "path/${VAR}/dir",
+              'resolve_env_vars': False}, True,   'setenv\tkey\t\t"$root/path/${VAR}/dir"\n',         'setenv("key", pathJoin(root, "path", "${VAR}", "dir"))\n'),  # noqa
         )
         # test set_environment
         for test_value, test_relpath, ref_tcl, ref_lua in collection:

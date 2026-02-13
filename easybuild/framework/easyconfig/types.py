@@ -541,7 +541,7 @@ def _to_checksum(checksum, list_level=0, allow_dict=True):
                 # When we already are in a tuple no further recursion is allowed -> set list_level very high
                 return tuple(_to_checksum(x, list_level=99, allow_dict=allow_dict) for x in checksum)
             else:
-                return list(_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum)
+                return [_to_checksum(x, list_level=list_level+1, allow_dict=allow_dict) for x in checksum]
     elif isinstance(checksum, dict) and allow_dict:
         return {key: _to_checksum(value, allow_dict=False) for key, value in checksum.items()}
 
