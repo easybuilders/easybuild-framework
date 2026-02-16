@@ -29,10 +29,10 @@ EasyBuild support for nvofbf compiler toolchain (NVHPC + OpenMPI + FlexiBLAS + S
 :author: Mikael Öhman <micketeer@gmail.com> (Chalmers University of Technology)
 """
 
-from easybuild.toolchains.nvompi import Nvompi
 from easybuild.toolchains.fft.fftw import Fftw
 from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 from easybuild.toolchains.linalg.scalapack import ScaLAPACK
+from easybuild.toolchains.nvompi import Nvompi
 
 
 class Nvofbf(Nvompi, FlexiBLAS, ScaLAPACK, Fftw):

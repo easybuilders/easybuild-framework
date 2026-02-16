@@ -126,7 +126,7 @@ class Compiler(Toolchain):
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = None
     COMPILER_GENERIC_OPTION = None
 
-    COMPILER_OPTIONS = ['debug', 'ieee', 'openmp', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
+    COMPILER_OPTIONS = ['debug', 'ieee', 'pic', 'shared', 'static', 'unroll', 'verbose']  # any compiler
     COMPILER_OPT_OPTIONS = ['noopt', 'lowopt', DEFAULT_OPT_LEVEL, 'opt']  # optimisation args, ordered !
     COMPILER_PREC_OPTIONS = ['strict', 'precise', 'defaultprec', 'loose', 'veryloose']  # precision flags, ordered !
 
@@ -141,6 +141,7 @@ class Compiler(Toolchain):
     COMPILER_F_OPTIONS = ['i8', 'r8']
     COMPILER_F_UNIQUE_OPTIONS = []
 
+    LINKERS = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None
     LINKER_TOGGLE_START_STOP_GROUP = {
         'start': '--start-group',
@@ -271,11 +272,31 @@ class Compiler(Toolchain):
         if optflags and optflags[0] and not optflags[0][0].startswith('-'):
             print_warning(f'Compiler flag "{optflags[0][0]}" does not start with a dash. See changes in EasyBuild 5.')
 
+        # handle OpenMP separately, since toolchains might define flags for disabling OpenMP
+        # as well as enabling OpenMP via a dict instead of only using a string
+        if self.options.get('openmp') is not None:
+            openmpoptions = self.options.option('openmp')
+            # if we're not dealing with a dict, assume that disabling OpenMP just means
+            # not passing that flag. Convert the passed options to a dict for further handling
+            if not isinstance(openmpoptions, dict):
+                openmpoptions = {False: '', True: openmpoptions}
+            if self.options['openmp'] not in openmpoptions.keys():
+                raise EasyBuildError(f"Unknown value for openmp: {self.options['openmp']} "
+                                     f"(possibilities are {', '.join(str(key) for key in openmpoptions.keys())}).")
+            openmpflags = openmpoptions[self.options['openmp']]
+            # avoid double use of such flags, or e.g. -hnomp followed by -homp
+            if isinstance(optflags[0], list):
+                optflags[0] = [flag for flag in optflags[0] if flag not in openmpoptions.values()]
+            optflags.append(openmpflags)
+
         # only apply if the vectorize toolchainopt is explicitly set
         # otherwise the individual compiler toolchain file should make sure that
         # vectorization is disabled for noopt and lowopt, and enabled otherwise.
         if self.options.get('vectorize') is not None:
             vectoptions = self.options.option('vectorize')
+            if self.options['vectorize'] not in vectoptions.keys():
+                raise EasyBuildError(f"Unknown value for 'vectorize': {self.options['vectorize']} "
+                                     f"(possibilities are {', '.join(str(key) for key in vectoptions.keys())}).")
             vectflags = vectoptions[self.options['vectorize']]
             # avoid double use of such flags, or e.g. -fno-tree-vectorize followed by -ftree-vectorize
             if isinstance(optflags[0], list):
