@@ -831,9 +831,11 @@ class EasyBlock:
                     git_config=None, no_download=False, download_instructions=None, alt_location=None,
                     warning_only=False):
         try:
-            return self.obtain_file_and_fail(filename, extension, urls, download_filename, force_download, git_config, no_download, download_instructions, alt_location, warning_only)
+            return self.obtain_file_raise_on_failure(filename, extension, urls, download_filename, force_download,
+                                                     git_config, no_download, download_instructions, alt_location,
+                                                     warning_only)
         except Exception as e:
-            if build_option('fetch_continue'):
+            if build_option('fetch_all'):
                 if not urls:
                     urls = ['NO_URL']
                 print_warning(f"FAILED: File {filename} not found from {urls[0]}. Continuing ...")
@@ -842,9 +844,9 @@ class EasyBlock:
                 raise
 
     @_obtain_file_update_progress_bar_on_return
-    def obtain_file_and_fail(self, filename, extension=False, urls=None, download_filename=None, force_download=False,
-                    git_config=None, no_download=False, download_instructions=None, alt_location=None,
-                    warning_only=False):
+    def obtain_file_raise_on_failure(self, filename, extension=False, urls=None, download_filename=None,
+                                     force_download=False, git_config=None, no_download=False,
+                                     download_instructions=None, alt_location=None, warning_only=False):
         """
         Locate the file with the given name
         - searches in different subdirectories of source path
