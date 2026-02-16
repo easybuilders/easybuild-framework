@@ -857,7 +857,7 @@ class EasyBlock:
             return self.obtain_file_raise_on_failure(filename, extension, urls, download_filename, force_download,
                                                      git_config, no_download, download_instructions, alt_location,
                                                      warning_only)
-        except Exception as e:
+        except Exception:
             if build_option('fetch_all'):
                 if not urls:
                     urls = ['NO_URL']
