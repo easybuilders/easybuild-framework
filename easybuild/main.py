@@ -63,7 +63,7 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option, install_path
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.environment import restore_env
@@ -92,6 +92,13 @@ from easybuild.tools.version import different_major_versions
 
 _log = None
 
+# Info needed for bwrap
+BWRAP_INFO = {
+    'modules_to_install': [],
+    'installpath_software': '',
+    'installpath_modules': '',
+    'bwrap_installpath': '',
+}
 
 if sys.version_info < (3, 9):
     full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
@@ -580,6 +587,14 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         with rich_live_cm():
             inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
 
+    # set global values for bubblewrap
+    elif options.bwrap:
+        BWRAP_INFO['modules_to_install'] = dry_run(easyconfigs, modtool, modules_to_install=True)
+        BWRAP_INFO['installpath_software'] = install_path(typ='software')
+        BWRAP_INFO['installpath_modules'] = install_path(typ='modules')
+        BWRAP_INFO['bwrap_installpath'] = options.bwrap_installpath
+        return True
+
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [
         dry_run_mode,
@@ -845,6 +860,8 @@ def main_with_hooks(args=None):
 
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        if int(exit_code) == 0 and build_option('bwrap'):
+            return
         sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
