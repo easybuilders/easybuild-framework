@@ -49,7 +49,7 @@ from datetime import datetime
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error, print_msg, print_warning, stop_logging
+from easybuild.tools.build_log import EasyBuildError, print_error_and_exit, print_msg, print_warning, stop_logging
 from easybuild.tools.build_log import EasyBuildExit
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
@@ -155,6 +155,8 @@ def summary(ecs_with_res):
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True, testing=False):
     """
     Build and install software for all provided parsed easyconfig files.
+    The build environment is reset to the one passed by init_session_state between builds.
+    However, the environment is _not_ reset after the last build.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
@@ -428,9 +430,12 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     elif any(no_ec_opts):
         paths = determined_paths
     else:
-        print_error("Please provide one or multiple easyconfig files, or use software build " +
-                    "options to make EasyBuild search for easyconfigs",
-                    log=_log, opt_parser=eb_go.parser, exit_on_error=not testing)
+        msg = ("Please provide one or multiple easyconfig files, or use software build "
+               "options to make EasyBuild search for easyconfigs")
+        if testing:
+            raise EasyBuildError(msg)
+        eb_go.parser.print_shorthelp()
+        print_error_and_exit(msg)
     _log.debug("Paths: %s", paths)
 
     # run regtest
@@ -560,10 +565,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     elif options.check_conflicts:
         if check_conflicts(easyconfigs, modtool):
-            print_error("One or more conflicts detected!")
-            sys.exit(1)
-        else:
-            print_msg("\nNo conflicts detected!\n", prefix=False)
+            print_error_and_exit("One or more conflicts detected!")
+        print_msg("\nNo conflicts detected!\n", prefix=False)
 
     # dump source script to set up build environment
     elif options.dump_env_script:
@@ -836,7 +839,7 @@ def main_with_hooks(args=None):
     try:
         init_session_state, eb_go, cfg_settings = prepare_main(args=args)
     except EasyBuildError as err:
-        print_error(err.msg, exit_code=err.exit_code)
+        print_error_and_exit(err.msg, exit_code=err.exit_code)
     else:
         # Avoid running double initialization in `main` afterward if `prepare_main` succeeded
         args = None
@@ -848,10 +851,10 @@ def main_with_hooks(args=None):
         sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
-        print_error(err.msg, exit_on_error=True, exit_code=err.exit_code)
+        print_error_and_exit(err.msg, exit_code=err.exit_code)
     except KeyboardInterrupt as err:
         run_hook(CANCEL, hooks, args=[err])
-        print_error("Cancelled by user: %s" % err)
+        print_error_and_exit("Cancelled by user: %s", err)
     except Exception as err:
         run_hook(CRASH, hooks, args=[err])
         sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")

@@ -129,7 +129,7 @@ jobs:
         pip install -r requirements.txt
         if ! python -c "import distutils" 2> /dev/null; then
             # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
-            pip install --upgrade setuptools==81.0.0
+            pip install --upgrade setuptools
         fi
         # git config is required to make actual git commits (cfr. tests for GitRepository)
         git config --global user.name "Github Actions"
@@ -245,6 +245,7 @@ jobs:
             # try and make sure output of running tests is clean (no printed messages/warnings)
             IGNORE_PATTERNS="no GitHub token available"
             IGNORE_PATTERNS+="|skipping SvnRepository test"
+            IGNORE_PATTERNS+="|Skipping test_dep_graph"
             IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
