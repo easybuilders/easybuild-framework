@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
 from easybuild.tools.entrypoints import EntrypointEasyblock
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error, print_msg, print_warning
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
@@ -217,7 +217,7 @@ def dep_graph(filename, specs):
     if _dep_graph_dump(dgr, filename):
         print_msg("Wrote " + what, silent=silent)
     else:
-        print_error("Failed writing " + what, silent=silent)
+        print_error_and_exit("Failed writing " + what, silent=silent)
 
 
 @only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')

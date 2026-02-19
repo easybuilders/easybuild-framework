@@ -670,9 +670,12 @@ def get_isa_riscv():
     return isa_string
 
 
-def get_gpu_info():
+def get_gpu_info(environment=None):
     """
     Get the GPU info
+
+    :param environment: The environment to be used for determining GPU information.
+                        By default, inherit the processes' environment.
     """
     if get_os_type() != LINUX:
         _log.info("Only know how to get GPU info on Linux, assuming no GPUs are present")
@@ -686,7 +689,7 @@ def get_gpu_info():
             cmd = "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader"
             _log.debug("Trying to determine NVIDIA GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
-                                output_file=False, stream_output=False)
+                                output_file=False, stream_output=False, env=environment)
             if res.exit_code == EasyBuildExit.SUCCESS:
                 for line in res.output.strip().split('\n'):
                     nvidia_gpu_info = gpu_info.setdefault('NVIDIA', {})
@@ -706,7 +709,7 @@ def get_gpu_info():
             cmd = "amd-smi static --driver --board --asic --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
-                                output_file=False, stream_output=False, split_stderr=True)
+                                output_file=False, stream_output=False, split_stderr=True, env=environment)
             if res.exit_code == EasyBuildExit.SUCCESS:
                 csv_reader = csv.DictReader(io.StringIO(res.output.strip()))
 
@@ -737,14 +740,14 @@ def get_gpu_info():
             cmd = "rocm-smi --showdriverversion --csv"
             _log.debug("Trying to determine AMD GPU driver on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
-                                output_file=False, stream_output=False, split_stderr=True)
+                                output_file=False, stream_output=False, split_stderr=True, env=environment)
             if res.exit_code == EasyBuildExit.SUCCESS:
                 amd_driver = res.output.strip().split('\n')[1].split(',')[1]
 
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
-                                output_file=False, stream_output=False, split_stderr=True)
+                                output_file=False, stream_output=False, split_stderr=True, env=environment)
             if res.exit_code == EasyBuildExit.SUCCESS:
                 for line in res.output.strip().split('\n')[1:]:
                     amd_card_series = line.split(',')[1]
