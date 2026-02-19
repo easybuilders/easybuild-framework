@@ -183,19 +183,19 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
     def setUp(self):
         """Set up the test environment."""
-        global FORMAT_DCT
-
-        FORMAT_DCT = {
-            'invalid_hook': '',
-            'invalid_easyblock': '',
-            'invalid_toolchain': '',
-        }
-
-        reload(eboptions)
-        super().setUp()
-        self.tmpdir = tempfile.mkdtemp(prefix='easybuild_test_')
-
         if HAVE_ENTRY_POINTS:
+            global FORMAT_DCT
+
+            FORMAT_DCT = {
+                'invalid_hook': '',
+                'invalid_easyblock': '',
+                'invalid_toolchain': '',
+            }
+
+            reload(eboptions)
+            super().setUp()
+            self.tmpdir = tempfile.mkdtemp(prefix='easybuild_test_')
+
             filename_root = "mock"
             dirname, dirpath = os.path.split(self.tmpdir)
 
@@ -211,15 +211,14 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
 
     def tearDown(self):
         """Clean up the test environment."""
-        super().tearDown()
-
-        try:
-            shutil.rmtree(self.tmpdir)
-        except OSError:
-            pass
-        tempfile.tempdir = None
-
         if HAVE_ENTRY_POINTS:
+            super().tearDown()
+
+            try:
+                shutil.rmtree(self.tmpdir)
+            except (OSError, IOError):
+                pass
+
             # Remove the entry point from the working set
             dirname, _ = os.path.split(self.tmpdir)
             if dirname in sys.path:
