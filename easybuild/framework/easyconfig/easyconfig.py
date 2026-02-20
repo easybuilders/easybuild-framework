@@ -1341,7 +1341,14 @@ class EasyConfig:
             default_values.update({key: value[0] for key, value in self.extra_options.items()})
 
             self.generate_template_values()
-            templ_const = {quote_py_str(value): name for name, (value, _) in TEMPLATE_CONSTANTS.items()}
+
+            # take into account that some values may be lists
+            templ_const = {}
+            for name, (value, _) in TEMPLATE_CONSTANTS.items():
+                if isinstance(value, list):
+                    templ_const.update({quote_py_str(v): name for v in value})
+                else:
+                    templ_const.update({quote_py_str(value): name})
 
             # create reverse map of templates, to inject template values where possible
             # longer template values are considered first, shorter template keys get preference over longer ones
