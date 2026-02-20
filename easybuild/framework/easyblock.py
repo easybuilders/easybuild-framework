@@ -4668,13 +4668,27 @@ class EasyBlock:
                     test_cmd = os.path.join(source_path, self.name, test)
                     if os.path.exists(test_cmd):
                         break
-                if not os.path.exists(test_cmd):
-                    raise EasyBuildError(f"Test specifies invalid path: {test_cmd}")
+                else:
+                    test_cmd = test
+            if not os.path.exists(test_cmd):
+                raise EasyBuildError(f"Test specifies invalid path: {test_cmd}")
 
+            if os.path.isfile(test_cmd):
+                original_perms = os.lstat(test_cmd).st_mode
+                if original_perms & stat.S_IEXEC:
+                    original_perms = None
+                else:
+                    adjust_permissions(test_cmd, stat.S_IEXEC, add=True, recursive=False)
+            else:
+                original_perms = None
             try:
                 self.log.debug(f"Running test {test_cmd}")
-                run_shell_cmd(test_cmd)
-            except EasyBuildError as err:
+                try:
+                    run_shell_cmd(test_cmd)
+                finally:
+                    if original_perms is not None:
+                        adjust_permissions(test_cmd, original_perms, relative=False)
+            except BaseException as err:
                 raise EasyBuildError(f"Running test {test_cmd} failed: {err}")
 
     def update_config_template_run_step(self):
