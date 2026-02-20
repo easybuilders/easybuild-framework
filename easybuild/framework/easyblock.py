@@ -43,8 +43,10 @@ Authors:
 * Jan Andre Reuter (Juelich Supercomputing Centre)
 * Jasper Grimm (UoY)
 * Alex Domingo (Vrije Universiteit Brussel)
+* Alexander Grund (TU Dresden)
 """
 import concurrent
+import contextlib
 import copy
 import functools
 import glob
@@ -602,7 +604,7 @@ class EasyBlock:
             if not isinstance(patch_specs, tuple) or len(patch_specs) != 2:
                 raise EasyBuildError('Patch specs must be a tuple of (patches, post-install patches) or a list')
             post_install_patches = patch_specs[1]
-            patch_specs = itertools.chain(*patch_specs)
+            patch_specs = itertools.chain.from_iterable(patch_specs)
 
         patches = []
         for index, patch_spec in enumerate(patch_specs):
@@ -692,6 +694,7 @@ class EasyBlock:
 
                     source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
                     checksums = resolve_template(ext_options.get('checksums', []), template_values)
+                    ext_src['checksums'] = checksums
 
                     download_instructions = resolve_template(ext_options.get('download_instructions'), template_values)
 
@@ -734,6 +737,11 @@ class EasyBlock:
                                 # copy 'path' entry to 'src' for use with extensions
                                 'src': src['path'],
                             })
+                            filename = src['name']
+                        else:
+                            filename = source.get('filename')
+                        if filename is not None:
+                            ext_src['sources'] = [filename]
 
                     else:
 
@@ -751,6 +759,7 @@ class EasyBlock:
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
 
                         src_fn = resolve_template(src_fn, template_values)
+                        ext_src['sources'] = [src_fn]
 
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
@@ -804,7 +813,7 @@ class EasyBlock:
                     if fetch_files:
                         ext_patches = self.fetch_patches(patch_specs=ext_patch_specs, extension=True)
                     else:
-                        ext_patches = [create_patch_info(p) for p in itertools.chain(*ext_patch_specs)]
+                        ext_patches = [create_patch_info(p) for p in itertools.chain.from_iterable(ext_patch_specs)]
 
                     if ext_patches:
                         self.log.debug('Found patches for extension %s: %s', ext_name, ext_patches)
@@ -2773,10 +2782,11 @@ class EasyBlock:
             checksums = ent.get('checksums', [])
         except EasyBuildError:
             if isinstance(ent, EasyConfig):
-                sources = ent.get_ref('sources')
-                data_sources = ent.get_ref('data_sources')
-                patches = ent.get_ref('patches') + ent.get_ref('postinstallpatches')
-                checksums = ent.get_ref('checksums')
+                with ent.disable_templating():
+                    sources = ent['sources']
+                    data_sources = ent['data_sources']
+                    patches = ent['patches'] + ent['postinstallpatches']
+                    checksums = ent['checksums']
 
         # Single source should be re-wrapped as a list, and checksums with it
         if isinstance(sources, dict):
@@ -2786,25 +2796,30 @@ class EasyBlock:
         if isinstance(checksums, str):
             checksums = [checksums]
 
-        sources = sources + data_sources
+        def get_name(fn, key):
+            # if the filename is a tuple, the actual source file name is the first element
+            if isinstance(fn, tuple):
+                fn = fn[0]
+            # if the filename is a dict, the actual source file name is inside
+            if isinstance(fn, dict):
+                fn = fn[key]
+            return fn
 
-        if not checksums:
-            checksums_from_json = self.get_checksums_from_json()
-            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
-            # what is expected in list format
-            for fn in sources + patches:
-                # if the filename is a tuple, the actual source file name is the first element
-                if isinstance(fn, tuple):
-                    fn = fn[0]
-                # if the filename is a dict, the actual source file name is the "filename" element
-                if isinstance(fn, dict):
-                    fn = fn["filename"]
-                if fn in checksums_from_json.keys():
-                    checksums += [checksums_from_json[fn]]
+        sources = [get_name(src, 'filename') for src in itertools.chain(sources, data_sources)]
+        patches = [get_name(patch, 'name') for patch in patches]
 
         if source_cnt is None:
             source_cnt = len(sources)
-        patch_cnt, checksum_cnt = len(patches), len(checksums)
+        patch_cnt = len(patches)
+
+        if not checksums and (source_cnt + patch_cnt) > 0:
+            checksums_from_json = self.get_checksums_from_json()
+            # recreate a list of checksums. If each filename is found, the generated list of checksums should match
+            # what is expected in list format
+            with contextlib.suppress(KeyError):
+                checksums.extend(checksums_from_json[fn] for fn in sources + patches)
+
+        checksum_cnt = len(checksums)
 
         if (source_cnt + patch_cnt) != checksum_cnt:
             if sub:
@@ -2860,17 +2875,9 @@ class EasyBlock:
         checksum_issues.extend(self.check_checksums_for(self.cfg))
 
         # also check checksums for extensions
-        for ext in self.cfg.get_ref('exts_list'):
-            # just skip extensions for which only a name is specified
-            # those are just there to check for things that are in the "standard library"
-            if not isinstance(ext, str):
-                ext_name = ext[0]
-                # take into account that extension may be a 2-tuple with just name/version
-                ext_opts = ext[2] if len(ext) == 3 else {}
-                # only a single source per extension is supported (see source_tmpl)
-                source_cnt = 1 if not ext_opts.get('nosource') else 0
-                res = self.check_checksums_for(ext_opts, sub="of extension %s" % ext_name, source_cnt=source_cnt)
-                checksum_issues.extend(res)
+        for ext in self.collect_exts_file_info(fetch_files=False, verify_checksums=False):
+            res = self.check_checksums_for(ext, sub=f"of extension {ext['name']}")
+            checksum_issues.extend(res)
 
         return checksum_issues
 
