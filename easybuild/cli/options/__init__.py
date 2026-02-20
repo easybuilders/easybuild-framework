@@ -1,4 +1,5 @@
 import os
+import re
 
 from typing import Callable, Any
 from dataclasses import dataclass
@@ -97,7 +98,12 @@ class DelimitedPathList(click.Path):
             elif os.path.isfile(full_path):
                 if self.file_okay:
                     possibles.append(full_path)
-        start = f'{others}{self.delimiter}' if others is not None else ''
+        if others is None:
+            start = ''
+        elif others == '':
+            start = self.delimiter
+        else:
+            start = f'{others}{self.delimiter}'
         res = [CompletionItem(f"{start}{path}") for path in possibles]
         # logging.warning(f"Shell completion for delimited path list: res={possibles}")
         return res
@@ -129,8 +135,14 @@ class EasyconfigParam(click.ParamType):
     name = 'easyconfig'
 
     def shell_complete(self, ctx, param, incomplete):
+        incomplete = re.escape(incomplete)
         set_up_configuration(args=["--ignore-index"], silent=True, reconfigure=True)
-        return [CompletionItem(ec, help='') for ec in search_easyconfigs(fr'^{incomplete}.*\.eb$', filename_only=True)]
+        return [
+            CompletionItem(ec, help='') for ec in search_easyconfigs(
+                fr'^(?={incomplete}).*\.eb$',
+                filename_only=True
+            )
+        ]
 
 
 @dataclass
@@ -188,6 +200,8 @@ class OptionData:
             if self.lst is None:
                 raise ValueError(f"Choice type requires a list of choices for option {self.name}")
             kwargs['type'] = click.Choice(self.lst, case_sensitive=True)
+            if self.default is not None:
+                kwargs['is_flag'] = True
         elif self.type in ['int', int]:
             kwargs['type'] = click.INT
         elif self.type in ['float', float]:
@@ -215,16 +229,8 @@ class OptionData:
         return click.option(
             *decls,
             expose_value=False,
-            callback=self.register_hidden_param,
             **kwargs
         )
-
-    @staticmethod
-    def register_hidden_param(ctx, param, value):
-        """Register a hidden parameter in the context."""
-        if not hasattr(ctx, 'hidden_params'):
-            ctx.hidden_params = {}
-        ctx.hidden_params[param.name] = value
 
 
 class EasyBuildCliOption():
