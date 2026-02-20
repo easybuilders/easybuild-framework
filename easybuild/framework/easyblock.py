@@ -217,7 +217,7 @@ class EasyBlock:
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
-        # indicates whether or not this instance represents an extension or not;
+        # indicates whether or not this instance represents an extension
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
 
@@ -679,11 +679,10 @@ class EasyBlock:
                         'name': ext_name,
                         'version': ext_version,
                         'options': ext_options,
+                        # if a particular easyblock is specified, make sure it's used
+                        # (this is picked up by init_ext_instances)
+                        'easyblock': ext_options.get('easyblock', None),
                     }
-
-                    # if a particular easyblock is specified, make sure it's used
-                    # (this is picked up by init_ext_instances)
-                    ext_src['easyblock'] = ext_options.get('easyblock', None)
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
@@ -1833,7 +1832,7 @@ class EasyBlock:
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
 
-    def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
+    def expand_module_search_path(self, *_, **__):
         """
         REMOVED in EasyBuild 5.1, use EasyBlock.module_load_environment.expand_paths instead
         """
@@ -2799,7 +2798,7 @@ class EasyBlock:
                 # if the filename is a dict, the actual source file name is the "filename" element
                 if isinstance(fn, dict):
                     fn = fn["filename"]
-                if fn in checksums_from_json.keys():
+                if fn in checksums_from_json:
                     checksums += [checksums_from_json[fn]]
 
         if source_cnt is None:
@@ -3401,6 +3400,16 @@ class EasyBlock:
 
     def _dispatch_sanity_check_step(self, *args, **kwargs):
         """Decide whether to run the dry-run or the real version of the sanity-check step"""
+        if 'extension' in kwargs:
+            extension = kwargs.pop('extension')
+            self.log.deprecated(
+                "Passing `extension` to `sanity_check_step` is no longer necessary and will be ignored "
+                f"(Easyblock: {self.__class__.__name__}).",
+                '6.0',
+            )
+            if extension != self.is_extension:
+                raise EasyBuildError('Unexpected value for `extension` argument. '
+                                     f'Should be: {self.is_extension}, got:  {extension}')
         if self.dry_run:
             self._sanity_check_step_dry_run(*args, **kwargs)
         else:
@@ -4117,8 +4126,10 @@ class EasyBlock:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
-                paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s", paths)
+                # Default paths for extensions are handled in the parent easyconfig if desired
+                if not self.is_extension:
+                    paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
+                    self.log.info("Using default sanity check paths: %s", paths)
 
             # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
             # those paths are used to enhance the paths provided by the easyblock
@@ -4138,9 +4149,11 @@ class EasyBlock:
         # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
         only_list_values = all(isinstance(x, list) for x in paths.values())
         only_empty_lists = all(not x for x in paths.values())
-        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+        if sorted_keys != known_keys or not only_list_values or (only_empty_lists and not self.is_extension):
             error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
-            error_msg += "values should be lists (at least one non-empty)."
+            error_msg += "values should be lists"
+            if not self.is_extension:
+                error_msg += " (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
 
         # Resolve arch specific entries
@@ -4297,7 +4310,7 @@ class EasyBlock:
 
         return self.fake_mod_data
 
-    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extra_modules=None):
         """
         Real version of sanity_check_step method.
 
@@ -4363,7 +4376,7 @@ class EasyBlock:
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         if not self.sanity_check_module_loaded:
-            self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
+            self.sanity_check_load_module(extension=self.is_extension, extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
@@ -4392,26 +4405,27 @@ class EasyBlock:
             trace_msg(f"result for command '{cmd}': {cmd_result_str}")
 
         # also run sanity check for extensions (unless we are an extension ourselves)
-        if not extension:
+        if not self.is_extension:
             if build_option('skip_extensions'):
                 self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
             else:
                 self._sanity_check_step_extensions()
 
-        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
-        if linked_shared_lib_fails:
-            self.log.warning("Check for required/banned linked shared libraries failed!")
-            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+            # Do not do those checks for extensions, only in the main easyconfig
+            linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+            if linked_shared_lib_fails:
+                self.log.warning("Check for required/banned linked shared libraries failed!")
+                self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
-        # software installed with GCCcore toolchain should not have Fortran module files (.mod),
-        # unless that's explicitly allowed
-        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
-            mod_files_found_msg = self.sanity_check_mod_files()
-            if mod_files_found_msg:
-                if build_option('fail_on_mod_files_gcccore'):
-                    self.sanity_check_fail_msgs.append(mod_files_found_msg)
-                else:
-                    print_warning(mod_files_found_msg)
+            # software installed with GCCcore toolchain should not have Fortran module files (.mod),
+            # unless that's explicitly allowed
+            if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
+                mod_files_found_msg = self.sanity_check_mod_files()
+                if mod_files_found_msg:
+                    if build_option('fail_on_mod_files_gcccore'):
+                        self.sanity_check_fail_msgs.append(mod_files_found_msg)
+                    else:
+                        print_warning(mod_files_found_msg)
 
         # cleanup
         if self.fake_mod_data:
@@ -4441,13 +4455,13 @@ class EasyBlock:
             self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
 
         # pass or fail
-        if self.sanity_check_fail_msgs:
+        if not self.sanity_check_fail_msgs:
+            self.log.debug("Sanity check passed!")
+        elif not self.is_extension:
             raise EasyBuildError(
                 "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs),
                 exit_code=EasyBuildExit.FAIL_SANITY_CHECK,
             )
-
-        self.log.debug("Sanity check passed!")
 
     def _set_module_as_default(self, fake=False):
         """
