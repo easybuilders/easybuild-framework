@@ -30,6 +30,7 @@ Various test utility functions.
 """
 import copy
 import fileinput
+import functools
 import os
 import re
 import shutil
@@ -48,7 +49,7 @@ import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
-from easybuild.tools import config
+from easybuild.tools import config, LooseVersion
 from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
@@ -555,3 +556,90 @@ def find_full_path(base_path, trim=(lambda x: x)):
             break
 
     return full_path
+
+
+def skip_silently(test_item):
+    """Decorator to turn a test into a no-op"""
+    @functools.wraps(test_item)
+    def skip_wrapper(*args, **kwargs):
+        return
+    return skip_wrapper
+
+
+def skip_never(test_item):
+    """Decorator to not skip a test"""
+    return test_item
+
+
+def skip_silentCI_unless(condition, reason):
+    """Decorator to skip a test if the condition is met.
+
+    On CI the test is turned into a no-op to avoid any output."""
+    if 'CI' in os.environ:
+        return skip_never if condition else skip_silently
+    else:
+        return unittest.skipUnless(condition, reason)
+
+
+def requires_pycodestyle():
+    try:
+        import pycodestyle  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "no pycodestyle available")
+
+
+def requires_autopep8():
+    try:
+        import autopep8  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "autopep8 is not available")
+
+
+def requires_GC3Pie():
+    try:
+        import gc3libs  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    if LooseVersion(sys.version) < '3.11':
+        return unittest.skipUnless(ok, "GC3Pie not available")
+    else:
+        # GC3Pie not available for Python 3.11 so silently skip:
+        # https://github.com/gc3pie/gc3pie/issues/674
+        return skip_silentCI_unless(ok, "GC3Pie not available")
+
+
+def requires_pygraph():
+    try:
+        # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
+        # in which pkg_resources was removed;
+        # see also https://github.com/easybuilders/easybuild-framework/issues/5110
+        import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "pygraph is not available")
+
+
+def requires_pysvn():
+    try:
+        from pysvn import ClientError  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    # For CI skip silently, not easy enough to install,
+    # see https://github.com/leafvmaple/pysvn/issues/1
+    return skip_silentCI_unless(ok, "PySVN is not available, use e.g. apt-get install python3-svn")
+
+
+def requires_PyYAML():
+    try:
+        import yaml  # noqa
+        ok = True
+    except ImportError:
+        ok = False
+    return unittest.skipUnless(ok, "PyYAML is not available")
