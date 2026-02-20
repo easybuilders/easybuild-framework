@@ -13,7 +13,7 @@ PyYAML
 flake8
 
 GC3Pie; python_version < '3.11'
-python-graph-dot
+graphviz
 python-hglib
 requests
 
