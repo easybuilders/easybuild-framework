@@ -146,13 +146,13 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_empty(self):
         """ empty files should not parse! """
-        self.assertErrorRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
+        self.assertRaisesRegex(EasyBuildError, "expected a valid path", EasyConfig, "")
         self.contents = "# empty string"
         self.prep()
         self.assertRaises(EasyBuildError, EasyConfig, self.eb_file)
         self.contents = ""
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "is empty", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "is empty", EasyConfig, self.eb_file)
 
     def test_mandatory(self):
         """ make sure all checking of mandatory parameters works """
@@ -162,7 +162,7 @@ class EasyConfigTest(EnhancedTestCase):
             'version = "3.14"',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "mandatory parameters not provided", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "mandatory parameters not provided", EasyConfig, self.eb_file)
 
         self.contents += '\n' + '\n'.join([
             'homepage = "http://example.com"',
@@ -197,20 +197,20 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         ec = EasyConfig(self.eb_file, validate=False)
-        self.assertErrorRegex(EasyBuildError, r"\w* provided '\w*' is not valid", ec.validate)
+        self.assertRaisesRegex(EasyBuildError, r"\w* provided '\w*' is not valid", ec.validate)
 
         ec['stop'] = 'patch'
         # this should now not crash
         ec.validate()
 
         ec['osdependencies'] = ['non-existent-dep']
-        self.assertErrorRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
+        self.assertRaisesRegex(EasyBuildError, "OS dependencies were not found", ec.validate)
 
         # system toolchain, installversion == version
         self.assertEqual(det_full_ec_version(ec), "3.14")
 
         os.chmod(self.eb_file, 0o000)
-        self.assertErrorRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "Permission denied", EasyConfig, self.eb_file)
         os.chmod(self.eb_file, 0o755)
 
         self.contents += "\nsyntax_error'"
@@ -222,13 +222,13 @@ class EasyConfigTest(EnhancedTestCase):
         else:
             error_pattern = "Parsing easyconfig file failed: EOL while scanning string literal"
 
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
         # introduce "TypeError: format requires mapping" issue"
         self.contents = self.contents.replace("syntax_error'", "foo = '%(name)s %s' % version")
         self.prep()
         error_pattern = r"Parsing easyconfig file failed: format requires a mapping \(line 8\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, self.eb_file)
 
     def test_system_toolchain_constant(self):
         """Test use of SYSTEM constant to specify toolchain."""
@@ -327,12 +327,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(det_full_ec_version(first), '1.1-GCC-4.6.3')
         self.assertEqual(det_full_ec_version(second), '2.2-GCC-4.6.3')
 
-        self.assertErrorRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
-        self.assertErrorRegex(EasyBuildError, "without name", eb._parse_dependency, ())
-        self.assertErrorRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
+        self.assertRaisesRegex(EasyBuildError, "Dependency foo of unsupported type", eb._parse_dependency, "foo")
+        self.assertRaisesRegex(EasyBuildError, "without name", eb._parse_dependency, ())
+        self.assertRaisesRegex(EasyBuildError, "without version", eb._parse_dependency, {'name': 'test'})
         err_msg = "Incorrect external dependency specification"
-        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
-        self.assertErrorRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
+        self.assertRaisesRegex(EasyBuildError, err_msg, eb._parse_dependency, (EXTERNAL_MODULE_MARKER,))
+        self.assertRaisesRegex(EasyBuildError, err_msg, eb._parse_dependency, ('foo', '1.2.3', EXTERNAL_MODULE_MARKER))
 
     def test_false_dep_version(self):
         """
@@ -416,7 +416,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "unknown easyconfig parameter", lambda: eb['custom_key'])
+        self.assertRaisesRegex(EasyBuildError, "unknown easyconfig parameter", lambda: eb['custom_key'])
 
         extra_vars = {'custom_key': ['default', "This is a default key", easyconfig.CUSTOM]}
 
@@ -443,8 +443,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # test extra mandatory parameters
         extra_vars.update({'mandatory_key': ['default', 'another mandatory key', easyconfig.MANDATORY]})
-        self.assertErrorRegex(EasyBuildError, r"mandatory parameters not provided",
-                              EasyConfig, self.eb_file, extra_options=extra_vars)
+        self.assertRaisesRegex(EasyBuildError, r"mandatory parameters not provided",
+                               EasyConfig, self.eb_file, extra_options=extra_vars)
 
         self.contents += '\nmandatory_key = "value"'
         self.prep()
@@ -675,10 +675,10 @@ class EasyConfigTest(EnhancedTestCase):
             'sourceURLs = ["http://example.com"]',
         ])
         self.prep()
-        self.assertErrorRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
-        self.assertErrorRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "dependencis -> dependencies", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "source_uls -> source_urls", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "source_URLs -> source_urls", EasyConfig, self.eb_file)
+        self.assertRaisesRegex(EasyBuildError, "sourceURLs -> source_urls", EasyConfig, self.eb_file)
 
         # No error for known params prefixed by "local_"
         self.contents = '\n'.join([
@@ -931,7 +931,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': {'name': 'system', 'version': 'system'},
         }
         error_pattern = "versionsuffix value should be a string, found 'dict'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, det_full_ec_version, faulty_dep_spec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, det_full_ec_version, faulty_dep_spec)
 
     def test_obtain_easyconfig(self):
         """test obtaining an easyconfig file given certain specifications"""
@@ -1004,7 +1004,7 @@ class EasyConfigTest(EnhancedTestCase):
         specs = {'name': 'nosuchsoftware'}
         error_regexp = ".*No easyconfig files found for software %s, and no templates available. I'm all out of ideas."
         error_regexp = error_regexp % specs['name']
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
+        self.assertRaisesRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
 
         # should find matching easyconfig file
         specs = {
@@ -1026,7 +1026,7 @@ class EasyConfigTest(EnhancedTestCase):
             'versionsuffix': suff
         })
         error_regexp = ".*No toolchain name specified, and more than one available: .*"
-        self.assertErrorRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
+        self.assertRaisesRegex(EasyBuildError, error_regexp, obtain_ec_for, specs, [self.test_prefix], None)
 
         # should be able to generate an easyconfig file that slightly differs
         ver = '3.16'
@@ -1146,7 +1146,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = obtain_ec_for(specs, [self.test_prefix], None)
         self.assertEqual(res[0], True)
         error_pattern = r"Hidden deps with visible module names .* not in list of \(build\)dependencies: .*"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, res[1])
         remove_file(res[1])
 
         specs['dependencies'].append(('test', '3.2.1'))
@@ -1378,8 +1378,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # by default unresolved template value triggers an error being raised
         error_pattern = "Failed to resolve all templates"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
         # this can be (temporarily) disabled
         with ec.allow_unresolved_templates():
@@ -1389,8 +1389,8 @@ class EasyConfigTest(EnhancedTestCase):
 
         # Enforced again
         self.assertTrue(ec.expect_resolved_template_values)
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
     def test_templating_cuda_toolchain(self):
         """Test templates via toolchain component, like setting %(cudaver)s with fosscuda toolchain."""
@@ -1757,8 +1757,8 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         self.prep()
         eb = EasyConfig(self.eb_file, validate=False)
-        self.assertErrorRegex(EasyBuildError, "Build option lists for iterated build should have same length",
-                              eb.validate)
+        self.assertRaisesRegex(EasyBuildError, "Build option lists for iterated build should have same length",
+                               eb.validate)
 
         # list with a single element is OK, is treated as a string
         installopts = ['FOO=foo']
@@ -1859,14 +1859,14 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(get_easyblock_class(easyblock), easyblock_class)
 
         error_pattern = "No software-specific easyblock 'EB_gzip' found"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_easyblock_class, None, name='gzip')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, get_easyblock_class, None, name='gzip')
         self.assertEqual(get_easyblock_class(None, name='gzip', error_on_missing_easyblock=False), None)
         self.assertEqual(get_easyblock_class(None, name='toy'), EB_toy)
-        self.assertErrorRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
+        self.assertRaisesRegex(EasyBuildError, "Failed to import EB_TOY", get_easyblock_class, None, name='TOY')
         self.assertEqual(get_easyblock_class(None, name='TOY', error_on_failed_import=False), None)
 
         # Test passing neither easyblock nor name
-        self.assertErrorRegex(EasyBuildError, "neither name nor easyblock were specified", get_easyblock_class, None)
+        self.assertRaisesRegex(EasyBuildError, "neither name nor easyblock were specified", get_easyblock_class, None)
         self.assertEqual(get_easyblock_class(None, error_on_missing_easyblock=False), None)
 
     def test_letter_dir(self):
@@ -1968,8 +1968,8 @@ class EasyConfigTest(EnhancedTestCase):
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
         write_file(ec_file, ec_txt)
 
-        self.assertErrorRegex(EasyBuildError, "Failed to determine minimal toolchain for dep .*",
-                              EasyConfig, ec_file, validate=False)
+        self.assertRaisesRegex(EasyBuildError, "Failed to determine minimal toolchain for dep .*",
+                               EasyConfig, ec_file, validate=False)
 
         build_options.update({'filter_deps': ['deptobefiltered']})
         init_config(build_options=build_options)
@@ -1988,13 +1988,13 @@ class EasyConfigTest(EnhancedTestCase):
         }
         for key, (newkey, ver) in replaced_parameters.items():
             error_regex = "NO LONGER SUPPORTED since v%s.*'%s' is replaced by '%s'" % (ver, key, newkey)
-            self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
-            self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+            self.assertRaisesRegex(EasyBuildError, error_regex, ec.get, key)
+            self.assertRaisesRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
 
             def foo(key):
                 ec[key] = 'foo'
 
-            self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+            self.assertRaisesRegex(EasyBuildError, error_regex, foo, key)
 
     def test_alternative_easyconfig_parameters(self):
         """Test handling of alternative easyconfig parameters."""
@@ -2011,7 +2011,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # post_install_cmds is not accepted unless it's registered as an alternative easyconfig parameter
         easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS = {}
-        self.assertErrorRegex(EasyBuildError, "post_install_cmds -> postinstallcmds", EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, "post_install_cmds -> postinstallcmds", EasyConfig, test_ec)
 
         easyconfig.easyconfig.ALTERNATIVE_EASYCONFIG_PARAMETERS = {
             'env_mod_class': 'moduleclass',
@@ -2063,13 +2063,13 @@ class EasyConfigTest(EnhancedTestCase):
             if LooseVersion(depr_ver) <= easybuild.tools.build_log.CURRENT_VERSION:
                 # deprecation error
                 error_regex = "DEPRECATED.*since v%s.*'%s' is deprecated.*use '%s' instead" % (depr_ver, key, newkey)
-                self.assertErrorRegex(EasyBuildError, error_regex, ec.get, key)
-                self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
+                self.assertRaisesRegex(EasyBuildError, error_regex, ec.get, key)
+                self.assertRaisesRegex(EasyBuildError, error_regex, lambda k: ec[k], key)
 
                 def foo(key):
                     ec[key] = 'foo'
 
-                self.assertErrorRegex(EasyBuildError, error_regex, foo, key)
+                self.assertRaisesRegex(EasyBuildError, error_regex, foo, key)
             else:
                 # only deprecation warning, but key is replaced when getting/setting
                 with self.mocked_stdout_stderr():
@@ -2123,13 +2123,13 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
         self.assertNotIn('therenosucheasyconfigparameterlikethis', ec)
         error_regex = "unknown easyconfig parameter"
-        self.assertErrorRegex(EasyBuildError, error_regex, lambda k: ec[k], 'therenosucheasyconfigparameterlikethis')
+        self.assertRaisesRegex(EasyBuildError, error_regex, lambda k: ec[k], 'therenosucheasyconfigparameterlikethis')
 
         def set_ec_key(key):
             """Dummy function to set easyconfig parameter in 'ec' EasyConfig instance"""
             ec[key] = 'foobar'
 
-        self.assertErrorRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
+        self.assertRaisesRegex(EasyBuildError, error_regex, set_ec_key, 'therenosucheasyconfigparameterlikethis')
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
@@ -3482,7 +3482,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         ec['software_license'] = 'LicenseThatDoesNotExist'
         err_pat = r"Invalid license LicenseThatDoesNotExist \(known licenses:"
-        self.assertErrorRegex(EasyBuildError, err_pat, ec.validate_license)
+        self.assertRaisesRegex(EasyBuildError, err_pat, ec.validate_license)
 
     def test_param_value_type_checking(self):
         """Test value tupe checking of easyconfig parameters."""
@@ -3490,7 +3490,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
         # version parameter has values of wrong type in this broken easyconfig
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
+        self.assertRaisesRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
 
         # test default behaviour: auto-converting of mismatching value types
         ec = EasyConfig(ec_file)
@@ -3923,19 +3923,19 @@ class EasyConfigTest(EnhancedTestCase):
         # Error cases
         tmpdir = tempfile.mkdtemp()
         non_existing = os.path.join(tmpdir, 'does_not_exist.patch')
-        self.assertErrorRegex(EasyBuildError,
-                              "File %s does not exist" % non_existing,
-                              categorize_files_by_type, [non_existing])
+        self.assertRaisesRegex(EasyBuildError,
+                               "File %s does not exist" % non_existing,
+                               categorize_files_by_type, [non_existing])
         patch_dir = os.path.join(tmpdir, 'folder.patch')
         os.mkdir(patch_dir)
-        self.assertErrorRegex(EasyBuildError,
-                              "File %s is expected to be a regular file" % patch_dir,
-                              categorize_files_by_type, [patch_dir])
+        self.assertRaisesRegex(EasyBuildError,
+                               "File %s is expected to be a regular file" % patch_dir,
+                               categorize_files_by_type, [patch_dir])
         invalid_patch = os.path.join(tmpdir, 'invalid.patch')
         copy_file(gzip_ec, invalid_patch)
-        self.assertErrorRegex(EasyBuildError,
-                              "%s is not detected as a valid patch file" % invalid_patch,
-                              categorize_files_by_type, [invalid_patch])
+        self.assertRaisesRegex(EasyBuildError,
+                               "%s is not detected as a valid patch file" % invalid_patch,
+                               categorize_files_by_type, [invalid_patch])
 
     def test_resolve_template(self):
         """Test resolve_template function."""
@@ -4009,12 +4009,12 @@ class EasyConfigTest(EnhancedTestCase):
         # missing gompic and double golfc should both give exceptions
         cands = [{'name': 'golfc', 'version': '2018a'},
                  {'name': 'golfc', 'version': '2018.01'}]
-        self.assertErrorRegex(EasyBuildError,
-                              "No version found for subtoolchain gompic in dependencies of fosscuda",
-                              det_subtoolchain_version, current_tc, 'gompic', optional_toolchains, cands)
-        self.assertErrorRegex(EasyBuildError,
-                              "Multiple versions of golfc found in dependencies of toolchain fosscuda: 2018.01, 2018a",
-                              det_subtoolchain_version, current_tc, 'golfc', optional_toolchains, cands)
+        self.assertRaisesRegex(EasyBuildError,
+                               "No version found for subtoolchain gompic in dependencies of fosscuda",
+                               det_subtoolchain_version, current_tc, 'gompic', optional_toolchains, cands)
+        self.assertRaisesRegex(EasyBuildError,
+                               "Multiple versions of golfc found in dependencies of toolchain fosscuda: 2018.01, 2018a",
+                               det_subtoolchain_version, current_tc, 'golfc', optional_toolchains, cands)
 
         # missing candidate for golfc, ok for optional
         cands = [{'name': 'gompic', 'version': '2018a'}]
@@ -4074,7 +4074,7 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "filename '%s' does not match with expected filename 'toy-0.0-gompi-2018a.eb' " % toy_ec_name
         error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: ''; "
         error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
         specs['versionsuffix'] = '-test'
 
         # incorrect file name
@@ -4084,7 +4084,7 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern = "filename 'toy.eb' does not match with expected filename 'toy-0.0-gompi-2018a-test.eb' "
         error_pattern += r"\(specs: name: 'toy'; version: '0.0'; versionsuffix: '-test'; "
         error_pattern += r"toolchain name, version: 'gompi', '2018a'\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
         # incorrect file contents
         error_pattern = r"Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
@@ -4092,7 +4092,7 @@ class EasyConfigTest(EnhancedTestCase):
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-gompi-2018a-test.eb')
         write_file(toy_ec, toy_txt)
         error_pattern = "Contents of .*/%s does not match with filename" % os.path.basename(toy_ec)
-        self.assertErrorRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, verify_easyconfig_filename, toy_ec, specs)
 
     def test_get_paths_for(self):
         """Test for get_paths_for"""
@@ -4215,7 +4215,7 @@ class EasyConfigTest(EnhancedTestCase):
         # from Python 3.10 onwards: invalid decimal literal
         # older Python versions: invalid syntax
         error_pattern = "Parsing easyconfig file failed: invalid"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, not_an_ec)
 
     def test_check_sha256_checksums(self):
         """Test for check_sha256_checksums function."""
@@ -4314,7 +4314,7 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
 
         error_pattern = r"easyconfig file '.*/test.eb' is marked as deprecated:\nthis is just a test\n \(see also"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
         with self.mocked_stdout_stderr():
             # But this can be silenced
             init_config(build_options={'silence_deprecation_warnings': ['easyconfig']})
@@ -4328,7 +4328,7 @@ class EasyConfigTest(EnhancedTestCase):
         deprecated_toolchain_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
         init_config(build_options={'silence_deprecation_warnings': [], 'unit_testing_mode': False})
         error_pattern = r"toolchain 'gompi/2018a' is marked as deprecated \(see also"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, deprecated_toolchain_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, deprecated_toolchain_ec)
         with self.mocked_stdout_stderr():
             # But this can be silenced
             init_config(build_options={'silence_deprecation_warnings': ['toolchain'], 'unit_testing_mode': False})
@@ -4452,14 +4452,14 @@ class EasyConfigTest(EnhancedTestCase):
         # trying to combine multi_deps with a list of lists in builddependencies is not allowed
         write_file(test_ec, test_ec_txt + "\nbuilddependencies = [[('CMake', '3.12.1')], [('CMake', '3.9.1')]]")
         error_pattern = "Can't combine multi_deps with builddependencies specified as list of lists"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
         # test with different number of dependency versions in multi_deps, should result in a clean error
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'one': ['1.0'], 'two': ['2.0', '2.1']}"
         write_file(test_ec, test_ec_txt)
 
         error_pattern = "Not all the dependencies listed in multi_deps have the same number of versions!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
     def test_multi_deps_templated_builddeps(self):
         """Test effect of multi_deps on builddependencies w.r.t. resolving templates like %(pyver)s."""
@@ -4591,7 +4591,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options={'local_var_naming_check': 'error', 'silent': True})
 
         write_file(test_ec, test_ectxt)
-        self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
 
         self.mock_stderr(True)
         self.mock_stdout(True)
@@ -4688,7 +4688,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         ec.update(local_vars)
         error = "Found 4 easyconfig parameters that are considered local variables: _, _foo, local_foo, x"
-        self.assertErrorRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
+        self.assertRaisesRegex(EasyBuildError, error, triage_easyconfig_params, variables, ec)
 
         for key in local_vars:
             del ec[key]
@@ -4710,7 +4710,7 @@ class EasyConfigTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ectxt)
         expected_error = "Use of 1 unknown easyconfig parameters detected in test.eb: foobar"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
+        self.assertRaisesRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
         # all unknown keys are detected at once, and reported alphabetically
         # single-letter local variables are not a problem
@@ -4727,7 +4727,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected_error = "Use of 4 unknown easyconfig parameters detected in test.eb: "
         expected_error += "an_unknown_key, foobar, test_list, zzz_test"
-        self.assertErrorRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
+        self.assertRaisesRegex(EasyBuildError, expected_error, EasyConfig, test_ec, local_var_naming_check='error')
 
     def test_arch_specific_dependency(self):
         """Tests that the correct version is chosen for this architecture"""
@@ -4783,12 +4783,12 @@ class EasyConfigTest(EnhancedTestCase):
                 self.options = values.get('options', {})
 
         error_msg = 'exts_filter should be a list or tuple'
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
-                              '[ 1 == 1 ]', {})
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
-                              ['[ 1 == 1 ]'], {})
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
-                              ['[ 1 == 1 ]', 'true', 'false'], {})
+        self.assertRaisesRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                               '[ 1 == 1 ]', {})
+        self.assertRaisesRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                               ['[ 1 == 1 ]'], {})
+        self.assertRaisesRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+                               ['[ 1 == 1 ]', 'true', 'false'], {})
 
         test_cases = [
             # Minimal case: just name
@@ -5145,7 +5145,7 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, test_ec_txt)
 
         error_pattern = r"Failed to copy '.*' easyconfig parameter"
-        self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, test_ec)
 
     def test_get_cuda_cc_template_value(self):
         """
@@ -5163,7 +5163,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
 
         error_pattern = "foobar is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get_cuda_cc_template_value, 'foobar')
 
         error_pattern = r"Template value '%s' is not defined!\n"
         error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
@@ -5179,7 +5179,7 @@ class EasyConfigTest(EnhancedTestCase):
             'cuda_sm_space_sep': 'sm_65 sm_70',
         }
         for key in cuda_template_values:
-            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertRaisesRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
             self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
         update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
@@ -5192,7 +5192,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
 
         for key in cuda_template_values:
-            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
+            self.assertRaisesRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
 
         self.contents += "\ncuda_compute_capabilities = ['6.5', '7.0']"
         self.prep()
@@ -5218,7 +5218,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         error_pattern = ("foobar is not a template value based on "
                          "--amdgcn-capabilities/amdgcn_capabilities")
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
 
         error_pattern = r"Template value '%s' is not defined!\n"
         error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
@@ -5229,7 +5229,7 @@ class EasyConfigTest(EnhancedTestCase):
             'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
         }
         for key in amdgcn_template_values:
-            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertRaisesRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
 
         update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
         ec = EasyConfig(self.eb_file)
@@ -5241,7 +5241,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(self.eb_file)
 
         for key in amdgcn_template_values:
-            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertRaisesRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
             self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
 
         self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
@@ -5384,7 +5384,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
         error_pattern = r"Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary:"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ec.__getitem__, 'description')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.__getitem__, 'description')
 
         # EasyBuild can be configured to allow unresolved templates
         update_build_option('allow_unresolved_templates', True)
