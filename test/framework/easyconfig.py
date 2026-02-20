@@ -3324,7 +3324,7 @@ class EasyConfigTest(EnhancedTestCase):
         Test for dep_graph using easyconfig that uses multi_deps.
         """
         try:
-            import graphviz
+            import graphviz  # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dep_graph_multi_deps, since graphviz is not available")
             return

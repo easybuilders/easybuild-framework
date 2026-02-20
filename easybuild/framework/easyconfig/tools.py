@@ -160,6 +160,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
 
     return ordered_ecs, new_easyconfigs, avail_modules
 
+
 @only_if_module_is_available('graphviz', pkgname='graphviz')
 def dep_graph(filename, specs):
     """
@@ -202,7 +203,7 @@ def dep_graph(filename, specs):
     silent = build_option('silent')
     try:
         dep_graph.render(base, cleanup=True)
-    except:
+    except Exception:
         print_error_and_exit("Failed writing " + what, silent=silent)
     else:
         print_msg("Wrote " + what, silent=silent)
