@@ -1917,6 +1917,41 @@ class ToolchainTest(EnhancedTestCase):
         self.assertTrue(regex.match(nodesfile), "'%s' should match pattern '%s'" % (nodesfile, regex.pattern))
         self.assertExists(nodesfile.split(' ')[1])
 
+        # Test oversubscription
+        # With OpenMPI < 5
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.OPENMPI, {}, mpi_version='4.9', oversubscribe=True)
+        self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+        self.assertEqual(params['oversubscribe'], 'OMPI_MCA_rmaps_base_oversubscribe=1')
+
+        # With OpenMPI >= 5
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.OPENMPI, {}, mpi_version='5', oversubscribe=True)
+        self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+        self.assertEqual(params['oversubscribe'], 'PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe')
+
+        # With OpenMPI >= 5 and pre-existing PRTE_MCA_rmaps_default_mapping_policy (override ppr)
+        os.environ['PRTE_MCA_rmaps_default_mapping_policy'] = 'ppr:4:package'
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.OPENMPI, {}, mpi_version='5', oversubscribe=True)
+        self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+        self.assertEqual(params['oversubscribe'], 'PRTE_MCA_rmaps_default_mapping_policy=ppr:4:package:oversubscribe')
+
+        # With OpenMPI >= 5 and pre-existing PRTE_MCA_rmaps_default_mapping_policy (add to unit)
+        os.environ['PRTE_MCA_rmaps_default_mapping_policy'] = 'package'
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.OPENMPI, {}, mpi_version='5', oversubscribe=True)
+        self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+        self.assertEqual(params['oversubscribe'], 'PRTE_MCA_rmaps_default_mapping_policy=package:oversubscribe')
+
+        # With OpenMPI >= 5 and pre-existing PRTE_MCA_rmaps_default_mapping_policy (add to unit)
+        os.environ['PRTE_MCA_rmaps_default_mapping_policy'] = 'core:oversubscribe'
+        mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.OPENMPI, {}, mpi_version='5', oversubscribe=True)
+        self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+        self.assertEqual(params['oversubscribe'], 'PRTE_MCA_rmaps_default_mapping_policy=core:oversubscribe')
+
+        # With IntelMPI and MPICH
+        for mpi_fam in [toolchain.INTELMPI, toolchain.MPICH, toolchain.MPICH2, toolchain.MVAPICH2]:
+            mpi_cmd_tmpl, params = get_mpi_cmd_template(mpi_fam, input_params, mpi_version='1.0', oversubscribe=True)
+            self.assertTrue('%(oversubscribe)s' in mpi_cmd_tmpl)
+            self.assertEqual(params['oversubscribe'], '')
+
     def test_prepare_deps(self):
         """Test preparing for a toolchain when dependencies are involved."""
         tc = self.get_toolchain('GCC', version='6.4.0-2.28')
