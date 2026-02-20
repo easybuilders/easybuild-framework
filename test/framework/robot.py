@@ -40,7 +40,7 @@ from unittest import TextTestRunner
 import easybuild.framework.easyconfig.easyconfig as ecec
 import easybuild.tools.build_log
 import easybuild.tools.robot as robot
-from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig
+from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig, make_easyconfig_dict
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
@@ -1415,11 +1415,11 @@ class RobotTest(EnhancedTestCase):
 
         gzip_ec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         gompi_ec = os.path.join(test_easyconfigs, 'g', 'gompi', 'gompi-2018a.eb')
-        ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
+        non_conflict_ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
         self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
+        conflicts = check_conflicts(non_conflict_ecs, self.modtool)
         stderr = self.get_stderr()
         self.mock_stderr(False)
         self.assertFalse(conflicts)
@@ -1440,6 +1440,13 @@ class RobotTest(EnhancedTestCase):
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
+
+        # Can also return the text
+        with self.mocked_stdout_stderr(mock_stdout=False) as mocked_stderr:
+            conflict_lst = check_conflicts(ecs, self.modtool, return_conflicts=True)
+            self.assertEqual('\n'.join(conflict_lst), stderr.strip())
+            self.assertEqual(mocked_stderr.getvalue(), '')
+            self.assertEqual(check_conflicts(non_conflict_ecs, self.modtool, return_conflicts=True), [])
 
         # conflicts between specified easyconfigs are also detected
 
@@ -1471,6 +1478,28 @@ class RobotTest(EnhancedTestCase):
 
         # test use of check_inter_ec_conflicts
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
+
+        # Conflict in build dependencies is fine
+        hwloc_txt = read_file(os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        bzip_txt = read_file(os.path.join(test_easyconfigs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+        tc = re.search(r"toolchain *=.*", hwloc_txt)[0]
+        bzip_txt += f"\n{tc}"
+        gzip_txt += f"\n{tc}"
+        gzip_txt_2 = gzip_txt.replace('1.5', '2.0')
+        hwloc_txt += "\nbuilddependencies = [('gzip', '2.0')]"
+        bzip_txt += "\nbuilddependencies = [('gzip', '1.5')]"
+        ecs = [make_easyconfig_dict(EasyConfig(path=None, rawtxt=txt))
+               for txt in (hwloc_txt, gzip_txt, gzip_txt_2, bzip_txt)]
+        self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False),
+                         "No conflicts should be found")
+        # But fail if A depends on B which depends on C and A has C as a build dependency in another version
+        hwloc_txt += "\ndependencies = [('bzip2', '1.0.6')]"
+        bzip_txt = bzip_txt.replace("builddependencies", "dependencies")
+        ecs = [make_easyconfig_dict(EasyConfig(path=None, rawtxt=txt))
+               for txt in (hwloc_txt, gzip_txt, gzip_txt_2, bzip_txt)]
+        self.assertTrue(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False, return_conflicts=True),
+                        "Conflict should be found")
 
     def test_check_conflicts_wrapper_deps(self):
         """Test check_conflicts when dependency 'wrappers' are involved."""
