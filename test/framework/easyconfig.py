@@ -3572,11 +3572,25 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
 
         # check whether easyconfigs were copied (unmodified) to correct location
-        for orig_ec, src_ec in test_ecs:
-            orig_ec = os.path.basename(orig_ec)
-            copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
-            self.assertExists(copied_ec)
-            self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+        def verify_copied_ecs():
+            for orig_ec, src_ec in test_ecs:
+                orig_ec = os.path.basename(orig_ec)
+                copied_ec = os.path.join(ecs_target_dir, orig_ec[0].lower(), orig_ec.split('-')[0], orig_ec)
+                self.assertExists(copied_ec)
+                self.assertEqual(read_file(copied_ec), read_file(os.path.join(self.test_prefix, src_ec)))
+        verify_copied_ecs()
+
+        # Unmodified files get excluded
+        modified_file = expected
+        write_file(modified_file, "")
+        res = copy_easyconfigs(ecs_to_copy, target_dir)
+        self.assertEqual(len(res['ecs']), 1)
+        self.assertEqual(res['new'], [False])
+        self.assertEqual(len(res['paths_in_repo']), 1)
+        self.assertTrue(os.path.samefile(res['paths_in_repo'][0], expected))
+
+        # modified file should be replaced and others still be the same, so run the same check again
+        verify_copied_ecs()
 
         # create test easyconfig that includes comments & build stats, just like an archived easyconfig
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
