@@ -3662,7 +3662,7 @@ class ToyBuildTest(EnhancedTestCase):
                print('start hook triggered')
 
             def parse_hook(ec):
-               print('%s %s' % (ec.name, ec.version))
+               print('Parse Hook %s %s' % (ec.name, ec.version))
                # print sources value to check that raw untemplated strings are exposed in parse_hook
                print(ec['sources'])
                # try appending to postinstallcmd to see whether the modification is actually picked up
@@ -3761,7 +3761,10 @@ class ToyBuildTest(EnhancedTestCase):
         # - for devel module file
         expected_output = textwrap.dedent(f"""
             start hook triggered
-            toy 0.0
+            Parse Hook toy 0.0
+            ['%(name)s-%(version)s.tar.gz']
+            echo toy
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
             installing 1 easyconfigs: toy/0.0
@@ -3772,10 +3775,10 @@ class ToyBuildTest(EnhancedTestCase):
             ' gcc toy.c -o toy  && copy_toy_file toy copy_of_toy' command failed (exit code 127), but I fixed it!
             in post-install hook for toy v0.0
             bin, lib
-            toy 0.0
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
-            toy 0.0
+            Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
             in module-write hook hook for {mod_name}
