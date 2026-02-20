@@ -537,10 +537,24 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     if extra_options:
         cmd = f"{cmd} {extra_options}"
 
+    previous_paths = set(_get_paths_purged(abs_dest))
     run_shell_cmd(cmd, in_dry_run=forced, hidden=not trace)
-
-    # note: find_base_dir also changes into the base dir!
-    base_dir = find_base_dir()
+    new_paths = set(_get_paths_purged(abs_dest)) - previous_paths
+    if len(new_paths) == 0:
+        _log.warning(f"No new folder/files found after extraction of {fn} in {abs_dest}, "
+                     f"verify that the same file is not extracted multiple times! "
+                     f"Existing paths: {', '.join(previous_paths)}")
+        base_dir = find_base_dir()  # Fallback
+    elif len(new_paths) == 1:
+        new_path = new_paths.pop()
+        if os.path.isdir(new_path):
+            # note: find_base_dir also changes into the base dir!
+            base_dir = find_base_dir(new_path)
+        else:
+            base_dir = abs_dest
+    else:
+        base_dir = abs_dest
+        _log.debug(f"Multiple new folder/files found after extraction: {new_paths}. Using {base_dir} as base dir.")
 
     # if changing into obtained directory is not desired,
     # change back to where we came from (unless that was a non-existing directory)
@@ -1444,36 +1458,39 @@ def is_sha256_checksum(value):
     return res
 
 
-def find_base_dir():
-    """
-    Try to locate a possible new base directory
-    - this is typically a single subdir, e.g. from untarring a tarball
-    - when extracting multiple tarballs in the same directory,
-      expect only the first one to give the correct path
-    """
-    def get_local_dirs_purged():
-        # e.g. always purge the log directory
-        # and hidden directories
-        ignoredirs = ["easybuild"]
+def _get_paths_purged(path):
+    """Find all files and folders in the folder
 
-        lst = os.listdir(get_cwd())
-        lst = [d for d in lst if not d.startswith('.') and d not in ignoredirs]
-        return lst
+    Ignore hidden entries and e.g. log directories
+    """
+    IGNORED_DIRS = ["easybuild"]
 
-    lst = get_local_dirs_purged()
-    new_dir = get_cwd()
+    lst = os.listdir(path)
+    lst = [p for p in lst if not p.startswith('.') and p not in IGNORED_DIRS]
+    return lst
+
+
+def find_base_dir(path=None):
+    """
+    Locate a possible new base directory from the current working directory or the specified one and change to it.
+
+    This is typically a single subdir, e.g. from untarring a tarball.
+    It recurses into subfolders as long as that subfolder is the only child (file or folder)
+    and returns the current(ly processed) folder if multiple or no childs exist in it.
+    """
+    new_dir = get_cwd() if path is None else os.path.abspath(path)
+    lst = _get_paths_purged(new_dir)
     while len(lst) == 1:
-        new_dir = os.path.join(get_cwd(), lst[0])
+        new_dir = os.path.join(new_dir, lst[0])
         if not os.path.isdir(new_dir):
             break
-
-        change_dir(new_dir)
-        lst = get_local_dirs_purged()
+        lst = _get_paths_purged(new_dir)
 
     # make sure it's a directory, and not a (single) file that was in a tarball for example
     while not os.path.isdir(new_dir):
         new_dir = os.path.dirname(new_dir)
 
+    change_dir(new_dir)
     _log.debug("Last dir list %s" % lst)
     _log.debug("Possible new dir %s found" % new_dir)
     return new_dir
