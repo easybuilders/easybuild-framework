@@ -1130,10 +1130,17 @@ class ModulesTool:
         for mod in modules:
             self.run_module('load', mod)
 
-    def unload(self, modules, hide_output=False):
+    def unload(self, modules, log_changes=None, *, hide_output=None):
         """
         Unload all requested modules.
         """
+        if log_changes is not None:
+            if hide_output is not None:
+                raise EasyBuildError("Cannot specify both log_changes and hide_output")
+            self.log.deprecated("Parameter 'log_changes' is replaced by 'hide_output'", '6.0')
+            hide_output = not log_changes
+        elif hide_output is None:
+            hide_output = False  # TODO: make this the default in 6.0
         for mod in modules:
             self.run_module('unload', mod, hide_output=hide_output)
 
@@ -1260,7 +1267,16 @@ class ModulesTool:
                                key, old_value, new_value)
 
         debug_module_cmds = build_option('debug_module_cmds')
-        log_output = debug_module_cmds and not kwargs.get('hide_output', False)
+        log_changes = kwargs.get('log_changes')
+        hide_output = kwargs.get('hide_output')
+
+        if log_changes is not None:
+            if hide_output is not None:
+                raise EasyBuildError("Cannot specify both log_changes and hide_output")
+            self.log.deprecated("Parameter 'log_changes' is replaced by 'hide_output'", '6.0')
+            hide_output = not log_changes
+
+        log_output = debug_module_cmds and not hide_output
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
