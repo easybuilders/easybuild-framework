@@ -87,15 +87,6 @@ try:
 except ImportError:
     pass
 
-EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
-toy;
-"GCC/6.4.0-2.28 (EXT)";
-intel;
-toy -> intel;
-toy -> "GCC/6.4.0-2.28 (EXT)";
-}
-"""
-
 
 class EasyConfigTest(EnhancedTestCase):
     """ easyconfig tests """
