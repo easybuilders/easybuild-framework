@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -66,7 +66,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUN
 from easybuild.tools.build_log import dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
-from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, print_error
+from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, escape_for_rich, print_error
 from easybuild.tools.utilities import trace_msg
 
 
@@ -126,7 +126,7 @@ class RunShellCmdError(BaseException):
         """
 
         def pad_4_spaces(msg, color=None):
-            padded_msg = ' ' * 4 + msg
+            padded_msg = ' ' * 4 + escape_for_rich(msg)
             if color:
                 return colorize(padded_msg, color)
             else:

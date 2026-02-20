@@ -1,5 +1,5 @@
 ##
-# Copyright 2015-2025 Bart Oldeman
+# Copyright 2015-2026 Bart Oldeman
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -100,7 +100,3 @@ class NvidiaCompilers(Compiler):
         if not self.options.get('optarch', False):
             self.variables.nextend('OPTFLAGS', ['tp=x64'])
         super()._set_compiler_flags()
-
-    def _set_compiler_vars(self):
-        """Set the compiler variables"""
-        super()._set_compiler_vars()
