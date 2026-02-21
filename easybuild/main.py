@@ -38,10 +38,12 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Maxime Boissonneault (Compute Canada)
 * Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
+* Samuel Moors (Vrije Universiteit Brussel)
 """
 import copy
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -63,12 +65,12 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option, install_path
+from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath, install_path
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
-from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
+from easybuild.tools.filetools import locate_files, mkdir, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
@@ -99,6 +101,7 @@ BWRAP_INFO = {
     'installpath_modules': '',
     'bwrap_installpath': '',
 }
+EASYBUILD_MAIN = 'easybuild.main'
 
 if sys.version_info < (3, 9):
     full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
@@ -849,6 +852,35 @@ def prepare_main(args=None, logfile=None, testing=None):
     return init_session_state, eb_go, cfg_settings
 
 
+def rerun_with_bwrap():
+    "Rerun EasyBuild with bwrap"
+    bwrap_modules = BWRAP_INFO['modules_to_install']
+    if bwrap_modules:
+        _log.info(f'Info needed for bwrap: {BWRAP_INFO}')
+        installpath_software = BWRAP_INFO['installpath_software']
+        bwrap_installpath = BWRAP_INFO['bwrap_installpath']
+        bwrap_mpath = os.path.join(bwrap_installpath, 'modules')
+        bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
+
+        for mod in bwrap_modules:
+            spath = os.path.join(os.path.realpath(installpath_software), mod)
+            bwrap_spath = os.path.join(bwrap_installpath, 'software', mod)
+            mkdir(spath, parents=True)
+            mkdir(bwrap_spath, parents=True)
+            bwrap_cmd.extend(['--bind', bwrap_spath, spath])
+
+        eb_cmd = ['python', '-m', EASYBUILD_MAIN] + sys.argv[1:]
+
+        # disable `--bwrap`: this time we do a real installation
+        bwrap_options = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
+
+        cmd = bwrap_cmd + eb_cmd + bwrap_options
+        _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
+
+        print_msg(f'Building/installing in bubblewrap namespace at {bwrap_installpath}')
+        sys.exit(subprocess.run(cmd).returncode)
+
+
 def main_with_hooks(args=None):
     # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
     try:
@@ -861,7 +893,7 @@ def main_with_hooks(args=None):
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
         if int(exit_code) == 0 and build_option('bwrap'):
-            return
+            rerun_with_bwrap()
         sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])
