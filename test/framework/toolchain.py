@@ -43,11 +43,13 @@ import easybuild.tools.modules as modules
 import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
+from easybuild.framework.easyblock import EasyBlock
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.config import update_build_option
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
@@ -2484,8 +2486,12 @@ class ToolchainTest(EnhancedTestCase):
         ccache_dir = os.path.join(self.test_prefix, 'ccache')
         mkdir(ccache_dir, parents=True)
 
+        # keep track of old CCACHE_DIR variable, so that we can check if this is properly reset after running 'eb'
+        old_ccache_dir_env = 'ThisIsATest'
+        os.environ['CCACHE_DIR'] = old_ccache_dir_env
         with self.mocked_stdout_stderr():
             out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+        self.assertEqual(os.environ.get('CCACHE_DIR', ''), old_ccache_dir_env)
 
         patterns = [
             "This is a ccache wrapper",
@@ -2495,7 +2501,14 @@ class ToolchainTest(EnhancedTestCase):
             regex = re.compile(pattern)
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
 
-        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
+        # $CCACHE_DIR is defined by toolchain.prepare()
+        # All further tests use this environment
+        with self.mocked_stdout_stderr():
+            update_build_option('use_ccache', os.path.join(self.test_prefix, 'ccache'))
+            ec = EasyConfig(eb_file)
+            eb = EasyBlock(ec)
+            eb.toolchain.prepare()
+
         ccache_path = os.path.join(self.test_prefix, 'scripts', 'ccache')
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
         for comp in ['gcc', 'g++']:
@@ -2514,10 +2527,12 @@ class ToolchainTest(EnhancedTestCase):
         # if both ccache and f90cache are used, Fortran compiler is symlinked to f90cache
         f90cache_dir = os.path.join(self.test_prefix, 'f90cache')
         mkdir(f90cache_dir, parents=True)
-        args.append("--use-f90cache=%s" % f90cache_dir)
-
         with self.mocked_stdout_stderr():
-            out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+            update_build_option('use_f90cache', f90cache_dir)
+            ec = EasyConfig(eb_file)
+            eb = EasyBlock(ec)
+            eb.toolchain.prepare()
+
         for pattern in patterns:
             regex = re.compile(pattern)
             self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
