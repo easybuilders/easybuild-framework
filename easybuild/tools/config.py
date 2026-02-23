@@ -312,6 +312,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
+        'debug_module_cmds',
         'dump_autopep8',
         'dump_env_script',
         'enforce_checksums',

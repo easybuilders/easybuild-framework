@@ -1927,7 +1927,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name], log_changes=False)
+                self.modules_tool.unload([self.short_mod_name], hide_output=True)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
