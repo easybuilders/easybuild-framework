@@ -24,7 +24,8 @@ toolchain = SYSTEM
 sources = [SOURCE_TAR_GZ]
 
 # download location for source files
-source_urls = ['https://ftpmirror.gnu.org/gzip']
+source_urls = ['https://ftpmirror.gnu.org/gzip',
+               'https://ftp.gnu.org/gnu/gzip']
 
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {

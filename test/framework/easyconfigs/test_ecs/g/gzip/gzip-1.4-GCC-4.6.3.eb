@@ -24,7 +24,7 @@ toolchain = {'name': 'GCC', 'version': '4.6.3'}
 sources = ['%(name)s-%(version)s.tar.gz']
 
 # download location for source files
-source_urls = [GNU_SOURCE]
+source_urls = GNU_FTP_URLS
 
 hiddendependencies = [('toy', '0.0', '-deps', SYSTEM)]
 dependencies = hiddendependencies  # hidden deps must be included in list of deps
