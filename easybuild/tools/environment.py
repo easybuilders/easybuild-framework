@@ -77,7 +77,7 @@ def write_changes(filename):
     """
     try:
         with open(filename, 'w') as script:
-            for key, changed_value in get_context().items():
+            for key, changed_value in get_changes().items():
                 script.write('export %s=%s\n' % (key, shell_quote(changed_value)))
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
@@ -91,11 +91,14 @@ def reset_changes():
     get_context().clear()
 
 
-def get_changes():
+def get_changes(show_unset=False):
     """
     Return tracked changes made in environment.
     """
-    return get_context()
+    changes = get_context()
+    if not show_unset:
+        return {k: v for k, v in changes.items() if v is not None}
+    return changes.copy()
 
 
 def apply_context(context=None):
@@ -127,14 +130,13 @@ def getvar(key, default='', strict=False):
         if val is None:
             if strict:
                 raise KeyError(f"Key '{key}' is explicitly unset in the current context")
-            else:
-                return default
+            return default
         return val
     else:
         if strict:
-            return os._real_os.environ[key]
+            return ORIG_OS_ENVIRON[key]
         else:
-            return os._real_os.environ.get(key, default)
+            return ORIG_OS_ENVIRON.get(key, default)
 
 
 @contextmanager
