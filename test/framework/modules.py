@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1070,13 +1070,13 @@ class ModulesTest(EnhancedTestCase):
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '6.4.0-2.28'))
         modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28')
-        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, flags=re.M)
         write_file(os.path.join(self.test_prefix, 'Core', 'GCC', '6.4.0-2.28'), modtxt)
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'))
         modpath_extension = os.path.join(self.test_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(modpath_extension, parents=True)
-        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, flags=re.M)
         write_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'), modtxt)
 
         # force reset of any singletons by reinitiating config
