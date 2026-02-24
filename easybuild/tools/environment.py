@@ -225,6 +225,7 @@ def restore_env_vars(env_keys):
         if env_keys[key] is not None:
             _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
             os.environ[key] = env_keys[key]
+            # get_context()[key] = env_keys[key]
 
 
 def read_environment(env_vars, strict=False):
@@ -331,8 +332,20 @@ class MockEnviron(dict):
     def __delitem__(self, key):
         unset_env_vars([key], verbose=False)
 
+    def __iter__(self):
+        return iter(apply_context())
+
+    def __contains__(self, key):
+        return key in apply_context()
+
     def get(self, key, default=None):
         return getvar(key, default)
+
+    def keys(self):
+        return apply_context().keys()
+
+    def items(self):
+        return apply_context().items()
 
     def copy(self):
         return apply_context()
