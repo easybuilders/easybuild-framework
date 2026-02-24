@@ -650,7 +650,6 @@ class EasyBlockTest(EnhancedTestCase):
                 r'prepend_path\("PATH", pathJoin\(root, "%s"\)\)\n' % sub_path_path, re.M))
 
         # Module load environement may contain non-path variables
-        # TODO: remove whenever this is properly supported, in the meantime check warning
         eb.module_load_environment.NONPATH = {'contents': 'non_path', 'var_type': "STRING"}
         eb.module_load_environment.PATH = ['bin']
         with self.mocked_stdout_stderr():
@@ -659,16 +658,16 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(list(eb.module_load_environment), ['PATH', 'LD_LIBRARY_PATH', 'NONPATH'])
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
-            self.assertFalse(re.match(r"^\nprepend-path\s+NONPATH\s+\$root/non_path\n$", txt, re.M))
+            self.assertRegex(txt, re.compile(r"^\nprepend-path\s+PATH\s+\$root/bin\n", re.M))
+            self.assertRegex(txt, re.compile(r'^setenv\s+NONPATH\s+"non_path"\s*$', re.M))
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
-            self.assertFalse(re.match(r'^\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n$', txt, re.M))
+            self.assertRegex(txt, re.compile(r'^prepend_path\("PATH", pathJoin\(root, "bin"\)\)$', re.M))
+            self.assertRegex(txt, re.compile(r'^setenv\("NONPATH", "non_path"\)$', re.M))
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
         logtxt = read_file(eb.logfile)
-        self.assertRegex(logtxt, r"WARNING Non-path variables found in module load env.*NONPATH")
+        self.assertNotRegex(logtxt, r"WARNING Non-path variables found in module load env.*NONPATH")
 
         eb.module_load_environment.remove('NONPATH')
 
