@@ -50,7 +50,8 @@ _log = fancylogger.getLogger('environment', fname=False)
 _contextes = {'': {}}
 _curr_context = ''
 
-def set_context(context_name, context = {}):
+
+def set_context(context_name, context=None):
     """
     Set context for tracking environment changes.
     """
@@ -62,6 +63,7 @@ def set_context(context_name, context = {}):
         else:
             context = {}
         _contextes[context_name] = context
+
 
 def get_context():
     """
@@ -95,7 +97,8 @@ def get_changes():
     """
     return get_context()
 
-def apply_context(context = None):
+
+def apply_context(context=None):
     """Return the current environment with the changes tracked in the context applied.
 
     Args:
@@ -127,8 +130,10 @@ def with_environment(copy_current=False):
     # Get a key that does not exist in _contextes
     base = '_context_'
     cnt = 0
-    while (context := f"{base}{cnt}") in _contextes:
+    context = f"{base}{cnt}"
+    while context in _contextes:
         cnt += 1
+        context = f"{base}{cnt}"
 
     prev_context = _curr_context
     kwargs = {}

@@ -8,6 +8,7 @@ import types
 class OSProxy(types.ModuleType):
     """Proxy module to intercept os attribute access."""
     overrides = {}
+
     def __init__(self, real_os):
         super().__init__("os")
         self._real_os = real_os
@@ -22,6 +23,7 @@ class OSProxy(types.ModuleType):
     @classmethod
     def register_override(cls, name, value):
         cls.overrides[name] = value
+
 
 class OSFinder(importlib.abc.MetaPathFinder):
     """Meta path finder to intercept imports of 'os' and return our proxy."""
