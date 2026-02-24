@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -293,7 +293,7 @@ class EasyBuildOptions(GeneralOption):
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
+                      'pathlist', 'store_or_False', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -438,6 +438,7 @@ class EasyBuildOptions(GeneralOption):
                                          "more compute capabilities than defined in --cuda-compute-capabilities.",
                                          None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
+            'debug-module-cmds': ("Show additional information of module commands", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
@@ -808,6 +809,8 @@ class EasyBuildOptions(GeneralOption):
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
             'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
                                  "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
+            'keep-going': ("Continue installation of remaining software after a failed installation. "
+                           "Implied by --dump-test-report and --upload-test-report", None, 'store_true', False),
             'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
@@ -990,7 +993,7 @@ class EasyBuildOptions(GeneralOption):
         # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
         # see https://developer.nvidia.com/cuda-gpus
         if self.options.cuda_compute_capabilities:
-            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+a?$')
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+[af]?$')
             faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
             if faulty_cuda_ccs:
                 error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"
@@ -1327,7 +1330,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
-        if self.options.robot is not None:
+        if self.options.robot is False:
+            self.options.robot = None  # Set to None as-if not specified
+        elif self.options.robot is not None:
             # if a single path is specified to --robot/-r, it must be an existing directory;
             # this is required since an argument to --robot is optional,
             # which makes it susceptible to 'eating' the following argument/option;

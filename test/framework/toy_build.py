@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1554,12 +1554,14 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_err = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_log = r"shell command 'unzip .*bar-0.0.tar.gz' failed with exit code 9 in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
-            self.assertErrorRegex(EasyBuildError, error_pattern,
+            self.assertErrorRegex(EasyBuildError, pat_in_err,
                                   self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
+            self.assertRegex(read_file(self.logfile), pat_in_log)
 
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
@@ -1775,7 +1777,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchbuilddep/0.0.0\\' failed"
+            err_msg = r"Module command '.*load nosuchbuilddep/0.0.0' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
@@ -1788,7 +1790,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchmodule/1.2.3\\' failed"
+            err_msg = r"Module command '.*load nosuchmodule/1.2.3' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
@@ -4831,7 +4833,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += '\nruntest = "RAISE_ERROR"'
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"An error was raised during test step: 'TOY_TEST_FAIL'"
+        error_pattern = "An error was raised during test step: TOY_TEST_FAIL\nDescription"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
                               ec_file=test_ec, raise_error=True)
 
