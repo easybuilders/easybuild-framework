@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -44,7 +44,6 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
@@ -55,7 +54,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 111
+TEST_MODULES_COUNT = 119
 
 
 class ModulesTest(EnhancedTestCase):
@@ -103,11 +102,10 @@ class ModulesTest(EnhancedTestCase):
             os.environ.pop(key, None)
 
         # arguments can be passed in two ways: multiple arguments, or just 1 list argument
-        self.modtool.run_module('load', 'GCC/6.4.0-2.28')
-        self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
+        with self.saved_env():
+            self.modtool.run_module('load', 'GCC/6.4.0-2.28')
+            self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
-        # restore original environment
-        modify_env(os.environ, self.orig_environ, verbose=False)
         self.reset_modulepath([os.path.join(testdir, 'modules')])
 
         self.assertNotIn('EBROOTGCC', os.environ)
@@ -429,7 +427,7 @@ class ModulesTest(EnhancedTestCase):
         ms = self.modtool.available()
         # exclude modules not on the top level of a hierarchy
         ms = [m for m in ms if not (m.startswith('Core') or m.startswith('Compiler/') or m.startswith('MPI/') or
-                                    m.startswith('CategorizedHMNS'))]
+                                    m.startswith('CategorizedHMNS') or m.startswith('HierarchicalMNS'))]
 
         for m in ms:
             self.modtool.load([m])
@@ -479,6 +477,21 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['GCC/6.4.0-2.28'], allow_reload=False)
         self.assertEqual(os.environ.get('EBROOTGCC'), None)
         self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
+
+        # test loading of module when particular module path has priority over others
+        if isinstance(self.modtool, Lmod):
+            mod_paths = [
+                os.path.join(self.test_prefix, 'one'),
+                (os.path.join(self.test_prefix, 'two'), 10000),
+                os.path.join(self.test_prefix, 'three'),
+            ]
+            for mod_path in mod_paths:
+                if isinstance(mod_path, tuple):
+                    mod_path = mod_path[0]
+                mod_file = os.path.join(mod_path, 'test', '1.2.3.lua')
+                write_file(mod_file, 'setenv("TEST_PARENT_DIR", "%s")' % os.path.basename(mod_path))
+            self.modtool.load(['test/1.2.3'], mod_paths=mod_paths)
+            self.assertEqual(os.getenv('TEST_PARENT_DIR'), 'two')
 
     def test_show(self):
         """Test for ModulesTool.show method."""
@@ -1057,13 +1070,13 @@ class ModulesTest(EnhancedTestCase):
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '6.4.0-2.28'))
         modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28')
-        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, flags=re.M)
         write_file(os.path.join(self.test_prefix, 'Core', 'GCC', '6.4.0-2.28'), modtxt)
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'))
         modpath_extension = os.path.join(self.test_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
         mkdir(modpath_extension, parents=True)
-        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, re.M)
+        modtxt = re.sub('module use .*', 'module use %s' % modpath_extension, modtxt, flags=re.M)
         write_file(os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2'), modtxt)
 
         # force reset of any singletons by reinitiating config

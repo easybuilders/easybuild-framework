@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -261,7 +261,7 @@ def det_subtoolchain_version(current_tc, subtoolchain_names, optional_toolchains
 
     for subtoolchain_name in subtoolchain_names:
 
-        uniq_subtc_versions = set([subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name])
+        uniq_subtc_versions = {subtc['version'] for subtc in cands if subtc['name'] == subtoolchain_name}
 
         # system toolchain: bottom of the hierarchy
         if is_system_toolchain(subtoolchain_name):
@@ -318,8 +318,8 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
     subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-    optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
-    composite_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1)
+    optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
+    composite_toolchains = {tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1}
 
     # the parent toolchain is at the top of the hierarchy,
     # we need a copy so that adding capabilities (below) doesn't affect the original object
@@ -682,7 +682,7 @@ class EasyConfig:
         # For easyconfig parameters that are dictionaries, input value must also be a dictionary
         if isinstance(self[key], dict) and not isinstance(value, dict):
             msg = "Can't update configuration value for %s, because the attempted"
-            msg += "update value (%s), is not a dictionary (type: %s)."
+            msg += " update value (%s), is not a dictionary (type: %s)."
             raise EasyBuildError(msg, key, value, type(value))
 
         # Grab current parameter value so we can modify it
@@ -1219,14 +1219,16 @@ class EasyConfig:
 
         return retained_deps
 
-    def dependency_names(self, build_only=False):
+    def dependency_names(self, build_only=False, runtime_only=False):
         """
         Return a set of names of all (direct) dependencies after filtering.
         Iterable builddependencies are flattened when not iterating.
 
         :param build_only: only return build dependencies, discard others
+        :param runtime_only: only return runtime dependencies, discard others
         """
-        return {dep['name'] for dep in self.dependencies(build_only=build_only) if dep['name']}
+        return {dep['name'] for dep in self.dependencies(build_only=build_only, runtime_only=runtime_only)
+                if dep['name']}
 
     def builddependencies(self):
         """
@@ -1279,7 +1281,7 @@ class EasyConfig:
                 else:
                     self.log.debug("Found easyconfig for toolchain %s version %s: %s", tcname, tcversion, tc_ecfile)
                     tc_ec = process_easyconfig(tc_ecfile)[0]
-                    tcdeps = tc_ec['ec'].dependencies()
+                    tcdeps = tc_ec['ec'].dependencies(runtime_only=True)
                     self.log.debug("Toolchain dependencies based on easyconfig: %s", tcdeps)
 
             self._toolchain = get_toolchain(self['toolchain'], self['toolchainopts'],
@@ -1990,6 +1992,28 @@ class EasyConfig:
                 raise EasyBuildError(error_msg, key)
         else:
             error_msg = "%s is not a template value based on --cuda-compute-capabilities/cuda_compute_capabilities"
+            raise EasyBuildError(error_msg, key)
+
+    def get_amdgcn_cc_template_value(self, key, required=True):
+        """
+        Get template value based on --amdgcn-capabilities EasyBuild configuration option
+        and amdgcn_capabilities easyconfig parameter.
+        Returns user-friendly error message in case neither are defined,
+        or if an unknown key is used.
+        """
+        if key.startswith('amdgcn_') and any(x == key for x in TEMPLATE_NAMES_DYNAMIC):
+            try:
+                return self.template_values[key]
+            except KeyError:
+                if not required:
+                    self.log.debug(f'Key {key} not found in template values, returning empty value')
+                    return ''
+                error_msg = "Template value '%s' is not defined!\n"
+                error_msg += "Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+                error_msg += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
+                raise EasyBuildError(error_msg, key)
+        else:
+            error_msg = "%s is not a template value based on --amdgcn-capabilities/amdgcn_capabilities"
             raise EasyBuildError(error_msg, key)
 
 

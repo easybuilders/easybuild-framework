@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -128,7 +128,7 @@ CONFIG_ENV_VAR_PREFIX = 'EASYBUILD'
 
 XDG_CONFIG_HOME = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), ".config"))
 XDG_CONFIG_DIRS = os.environ.get('XDG_CONFIG_DIRS', '/etc/xdg').split(os.pathsep)
-DEFAULT_SYS_CFGFILES = [[f for f in sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))]
+DEFAULT_SYS_CFGFILES = [sorted(glob.glob(os.path.join(d, 'easybuild.d', '*.cfg')))
                         for d in XDG_CONFIG_DIRS]
 DEFAULT_USER_CFGFILE = os.path.join(XDG_CONFIG_HOME, 'easybuild', 'config.cfg')
 
@@ -136,7 +136,7 @@ DEFAULT_LIST_PR_STATE = GITHUB_PR_STATE_OPEN
 DEFAULT_LIST_PR_ORDER = GITHUB_PR_ORDER_CREATED
 DEFAULT_LIST_PR_DIREC = GITHUB_PR_DIRECTION_DESC
 
-RPATH_DEFAULT = False if get_os_type() == DARWIN else True
+RPATH_DEFAULT = get_os_type() != DARWIN
 
 _log = fancylogger.getLogger('options', fname=False)
 
@@ -293,7 +293,7 @@ class EasyBuildOptions(GeneralOption):
             'rebuild': ("Rebuild software, even if module already exists (don't skip OS dependencies checks)",
                         None, 'store_true', False),
             'robot': ("Enable dependency resolution, optionally consider additional paths to search for easyconfigs",
-                      'pathlist', 'store_or_None', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
+                      'pathlist', 'store_or_False', [], 'r', {'metavar': '[PATH[%sPATH]]' % os.pathsep}),
             'robot-paths': ("Additional paths to consider by robot for easyconfigs (--robot paths get priority)",
                             'pathlist', 'add_flex', self.default_robot_paths, {'metavar': 'PATH[%sPATH]' % os.pathsep}),
             'search-paths': ("Additional locations to consider in --search (next to --robot and --robot-paths paths)",
@@ -370,6 +370,9 @@ class EasyBuildOptions(GeneralOption):
                                             None, 'store_true', False),
             'allow-use-as-root-and-accept-consequences': ("Allow using of EasyBuild as root (NOT RECOMMENDED!)",
                                                           None, 'store_true', False),
+            'amdgcn-capabilities': ("List of AMDGCN capabilities to use when building GPU software; "
+                                    "values should be specified as gfx[xyz], as defined by the LLVM targets, "
+                                    "for example: gfx1101,gfx90a,gfx1030", 'strlist', 'extend', None),
             'backup-modules': ("Back up an existing module file, if any. "
                                "Auto-enabled when using --module-only or --skip",
                                None, 'store_true', None),  # default None to allow auto-enabling if not disabled
@@ -435,6 +438,7 @@ class EasyBuildOptions(GeneralOption):
                                          "more compute capabilities than defined in --cuda-compute-capabilities.",
                                          None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
+            'debug-module-cmds': ("Show additional information of module commands", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
@@ -662,7 +666,7 @@ class EasyBuildOptions(GeneralOption):
             'module-depends-on': ("Use depends_on (Lmod 7.6.1+) for dependencies in all generated modules "
                                   "(implies recursive unloading of modules).",
                                   None, 'store_true', True),
-            'module-extensions': ("Include 'extensions' statement in generated module file (Lua syntax only)",
+            'module-extensions': ("Include 'extensions' statement in generated module file",
                                   None, 'store_true', True),
             'module-naming-scheme': ("Module naming scheme to use", None, 'store', DEFAULT_MNS),
             'module-search-path-headers': ("Environment variable set by modules on load with search paths "
@@ -805,6 +809,8 @@ class EasyBuildOptions(GeneralOption):
             'close-pr-msg': ("Custom close message for pull request closed with --close-pr; ", str, 'store', None),
             'close-pr-reasons': ("Close reason for pull request closed with --close-pr; "
                                  "supported values: %s" % ", ".join(VALID_CLOSE_PR_REASONS), str, 'store', None),
+            'keep-going': ("Continue installation of remaining software after a failed installation. "
+                           "Implied by --dump-test-report and --upload-test-report", None, 'store_true', False),
             'list-prs': ("List pull requests", str, 'store_or_None',
                          ",".join([DEFAULT_LIST_PR_STATE, DEFAULT_LIST_PR_ORDER, DEFAULT_LIST_PR_DIREC]),
                          {'metavar': 'STATE,ORDER,DIRECTION'}),
@@ -987,11 +993,31 @@ class EasyBuildOptions(GeneralOption):
         # values passed to --cuda-compute-capabilities must be of form X.Y (with both X and Y integers),
         # see https://developer.nvidia.com/cuda-gpus
         if self.options.cuda_compute_capabilities:
-            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+a?$')
+            cuda_cc_regex = re.compile(r'^[0-9]+\.[0-9]+[af]?$')
             faulty_cuda_ccs = [x for x in self.options.cuda_compute_capabilities if not cuda_cc_regex.match(x)]
             if faulty_cuda_ccs:
                 error_msg = "Incorrect values in --cuda-compute-capabilities (expected pattern: '%s'): %s"
                 error_msgs.append(error_msg % (cuda_cc_regex.pattern, ', '.join(faulty_cuda_ccs)))
+
+        # Support accelerators using the gfx[...] naming scheme.
+        # This applies to all AMD GPUs since Southern Islands (2013)
+        # For more information: https://llvm.org/docs/AMDGPUUsage.html#processors
+        # Allow users to pass --amdgcn-capabilities=, which will be mapped to not passing any
+        if self.options.amdgcn_capabilities == ['']:
+            self.options.amdgcn_capabilities = None
+        if self.options.amdgcn_capabilities:
+            # General accelerator naming convention
+            amdgcn_cc_regex = re.compile(r'gfx[0-9]+[a-z]?$')
+            # Generic convention.
+            # Regex is not perfect, as it doesn't catch gfx[...]--generic
+            amdgcn_generic_regex = re.compile(r'gfx[0-9]+(\-[0-9])?-generic$')
+            faulty_amdgcn_ccs = [x for x in self.options.amdgcn_capabilities
+                                 if not amdgcn_cc_regex.match(x) and not amdgcn_generic_regex.match(x)]
+            if faulty_amdgcn_ccs:
+                error_msg = "Incorrect values in --amdgcn-capabilities (expected pattern: '%s' or '%s'): %s"
+                error_msgs.append(error_msg % (amdgcn_cc_regex.pattern,
+                                               amdgcn_generic_regex.pattern,
+                                               ', '.join(faulty_amdgcn_ccs)))
 
         if error_msgs:
             raise EasyBuildError(
@@ -1112,7 +1138,7 @@ class EasyBuildOptions(GeneralOption):
             )
 
         reasons = self.options.close_pr_reasons.split(',')
-        if any([reason not in VALID_CLOSE_PR_REASONS.keys() for reason in reasons]):
+        if any(reason not in VALID_CLOSE_PR_REASONS for reason in reasons):
             raise EasyBuildError(
                 "Argument to --close-pr_reasons must be a comma separated list of valid reasons among %s",
                 VALID_CLOSE_PR_REASONS.keys(), exit_code=EasyBuildExit.OPTION_ERROR
@@ -1304,7 +1330,9 @@ class EasyBuildOptions(GeneralOption):
         if self.options.pretend:
             self.options.installpath = get_pretend_installpath()
 
-        if self.options.robot is not None:
+        if self.options.robot is False:
+            self.options.robot = None  # Set to None as-if not specified
+        elif self.options.robot is not None:
             # if a single path is specified to --robot/-r, it must be an existing directory;
             # this is required since an argument to --robot is optional,
             # which makes it susceptible to 'eating' the following argument/option;
@@ -1538,7 +1566,7 @@ class EasyBuildOptions(GeneralOption):
             "* software:",
             "  -> glibc version: %s" % system_info['glibc_version'],
             "  -> Python binary: %s" % sys.executable,
-            "  -> Python version: %s" % sys.version.split(' ')[0],
+            "  -> Python version: %s" % sys.version.split(' ', maxsplit=1)[0],
         ])
 
         return '\n'.join(lines)
@@ -1726,7 +1754,7 @@ def handle_include_easyblocks_from(options, log):
         if options.include_easyblocks:
             # check if you are including the same easyblock twice
             included_paths = expand_glob_paths(options.include_easyblocks)
-            included_easyblocks = set([os.path.basename(eb) for eb in included_paths])
+            included_easyblocks = {os.path.basename(eb) for eb in included_paths}
 
         if options.include_easyblocks_from_pr:
             try:
@@ -1739,7 +1767,7 @@ def handle_include_easyblocks_from(options, log):
 
             for easyblock_pr in easyblock_prs:
                 easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-                included_from_pr = set([os.path.basename(eb) for eb in easyblocks_from_pr])
+                included_from_pr = {os.path.basename(eb) for eb in easyblocks_from_pr}
 
                 if options.include_easyblocks:
                     check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
@@ -1753,7 +1781,7 @@ def handle_include_easyblocks_from(options, log):
         easyblock_commit = options.include_easyblocks_from_commit
         if easyblock_commit:
             easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
-            included_from_commit = set([os.path.basename(eb) for eb in easyblocks_from_commit])
+            included_from_commit = {os.path.basename(eb) for eb in easyblocks_from_commit}
 
             if options.include_easyblocks:
                 check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
@@ -2107,7 +2135,7 @@ def set_tmpdir(tmpdir=None, raise_error=False):
 
     # avoid having special characters like '[' and ']' in the tmpdir pathname,
     # it is known to cause problems (e.g., with Python install tools, CUDA's nvcc, etc.);
-    # only common characteris like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to 'X'
+    # only common characters like alphanumeric, '_', '-', '.' and '/' are retained; others are converted to 'X'
     special_chars_regex = r'[^\w/.-]'
     if re.search(special_chars_regex, current_tmpdir):
         current_tmpdir = re.sub(special_chars_regex, 'X', current_tmpdir)

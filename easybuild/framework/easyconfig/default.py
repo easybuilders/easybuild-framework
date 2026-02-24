@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -84,6 +84,7 @@ DEFAULT_CONFIG = {
     'toolchainopts': [None, 'Extra options for compilers', TOOLCHAIN],
 
     # BUILD easyconfig parameters
+    'amdgcn_capabilities': [[], "List of AMDGCN capabilities to build with (if supported)", BUILD],
     'banned_linked_shared_libs': [[], "List of shared libraries (names, file names, or paths) which are not allowed "
                                       "to be linked in any installed binary/library", BUILD],
     'bitbucket_account': ['%(namelower)s', "Bitbucket account name to be used to resolve template values in source"
@@ -188,7 +189,7 @@ DEFAULT_CONFIG = {
     # EXTENSIONS easyconfig parameters
     'exts_download_dep_fail': [False, "Fail if downloaded dependencies are detected for extensions", EXTENSIONS],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
-    'exts_defaultclass': [None, "List of module for and name of the default extension class", EXTENSIONS],
+    'exts_defaultclass': [None, "Name of default easyblock for extensions", EXTENSIONS],
     'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
     'exts_filter': [None, ("Extension filter details: template for cmd and input to cmd "
                            "(templates for ext_name, ext_version and src)."), EXTENSIONS],

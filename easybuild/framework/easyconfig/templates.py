@@ -1,5 +1,5 @@
 #
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -33,14 +33,14 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Kenneth Hoste (Ghent University)
 """
-import re
+import os
 import platform
+import re
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 from easybuild.tools.config import build_option
-
+from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
@@ -50,9 +50,12 @@ TEMPLATE_NAMES_EASYCONFIG = {
     'nameletter': 'First letter of software name',
     'toolchain_name': 'Toolchain name',
     'toolchain_version': 'Toolchain version',
+    'version_major_minor_patch': "Major.Minor.Patch version",
     'version_major_minor': "Major.Minor version",
     'version_major': 'Major version',
+    'version_minor_patch': 'Minor.Patch version',
     'version_minor': 'Minor version',
+    'version_patch': 'Patch version',
 }
 # derived from EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
@@ -85,13 +88,23 @@ TEMPLATE_SOFTWARE_VERSIONS = {
     'Python': 'py',
     'R': 'r',
 }
+TEMPLATE_CUDA_VERSION_NVHPC = [
+    'nvidia_compilers',
+    'NVHPC',
+]
 # template values which are only generated dynamically
 TEMPLATE_NAMES_DYNAMIC = {
     'arch': 'System architecture (e.g. x86_64, aarch64, ppc64le, ...)',
+    'amdgcn_capabilities': "Comma-separated list of AMDGCN capabilities, as specified via "
+                           "--amdgcn-capabilities configuration option or "
+                           "via amdgcn_capabilities easyconfig parameter",
+    'amdgcn_cc_space_sep': "Space-separated list of AMDGCN capabilities",
+    'amdgcn_cc_semicolon_sep': "Semicolon-separated list of AMDGCN capabilities",
     'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
     'cuda_cc_cmake': 'List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
+    'cuda_cc_nvhpc': 'List of CUDA compute capabilities suitable for use with -gpu option in NVHPC compilers',
     'cuda_cc_space_sep': 'Space-separated list of CUDA compute capabilities',
     'cuda_cc_space_sep_no_period':
     "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90').",
@@ -199,9 +212,12 @@ ALTERNATIVE_EASYCONFIG_TEMPLATES = {
     'r_short_ver': 'rshortver',
     'r_ver': 'rver',
     'toolchain_ver': 'toolchain_version',
+    'ver_maj_min_patch': 'version_major_minor_patch',
     'ver_maj_min': 'version_major_minor',
     'ver_maj': 'version_major',
+    'ver_min_patch': 'version_minor_patch',
     'ver_min': 'version_minor',
+    'ver_patch': 'version_patch',
     'version_prefix': 'versionprefix',
     'version_suffix': 'versionsuffix',
 }
@@ -265,7 +281,10 @@ for ext in EXTENSIONS:
     TEMPLATE_CONSTANTS.update({
         'SOURCE_%s' % suffix: ('%(name)s-%(version)s.' + ext, "Source .%s bundle" % ext),
         'SOURCELOWER_%s' % suffix: ('%(namelower)s-%(version)s.' + ext, "Source .%s bundle with lowercase name" % ext),
+        'VERSION_%s' % suffix: ('%(version)s.' + ext, "Source filename <version>.%s common at GitHub" % ext),
+        'V_VERSION_%s' % suffix: ('v%(version)s.' + ext, "Source filename v<version>.%s common at GitHub" % ext),
     })
+
 for pyver in ('py2.py3', 'py2', 'py3'):
     if pyver == 'py2.py3':
         desc = 'Python 2 & Python 3'
@@ -338,11 +357,16 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                     minor = version[1]
                     template_values['version_minor'] = minor
                     template_values['version_major_minor'] = '.'.join([major, minor])
+                    if len(version) > 2:
+                        patch = version[2]
+                        template_values['version_patch'] = patch
+                        template_values['version_minor_patch'] = '.'.join([minor, patch])
+                        template_values['version_major_minor_patch'] = '.'.join([major, minor, patch])
                 except IndexError:
                     # if there is no minor version, skip it
                     pass
                 # only go through this once
-                ignore.extend(['version_major', 'version_minor', 'version_major_minor'])
+                ignore.extend(name for name in TEMPLATE_NAMES_EASYCONFIG if name.startswith('version_'))
 
         elif name.endswith('letter'):
             # parse first letters
@@ -424,6 +448,17 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                     template_values['%sminver' % pref] = dep_version_parts[1]
                 template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
+    # step 2.1: CUDA templates in NVHPC
+    if toolchain is not None and hasattr(toolchain, 'name') and toolchain.name in TEMPLATE_CUDA_VERSION_NVHPC:
+        cuda_version = os.getenv("EBNVHPCCUDAVER", None)
+        if cuda_version:
+            cuda_version_parts = cuda_version.split('.')
+            template_values['cudaver'] = cuda_version
+            template_values['cudamajver'] = cuda_version_parts[0]
+            if len(cuda_version_parts) > 1:
+                template_values['cudaminver'] = cuda_version_parts[1]
+            template_values['cudashortver'] = '.'.join(cuda_version_parts[:2])
+
     # step 3: add remaining from config
     for name in TEMPLATE_NAMES_CONFIG:
         if name in ignore:
@@ -470,6 +505,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         template_values['cuda_cc_space_sep_no_period'] = ' '.join(cc.replace('.', '') for cc in cuda_cc)
         template_values['cuda_cc_semicolon_sep'] = ';'.join(cuda_cc)
         template_values['cuda_cc_cmake'] = ';'.join(cc.replace('.', '') for cc in cuda_cc)
+        template_values['cuda_cc_nvhpc'] = ','.join(f"cc{cc.replace('.', '')}" for cc in cuda_cc)
         int_values = [cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_int_comma_sep'] = ','.join(int_values)
         template_values['cuda_int_space_sep'] = ' '.join(int_values)
@@ -477,6 +513,14 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         sm_values = ['sm_' + cc.replace('.', '') for cc in cuda_cc]
         template_values['cuda_sm_comma_sep'] = ','.join(sm_values)
         template_values['cuda_sm_space_sep'] = ' '.join(sm_values)
+
+    # step 7. AMDGCN capabilities
+    #         Use the commandline / easybuild config option if given, else use the value from the EC (as a default)
+    amdgcn_cc = build_option('amdgcn_capabilities') or config.get('amdgcn_capabilities')
+    if amdgcn_cc:
+        template_values['amdgcn_capabilities'] = ','.join(amdgcn_cc)
+        template_values['amdgcn_cc_space_sep'] = ' '.join(amdgcn_cc)
+        template_values['amdgcn_cc_semicolon_sep'] = ';'.join(amdgcn_cc)
 
     unknown_names = []
     for key in template_values:

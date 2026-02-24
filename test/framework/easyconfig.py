@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -83,7 +83,7 @@ from test.framework.github import GITHUB_TEST_ACCOUNT
 from test.framework.utilities import find_full_path
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa # pylint:disable=unused-import
 except ImportError:
     pass
 
@@ -386,7 +386,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # only non-POWER arch, dependency is retained
         for arch in (AARCH64, X86_64):
-            st.get_cpu_architecture = lambda: arch
+            st.get_cpu_architecture = lambda: arch  # pylint: disable=cell-var-from-loop
             eb = EasyConfig(self.eb_file)
             deps = eb.dependencies()
             self.assertEqual(len(deps), 1)
@@ -540,6 +540,46 @@ class EasyConfigTest(EnhancedTestCase):
         regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
         self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
 
+    def test_extensions_default_class(self):
+        """Test that exts_defaultclass doesn't need to be specified if explicit one is present."""
+
+        init_config(build_options={'silent': True})
+
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "PI"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+               ("toy", "0.0"),  # Custom block by name
+               ("bar", "0.0", { # Explicit
+                    'easyblock': 'EB_toy',
+                    'sources': ['toy-%(version)s.tar.gz'],
+                }),
+            ]
+        """)
+        self.prep()
+        # Ensure source is found
+        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        copy_file(toy_tar_gz, self.test_prefix)
+        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        init_config(build_options={'silent': True})
+
+        ec = EasyConfig(self.eb_file)
+        eb = EasyBlock(ec)
+        eb.fetch_step()
+        with self.mocked_stdout_stderr():
+            eb.extensions_step()
+
+        pi_installdir = os.path.join(self.test_installpath, 'software', 'PI', '3.14')
+
+        # check whether files expected to be installed for both extensions are in place
+        self.assertExists(os.path.join(pi_installdir, 'bin', 'toy'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libtoy.a'))
+        self.assertExists(os.path.join(pi_installdir, 'lib', 'libbar.a'))
+
     def test_extensions_templates(self):
         """Test whether templates used in exts_list are resolved properly."""
 
@@ -562,19 +602,19 @@ class EasyConfigTest(EnhancedTestCase):
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
             'dependencies = [("Python", "3.6.6")]',
-            'exts_defaultclass = "EB_Toy"',
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
             'exts_list = [',
-            '   ("toy", "0.0", {',
+            '   ("toy", "0.0.1", {',
             # %(name)s and %(version_major_minor)s should be resolved using name/version of extension (not parent)
             # %(pymajver)s should get resolved because Python is listed as a (runtime) dep
             # %(versionsuffix)s should get resolved with value of parent
             '       "source_tmpl": "%(name)s-%(version_major_minor)s-py%(pymajver)s%(versionsuffix)s.tar.gz",',
-            '       "patches": ["%(name)s-%(version)s_fix-silly-typo-in-printf-statement.patch"],',
+            '       "patches": ["%(name)s-%(version_major_minor)s_fix-silly-typo-in-printf-statement.patch"],',
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
-            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version)s &&' +
-            ' mv toy-%(version)s toy # echo installdir is %(installdir)s #",',
+            '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version_minor_patch)s &&' +
+            ' mv toy-%(version_minor_patch)s toy # echo installdir is %(installdir)s #",',
+            '        "postbuildopts": "echo postbuild step for %(name)s-%(version)s",',
             '   }),',
             ']',
         ])
@@ -597,16 +637,15 @@ class EasyConfigTest(EnhancedTestCase):
         # check whether template values were resolved correctly in Extension instances that were created/used
         toy_ext = eb.ext_instances[0]
         self.assertEqual(os.path.basename(toy_ext.src), 'toy-0.0-py3-test.tar.gz')
-        patches = []
-        for patch in toy_ext.patches:
-            patches.append(patch['path'])
+        patches = [patch['path'] for patch in toy_ext.patches]
         self.assertEqual(patches, [os.path.join(self.test_prefix, toy_patch_fn)])
         # define actual installation dir
         pi_installdir = os.path.join(self.test_installpath, 'software', 'pi', '3.14-test')
-        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.0 && mv toy-0.0 toy # echo installdir is %s #' % pi_installdir
+        expected_prebuildopts = 'gcc -O2 toy.c -o toy-0.1 && mv toy-0.1 toy # echo installdir is %s #' % pi_installdir
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
+            'postbuildopts': "echo postbuild step for toy-0.0.1",
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
@@ -1510,8 +1549,8 @@ class EasyConfigTest(EnhancedTestCase):
             eb.run_all_steps(False)
         logtxt = read_file(eb.logfile)
         start_dir = os.path.join(eb.builddir, 'toy-0.0')
-        self.assertIn('start_dir in configure is %s/ &&' % start_dir, logtxt)
-        self.assertIn('start_dir in build is %s/ &&' % start_dir, logtxt)
+        self.assertIn('start_dir in configure is %s &&' % start_dir, logtxt)
+        self.assertIn('start_dir in build is %s &&' % start_dir, logtxt)
         ext_start_dir = os.path.join(eb.builddir, 'bar', 'bar-0.0')
         self.assertIn('start_dir in extension configure is %s &&' % ext_start_dir, logtxt)
         self.assertIn('start_dir in extension build is %s &&' % ext_start_dir, logtxt)
@@ -2501,12 +2540,12 @@ class EasyConfigTest(EnhancedTestCase):
             Helper function to sanity check we can use the quoted string in Python contexts.
             Returns the evaluated (i.e. unquoted) string
             """
-            scope = dict()
+            scope = {}
             try:
                 # this is needlessly complicated because we can't use 'exec' here without potentially running
                 # into a SyntaxError bug in old Python 2.7 versions (for example when running the tests in CentOS 7.9)
                 # cfr. https://stackoverflow.com/questions/4484872/why-doesnt-exec-work-in-a-function-with-a-subfunction
-                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), dict(), scope)
+                eval(compile('res = %s' % quoted_val, '<string>', 'exec'), {}, scope)
             except Exception as err:  # pylint: disable=broad-except
                 self.fail('Failed to evaluate %s (from %s): %s' % (quoted_val, val, err))
             return scope['res']
@@ -2743,13 +2782,14 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
         try:
-            import autopep8  # noqa
-            os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
-            init_config()
-            self.test_dump()
-            del os.environ['EASYBUILD_DUMP_AUTOPEP8']
+            import autopep8 # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dump_autopep8, since autopep8 is not available")
+            return
+        os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
+        init_config()
+        self.test_dump()
+        del os.environ['EASYBUILD_DUMP_AUTOPEP8']
 
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
@@ -3241,86 +3281,93 @@ class EasyConfigTest(EnhancedTestCase):
     def test_dep_graph(self):
         """Test for dep_graph."""
         try:
-            import pygraph  # noqa
-
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
-
-            ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
-            ec_files = [(ec_file, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
-
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
-
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
-
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
-
-            # compare sorted output, since order of lines can change
-            ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
-            ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
-            self.assertEqual(ordered_dottxt, ordered_expected)
-
+            # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
+            # in which pkg_resources was removed;
+            # see also https://github.com/easybuilders/easybuild-framework/issues/5110
+            import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
         except ImportError:
             print("Skipping test_dep_graph, since pygraph is not available")
+            return
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
+
+        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_files = [(ec_file, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
+
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
+
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
+
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+        # compare sorted output, since order of lines can change
+        ordered_dottxt = '\n'.join(sorted(dottxt.split('\n')))
+        ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
+        self.assertEqual(ordered_dottxt, ordered_expected)
 
     def test_dep_graph_multi_deps(self):
         """
         Test for dep_graph using easyconfig that uses multi_deps.
         """
         try:
-            import pygraph  # noqa
-
-            test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-            build_options = {
-                'external_modules_metadata': ConfigObj(),
-                'valid_module_classes': module_classes(),
-                'robot_path': [test_easyconfigs],
-                'silent': True,
-            }
-            init_config(build_options=build_options)
-
-            toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
-            toy_ec_txt = read_file(toy_ec)
-
-            test_ec = os.path.join(self.test_prefix, 'test.eb')
-            test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
-            write_file(test_ec, test_ec_txt)
-
-            ec_files = [(test_ec, False)]
-            ecs, _ = parse_easyconfigs(ec_files)
-
-            dot_file = os.path.join(self.test_prefix, 'test.dot')
-            ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            dep_graph(dot_file, ordered_ecs)
-
-            # hard check for expect .dot file contents
-            # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            dottxt = read_file(dot_file)
-
-            self.assertTrue(dottxt.startswith('digraph graphname {'))
-
-            # just check for toy -> GCC deps
-            # don't bother doing full output check
-            # (different order for fields depending on Python version makes that tricky)
-            for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
-                self.assertTrue('"GCC/%s";' % gccver in dottxt)
-                self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
+            # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
+            # in which pkg_resources was removed;
+            # see also https://github.com/easybuilders/easybuild-framework/issues/5110
+            import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
 
         except ImportError:
-            print("Skipping test_dep_graph, since pygraph is not available")
+            print("Skipping test_dep_graph_multi_deps, since pygraph is not available")
+            return
+
+        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
+        build_options = {
+            'external_modules_metadata': ConfigObj(),
+            'valid_module_classes': module_classes(),
+            'robot_path': [test_easyconfigs],
+            'silent': True,
+        }
+        init_config(build_options=build_options)
+
+        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
+        write_file(test_ec, test_ec_txt)
+
+        ec_files = [(test_ec, False)]
+        ecs, _ = parse_easyconfigs(ec_files)
+
+        dot_file = os.path.join(self.test_prefix, 'test.dot')
+        ordered_ecs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        dep_graph(dot_file, ordered_ecs)
+
+        # hard check for expect .dot file contents
+        # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
+        # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
+        dottxt = read_file(dot_file)
+
+        self.assertTrue(dottxt.startswith('digraph graphname {'))
+
+        # just check for toy -> GCC deps
+        # don't bother doing full output check
+        # (different order for fields depending on Python version makes that tricky)
+        for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
+            self.assertTrue('"GCC/%s";' % gccver in dottxt)
+            self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
 
     def test_ActiveMNS_singleton(self):
         """Make sure ActiveMNS is a singleton class."""
@@ -3789,7 +3836,7 @@ class EasyConfigTest(EnhancedTestCase):
         # also check result of template_constant_dict when dict representing extension is passed
         ext_dict = {
             'name': 'foo',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'options': {
                 'source_urls': ['https://example.com'],
                 'source_tmpl': '%(name)s-%(version)s.tar.gz',
@@ -3810,11 +3857,25 @@ class EasyConfigTest(EnhancedTestCase):
             'rpath_enabled': rpath,
             'software_commit': '',
             'sysroot': '',
-            'version': '1.2.3',
+            'version': '1.2.3.42',
             'version_major': '1',
             'version_major_minor': '1.2',
-            'version_minor': '2'
+            'version_major_minor_patch': '1.2.3',
+            'version_minor': '2',
+            'version_minor_patch': '2.3',
+            'version_patch': '3',
         }
+        self.assertEqual(res, expected)
+
+        # No patch version makes the templates undefined
+        ext_dict['version'] = '1.2'
+        res = template_constant_dict(ext_dict)
+        res.pop('arch')
+
+        del expected['version_major_minor_patch']
+        del expected['version_minor_patch']
+        del expected['version_patch']
+        expected['version'] = '1.2'
         self.assertEqual(res, expected)
 
     def test_parse_deps_templates(self):
@@ -4008,7 +4069,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test det_subtoolchain_version function"""
         _, all_tc_classes = search_toolchain('')
         subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
-        optional_toolchains = set(tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False))
+        optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
 
         current_tc = {'name': 'fosscuda', 'version': '2018a'}
         # missing gompic and double golfc should both give exceptions
@@ -4873,6 +4934,35 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
         self.assertEqual(ec['installopts'], '4.2,6.3')
 
+    def test_amdgcn_capabilities(self):
+        self.contents = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'test'
+            version = '0.2'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            amdgcn_capabilities = ['gfx90a', 'gfx1101', 'gfx11-generic', 'gfx10-3-generic']
+            buildopts = ('comma="%(amdgcn_capabilities)s" space="%(amdgcn_cc_space_sep)s" '
+                         'semi="%(amdgcn_cc_semicolon_sep)s"')
+            installopts = '%(amdgcn_capabilities)s'
+        """)
+        self.prep()
+
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101,gfx11-generic,gfx10-3-generic" '
+                                          'space="gfx90a gfx1101 gfx11-generic gfx10-3-generic" '
+                                          'semi="gfx90a;gfx1101;gfx11-generic;gfx10-3-generic"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101,gfx11-generic,gfx10-3-generic')
+
+        # build options overwrite it
+        init_config(build_options={'amdgcn_capabilities': ['gfx90a', 'gfx1101']})
+        ec = EasyConfig(self.eb_file)
+        self.assertEqual(ec['buildopts'], 'comma="gfx90a,gfx1101" '
+                                          'space="gfx90a gfx1101" '
+                                          'semi="gfx90a;gfx1101"')
+        self.assertEqual(ec['installopts'], 'gfx90a,gfx1101')
+
     def test_det_copy_ec_specs(self):
         """Test det_copy_ec_specs function."""
 
@@ -5176,6 +5266,56 @@ class EasyConfigTest(EnhancedTestCase):
 
         for key, expected in cuda_template_values.items():
             self.assertEqual(ec.get_cuda_cc_template_value(key), expected)
+
+    def test_get_amdgcn_cc_template_value(self):
+        """
+        Test getting template value based on --amdgcn-capabilities / amdgcn_capabilities.
+        """
+        self.contents = '\n'.join([
+            'easyblock = "ConfigureMake"',
+            'name = "pi"',
+            'version = "3.14"',
+            'homepage = "http://example.com"',
+            'description = "test easyconfig"',
+            'toolchain = SYSTEM',
+        ])
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        error_pattern = ("foobar is not a template value based on "
+                         "--amdgcn-capabilities/amdgcn_capabilities")
+        self.assertErrorRegex(EasyBuildError, error_pattern, ec.get_amdgcn_cc_template_value, 'foobar')
+
+        error_pattern = r"Template value '%s' is not defined!\n"
+        error_pattern += r"Make sure that either the --amdgcn-capabilities EasyBuild configuration "
+        error_pattern += "option is set, or that the amdgcn_capabilities easyconfig parameter is defined."
+        amdgcn_template_values = {
+            'amdgcn_capabilities': 'gfx90a,gfx1100,gfx10-3-generic',
+            'amdgcn_cc_space_sep': 'gfx90a gfx1100 gfx10-3-generic',
+            'amdgcn_cc_semicolon_sep': 'gfx90a;gfx1100;gfx10-3-generic',
+        }
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+
+        update_build_option('amdgcn_capabilities', ['gfx90a', 'gfx1100', 'gfx10-3-generic'])
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
+
+        update_build_option('amdgcn_capabilities', None)
+        ec = EasyConfig(self.eb_file)
+
+        for key in amdgcn_template_values:
+            self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_amdgcn_cc_template_value, key)
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key, required=False), '')
+
+        self.contents += "\namdgcn_capabilities = ['gfx90a', 'gfx1100', 'gfx10-3-generic']"
+        self.prep()
+        ec = EasyConfig(self.eb_file)
+
+        for key, expected in amdgcn_template_values.items():
+            self.assertEqual(ec.get_amdgcn_cc_template_value(key), expected)
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
