@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,6 +42,7 @@ Authors:
 * Caspar van Leeuwen (SURF)
 * Jan Andre Reuter (Juelich Supercomputing Centre)
 * Jasper Grimm (UoY)
+* Alex Domingo (Vrije Universiteit Brussel)
 """
 import concurrent
 import copy
@@ -80,7 +81,7 @@ from easybuild.framework.extension import Extension, resolve_exts_filter_templat
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
@@ -171,6 +172,14 @@ class EasyBlock:
             _log.nosupport("Found 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
 
         return extra
+
+    @staticmethod
+    def src_parameter_names():
+        """
+        Return list of EasyConfig parameter that contribute to the sources in the `src` member
+        (or equivalently to the `sources` parameter of a parsed EasyConfig)
+        """
+        return ['sources']
 
     #
     # INIT
@@ -735,9 +744,13 @@ class EasyBlock:
 
                         # if no sources are specified via 'sources', fall back to 'source_tmpl'
                         src_fn = ext_options.get('source_tmpl')
+                        is_pypi_source = False
                         if src_fn is None:
                             # use default template for name of source file if none is specified
                             src_fn = '%(name)s-%(version)s.tar.gz'
+                            if len(source_urls) == 1 and PYPI_PKG_URL_PATTERN in source_urls[0]:
+                                # allow retrying with alternative download_filename
+                                is_pypi_source = True
                         elif not isinstance(src_fn, str):
                             error_msg = "source_tmpl value must be a string! (found value of type '%s'): %s"
                             raise EasyBuildError(error_msg, type(src_fn).__name__, src_fn)
@@ -748,7 +761,17 @@ class EasyBlock:
                         if fetch_files:
                             src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
                                                         force_download=force_download,
-                                                        download_instructions=download_instructions)
+                                                        download_instructions=download_instructions,
+                                                        warning_only=is_pypi_source)
+                            if not src_path and is_pypi_source:
+                                # retry with alternative download_filename
+                                alt_name = resolve_template('%(name)s', template_values).replace("-", "_")
+                                src_version = resolve_template('%(version)s', template_values)
+                                alt_download_fn = f'{alt_name}-{src_version}.tar.gz'
+                                src_path = self.obtain_file(src_fn, extension=True, urls=source_urls,
+                                                            force_download=force_download,
+                                                            download_instructions=download_instructions,
+                                                            download_filename=alt_download_fn)
                             if src_path:
                                 ext_src.update({'src': src_path})
                             else:
@@ -1910,7 +1933,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name], log_changes=False)
+                self.modules_tool.unload([self.short_mod_name], hide_output=True)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
@@ -2132,7 +2155,8 @@ class EasyBlock:
                     self.log.debug("List of loaded modules: %s", self.modules_tool.list())
                     # don't reload modules for toolchain, there is no need
                     # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                          silent=True, loadmod=False,
                                           rpath_filter_dirs=self.rpath_filter_dirs,
                                           rpath_include_dirs=self.rpath_include_dirs,
                                           rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2294,7 +2318,8 @@ class EasyBlock:
                         with self.fake_module_environment(with_build_deps=True):
                             # don't reload modules for toolchain, there is no
                             # need since they will be loaded by the fake module
-                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], silent=True, loadmod=False,
+                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                                  silent=True, loadmod=False,
                                                   rpath_filter_dirs=self.rpath_filter_dirs,
                                                   rpath_include_dirs=self.rpath_include_dirs,
                                                   rpath_wrappers_dir=self.rpath_wrappers_dir)
@@ -2372,7 +2397,7 @@ class EasyBlock:
                 # make sure start_dir subdir exists (cfr. check below)
                 mkdir(os.path.join(topdir, start_dir), parents=True)
 
-            abs_start_dir = os.path.join(topdir, start_dir)
+            abs_start_dir = os.path.join(topdir, start_dir) if start_dir else topdir
             if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
                 self.cfg['start_dir'] = topdir
             else:
@@ -2971,7 +2996,8 @@ class EasyBlock:
             if os.path.isabs(self.rpath_wrappers_dir):
                 _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
             else:
-                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s",
+                                     self.rpath_wrappers_dir)
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
@@ -3016,8 +3042,20 @@ class EasyBlock:
             self.modules_tool.load(extra_modules)
 
         # Setup CUDA cache if required. If we don't do this, CUDA will use the $HOME for its cache files
-        if get_software_root('CUDA') or get_software_root('CUDAcore'):
+        if get_software_root('CUDA') or get_software_root('CUDAcore') or get_software_root('nvidia-compilers'):
             self.set_up_cuda_cache()
+
+        # Set CUDA compute capabilities from default value in nvidia-compiler/NVHPC toolchains
+        if get_software_root('nvidia-compilers'):
+            cuda_cc_cfg = self.cfg.get('cuda_compute_capabilities')
+            cuda_cc_opt = build_option('cuda_compute_capabilities')
+            cuda_cc_nvhpc = os.getenv('EBNVHPCCUDACC', None)
+            if not cuda_cc_cfg and not cuda_cc_opt and cuda_cc_nvhpc:
+                self.cfg['cuda_compute_capabilities'] = cuda_cc_nvhpc.split(',')
+                self.log.info(
+                    "Updated empty 'cuda_compute_capabilities' option with default CUDA compute capability "
+                    f"defined in nvidia-compilers: {self.cfg['cuda_compute_capabilities']}"
+                )
 
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
@@ -3048,8 +3086,9 @@ class EasyBlock:
         except RunShellCmdError as err:
             err.print()
             ec_path = os.path.basename(self.cfg.path)
-            error_msg = f"shell command '{err.cmd_name} ...' failed in test step for {ec_path}"
-            self.report_test_failure(error_msg)
+            error_msg = "shell command '{cmd}' failed in test step for " + ec_path
+            self.log.warning(error_msg.format(cmd=err.cmd))
+            self.report_test_failure(error_msg.format(cmd=f"{err.cmd_name} ..."))
 
     def stage_install_step(self):
         """Install in a stage directory before actual installation."""
@@ -3083,8 +3122,10 @@ class EasyBlock:
             # proper way: derive module path from specified class name
             default_class = exts_defaultclass
             default_class_modpath = get_module_path(default_class, generic=True)
+        elif exts_defaultclass is None:
+            default_class = default_class_modpath = None
         else:
-            error_msg = "Improper default extension class specification, should be string: %s (%s)"
+            error_msg = "Improper default extension class specification, should be string or None: %s (%s)"
             raise EasyBuildError(error_msg, exts_defaultclass, type(exts_defaultclass))
 
         exts_cnt = len(self.exts)
@@ -3136,8 +3177,11 @@ class EasyBlock:
                                          "for extension %s: %s",
                                          class_name, mod_path, ext_name, err)
 
-            # fallback attempt: use default class
+            # fallback attempt: use default class if any
             if inst is None:
+                if not default_class:
+                    raise EasyBuildError("ERROR: No default extension class set for %s and no explicit or custom "
+                                         "easyblock found for extension %s", self.name, ext_name)
                 try:
                     cls = get_class_for(default_class_modpath, default_class)
                     self.log.debug("Obtained class %s for installing extension %s", cls, ext_name)
@@ -3176,10 +3220,6 @@ class EasyBlock:
         start_progress_bar(PROGRESS_BAR_EXTENSIONS, len(self.cfg.get_ref('exts_list')))
 
         self.prepare_for_extensions()
-
-        # we really need a default class
-        if not self.cfg['exts_defaultclass'] and install:
-            raise EasyBuildError("ERROR: No default extension class set for %s", self.name)
 
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")
@@ -4333,7 +4373,7 @@ class EasyBlock:
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
-        if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
+        if self.toolchain.mpi_family() and self.toolchain.mpi_family() == toolchain.OPENMPI:
             env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
 
         # run sanity checks from an empty temp directory
@@ -4898,15 +4938,16 @@ class EasyBlock:
                         self.run_step(step_name, step_methods)
                     except RunShellCmdError as err:
                         err.print()
-                        error_msg = (
-                            f"shell command '{err.cmd_name} ...' failed with exit code {err.exit_code} "
-                            f"in {step_name} step for {os.path.basename(self.cfg.path)}"
+                        msg = (
+                            "shell command '{cmd}' failed with exit code "
+                            f"{err.exit_code} in {step_name} step for {os.path.basename(self.cfg.path)}"
                         )
+                        self.log.warning(msg.format(cmd=err.cmd))  # pylint: disable=logging-format-interpolation
                         try:
                             step_exit_code = EasyBuildExit[f"FAIL_{step_name.upper()}_STEP"]
                         except KeyError:
                             step_exit_code = EasyBuildExit.ERROR
-                        raise EasyBuildError(error_msg, exit_code=step_exit_code) from err
+                        raise EasyBuildError(msg.format(cmd=f"{err.cmd_name} ..."), exit_code=step_exit_code) from err
                     finally:
                         if not self.dry_run:
                             step_duration = datetime.now() - start_time
@@ -5040,8 +5081,8 @@ def build_and_install_one(ecdict, init_env):
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
-                    silent=silent)
+        print_error_and_exit("Failed to get application instance for %s (easyblock: %s): %s", name, easyblock, err.msg,
+                             silent=silent, exit_code=err.exit_code)
 
     # application settings
     stop = build_option('stop')
@@ -5577,8 +5618,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, data_sources, patches
-            keys = ['data_sources', 'patches', 'source_urls', 'sources']
+            # grab raw lines for the following params
+            keys = ['data_sources', 'source_urls'] + app.src_parameter_names() + ['patches']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5589,15 +5630,11 @@ def inject_checksums(ecs, checksum_type):
 
             _log.debug("Raw lines for %s easyconfig parameters: %s", '/'.join(keys), raw)
 
-            # inject combination of source_urls/sources/patches/checksums into easyconfig
-            # by replacing first occurence of placeholder that was put in place
-            sources_raw = raw.get('sources', '')
-            data_sources_raw = raw.get('data_sources', '')
-            source_urls_raw = raw.get('source_urls', '')
-            patches_raw = raw.get('patches', '')
+            # inject combination of the grabbed lines and the checksums into the easyconfig
+            # by replacing first the occurence of the placeholder that was put in place
+            raw_text = ''.join(raw.get(key, '') for key in keys)
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
-                              ectxt, count=1)
+            ectxt = regex.sub(raw_text + checksums_txt + '\n', ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)

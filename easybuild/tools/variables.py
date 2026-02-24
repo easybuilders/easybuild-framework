@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -370,8 +370,8 @@ class ListOfLists(list):
                         # keep last
                         to_remove.extend(all_idx[:-1])
 
-            to_remove = sorted(list(set(to_remove)), reverse=True)
-            self.log.devel("sanitize: to_remove in %s %s", self.__repr__(), to_remove)
+            to_remove = sorted(set(to_remove), reverse=True)
+            self.log.devel("sanitize: to_remove in %s %s", repr(self), to_remove)
             for idx in to_remove:
                 del self[idx]
 
@@ -388,7 +388,7 @@ class ListOfLists(list):
                     self.log.devel("sanitize: JOIN_BEGIN_END idx %s joining %s and %s", idx, self[idx], self[idx - 1])
                     self[idx - 1].extend(self[idx])
                     to_remove.append(idx)  # remove current el
-            to_remove = sorted(list(set(to_remove)), reverse=True)
+            to_remove = sorted(set(to_remove), reverse=True)
             for idx in to_remove:
                 del self[idx]
 

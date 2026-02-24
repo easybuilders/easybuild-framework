@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,13 +30,13 @@ Unit tests for easyblock.py
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
-import copy
 import fileinput
 import os
 import re
 import shutil
 import sys
 import tempfile
+import textwrap
 from inspect import cleandoc
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -52,7 +52,6 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
 from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
@@ -1289,14 +1288,14 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         depr_msg = r"EasyBlock.post_install_step\(\) is deprecated, use EasyBlock.post_processing_step\(\) instead"
         expected_error = r"DEPRECATED \(since v6.0\).*" + depr_msg
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
 
         change_dir(cwd)
         toy_ec = EasyConfig(toy_ec_fn)
         eb = EB_toy(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr() as (_, stderr):
+        with self.mocked_stdout_stderr() as (_, stderr), self.saved_env():
             eb.run_all_steps(True)
             # no deprecation warning
             stderr = stderr.getvalue()
@@ -1308,14 +1307,13 @@ class EasyBlockTest(EnhancedTestCase):
         # check again with toy easyblock that still uses post_install_step,
         # to verify that the expected file is being created when deprecated functionality is allow
         remove_file(libtoy_post_a)
-        modify_env(os.environ, self.orig_environ, verbose=False)
         change_dir(cwd)
 
         self.allow_deprecated_behaviour()
         toy_ec = EasyConfig(toy_ec_fn)
         eb = EB_toy_deprecated(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr() as (stdout, stderr):
+        with self.mocked_stdout_stderr() as (stdout, stderr), self.saved_env():
             eb.run_all_steps(True)
 
             regex = re.compile(depr_msg, re.M)
@@ -1344,7 +1342,6 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
@@ -1573,6 +1570,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
 
+        update_build_option('trace', True)
         self.mock_stdout(True)
         eb.extensions_step(fetch=True)
         stdout = self.get_stdout()
@@ -2640,7 +2638,7 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
         error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
@@ -2651,7 +2649,7 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec['exts_defaultclass'] = 'DummyExtension'
         eb = EB_toy(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             eb.run_all_steps(True)
 
     def test_parallel(self):
@@ -2882,6 +2880,8 @@ class EasyBlockTest(EnhancedTestCase):
             abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
             self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
             self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            self.assertTrue(eb.cfg['start_dir'].endswith(abs_expected_start_dir))
+            self.assertFalse(eb.cfg['start_dir'].endswith(os.path.sep))
 
         # default (no start_dir specified): use unpacked dir as start dir
         self.assertEqual(ec['ec']['start_dir'], None)
@@ -3010,23 +3010,19 @@ class EasyBlockTest(EnhancedTestCase):
 
         cwd = os.getcwd()
         self.assertExists(cwd)
-        # Take environment with test-specific variable set up
-        orig_environ = copy.deepcopy(os.environ)
 
         def run_extension_step():
-            try:
-                change_dir(cwd)
-                eb = EasyBlock(ec)
-                # Cleanup build directory
-                if os.path.exists(eb.builddir):
-                    remove_dir(eb.builddir)
+            change_dir(cwd)
+            eb = EasyBlock(ec)
+            # Cleanup build directory
+            if os.path.exists(eb.builddir):
+                remove_dir(eb.builddir)
+            # restore original environment to continue testing with a clean slate
+            with self.saved_env():
                 eb.make_builddir()
                 eb.update_config_template_run_step()
                 eb.extensions_step(fetch=True, install=True)
-                return os.path.join(eb.builddir)
-            finally:
-                # restore original environment to continue testing with a clean slate
-                modify_env(os.environ, orig_environ, verbose=False)
+            return os.path.join(eb.builddir)
 
         ec['exts_defaultclass'] = 'DummyExtension'
         ec['exts_list'] = [('toy', '0.0', {'easyblock': 'DummyExtension'})]
@@ -3592,7 +3588,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         paths, _, _ = eb._sanity_check_step_common(None, None)
 
-        self.assertEqual(set(paths.keys()), set(('files', 'dirs')))
+        self.assertEqual(set(paths.keys()), {'files', 'dirs'})
         self.assertEqual(paths['files'], ['correct.a', 'default.a'])
         self.assertEqual(paths['dirs'], [('correct', 'alternative')])
 
@@ -3705,6 +3701,9 @@ class EasyBlockTest(EnhancedTestCase):
         os.remove(eb.logfile)
 
     def test_report_current_step_method(self):
+        """
+        Check whether name of methods in installation steps are correctly reported
+        """
         testdir = os.path.abspath(os.path.dirname(__file__))
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
 
@@ -3740,6 +3739,125 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Ran test', logtxt)
         self.assertRegex(logtxt, f'Running method {method_name} .* {step_name}')
         self.assertIn('Ran custom', logtxt)
+
+    def test_exts_deps_build_env(self):
+        """
+        Test whether dependencies are loaded in build environment for extensions.
+        """
+        # to verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5023
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += textwrap.dedent("""
+            toolchain = {'name': 'gompi', 'version': '2023a'}
+
+            dependencies = [
+                ('zlib', '1.2.13'),
+            ]
+
+            exts_list = [
+                ('bar', '0.0', {
+                    'prebuildopts': "(env | sort) && ",
+                })
+            ]
+
+            sanity_check_paths = {
+                'files': ['bin/bar', 'bin/toy'],
+                'dirs': ['bin'],
+            }
+        """)
+        write_file(test_ec, test_ec_txt)
+
+        # put dummy modules in place where we can control $EBROOT value
+        openmpi_fn = '4.1.5-GCC-12.3.0'
+        zlib_fn = '1.2.13-GCCcore-12.3.0'
+        mod_files = [
+            ('OpenMPI', openmpi_fn),
+            ('zlib', zlib_fn),
+        ]
+
+        test_mods = os.path.join(self.test_prefix, 'modules')
+
+        for name, mod_fn in mod_files:
+            mod_fp = os.path.join(testdir, 'modules', name, mod_fn)
+
+            header_fn = 'zlib.h' if name == 'zlib' else 'mpi.h'
+
+            dep_root = os.path.join(self.test_prefix, 'software', name, mod_fn)
+            write_file(os.path.join(dep_root, 'include', header_fn), '')
+            write_file(os.path.join(dep_root, 'include', name, 'common.h'), '')
+
+            mod_txt = read_file(mod_fp)
+            mod_txt = re.sub("set root.*", f"set root {dep_root}", mod_txt)
+            # add statement to inject extra subdirectory to $CPATH,
+            # which is supposed to be retained in build environment
+            mod_txt += f'\nprepend-path\tCPATH\t$root/include/{name}'
+
+            test_mod_file = os.path.join(test_mods, name, mod_fn)
+            write_file(test_mod_file, mod_txt)
+
+        self.modtool.use(test_mods)
+
+        env_vars = {
+            'cpath': ['CPATH'],
+            'flags': ['CPPFLAGS'],
+            'include_paths': ['C_INCLUDE_PATH', 'CPLUS_INCLUDE_PATH', 'OBJC_INCLUDE_PATH'],
+        }
+
+        for search_path_cpp_headers in ('cpath', 'flags', 'include_paths'):
+            args = [
+                test_ec,
+                '--rebuild',
+                f'--search-path-cpp-headers={search_path_cpp_headers}',
+                '--debug',
+            ]
+            with self.mocked_stdout_stderr():
+                with self.log_to_testlogfile():
+                    self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+
+            log_txt = read_file(self.logfile)
+
+            # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
+            regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
+            self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
+            # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
+            for env_var in env_vars[search_path_cpp_headers]:
+                # both 'include' and 'include/zlib' subdirectories should be retained
+                paths = [
+                    f'software/OpenMPI/{openmpi_fn}/include/OpenMPI',
+                    f'software/OpenMPI/{openmpi_fn}/include',
+                    f'software/zlib/{zlib_fn}/include/zlib',
+                    f'software/zlib/{zlib_fn}/include',
+                ]
+                if env_var.endswith('PATH'):
+                    regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths) + '$', re.M)
+                elif env_var == 'CPPFLAGS':
+                    regex = re.compile(f'^{env_var}=' + ' '.join('-I/[^ ]+/' + p for p in paths) + '$', re.M)
+                else:
+                    self.fail(f"Unknown type of environment variable: ${env_var}")
+                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
+
+        # verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5048
+        test_ec_txt = read_file(toy_ec)
+        test_ec_txt += textwrap.dedent("""
+            toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+        """)
+        write_file(test_ec, test_ec_txt)
+        args = [
+            test_ec,
+            '--rebuild',
+            '--debug',
+        ]
+        with self.mocked_stdout_stderr():
+            with self.log_to_testlogfile():
+                self.eb_main(args, raise_error=True, do_build=True, verbose=True)
+
+        log_txt = read_file(self.logfile)
+
+        regex = re.compile(r"\[SUCCESS\] toy/0.0-GCCcore-12.3.0", re.M)
+        self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
 
 def suite(loader=None):
