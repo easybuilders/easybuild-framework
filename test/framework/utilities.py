@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
-from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
+from easybuild.tools.modules import curr_module_paths, modules_tool, ModulesTool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
@@ -222,7 +222,7 @@ class EnhancedTestCase(TestCase):
         self.env_path = os.environ.get('PATH')
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
-        self.modtool = modules_tool()
+        self.modtool: ModulesTool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
 
