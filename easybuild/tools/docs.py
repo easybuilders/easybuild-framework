@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1110,7 +1110,11 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     # filter deprecated 'dummy' toolchain
-    tcs = {tc.NAME: tc for tc in all_tcs}
+    tcs = {
+        tc.NAME: tc
+        for tc in all_tcs
+        if not hasattr(tc, "DEPRECATED")
+    }
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]

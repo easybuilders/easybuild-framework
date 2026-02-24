@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -31,17 +31,47 @@ Authors:
 * Andreas Herten (Forschungszentrum Juelich)
 * Alex Domingo (Vrije Universiteit Brussel)
 """
+import inspect
+
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.toolchains.linalg.nvblas import NVBLAS
 from easybuild.toolchains.linalg.nvscalapack import NVScaLAPACK
 from easybuild.toolchains.mpi.nvhpcx import NVHPCX
 from easybuild.toolchains.nvidia_compilers import NvidiaCompilersToolchain
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
 
 class NVHPC(NvidiaCompilersToolchain, NVHPCX, NVBLAS, NVScaLAPACK):
     """Toolchain with Nvidia compilers and NVHPCX."""
     NAME = 'NVHPC'
-    # GCCcore and system need to be listed as subtoolchains here only for legacy reasons;
-    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers are subtoolchain
-    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME, GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+    # recent NVHPC toolchains (versions >= 25.0) only have nvidia-compilers as subtoolchain
+    SUBTOOLCHAIN = [NvidiaCompilersToolchain.NAME]
+
+    def __new__(cls, *args, **kwargs):
+        tcdepnames = {dep['name'] for dep in kwargs.get('tcdeps', [])}
+        if 'GCCcore' in tcdepnames:
+            # legacy NVHPC toolchains are compiler-only toolchains
+            # on top of GCCcore, switch to corresponding class
+            return NVHPCToolchain(*args, **kwargs)
+
+        return super().__new__(cls)
+
+
+class NVHPCToolchain(NvidiaCompilersToolchain):
+    """DEPRECATED legacy compiler-only toolchain for NVHPC."""
+    DEPRECATED = True
+    NAME = 'NVHPC'
+    COMPILER_MODULE_NAME = ['NVHPC']
+    SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # print deprecation warning (stick to warning level in CI tests)
+        warn_msg = "NVHPCToolchain was replaced by NvidiaCompilersToolchain in EasyBuild 5.2.0"
+        in_test_env = any('unittest' in frame.filename for frame in inspect.stack())
+        if in_test_env:
+            print_warning(warn_msg)
+        else:
+            self.log.deprecated(warn_msg, '6.0')
