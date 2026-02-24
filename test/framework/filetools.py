@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -2508,6 +2508,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True
         }
         init_config(build_options=build_options)
 
@@ -2698,11 +2699,13 @@ class FileToolsTest(EnhancedTestCase):
         # load_index just returns None if there is no index in specified directory
         self.assertEqual(ft.load_index(self.test_prefix), None)
 
+        num_files = len(glob.glob(test_ecs + '/**/*.*', recursive=True))
+
         # create index for test easyconfigs;
         # test with specified path with and without trailing '/'s
         for path in [test_ecs, test_ecs + '/', test_ecs + '//']:
             index = ft.create_index(path)
-            self.assertEqual(len(index), 104)
+            self.assertEqual(len(index), num_files)
 
             expected = [
                 os.path.join('b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'),
@@ -3071,6 +3074,7 @@ class FileToolsTest(EnhancedTestCase):
         build_options = {
             'extended_dry_run': True,
             'silent': False,
+            'trace': True,
         }
         init_config(build_options=build_options)
 

@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2025 Ghent University
+# Copyright 2014-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -200,6 +200,24 @@ class TestCase(OrigTestCase):
     def get_stderr(self):
         """Return output captured from stderr until now."""
         return sys.stderr.getvalue()
+
+    @contextmanager
+    def mocked_stdout(self):
+        """Context manager to mock stdout"""
+        self.mock_stdout(True)
+        try:
+            yield sys.stdout
+        finally:
+            self.mock_stdout(False)
+
+    @contextmanager
+    def mocked_stderr(self):
+        """Context manager to mock stdout"""
+        self.mock_stderr(True)
+        try:
+            yield sys.stderr
+        finally:
+            self.mock_stderr(False)
 
     @contextmanager
     def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
