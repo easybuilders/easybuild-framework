@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -58,13 +58,6 @@ class EasyBuildConfigTest(EnhancedTestCase):
         reload(eboptions)
         super().setUp()
         self.tmpdir = tempfile.mkdtemp()
-
-    def purge_environment(self):
-        """Remove any leftover easybuild variables"""
-        for var in os.environ.keys():
-            # retain $EASYBUILD_IGNORECONFIGFILES, to make sure the test is isolated from system-wide config files!
-            if var.startswith('EASYBUILD_') and var != 'EASYBUILD_IGNORECONFIGFILES':
-                del os.environ[var]
 
     def tearDown(self):
         """Clean up after a config test."""

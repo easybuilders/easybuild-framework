@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -786,7 +786,7 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
             if urlpat in urlpat_headers.keys():
                 urlpat_headers[urlpat].append(argline)  # add headers to the list
             else:
-                urlpat_headers[urlpat] = list([argline])  # new list headers for this urlpat
+                urlpat_headers[urlpat] = [argline]  # new list headers for this urlpat
         else:
             _log.warning("Non-empty argument to http-header-fields-urlpat ignored (missing URL pattern)")
 
@@ -838,7 +838,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
     # parse option HTTP header fields for URLs containing a pattern
     http_header_fields_urlpat = build_option('http_header_fields_urlpat')
     # compile a dict full of {urlpat: [header, list]}
-    urlpat_headers = dict()
+    urlpat_headers = {}
     if http_header_fields_urlpat is not None:
         # there may be multiple options given, parse them all, while updating urlpat_headers
         for arg in http_header_fields_urlpat:
@@ -2368,7 +2368,7 @@ def encode_string(name):
     """
 
     # do the character remapping, return same char by default
-    result = ''.join(map(lambda x: STRING_ENCODING_CHARMAP.get(x, x), name))
+    result = ''.join(STRING_ENCODING_CHARMAP.get(x, x) for x in name)
     return result
 
 
@@ -2632,6 +2632,16 @@ def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=Fa
         raise EasyBuildError("One or more files to copy should be specified!")
 
 
+def is_recursive_symlink(path) -> bool:
+    """Check if the given path is a symlink and points to itself"""
+    if not os.path.islink(path):
+        return False
+    abs_path = os.path.abspath(path)
+    linkpath = os.path.realpath(abs_path)
+    abs_path += os.sep  # To catch the case where both are equal
+    return abs_path.startswith(linkpath + os.sep)
+
+
 def has_recursive_symlinks(path):
     """
     Check the given directory for recursive symlinks.
@@ -2643,12 +2653,9 @@ def has_recursive_symlinks(path):
     for dirpath, dirnames, filenames in os.walk(path, followlinks=True):
         for name in itertools.chain(dirnames, filenames):
             fullpath = os.path.join(dirpath, name)
-            if os.path.islink(fullpath):
-                linkpath = os.path.realpath(fullpath)
-                fullpath += os.sep  # To catch the case where both are equal
-                if fullpath.startswith(linkpath + os.sep):
-                    _log.info("Recursive symlink detected at %s", fullpath)
-                    return True
+            if is_recursive_symlink(fullpath):
+                _log.info("Recursive symlink detected at %s", fullpath)
+                return True
     return False
 
 
@@ -2713,7 +2720,20 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, che
 
             else:
                 # if dirs_exist_ok is not enabled or target directory doesn't exist, just use shutil.copytree
-                shutil.copytree(path, target_path, **kwargs)
+                if sys.version_info < (3, 7) and kwargs.get('symlinks'):
+                    # Python 3.6 might not correctly detect support for chmod on broken symlinks
+                    # This was fixed in 3.7.0
+                    # Approach taken from https://bugs.python.org/issue6547: Fail only if all errors are due to symlinks
+                    try:
+                        shutil.copytree(path, target_path, **kwargs)
+                    except shutil.Error as e:
+                        if all(os.path.islink(src) and not os.path.exists(src) or is_recursive_symlink(src)
+                               for src, _dst, _err in e.args[0]):
+                            _log.info("Ignoring errors when copying broken symlinks: %s", e.args[0])
+                        else:
+                            raise
+                else:
+                    shutil.copytree(path, target_path, **kwargs)
 
             _log.info("%s copied to %s", path, target_path)
         except (IOError, OSError, shutil.Error) as err:
@@ -2801,6 +2821,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # checkout is done separately below for specific commits
     clone_cmd.append('--no-checkout')
 
+    # Ensure URL is also processed correctly by tools that don't collapse double slashes
+    url = url.rstrip('/')
     clone_cmd.append(f'{url}/{repo_name}.git')
 
     if clone_into:
@@ -3229,3 +3251,11 @@ def create_non_existing_paths(paths, max_tries=10000):
         set_gid_sticky_bits(path, recursive=True)
 
     return non_existing_paths
+
+
+def dump_toml(o: dict) -> str:
+    """Convert the input directory to a string in TOML format"""
+    # Import and redirect here on purpose as the conversion method (or Python package)
+    # is an implementation detail that can be changed at any time
+    import easybuild.tools._toml_writer
+    return easybuild.tools._toml_writer.dumps(o)

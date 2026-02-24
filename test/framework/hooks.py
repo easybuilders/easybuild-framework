@@ -1,5 +1,5 @@
 # #
-# Copyright 2017-2025 Ghent University
+# Copyright 2017-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -271,7 +271,7 @@ class HooksTest(EnhancedTestCase):
             "== Running pre-single_extension hook...",
             "this is run before installing an extension",
             "== Running fail hook...",
-            "EasyBuild FAIL: 'oops'",
+            "EasyBuild FAIL: oops",
             "== Running crash hook...",
             "EasyBuild CRASHED, oh no! => boom!",
             "== Running post-easyblock hook...",

@@ -1,5 +1,5 @@
 ##
-# Copyright 2016-2025 Ghent University
+# Copyright 2016-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -64,7 +64,7 @@ class StyleTest(EnhancedTestCase):
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
         if 'pycodestyle' not in sys.modules:
-            print("Skipping test_check_trailing_whitespace is not available")
+            print("Skipping test_check_trailing_whitespace pycodestyle is not available")
             return
 
         lines = [
