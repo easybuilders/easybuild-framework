@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ import shutil
 import stat
 import sys
 import tempfile
+import textwrap
 from itertools import product
 from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
@@ -528,7 +529,7 @@ class ToolchainTest(EnhancedTestCase):
 
         pass_by_value = True
         ids = []
-        for k, v in tc.variables.items():
+        for _, v in tc.variables.items():
             for x in v:
                 idx = id(x)
                 if idx not in ids:
@@ -908,8 +909,6 @@ class ToolchainTest(EnhancedTestCase):
                 flag = tc.COMPILER_UNIQUE_OPTION_MAP[opt]
                 if isinstance(flag, list):
                     flag = ' '.join(flag)
-                else:
-                    flag = flag
                 for var in flag_vars:
                     flags = tc.get_variable(var)
                     if enable:
@@ -974,6 +973,11 @@ class ToolchainTest(EnhancedTestCase):
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
+                # check return of tc.search_path_vars_headers
+                expected_search_path_vars = cpp_headers_mode[build_opt]
+                if build_opt == 'flags':
+                    expected_search_path_vars = []
+                self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in cpp_headers_mode:
@@ -989,6 +993,11 @@ class ToolchainTest(EnhancedTestCase):
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
+                    # check return of tc.search_path_vars_headers
+                    expected_search_path_vars = cpp_headers_mode[tc_opt]
+                    if tc_opt == 'flags':
+                        expected_search_path_vars = []
+                    self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
@@ -1016,6 +1025,11 @@ class ToolchainTest(EnhancedTestCase):
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
+                # check return of tc.search_path_vars_linker
+                expected_search_path_vars = linker_mode[build_opt]
+                if build_opt == 'flags':
+                    expected_search_path_vars = []
+                self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
                 self.modtool.purge()
         # test with toolchain option
         for build_opt in linker_mode:
@@ -1031,6 +1045,11 @@ class ToolchainTest(EnhancedTestCase):
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
+                    # check return of tc.search_path_vars_linker
+                    expected_search_path_vars = linker_mode[tc_opt]
+                    if tc_opt == 'flags':
+                        expected_search_path_vars = []
+                    self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
                 self.modtool.purge()
         # test wrong toolchain option
         tc = self.get_toolchain("foss", version="2018a")
@@ -1363,7 +1382,7 @@ class ToolchainTest(EnhancedTestCase):
             tc.prepare()
 
         archflags = tc.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(tc.arch, tc.cpu_family)]
-        optflags = "-O2 -ftree-vectorize %s -fno-math-errno -fopenmp" % archflags
+        optflags = "-O2 -ftree-vectorize -fopenmp %s -fno-math-errno" % archflags
         nvcc_flags = r' '.join([
             r'-Xcompiler="%s"' % optflags,
             # the use of -lcudart in -Xlinker is a bit silly but hard to avoid
@@ -1384,6 +1403,40 @@ class ToolchainTest(EnhancedTestCase):
 
         # check CUDA runtime lib
         self.assertIn("-lrt -lcudart", tc.get_variable('LIBS'))
+
+    def test_nvidia_compilers(self):
+        """Test whether nvidia-compilers is handled properly."""
+        # Test OpenMP support
+        openmp_cases = {
+            # (input parameter, resulting flag)
+            'false': ({'openmp': False}, "-nomp"),
+            'true': ({'openmp': True}, "-mp"),
+            'none': ({}, "-nomp"),
+        }
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, omp_flag in openmp_cases.values():
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(omp_flag in val, "'%s' not found in '%s'" % (omp_flag, val))
+
+        # Test vectorize support
+        vec_cases = {
+            # (input parameter, resulting flag)
+            'true': ({'vectorize': True}, "-Mvect"),
+            'false': ({'vectorize': False}, "-Mnovect"),
+            'none': ({}, ""),
+        }
+        # Create new toolchain object in each iteration to start from clean state
+        for opts, vec_flag in vec_cases.values():
+            tc = self.get_toolchain("nvidia-compilers", version="25.9")
+            tc.set_options(opts)
+            with self.mocked_stdout_stderr():
+                tc.prepare()
+            val = tc.get_variable('CFLAGS')
+            self.assertTrue(vec_flag in val, "'%s' not found in '%s'" % (vec_flag, val))
 
     def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
         """Set up sandbox for foss FFTW and FFTW.MPI"""
@@ -2023,8 +2076,7 @@ class ToolchainTest(EnhancedTestCase):
         scalapack_mt_shared_libs_fosscuda = scalapack_mt_static_libs_fosscuda.replace('.a', '.' + shlib_ext)
 
         tc = self.get_toolchain('fosscuda', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
@@ -2116,8 +2168,7 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('BLAS_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
         self.assertEqual(os.environ.get('BLAS_STATIC_LIBS', "(not set)"), blas_static_libs_intel4)
         self.assertEqual(os.environ.get('LAPACK_SHARED_LIBS', "(not set)"), blas_shared_libs_intel4)
@@ -2130,22 +2181,19 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
         self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2018a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel4)
         self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('intel', version='2012a')
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ.get('LIBBLAS_MT', "(not set)"), libblas_mt_intel3)
         self.assertIn(libscalack_intel3, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
@@ -2154,15 +2202,13 @@ class ToolchainTest(EnhancedTestCase):
         tc = self.get_toolchain('intel', version='2018a')
         opts = {'i8': True}
         tc.set_options(opts)
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertIn(libscalack_intel4, os.environ['LIBSCALAPACK'])
         self.modtool.purge()
 
         tc = self.get_toolchain('fosscuda', version='2018a')
         tc.set_options({'openmp': True})
-        with self.mocked_stdout_stderr():
-            tc.prepare()
+        tc.prepare()
         self.assertEqual(os.environ['BLAS_SHARED_LIBS'], blas_shared_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_STATIC_LIBS'], blas_static_libs_fosscuda)
         self.assertEqual(os.environ['BLAS_MT_SHARED_LIBS'], blas_mt_shared_libs_fosscuda)
@@ -2281,11 +2327,11 @@ class ToolchainTest(EnhancedTestCase):
 
             tc_cflags = {
                 'CrayCCE': "-O2 -homp -craype-verbose",
-                'CrayGNU': "-O2 -fno-math-errno -fopenmp -craype-verbose",
-                'CrayIntel': "-O2 -ftz -fp-speculation=safe -fp-model source -fopenmp -craype-verbose",
-                'GCC': "-O2 -ftree-vectorize -test -fno-math-errno -fopenmp",
-                'iccifort': "-O2 -test -ftz -fp-speculation=safe -fp-model source -fopenmp",
-                'intel-compilers': "-O2 -test -ftz -fp-speculation=safe -fp-model precise -qopenmp",
+                'CrayGNU': "-O2 -fopenmp -fno-math-errno -craype-verbose",
+                'CrayIntel': "-O2 -fopenmp -ftz -fp-speculation=safe -fp-model source -craype-verbose",
+                'GCC': "-O2 -ftree-vectorize -fopenmp -test -fno-math-errno",
+                'iccifort': "-O2 -fopenmp -test -ftz -fp-speculation=safe -fp-model source",
+                'intel-compilers': "-O2 -qopenmp -test -ftz -fp-speculation=safe -fp-model precise",
             }
 
             toolchains = [
@@ -2498,17 +2544,11 @@ class ToolchainTest(EnhancedTestCase):
             '$ORIGIN/../lib64',
         ])
 
-        # simplest possible compiler command
+        # simplest possible compiler command, no linking
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -c foo.c")
         self.assertEqual(res.exit_code, 0)
         cmd_args = [
-            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
-            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
-            "'-Wl,-rpath=$ORIGIN'",
-            "'-Wl,-rpath=$ORIGIN/../lib'",
-            "'-Wl,-rpath=$ORIGIN/../lib64'",
-            "'-Wl,--disable-new-dtags'",
             "'-c'",
             "'foo.c'",
         ]
@@ -2530,9 +2570,36 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
+        # no linking, linker flags should be removed
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags -Xlinker --enable-new-dtags "
+                                f"-Wl,-rpath={self.test_prefix} -c foo.c")
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-c'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
         # compiler command, -Wl,--enable-new-dtags should be replaced with -Wl,--disable-new-dtags
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags foo.c")
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,--disable-new-dtags'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # compiler command, -Xlinker --enable-new-dtags should be replaced with -Wl,--disable-new-dtags
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(f"{script} gcc '' '{rpath_inc}' -Xlinker --enable-new-dtags foo.c")
         self.assertEqual(res.exit_code, 0)
         cmd_args = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
@@ -2645,6 +2712,69 @@ class ToolchainTest(EnhancedTestCase):
             "'foo.c'",
             "'-L%s/foo'" % self.test_prefix,
             "'-lfoo'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -Wl,-rpath already specified, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Wl,-rpath={self.test_prefix}/dummy "
+               f"-Wl,-rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-ldummy -lfoo foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-ldummy'",
+            "'-lfoo'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -Xlinker -rpath already specified, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Xlinker -rpath={self.test_prefix}/dummy "
+               f"-Xlinker -rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-ldummy -lfoo foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-Wl,-rpath=%s/lib'" % self.test_prefix,
+            "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
+            "'-Wl,-rpath=$ORIGIN'",
+            "'-Wl,-rpath=$ORIGIN/../lib'",
+            "'-Wl,-rpath=$ORIGIN/../lib64'",
+            "'-Wl,--disable-new-dtags'",
+            "'-Wl,-rpath=%s/foo'" % self.test_prefix,
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-ldummy'",
+            "'-lfoo'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
+        # explicit -rpath specified, but no linking, existing & non-existing paths
+        cmd = (f"{script} gcc '' '{rpath_inc}' -Wl,-rpath={self.test_prefix}/dummy "
+               f"-Wl,-rpath={self.test_prefix}/foo -L {self.test_prefix}/dummy -L {self.test_prefix}/foo "
+               f"-lfoo -ldummy -c foo.c")
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            "'-L%s/dummy'" % self.test_prefix,
+            "'-L%s/foo'" % self.test_prefix,
+            "'-lfoo'",
+            "'-ldummy'",
+            "'-c'",
+            "'foo.c'",
         ]
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
@@ -2840,7 +2970,12 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
         # check whether $LIBRARY_PATH is taken into account
-        test_cmd_gcc = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
+        test_cmd_gcc_c = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
+        test_cmd_gcc = "%s gcc '' '%s' -o foo foo.c" % (script, rpath_inc)
+        cmd_args_gcc_c = [
+            "'-c'",
+            "'foo.c'",
+        ]
         pre_cmd_args_gcc = [
             "'-Wl,-rpath=%s/lib'" % self.test_prefix,
             "'-Wl,-rpath=%s/lib64'" % self.test_prefix,
@@ -2850,7 +2985,8 @@ class ToolchainTest(EnhancedTestCase):
             "'-Wl,--disable-new-dtags'",
         ]
         post_cmd_args_gcc = [
-            "'-c'",
+            "'-o'",
+            "'foo'",
             "'foo.c'",
         ]
 
@@ -2901,6 +3037,13 @@ class ToolchainTest(EnhancedTestCase):
                 mkdir(path, parents=True)
 
             os.environ['LIBRARY_PATH'] = ':'.join(library_path)
+
+            # -c flag
+            with self.mocked_stdout_stderr():
+                res = run_shell_cmd(test_cmd_gcc_c)
+            self.assertEqual(res.exit_code, 0)
+            cmd_args = cmd_args_gcc_c
+            self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
             with self.mocked_stdout_stderr():
                 res = run_shell_cmd(test_cmd_gcc)
@@ -3278,6 +3421,106 @@ class ToolchainTest(EnhancedTestCase):
         for flagstring, flags in checks.items():
             tc.options.options_map['openmp'] = flags
             self.assertEqual(tc.get_flag('openmp'), flagstring)
+
+    def test_nvhpc_compatibility(self):
+        """Test that software using EasyBuild before 5.2.0 continues working
+        the compiler.nvhpc toolchain being renamed to NvidiaCompilers"""
+        from easybuild.toolchains.compiler.nvidia_compilers import NvidiaCompilers
+        from easybuild.toolchains.nvhpc import NvidiaCompilersToolchain, NVHPCToolchain
+
+        # test deprecation of NVHPC in v5.2.0
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            from easybuild.toolchains.compiler.nvhpc import NVHPC
+            self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
+
+        # load deprecated NVHPC and check it corresponds to NvidiaCompilers
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            tc = NVHPC(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
+            self.assertIn("nvhpc was replaced by easybuild.toolchains.compiler.nvidia_compilers", self.get_stderr())
+        self.assertIsInstance(tc, NvidiaCompilers)
+
+        # load deprecated NVHPCToolchain and check it corresponds to NvidiaCompilersToolchain
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            tc = NVHPCToolchain(name='NVHPC', version='2024a')  # Might be used by pre-5.2.0 users
+            self.assertIn("NVHPCToolchain was replaced by NvidiaCompilersToolchain", self.get_stderr())
+        self.assertIsInstance(tc, NvidiaCompilersToolchain)
+
+        from easybuild.toolchains.nvompi import Nvompi
+        tc = Nvompi(version='2024a')  # Common usage
+        self.assertIsInstance(tc, NvidiaCompilers)
+        self.assertIsInstance(tc, NvidiaCompilersToolchain)
+        # Nvompi migrated to new NvidiaCompiler in v5.2.0, compiler toolchain NVHPC deprecated
+        self.assertNotIsInstance(tc, NVHPCToolchain)
+        self.assertNotIsInstance(tc, NVHPC)
+
+        # check new NVHPC toolchain with nvidia-compilers dependency
+        from easybuild.toolchains.nvhpc import NVHPC as NVHPC
+        tc = NVHPC(version='25.1', tcdeps=[{'name': 'nvidia-compilers', 'version': '25.1'}])
+        self.assertIsInstance(tc, NVHPC)
+        self.assertNotIsInstance(tc, NVHPCToolchain)
+
+        # check NVHPC toolchain for older easyconfigs with GCCcore dependency
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            tc = NVHPC(version='21.11', tcdeps=[{'name': 'GCCcore', 'version': '11.2.0'}])
+            self.assertIn("NVHPCToolchain was replaced by NvidiaCompilersToolchain", self.get_stderr())
+        self.assertIsInstance(tc, NVHPCToolchain)
+        self.assertNotIsInstance(tc, NVHPC)
+
+    def test_toolchain_external(self):
+        """
+        Test use of toolchain that has components which are external modules
+        """
+
+        mods_dir = os.path.join(self.test_prefix, 'modules')
+        empty_mod = "#%Module"
+        gcccore_ext_mod = os.path.join(mods_dir, 'GCCcore', 'external')
+        write_file(gcccore_ext_mod, empty_mod)
+        binutils_ext_mod = os.path.join(mods_dir, 'binutils', 'external')
+        write_file(binutils_ext_mod, empty_mod)
+        self.modtool.prepend_module_path(mods_dir)
+
+        tc_ec = os.path.join(self.test_prefix, 'GCC-external.eb')
+        tc_ec_txt = textwrap.dedent("""
+            easyblock = 'Toolchain'
+
+            name = 'GCC'
+            version = 'external'
+
+            homepage = 'none'
+            description = 'GCC toolchain with external modules as components'
+
+            toolchain = SYSTEM
+
+            dependencies = [
+                ('GCCcore/external', EXTERNAL_MODULE),
+                ('binutils/external', EXTERNAL_MODULE),
+            ]
+        """)
+        write_file(tc_ec, tc_ec_txt)
+        self.eb_main([tc_ec], raise_error=True, do_build=True)
+
+        topdir = os.path.dirname(os.path.abspath(__file__))
+        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ec_txt = read_file(toy_ec)
+
+        test_ec_txt = re.sub('toolchain.*', "toolchain = {'name': 'GCC', 'version': 'external'}", toy_ec_txt)
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        write_file(test_ec, test_ec_txt)
+
+        ext_mods_meta = os.path.join(self.test_prefix, 'ext-mods-meta.cfg')
+        ext_mods_meta_txt = textwrap.dedent("""
+            [GCCcore/external]
+            name = GCCcore
+        """)
+        write_file(ext_mods_meta, ext_mods_meta_txt)
+
+        args = [
+            test_ec,
+            '--robot=' + self.test_prefix,
+            '--external-modules-metadata=' + ext_mods_meta,
+        ]
+        self.eb_main(args, raise_error=True, do_build=True, verbose=True)
 
 
 def suite(loader=None):

@@ -1,0 +1,14 @@
+# minimal easyconfig, only really neededd so toolchain hierarchy for gompi/2023a can be determined
+
+# should be software specific, but OK for testing purposes
+easyblock = 'EB_toy'
+
+name = 'binutils'
+version = '2.26'
+
+homepage = 'http://directory.fsf.org/project/binutils/'
+description = "binutils: GNU binary utilities"
+
+toolchain = {'name': 'GCCcore', 'version': '12.3.0'}
+
+moduleclass = 'tools'

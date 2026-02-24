@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,7 +43,9 @@ import socket
 import sys
 import tempfile
 import time
+import urllib.error
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from http.client import HTTPException
 from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
@@ -52,7 +54,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
-from easybuild.framework.easyconfig.parser import EasyConfigParser
+from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg, print_warning
 from easybuild.tools.config import build_option
@@ -311,6 +313,12 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
     except socket.gaierror as err:
         _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
+    except urllib.error.HTTPError as err:
+        status = err.code
+        try:
+            data = {'message': err.read().decode()}
+        except Exception:
+            data = {'message': str(err)}
 
     if status == 200:
         _log.info("Put request successful: %s", data['message'])
@@ -753,13 +761,6 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
     # download tarball for specific commit
     repo_commit = download_repo(repo=github_repo, commit=commit, account=github_account)
 
-    if github_repo == GITHUB_EASYCONFIGS_REPO:
-        files_subdir = 'easybuild/easyconfigs/'
-    elif github_repo == GITHUB_EASYBLOCKS_REPO:
-        files_subdir = 'easybuild/easyblocks/'
-    else:
-        raise EasyBuildError("Unknown repo: %s", github_repo, exit_code=EasyBuildExit.OPTION_ERROR)
-
     # symlink subdirectories of 'easybuild/easy{blocks,configs}' into path that gets added to robot search path
     mkdir(path, parents=True)
     dirpath = os.path.join(repo_commit, easybuild_subdir)
@@ -768,6 +769,7 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
     # copy specified files to directory where they're expected to be found
     file_paths = []
+    subdir_prefix = easybuild_subdir + os.path.sep
     for file in files:
 
         # if only filename is specified, we need to determine the file path
@@ -782,8 +784,8 @@ def fetch_files_from_commit(commit, files=None, path=None, github_account=None, 
 
         # strip of leading subdirectory like easybuild/easyconfigs/ or easybuild/easyblocks/
         # because that's what expected by robot_find_easyconfig
-        if file.startswith(files_subdir):
-            file = file[len(files_subdir):]
+        if file.startswith(subdir_prefix):
+            file = file[len(subdir_prefix):]
 
         # if file is found, copy it to dedicated directory;
         # if not, just skip it (may be an easyconfig file in local directory);
@@ -834,7 +836,12 @@ def create_gist(txt, fn, descr=None, github_user=None, github_token=None):
         status, data = HTTP_STATUS_CREATED, {'html_url': 'https://gist.github.com/%s/DRY_RUN' % github_user}
     else:
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
-        status, data = g.gists.post(body=body)
+        try:
+            status, data = g.gists.post(body=body)
+        except HTTPError as err:
+            if err.code == HTTPStatus.UNAUTHORIZED:
+                err = f"GitHub token for {github_user} is {'required' if github_token is None else 'invalid'}"
+            raise EasyBuildError("Failed to create gist: %s", err, exit_code=EasyBuildExit.FAIL_GITHUB)
 
     if status != HTTP_STATUS_CREATED:
         raise EasyBuildError(
@@ -883,7 +890,13 @@ def post_comment_in_issue(issue, txt, account=GITHUB_EB_MAIN, repo=GITHUB_EASYCO
         g = RestClient(GITHUB_API_URL, username=github_user, token=github_token)
         pr_url = g.repos[account][repo].issues[issue]
 
-        status, data = pr_url.comments.post(body={'body': txt})
+        try:
+            status, data = pr_url.comments.post(body={'body': txt})
+        except HTTPError as err:
+            if err.code == HTTPStatus.UNAUTHORIZED:
+                err = f"GitHub token for {github_user} is {'required' if github_token is None else 'invalid'}"
+            raise EasyBuildError("Failed to create comment in PR %s#%d: %s", err, exit_code=EasyBuildExit.FAIL_GITHUB)
+
         if not status == HTTP_STATUS_CREATED:
             raise EasyBuildError(
                 "Failed to create comment in PR %s#%d; status %s, data: %s", repo, issue, status, data,
@@ -1096,8 +1109,10 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if start_account is None:
         start_account = build_option('pr_target_account')
 
-    if start_branch is None:
-        # if start branch is not specified, we're opening a new PR
+    # if start branch is not specified, we're opening a new PR
+    # else, we're updating an existing PR
+    is_new_pr = start_branch is None
+    if is_new_pr:
         # account to use is determined by active EasyBuild configuration (--github-org or --github-user)
         target_account = build_option('github_org') or build_option('github_user')
 
@@ -1106,7 +1121,6 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 "--github-org or --github-user must be specified!", exit_code=EasyBuildExit.OPTION_ERROR
             )
 
-        # if branch to start from is specified, we're updating an existing PR
         start_branch = build_option('pr_target_branch')
     else:
         # account to target is the one that owns the branch used to open PR
@@ -1125,8 +1139,9 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
-        if pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
-            msg = "When only adding new easyconfigs usually a PR commit msg (--pr-commit-msg) should not be used, as "
+        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']
+                and is_new_pr):  # Only if opening a new PR
+            msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
             msg += "the PR title will be automatically generated."
             if build_option('force'):
                 print_msg(msg)
@@ -1338,7 +1353,7 @@ def is_patch_for(patch_name, ec):
                                      exit_code=EasyBuildExit.VALUE_ERROR)
         return patch
 
-    patches = [get_name(p) for p in ec['patches']]
+    patches = [get_name(p) for p in itertools.chain(ec['patches'], ec['postinstallpatches'])]
 
     with ec.disable_templating():
         # take into account both list of extensions (via exts_list) and components (cfr. Bundle easyblock)
@@ -1350,7 +1365,12 @@ def is_patch_for(patch_name, ec):
                     'version': entry[1],
                 }
                 options = entry[2]
-                patches.extend(get_name(p) % templates for p in options.get('patches', []))
+                patches.extend(get_name(p) % templates for p in
+                               itertools.chain(
+                                   options.get('patches', []),
+                                   options.get(ALTERNATIVE_EASYCONFIG_PARAMETERS['post_install_patches'],
+                                               options.get('post_install_patches', []))
+                ))
 
     return patch_name in patches
 

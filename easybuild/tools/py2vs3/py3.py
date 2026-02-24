@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2025 Ghent University
+# Copyright 2019-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -34,6 +34,7 @@ Authors:
 # these are not used here, but imported from here in other places
 import configparser  # noqa
 import urllib.request as std_urllib  # noqa
+from collections import OrderedDict  # noqa
 from collections.abc import Mapping  # noqa
 from functools import cmp_to_key
 from importlib.util import spec_from_file_location, module_from_spec

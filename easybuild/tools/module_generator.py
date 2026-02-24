@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -42,6 +42,7 @@ import re
 import tempfile
 from collections import defaultdict
 from contextlib import contextmanager
+from string import Template
 from textwrap import wrap
 
 from easybuild.base import fancylogger
@@ -49,7 +50,8 @@ from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
-from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModulesC, Lmod, modules_tool
+from easybuild.tools.modules import (ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModules,
+                                     EnvironmentModulesC, Lmod, modules_tool)
 from easybuild.tools.utilities import get_subclasses, nub, quote_str
 
 _log = fancylogger.getLogger('module_generator', fname=False)
@@ -114,6 +116,31 @@ def dependencies_for(mod_name, modtool, depth=None):
                 mods.append(dep)
 
     return mods
+
+
+def wrap_shell_vars(strng, wrap_prefix, wrap_suffix):
+    """
+    Wrap variables $VAR or ${VAR} between wrap_prefix and wrap_suffix
+    Do not wrap escaped variables, but unescape them (e.g. $$VAR -> $VAR)
+    Do not touch invalid variables (e.g. $1, $!, $-X, $ {bad})
+    """
+    t = Template(strng)
+    mapping = {}
+
+    names = {
+        m.group('named') or m.group('braced')
+        for m in t.pattern.finditer(strng)
+        if (m.group('named') or m.group('braced'))
+    }
+
+    mapping = {name: f'{wrap_prefix}{name}{wrap_suffix}' for name in names}
+    wrapped = t.safe_substitute(mapping)
+
+    # remove quotes around the wrapped variables (in case the variable was quoted)
+    wrapped = re.sub(rf'"({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})"', r'\1\2\3', wrapped)
+    wrapped = re.sub(rf"'({re.escape(wrap_prefix)})(.*?)({re.escape(wrap_suffix)})'", r'\1\2\3', wrapped)
+
+    return wrapped
 
 
 class ModuleGenerator:
@@ -759,6 +786,34 @@ class ModuleGeneratorTcl(ModuleGenerator):
     LOAD_TEMPLATE_DEPENDS_ON = "depends-on %(mod_name)s"
     IS_LOADED_TEMPLATE = 'is-loaded %s'
 
+    def check_version(self, minimal_version_maj, minimal_version_min, minimal_version_patch='0'):
+        """
+        Check the minimal version of the moduletool in the module file
+        :param minimal_version_maj: the major version to check
+        :param minimal_version_min: the minor version to check
+        :param minimal_version_patch: the patch version to check
+        """
+        minimal_version = "%(maj)s.%(min)s.%(patch)s" % {
+            'maj': minimal_version_maj,
+            'min': minimal_version_min,
+            'patch': minimal_version_patch,
+        }
+
+        if isinstance(self.modules_tool, Lmod):
+            tool_version_var = "::env(LMOD_VERSION)"
+        # cannot test minimal version below 4.7.0 with Environment Modules
+        elif (isinstance(self.modules_tool, EnvironmentModules) and
+              LooseVersion(minimal_version) > LooseVersion('4.7.0')):
+            tool_version_var = "::ModuleToolVersion"
+        else:
+            raise NotImplementedError
+
+        return [
+            f"info exists {tool_version_var}",
+            (f"string equal [lindex [lsort -dictionary [list {minimal_version} "
+             f"${tool_version_var}]] 0] {minimal_version}"),
+        ]
+
     def check_group(self, group, error_msg=None):
         """
         Generate a check of the software group and the current user, and refuse to load the module if the user don't
@@ -865,6 +920,13 @@ class ModuleGeneratorTcl(ModuleGenerator):
             # - 'conflict Core/GCC' for 'Core/GCC/4.8.2'
             # - 'conflict Compiler/GCC/4.8.2/OpenMPI' for 'Compiler/GCC/4.8.2/OpenMPI/1.6.4'
             lines.extend(['', "conflict %s" % os.path.dirname(self.app.short_mod_name)])
+
+        if build_option('module_extensions') and self.modules_tool.supports_extensions:
+            extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=' ')
+            if extensions_list:
+                extensions_stmt = 'extensions %s' % extensions_list
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 
@@ -1076,11 +1138,11 @@ class ModuleGeneratorTcl(ModuleGenerator):
 
         set_value, use_pushenv, resolve_env_vars = self._unpack_setenv_value(key, value)
 
+        if resolve_env_vars:
+            set_value = wrap_shell_vars(set_value, r'$::env(', r')')
+
         if relpath:
             set_value = os.path.join('$root', set_value) if set_value else '$root'
-
-        if resolve_env_vars:
-            set_value = self.REGEX_SHELL_VAR.sub(r'$::env(\1)', set_value)
 
         # quotes are needed, to ensure smooth working of EBDEVEL* modulefiles
         set_value = quote_str(set_value, tcl=True)
@@ -1171,6 +1233,8 @@ class ModuleGeneratorLua(ModuleGenerator):
     IS_LOADED_TEMPLATE = 'isloaded("%s")'
 
     OS_GETENV_TEMPLATE = r'os.getenv("%s")'
+    OS_GETENV_PREFIX = 'os.getenv("'
+    OS_GETENV_SUFFIX = '")'
     PATH_JOIN_TEMPLATE = 'pathJoin(root, "%s")'
     UPDATE_PATH_TEMPLATE = '%s_path("%s", %s)'
     UPDATE_PATH_TEMPLATE_DELIM = '%s_path("%s", %s, "%s")'
@@ -1312,13 +1376,16 @@ class ModuleGeneratorLua(ModuleGenerator):
         elif conflict:
             # conflict on 'name' part of module name (excluding version part at the end)
             lines.extend(['', 'conflict("%s")' % os.path.dirname(self.app.short_mod_name)])
+
+        if build_option('module_extensions'):
             extensions_list = self.app.make_extension_string(name_version_sep='/', ext_sep=',')
             if extensions_list:
                 extensions_stmt = 'extensions("%s")' % extensions_list
                 # put this behind a Lmod version check as 'extensions' is only (well) supported since Lmod 8.2.8,
                 # see https://lmod.readthedocs.io/en/latest/330_extensions.html#module-extensions and
                 # https://github.com/TACC/Lmod/issues/428
-                lines.extend(['', self.conditional_statement(self.check_version("8", "2", "8"), extensions_stmt)])
+                extensions_guard = self.check_version(*self.modules_tool.REQ_VERSION_EXTENSIONS.split("."))
+                lines.extend(['', self.conditional_statement(extensions_guard, extensions_stmt)])
 
         return '\n'.join(lines + [''])
 
@@ -1326,7 +1393,7 @@ class ModuleGeneratorLua(ModuleGenerator):
         """
         Return module-syntax specific code to get value of specific environment variable.
         """
-        cmd = self.OS_GETENV_TEMPLATE % envvar
+        cmd = f'{self.OS_GETENV_PREFIX}{envvar}{self.OS_GETENV_SUFFIX}'
         if default is not None:
             cmd += f' or "{default}"'
         return cmd
@@ -1553,16 +1620,17 @@ class ModuleGeneratorLua(ModuleGenerator):
             if resolve_env_vars:
                 # replace quoted substring with env var with os.getenv statement
                 # example: pathJoin(root, "$HOME") -> pathJoin(root, os.getenv("HOME"))
-                set_value = self.REGEX_QUOTE_SHELL_VAR.sub(self.OS_GETENV_TEMPLATE % r"\1", set_value)
+                set_value = wrap_shell_vars(set_value, self.OS_GETENV_PREFIX, self.OS_GETENV_SUFFIX)
         else:
             if resolve_env_vars:
                 # replace env var with os.getenv statement
                 # example: $HOME -> os.getenv("HOME")
-                concat_getenv = self.CONCAT_STR + self.OS_GETENV_TEMPLATE % r"\1" + self.CONCAT_STR
-                set_value = self.REGEX_SHELL_VAR.sub(concat_getenv, set_value)
+                concat_prefix = self.CONCAT_STR + self.OS_GETENV_PREFIX
+                concat_suffix = self.OS_GETENV_SUFFIX + self.CONCAT_STR
+                set_value = wrap_shell_vars(set_value, concat_prefix, concat_suffix)
             set_value = self.CONCAT_STR.join([
                 # quote any substrings that are not a os.getenv Lua statement
-                x if x.startswith(self.OS_GETENV_TEMPLATE[:10]) else quote_str(x)
+                x if x.startswith(self.OS_GETENV_PREFIX) else quote_str(x)
                 for x in set_value.strip(self.CONCAT_STR).split(self.CONCAT_STR)
             ])
 
