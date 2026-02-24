@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -40,7 +40,7 @@ import re
 import sys
 import tempfile
 from copy import copy
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import IntEnum
 
 from easybuild.base import fancylogger
@@ -271,7 +271,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
             if tmp_logdir and not os.path.exists(tmp_logdir):
                 try:
                     os.makedirs(tmp_logdir)
-                except (IOError, OSError) as err:
+                except OSError as err:
                     raise EasyBuildError("Failed to create temporary log directory %s: %s", tmp_logdir, err)
 
             # mkstemp returns (fd,filename), fd is from os.open, not regular open!
@@ -394,8 +394,9 @@ def print_error(msg, *args, **kwargs):
     """
     Print error message and exit EasyBuild
     """
-    if args:
-        msg = msg % args
+
+    _init_easybuildlog.deprecated("Function 'print_error' from easybuild.tools.build_log is replaced "
+                                  "with 'print_error_and_exit'", '6.0')
 
     # grab exit code, if specified;
     # also consider deprecated 'exitCode' option
@@ -403,10 +404,6 @@ def print_error(msg, *args, **kwargs):
     exit_code = kwargs.pop('exit_code', exitCode)
     if exitCode is not None:
         _init_easybuildlog.deprecated("'exitCode' option in print_error function is replaced with 'exit_code'", '6.0')
-
-    # use 1 as defaut exit code
-    if exit_code is None:
-        exit_code = 1
 
     log = kwargs.pop('log', None)
     opt_parser = kwargs.pop('opt_parser', None)
@@ -416,13 +413,29 @@ def print_error(msg, *args, **kwargs):
         raise EasyBuildError("Unknown named arguments passed to print_error: %s", kwargs)
 
     if exit_on_error:
-        if not silent:
-            if opt_parser:
-                opt_parser.print_shorthelp()
-            sys.stderr.write("ERROR: %s\n" % msg)
-        sys.exit(exit_code)
+        if not silent and opt_parser:
+            opt_parser.print_shorthelp()
+        if exit_code is None:
+            exit_code = EasyBuildExit.ERROR
+        print_error_and_exit(msg, *args, exit_code=exit_code, silent=silent)
     elif log is not None:
-        raise EasyBuildError(msg)
+        raise EasyBuildError(msg)  # Handle legacy weirdness
+
+
+def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False):
+    """
+    Print error message and exit EasyBuild, supports format strings
+
+    :param msg: Message to show
+    :exit_code: EasyBuildExit or integer to exit with
+    :silent: When True don't print to stderr
+    """
+    if args:
+        msg = msg % args
+    if not silent:
+        from easybuild.tools.output import print_error as show_error
+        show_error("ERROR: " + msg, disable_rich=True)
+    sys.exit(int(exit_code))
 
 
 def print_warning(msg, *args, **kwargs):
@@ -454,7 +467,7 @@ def time_str_since(start_time):
     tot_time = datetime.now() - start_time
     tot_secs = tot_time.seconds + tot_time.days * 24 * 3600
     if tot_secs > 0:
-        res = datetime.utcfromtimestamp(tot_secs).strftime('%Hh%Mm%Ss')
+        res = datetime.fromtimestamp(tot_secs, tz=timezone.utc).strftime('%Hh%Mm%Ss')
     else:
         res = "< 1s"
 

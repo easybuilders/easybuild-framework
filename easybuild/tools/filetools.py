@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -2821,6 +2821,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # checkout is done separately below for specific commits
     clone_cmd.append('--no-checkout')
 
+    # Ensure URL is also processed correctly by tools that don't collapse double slashes
+    url = url.rstrip('/')
     clone_cmd.append(f'{url}/{repo_name}.git')
 
     if clone_into:
@@ -3249,3 +3251,11 @@ def create_non_existing_paths(paths, max_tries=10000):
         set_gid_sticky_bits(path, recursive=True)
 
     return non_existing_paths
+
+
+def dump_toml(o: dict) -> str:
+    """Convert the input directory to a string in TOML format"""
+    # Import and redirect here on purpose as the conversion method (or Python package)
+    # is an implementation detail that can be changed at any time
+    import easybuild.tools._toml_writer
+    return easybuild.tools._toml_writer.dumps(o)
