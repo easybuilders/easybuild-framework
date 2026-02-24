@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -995,6 +995,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 EasyBlock
                 |-- bar
                 |-- Bundle
+                |-- Cargo
                 |-- CMakeMake
                 |-- CmdCp
                 |-- ConfigureMake
@@ -1529,11 +1530,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
-        self.assertIn(pattern, stdout)
-        copied_ecs = os.listdir(test_dir)
-        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+        else:
+            pattern = "_%s/e/EasyBuild/EasyBuild-4.8.2.eb copied to " % test_commit
+            self.assertIn(pattern, stdout)
+            copied_ecs = os.listdir(test_dir)
+            self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
 
         # cleanup
         remove_dir(test_dir)
@@ -1547,10 +1548,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        self.assertIn(pattern, stdout)
-        copied_ecs = os.listdir(test_dir)
-        self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
+        else:
+            self.assertIn(pattern, stdout)
+            copied_ecs = os.listdir(test_dir)
+            self.assertEqual(copied_ecs, ['EasyBuild-4.8.2.eb'])
 
         # cleanup
         change_dir(cwd)
@@ -1574,10 +1575,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stdout = self.mocked_main(args)
         except URLError as err:
             print("Ignoring URLError '%s' in test_copy_ec_from_commit" % err)
-
-        copied_ecs = os.listdir(test_dir)
-        for ec in expected_ecs:
-            self.assertIn(ec, copied_ecs)
+        else:
+            copied_ecs = os.listdir(test_dir)
+            for ec in expected_ecs:
+                self.assertIn(ec, copied_ecs)
 
     def test_dry_run(self):
         """Test dry run (long format)."""
@@ -2063,7 +2064,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
         # test with multiple prs
         tmpdir = tempfile.mkdtemp()
@@ -2096,7 +2096,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
     def test_github_from_pr_token_log(self):
         """Check that --from-pr doesn't leak GitHub token in log."""
@@ -2180,7 +2179,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
-            shutil.rmtree(tmpdir)
 
     def test_github_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
@@ -2304,7 +2302,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
-            shutil.rmtree(tmpdir)
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
@@ -2356,7 +2353,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_include_easyblocks_from_commit" % err)
-            shutil.rmtree(tmpdir)
 
     def test_no_such_software(self):
         """Test using no arguments."""
@@ -3232,7 +3228,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         mentionhdr = 'Custom HTTP header field set: %s'
         mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
 
-        def run_and_assert(args, _msg, words_expected=None, words_unexpected=None):
+        def run_and_assert(args, words_expected=None, words_unexpected=None):
             stdout, _stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
             if words_expected is not None:
                 self.assert_multi_regex(words_expected, stdout)
@@ -3247,7 +3243,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         # expect to find everything passed on cmdline
         expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case A", expected)
+        run_and_assert(args, expected)
 
         # all subsequent tests share this argument list
         args = common_args
@@ -3263,7 +3259,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # expect to find only the header key (not its value) and only for the appropriate url
         expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case B", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # C: recursion one: header value is another file
         txt = '\n'.join([
@@ -3278,7 +3274,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
                     mentionfile % (testincfile), mentionfile % (testexcfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case C", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # D: recursion two: header field+value is another file,
         write_file(testcmdfile, '\n'.join([
@@ -3292,7 +3288,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
                     mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case D", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # E: recursion three: url pattern + header field + value in another file
         write_file(testcmdfile, '%s\n' % (testurlpatfile))
@@ -3305,7 +3301,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # expect to find only the header key (but not the literal filename) and only for the appropriate url
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
-        run_and_assert(args, "case E", expected, not_expected)
+        run_and_assert(args, expected, not_expected)
 
         # cleanup downloads
         shutil.rmtree(tmpdir)
@@ -5686,6 +5682,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
         else:
             print("Skipping test_debug_lmod, requires Lmod as modules tool")
 
+    def test_debug_module_cmds(self):
+        """Test use of --debug-module-cmds."""
+        patterns = [
+            "Output of ",
+            r"os\.env.*EBROOTGCC.*=",
+            r"os\.env.*PATH.*=",
+        ]
+        for enable in (True, False):
+            with self.subTest(debug_module_cmds=enable):
+                init_config(build_options={'debug_module_cmds': enable})
+                with self.log_to_testlogfile():
+                    self.modtool.load(['GCC/4.6.3'])
+                logtxt = read_file(self.logfile)
+                self.assertRegex(logtxt, "Running .*\n.*load GCC/4.6.3")
+                self.assert_multi_regex(patterns, logtxt, assert_true=enable)
+                self.modtool.purge()
+
     def test_use_color(self):
         """Test use_color function."""
         self.assertTrue(use_color('always'))
@@ -6389,6 +6402,55 @@ class CommandLineOptionsTest(EnhancedTestCase):
              '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'}
         ]
         self.assertEqual(ext_opts['checksums'], expected_checksums)
+
+        # Also works for cargo crates
+        cargo_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-cargo.eb')
+        copy_file(cargo_ec, test_ec)
+        stdout, stderr = self._run_mock_eb([test_ec, '--inject-checksums'], raise_error=True, strip=True)
+        self.assertIn("injecting sha256 checksums in", stdout)
+        self.assertEqual(stderr, '')
+        expected_checksums = [
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
+            {'toy-0.0_gzip.patch.gz': 'c5c51dd4b00fd490f8f8226f5fa609c30b66bda7ef6d3391ab2631508f3d5e41'},
+        ]
+        patterns = [r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$"]
+        patterns.extend(r"^== \* %s: %s$" % next(iter(entry.items())) for entry in expected_checksums)
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        self.assertEqual(ec['checksums'], expected_checksums)
+
+        # crates also work with sources and patches (unusual use case)
+        copy_file(cargo_ec, test_ec)
+        write_file(test_ec, textwrap.dedent("""
+            sources = [SOURCE_TAR_GZ]
+            patches = [
+                'toy-0.0_fix-silly-typo-in-printf-statement.patch',
+            ]
+        """), append=True)
+        stdout, stderr = self._run_mock_eb([test_ec, '--inject-checksums'], raise_error=True, strip=True)
+        self.assertIn("injecting sha256 checksums in", stdout)
+        self.assertEqual(stderr, '')
+        expected_checksums = [
+            # Main source
+            {'toy-0.0.tar.gz': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'},
+            # Specified as "crates"
+            {'toy-extra.txt': '4196b56771140d8e2468fb77f0240bc48ddbf5dabafe0713d612df7fafb1e458'},
+            {'toy-0.0_gzip.patch.gz': 'c5c51dd4b00fd490f8f8226f5fa609c30b66bda7ef6d3391ab2631508f3d5e41'},
+            # Patch
+            {'toy-0.0_fix-silly-typo-in-printf-statement.patch':
+             '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'},
+        ]
+        patterns = [r"^== injecting sha256 checksums for sources & patches in test\.eb\.\.\.$"]
+        patterns.extend(r"^== \* %s: %s$" % next(iter(entry.items())) for entry in expected_checksums)
+        for pattern in patterns:
+            regex = re.compile(pattern, re.M)
+            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+
+        ec = EasyConfigParser(test_ec).get_config_dict()
+        self.assertEqual(ec['checksums'], expected_checksums)
 
         # passing easyconfig filename as argument to --inject-checksums results in error being reported,
         # because it's not a valid type of checksum
