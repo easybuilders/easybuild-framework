@@ -117,11 +117,24 @@ def apply_context(context=None):
     return curr_env
 
 
-def getvar(key, default=''):
+def getvar(key, default='', strict=False):
     """
     Return value of key in the environment, or default if not found
     """
-    return get_context().get(key, os._real_os.environ.get(key, default))
+    context = get_context()
+    if key in context:
+        val = context[key]
+        if val is None:
+            if strict:
+                raise KeyError(f"Key '{key}' is explicitly unset in the current context")
+            else:
+                return default
+        return val
+    else:
+        if strict:
+            return os._real_os.environ[key]
+        else:
+            return os._real_os.environ.get(key, default)
 
 
 @contextmanager
@@ -324,7 +337,7 @@ def sanitize_env():
 class MockEnviron(dict):
     """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
     def __getitem__(self, key):
-        return getvar(key)
+        return getvar(key, strict=True)
 
     def __setitem__(self, key, value):
         setvar(key, value, verbose=False, log_changes=False)
