@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ##
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -29,7 +29,6 @@ Toy build unit test
 @author: Kenneth Hoste (Ghent University)
 @author: Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
-import copy
 import glob
 import grp
 import os
@@ -53,8 +52,8 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.main import main_with_hooks
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import get_module_syntax, get_repositorypath
-from easybuild.tools.environment import modify_env, setvar
+from easybuild.tools.config import get_module_syntax, get_repositorypath, update_build_option
+from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.module_generator import ModuleGeneratorTcl
@@ -160,7 +159,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                         raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True):
+                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True, trace=True):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -176,6 +175,8 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         if debug:
             args.append('--debug')
+        if trace:
+            args.append('--trace')
         if force:
             args.append('--force')
         if tmpdir is not None:
@@ -1555,12 +1556,14 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_err = r"shell command 'unzip \.\.\.' failed with exit code 9 in extensions step for test.eb"
+        pat_in_log = r"shell command 'unzip .*bar-0.0.tar.gz' failed with exit code 9 in extensions step for test.eb"
         with self.mocked_stdout_stderr():
             # for now, we expect subprocess.CalledProcessError, but eventually 'run' function will
             # do proper error reporting
-            self.assertErrorRegex(EasyBuildError, error_pattern,
+            self.assertErrorRegex(EasyBuildError, pat_in_err,
                                   self._test_toy_build, ec_file=test_ec, raise_error=True, verbose=False)
+            self.assertRegex(read_file(self.logfile), pat_in_log)
 
     def test_toy_extension_sources_git_config(self):
         """Test install toy that includes extensions with 'sources' spec including 'git_config'."""
@@ -1759,18 +1762,14 @@ class ToyBuildTest(EnhancedTestCase):
         installed_test_modules = os.path.join(self.test_installpath, 'modules', 'all')
         self.reset_modulepath([modulepath, installed_test_modules])
 
-        start_env = copy.deepcopy(os.environ)
-
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=toy_ec, versionsuffix='-external-deps', verbose=True, raise_error=True)
 
-        self.modtool.load(['toy/0.0-external-deps'])
-        # note build dependency is not loaded
-        mods = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'toy/0.0-external-deps']
-        self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
-
-        # restore original environment (to undo 'module load' done above)
-        modify_env(os.environ, start_env, verbose=False)
+        with self.saved_env():
+            self.modtool.load(['toy/0.0-external-deps'])
+            # note build dependency is not loaded
+            mods = ['intel/2018a', 'GCC/6.4.0-2.28', 'foobar/1.2.3', 'toy/0.0-external-deps']
+            self.assertEqual([x['mod_name'] for x in self.modtool.list()], mods)
 
         # check behaviour when a non-existing external (build) dependency is included
         extraectxt = "\nbuilddependencies = [('nosuchbuilddep/0.0.0', EXTERNAL_MODULE)]"
@@ -1778,7 +1777,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchbuilddep/0.0.0\\' failed"
+            err_msg = r"Module command '.*load nosuchbuilddep/0.0.0' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchbuilddep/0.0.0'"
 
@@ -1791,7 +1790,7 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(toy_ec, ectxt + extraectxt)
 
         if isinstance(self.modtool, Lmod):
-            err_msg = r"Module command \\'.*load nosuchmodule/1.2.3\\' failed"
+            err_msg = r"Module command '.*load nosuchmodule/1.2.3' failed"
         else:
             err_msg = r"Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
 
@@ -3168,10 +3167,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_cuda_sanity_check(self):
         """Test the CUDA sanity check"""
-        # We need to mock a cuobjdump executable and prepend in on the PATH
-        # First, make sure we can restore environment at the end of this test
-        start_env = copy.deepcopy(os.environ)
-
+        update_build_option('trace', True)
         # Define the toy_ec file we want to use
         topdir = os.path.dirname(os.path.abspath(__file__))
         toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -3560,9 +3556,6 @@ class ToyBuildTest(EnhancedTestCase):
         msg = "Pattern '%s' not found in full build log: %s" % (expected_result, outtxt)
         self.assertTrue(expected_result.search(outtxt), msg)
         assert_cuda_report(missing_cc=0, additional_cc=0, missing_ptx=0, log=outtxt, stdout=stdout, num_checked=0)
-
-        # Restore original environment
-        modify_env(os.environ, start_env, verbose=False)
 
     def test_toy_modaltsoftname(self):
         """Build two dependent toys as in test_toy_toy but using modaltsoftname"""
@@ -3974,7 +3967,8 @@ class ToyBuildTest(EnhancedTestCase):
                 # just undo
                 self.modtool.unload(['toy/0.0', 'GCC/4.6.3'])
 
-        check_toy_load()
+        with self.saved_env():
+            check_toy_load()
 
         # this behaviour can be disabled via "multi_dep_load_defaults = False"
         write_file(test_ec, test_ec_txt + "\nmulti_deps_load_default = False")
@@ -3986,8 +3980,9 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.assertNotIn(expected, toy_mod_txt)
 
-        self.modtool.load(['toy/0.0'])
-        loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
+        with self.saved_env():
+            self.modtool.load(['toy/0.0'])
+            loaded_mod_names = [x['mod_name'] for x in self.modtool.list()]
         self.assertIn('toy/0.0', loaded_mod_names)
         self.assertNotIn('GCC/4.6.3', loaded_mod_names)
         self.assertNotIn('GCC/7.3.0-2.30', loaded_mod_names)
@@ -4009,10 +4004,6 @@ class ToyBuildTest(EnhancedTestCase):
 
         error_msg_whatis = "Pattern '%s' should be found in: %s" % (expected_whatis_no_default, toy_mod_txt)
         self.assertIn(expected_whatis_no_default, toy_mod_txt, error_msg_whatis)
-
-        # restore original environment to continue testing with a clean slate
-        modify_env(os.environ, self.orig_environ, verbose=False)
-        self.modtool.use(test_mod_path)
 
         # disable showing of progress bars (again), doesn't make sense when running tests
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
@@ -4863,7 +4854,7 @@ class ToyBuildTest(EnhancedTestCase):
         test_ec_txt += '\nruntest = "RAISE_ERROR"'
         write_file(test_ec, test_ec_txt)
 
-        error_pattern = r"An error was raised during test step: 'TOY_TEST_FAIL'"
+        error_pattern = "An error was raised during test step: TOY_TEST_FAIL\nDescription"
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_test_toy_build_with_output,
                               ec_file=test_ec, raise_error=True)
 

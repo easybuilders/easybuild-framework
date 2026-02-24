@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -130,7 +130,6 @@ class GithubTest(EnhancedTestCase):
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""
-        # check if patches for extensions are found
         rawtxt = textwrap.dedent("""
             easyblock = 'ConfigureMake'
             name = '%s'
@@ -211,7 +210,7 @@ class GithubTest(EnhancedTestCase):
                 ('a_directory', ['a_subdirectory'], ['a_file.txt']),
                 ('a_directory/a_subdirectory', [], ['a_file.txt']), ('second_dir', [], ['a_file.txt']),
             ]
-            self.assertEqual([x for x in self.ghfs.walk(None)], expected)
+            self.assertEqual(list(self.ghfs.walk(None)), expected)
         except IOError:
             pass
 
@@ -815,20 +814,20 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(res, None)
 
         # recent commit with cancelled checks (GitHub Actions only);
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled
-        commit_sha = '52b964c3387d6d6f149ec304f9e23f535e799957'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Acancelled+branch%3Adevelop
+        commit_sha = '51a875b40f0627e24d9cd8e44b8f316d57b6a584'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'cancelled')
 
         # recent commit with failing checks (GitHub Actions only)
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure
-        commit_sha = '85e6c2bbc2fd515a1d4dab607b8d43d0a1ed668f'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Afailure+branch%3Adevelop
+        commit_sha = 'e72d5ea16df56d8151bb980d21cbf3ced4dcd8fb'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'failure')
 
         # recent commit with successful checks (GitHub Actions only)
-        # to update, use https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess
-        commit_sha = 'f82a563b8e1f8118c7c3ab23374d0e28e1691fea'
+        # to update: https://github.com/easybuilders/easybuild-easyconfigs/actions?query=is%3Asuccess+branch%3Adevelop
+        commit_sha = '9e6b01cfd29692944cb57bef9493ae7253103e42'
         res = gh.det_commit_status('easybuilders', 'easybuild-easyconfigs', commit_sha, GITHUB_TEST_ACCOUNT)
         self.assertEqual(res, 'success')
 
@@ -1007,9 +1006,8 @@ class GithubTest(EnhancedTestCase):
         file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
 
         error_pattern = "Failed to determine software name to which patch file .*/2.patch relates"
-        self.mock_stdout(True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.assertErrorRegex(EasyBuildError, error_pattern, gh.det_patch_specs, patch_paths, file_info, [])
 
         rawtxt = textwrap.dedent("""
             easyblock = 'ConfigureMake'
@@ -1019,12 +1017,11 @@ class GithubTest(EnhancedTestCase):
             description = ''
             toolchain = {"name":"GCC", "version": "4.6.3"}
 
-            patches = [('3.patch', 'subdir'), '2.patch']
+            postinstallpatches = [('3.patch', 'subdir'), '2.patch']
         """)
         file_info['ecs'].append(EasyConfig(None, rawtxt=rawtxt))
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
         self.assertEqual([i[1] for i in res], ['A', 'C', 'C'])
@@ -1043,20 +1040,24 @@ class GithubTest(EnhancedTestCase):
                 ('bar', '1.2.3'),
                 ('patched', '4.5.6', {
                     'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                    'postinstallpatches': ['%(name)s-4.patch'],
                 }),
             ]
+            postinstallpatches = ['%(name)s-5.patch'],
         """)
-        patch_paths[1:3] = [os.path.join(self.test_prefix, p) for p in ['patched-2.patch', 'patched-3.patch']]
+        patch_paths[1:] = [os.path.join(self.test_prefix, p) for p in
+                           ['patched-2.patch', 'patched-3.patch', 'patched-4.patch', 'patched_ext-5.patch']]
         file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
 
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
-        self.assertEqual([i[1] for i in res], ['A', 'patched_ext', 'patched_ext'])
+        self.assertEqual([i[1] for i in res], ['A'] + ['patched_ext'] * 4)
 
         # check if patches for components are found
+        # NOTE: Using alternative name and tuple format for post_install_patches, different to above test case
+        #       to verify handling either way works without adding another sub-test
         rawtxt = textwrap.dedent("""
             easyblock = 'PythonBundle'
             name = 'patched_bundle'
@@ -1069,17 +1070,19 @@ class GithubTest(EnhancedTestCase):
                 ('bar', '1.2.3'),
                 ('patched', '4.5.6', {
                     'patches': [('%(name)s-2.patch', 1), '%(name)s-3.patch'],
+                    'post_install_patches': [('%(name)s-4.patch', 1)],
                 }),
             ]
+            post_install_patches = [('%(name)s-5.patch', 2)]
         """)
+        patch_paths[-1] = 'patched_bundle-5.patch'
         file_info['ecs'][-1] = EasyConfig(None, rawtxt=rawtxt)
 
-        self.mock_stdout(True)
-        res = gh.det_patch_specs(patch_paths, file_info, [])
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = gh.det_patch_specs(patch_paths, file_info, [])
 
         self.assertEqual([i[0] for i in res], patch_paths)
-        self.assertEqual([i[1] for i in res], ['A', 'patched_bundle', 'patched_bundle'])
+        self.assertEqual([i[1] for i in res], ['A'] + ['patched_bundle'] * 4)
 
     def test_github_restclient(self):
         """Test use of RestClient."""
@@ -1367,7 +1370,7 @@ class GithubTest(EnhancedTestCase):
         res = create_test_report("just a test", ecs_with_res, init_session_state)
         patterns = [
             "**SUCCESS** _test.eb_",
-            "**FAIL (build issue)** _fail.eb_",
+            "**FAIL** _fail.eb_ **(build issue)**",
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
             "USER = test",

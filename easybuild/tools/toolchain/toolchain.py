@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -247,6 +247,29 @@ class Toolchain:
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
 
+    @property
+    def search_path_vars_headers(self):
+        """Return list of environment variables used as search paths for headers"""
+        return self._search_path_vars('cpp_headers')
+
+    @property
+    def search_path_vars_linker(self):
+        """Return list of environment variables used as search paths by the linker"""
+        return self._search_path_vars('linker')
+
+    def _search_path_vars(self, search_object):
+        """Return list of environment variables used as search paths for the given object"""
+        try:
+            search_path_opt = self.search_path[search_object]
+        except KeyError:
+            raise EasyBuildError("Failed to retrieve search path options for '%s'", search_object)
+
+        # default 'flags' option does not use search paths in the build environment
+        if search_path_opt == 'flags':
+            return []
+
+        return SEARCH_PATH[search_object][search_path_opt]
+
     def is_system_toolchain(self):
         """Return boolean to indicate whether this toolchain is a system toolchain."""
         return is_system_toolchain(self.name)
@@ -418,9 +441,9 @@ class Toolchain:
         self.log.debug("show_variables:\n%s", txt)
         return txt
 
-    def get_software_root(self, names):
+    def get_software_root(self, names, required=True):
         """Try to get the software root for all names"""
-        return self._get_software_multiple(names, self._get_software_root)
+        return self._get_software_multiple(names, self._get_software_root, required=required)
 
     def get_software_version(self, names, required=True):
         """Try to get the software version for all names"""
@@ -439,8 +462,11 @@ class Toolchain:
         """Try to get the software root for name"""
         root = get_software_root(name)
         if root is None:
+            msg = "get_software_root software root for %s was not found in environment"
             if required:
-                raise EasyBuildError("get_software_root software root for %s was not found in environment", name)
+                raise EasyBuildError(msg, name)
+            else:
+                self.log.debug(msg, name)
         else:
             self.log.debug("get_software_root software root %s for %s was found in environment", root, name)
         return root
@@ -449,8 +475,11 @@ class Toolchain:
         """Try to get the software version for name"""
         version = get_software_version(name)
         if version is None:
+            msg = "get_software_version software version for %s was not found in environment"
             if required:
-                raise EasyBuildError("get_software_version software version for %s was not found in environment", name)
+                raise EasyBuildError(msg, name)
+            else:
+                self.log.debug(msg, name)
         else:
             self.log.debug("get_software_version software version %s for %s was found in environment", version, name)
 
@@ -597,7 +626,7 @@ class Toolchain:
 
     def is_dep_in_toolchain_module(self, name):
         """Check whether a specific software name is listed as a dependency in the module for this toolchain."""
-        return any(map(lambda m: self.mns.is_short_modname_for(m, name), self.toolchain_dep_mods))
+        return any(self.mns.is_short_modname_for(m, name) for m in self.toolchain_dep_mods)
 
     def _simulated_load_dependency_module(self, name, version, metadata, verbose=False):
         """
@@ -752,7 +781,7 @@ class Toolchain:
         self.log.debug("List of toolchain dependencies from toolchain module: %s", self.toolchain_dep_mods)
 
         # only retain names of toolchain elements, excluding toolchain name
-        toolchain_definition = set([e for es in self.definition().values() for e in es if not e == self.name])
+        toolchain_definition = {e for es in self.definition().values() for e in es if not e == self.name}
 
         # filter out optional toolchain elements if they're not used in the module
         for elem_name in toolchain_definition.copy():
@@ -828,6 +857,16 @@ class Toolchain:
             fortran_comps = [self.COMPILER_F77, self.COMPILER_F90, self.COMPILER_FC]
 
         return (c_comps, fortran_comps)
+
+    def linkers(self):
+        """Return list of relevant linkers for this toolchain"""
+
+        if self.is_system_toolchain():
+            linkers = ['ld', 'ld.gold', 'ld.bfd']
+        else:
+            linkers = list(self.LINKERS or [])
+
+        return linkers
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
@@ -1024,6 +1063,7 @@ class Toolchain:
 
         # must also wrap compilers commands, required e.g. for Clang ('gcc' on OS X)?
         c_comps, fortran_comps = self.compilers()
+        linkers = self.linkers()
 
         rpath_args_py = find_eb_script('rpath_args.py')
 
@@ -1051,7 +1091,7 @@ class Toolchain:
         self.log.debug("Combined RPATH include paths: '%s'", rpath_include)
 
         # create wrappers
-        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd']):
+        for cmd in nub(c_comps + fortran_comps + ['ld', 'ld.gold', 'ld.bfd'] + linkers):
             # Not all toolchains have fortran compilers (e.g. Clang), in which case they are 'None'
             if cmd is None:
                 continue
@@ -1147,7 +1187,7 @@ class Toolchain:
             if dep.get('external_module', False):
                 # for software names provided via external modules, install prefix may be unknown
                 names = dep['external_module_metadata'].get('name', [])
-                dep_roots.extend([x for x in self.get_software_root(names) if x is not None])
+                dep_roots.extend([x for x in self.get_software_root(names, required=False) if x is not None])
             else:
                 dep_roots.extend(self.get_software_root(dep['name']))
 

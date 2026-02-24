@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -30,7 +30,6 @@ Unit tests for easyblock.py
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
 """
-import copy
 import fileinput
 import os
 import re
@@ -53,7 +52,6 @@ from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
-from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import change_dir, copy_dir, copy_file, mkdir, read_file, remove_dir, remove_file
 from easybuild.tools.filetools import symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
@@ -1290,14 +1288,14 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
         depr_msg = r"EasyBlock.post_install_step\(\) is deprecated, use EasyBlock.post_processing_step\(\) instead"
         expected_error = r"DEPRECATED \(since v6.0\).*" + depr_msg
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             self.assertErrorRegex(EasyBuildError, expected_error, eb.run_all_steps, True)
 
         change_dir(cwd)
         toy_ec = EasyConfig(toy_ec_fn)
         eb = EB_toy(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr() as (_, stderr):
+        with self.mocked_stdout_stderr() as (_, stderr), self.saved_env():
             eb.run_all_steps(True)
             # no deprecation warning
             stderr = stderr.getvalue()
@@ -1309,14 +1307,13 @@ class EasyBlockTest(EnhancedTestCase):
         # check again with toy easyblock that still uses post_install_step,
         # to verify that the expected file is being created when deprecated functionality is allow
         remove_file(libtoy_post_a)
-        modify_env(os.environ, self.orig_environ, verbose=False)
         change_dir(cwd)
 
         self.allow_deprecated_behaviour()
         toy_ec = EasyConfig(toy_ec_fn)
         eb = EB_toy_deprecated(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr() as (stdout, stderr):
+        with self.mocked_stdout_stderr() as (stdout, stderr), self.saved_env():
             eb.run_all_steps(True)
 
             regex = re.compile(depr_msg, re.M)
@@ -1345,7 +1342,6 @@ class EasyBlockTest(EnhancedTestCase):
         # test for proper error message without the exts_defaultclass set
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.installdir = config.install_path()
-        self.assertRaises(EasyBuildError, eb.extensions_step, fetch=True)
         self.assertErrorRegex(EasyBuildError, "No default extension class set", eb.extensions_step, fetch=True)
 
         # test if everything works fine if set
@@ -1574,6 +1570,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb.builddir = config.build_path()
         eb.installdir = config.install_path()
 
+        update_build_option('trace', True)
         self.mock_stdout(True)
         eb.extensions_step(fetch=True)
         stdout = self.get_stdout()
@@ -2606,7 +2603,7 @@ class EasyBlockTest(EnhancedTestCase):
         error_pattern = r"Sanity check failed: extensions sanity check failed for 1 extensions: toy\n"
         error_pattern += r"failing sanity check for 'toy' extension: "
         error_pattern += r'command "thisshouldfail" failed; output:\n.* thisshouldfail: command not found'
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             self.assertErrorRegex(EasyBuildError, error_pattern, eb.run_all_steps, True)
 
         # purposely put sanity check command in place that breaks the build,
@@ -2617,7 +2614,7 @@ class EasyBlockTest(EnhancedTestCase):
         toy_ec['exts_defaultclass'] = 'DummyExtension'
         eb = EB_toy(toy_ec)
         eb.silent = True
-        with self.mocked_stdout_stderr():
+        with self.mocked_stdout_stderr(), self.saved_env():
             eb.run_all_steps(True)
 
     def test_parallel(self):
@@ -2848,6 +2845,8 @@ class EasyBlockTest(EnhancedTestCase):
             abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
             self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
             self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
+            self.assertTrue(eb.cfg['start_dir'].endswith(abs_expected_start_dir))
+            self.assertFalse(eb.cfg['start_dir'].endswith(os.path.sep))
 
         # default (no start_dir specified): use unpacked dir as start dir
         self.assertEqual(ec['ec']['start_dir'], None)
@@ -2976,23 +2975,19 @@ class EasyBlockTest(EnhancedTestCase):
 
         cwd = os.getcwd()
         self.assertExists(cwd)
-        # Take environment with test-specific variable set up
-        orig_environ = copy.deepcopy(os.environ)
 
         def run_extension_step():
-            try:
-                change_dir(cwd)
-                eb = EasyBlock(ec)
-                # Cleanup build directory
-                if os.path.exists(eb.builddir):
-                    remove_dir(eb.builddir)
+            change_dir(cwd)
+            eb = EasyBlock(ec)
+            # Cleanup build directory
+            if os.path.exists(eb.builddir):
+                remove_dir(eb.builddir)
+            # restore original environment to continue testing with a clean slate
+            with self.saved_env():
                 eb.make_builddir()
                 eb.update_config_template_run_step()
                 eb.extensions_step(fetch=True, install=True)
-                return os.path.join(eb.builddir)
-            finally:
-                # restore original environment to continue testing with a clean slate
-                modify_env(os.environ, orig_environ, verbose=False)
+            return os.path.join(eb.builddir)
 
         ec['exts_defaultclass'] = 'DummyExtension'
         ec['exts_list'] = [('toy', '0.0', {'easyblock': 'DummyExtension'})]
@@ -3558,7 +3553,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(ec)
         paths, _, _ = eb._sanity_check_step_common(None, None)
 
-        self.assertEqual(set(paths.keys()), set(('files', 'dirs')))
+        self.assertEqual(set(paths.keys()), {'files', 'dirs'})
         self.assertEqual(paths['files'], ['correct.a', 'default.a'])
         self.assertEqual(paths['dirs'], [('correct', 'alternative')])
 
