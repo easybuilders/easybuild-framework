@@ -189,26 +189,6 @@ def setvar(key, value, verbose=True, log_changes=True, force_env=False):
         dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
-def appendvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
-    """append value to key in the environment, using sep as separator"""
-    oldval = getvar(key)
-    if oldval:
-        newval = oldval + sep + value
-    else:
-        newval = value
-    setvar(key, newval, verbose=verbose, log_changes=log_changes, force_env=force_env)
-
-
-def prependvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
-    """prepend value to key in the environment, using sep as separator"""
-    oldval = getvar(key)
-    if oldval:
-        newval = value + sep + oldval
-    else:
-        newval = value
-    setvar(key, newval, verbose=verbose, log_changes=log_changes, force_env=force_env)
-
-
 def unset_env_vars(keys, verbose=True, force_env=False):
     """
     Unset the keys given in the environment
