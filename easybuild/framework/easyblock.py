@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1927,7 +1927,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name], log_changes=False)
+                self.modules_tool.unload([self.short_mod_name], hide_output=True)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
@@ -4367,7 +4367,7 @@ class EasyBlock:
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
-        if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
+        if self.toolchain.mpi_family() and self.toolchain.mpi_family() == toolchain.OPENMPI:
             env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
 
         # run sanity checks from an empty temp directory

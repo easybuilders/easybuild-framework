@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -438,6 +438,7 @@ class EasyBuildOptions(GeneralOption):
                                          "more compute capabilities than defined in --cuda-compute-capabilities.",
                                          None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
+            'debug-module-cmds': ("Show additional information of module commands", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",

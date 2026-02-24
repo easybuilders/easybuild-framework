@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -155,6 +155,8 @@ def summary(ecs_with_res):
 def build_and_install_software(ecs, init_session_state, exit_on_failure=True, testing=False):
     """
     Build and install software for all provided parsed easyconfig files.
+    The build environment is reset to the one passed by init_session_state between builds.
+    However, the environment is _not_ reset after the last build.
 
     :param ecs: easyconfig files to install software with
     :param init_session_state: initial session state, to use in test reports
