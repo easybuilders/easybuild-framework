@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1110,7 +1110,11 @@ def list_toolchains(output_format=FORMAT_TXT):
 
     # start with dict that maps toolchain name to corresponding subclass of Toolchain
     # filter deprecated 'dummy' toolchain
-    tcs = {tc.NAME: tc for tc in all_tcs}
+    tcs = {
+        tc.NAME: tc
+        for tc in all_tcs
+        if not hasattr(tc, "DEPRECATED")
+    }
 
     for tcname in sorted(tcs):
         tcc = tcs[tcname]
@@ -1468,7 +1472,7 @@ def gen_easyblock_doc_section_md(eb_class, path_to_examples, common_params, doc_
 
         table_titles = ['easyconfig parameter', 'description']
         table_values = [
-            [opt for opt in common_params[classname]],
+            common_params[classname],
             [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
         ]
 
@@ -1556,7 +1560,7 @@ def gen_easyblock_doc_section_rst(eb_class, path_to_examples, common_params, doc
 
         table_titles = ['easyconfig parameter', 'description']
         table_values = [
-            [opt for opt in common_params[classname]],
+            common_params[classname],
             [DEFAULT_CONFIG[opt][1] for opt in common_params[classname]],
         ]
 
