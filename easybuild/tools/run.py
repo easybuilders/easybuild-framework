@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -66,7 +66,7 @@ from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUN
 from easybuild.tools.build_log import dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
-from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, print_error
+from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, escape_for_rich, print_error
 from easybuild.tools.utilities import trace_msg
 
 
@@ -126,7 +126,7 @@ class RunShellCmdError(BaseException):
         """
 
         def pad_4_spaces(msg, color=None):
-            padded_msg = ' ' * 4 + msg
+            padded_msg = ' ' * 4 + escape_for_rich(msg)
             if color:
                 return colorize(padded_msg, color)
             else:
@@ -468,13 +468,13 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         cmd_sh = create_cmd_scripts(cmd_str, work_dir, env, tmpdir, cmd_out_fp, cmd_err_fp)
 
-        log_str = ' '.join([
+        log_str = '\n'.join([
             f'Script to start debug shell for {short_cmd_msg}',
-            f'will be saved to {cmd_sh},',
-            f'output will be logged to {cmd_out_fp}',
+            f'\twill be saved to {cmd_sh}',
+            f'\toutput will be logged to {cmd_out_fp}',
         ])
         if cmd_err_fp:
-            log_str += f'\nErrors and warnings will be logged to {cmd_err_fp}'
+            log_str += f'\n\tErrors and warnings will be logged to {cmd_err_fp}'
         _log.info(f'run_shell_cmd: {log_str}')
 
     else:

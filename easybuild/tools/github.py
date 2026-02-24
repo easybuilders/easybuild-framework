@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -43,6 +43,7 @@ import socket
 import sys
 import tempfile
 import time
+import urllib.error
 from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.client import HTTPException
@@ -312,6 +313,12 @@ def github_api_put_request(request_f, github_user=None, token=None, **kwargs):
     except socket.gaierror as err:
         _log.warning("Error occurred while performing put request: %s", err)
         status, data = 0, {'message': err}
+    except urllib.error.HTTPError as err:
+        status = err.code
+        try:
+            data = {'message': err.read().decode()}
+        except Exception:
+            data = {'message': str(err)}
 
     if status == 200:
         _log.info("Put request successful: %s", data['message'])
