@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1095,6 +1095,8 @@ class ModulesTool:
         :param init_env: original environment to restore after running 'module purge'
         :param allow_reload: allow reloading an already loaded module
         """
+        if not any((modules, mod_paths, purge)):
+            return  # Avoid costly module paths if nothing to do
         if mod_paths is None:
             mod_paths = []
 
@@ -1123,17 +1125,24 @@ class ModulesTool:
             if os.path.exists(full_mod_path):
                 self.prepend_module_path(full_mod_path, priority=priority)
 
-        loaded_modules = self.loaded_modules()
+        if not allow_reload:
+            modules = set(modules) - set(self.loaded_modules())
         for mod in modules:
-            if allow_reload or mod not in loaded_modules:
-                self.run_module('load', mod)
+            self.run_module('load', mod)
 
-    def unload(self, modules, log_changes=True):
+    def unload(self, modules, log_changes=None, *, hide_output=None):
         """
         Unload all requested modules.
         """
+        if log_changes is not None:
+            if hide_output is not None:
+                raise EasyBuildError("Cannot specify both log_changes and hide_output")
+            self.log.deprecated("Parameter 'log_changes' is replaced by 'hide_output'", '6.0')
+            hide_output = not log_changes
+        elif hide_output is None:
+            hide_output = False  # TODO: make this the default in 6.0
         for mod in modules:
-            self.run_module('unload', mod, log_changes=log_changes)
+            self.run_module('unload', mod, hide_output=hide_output)
 
     def purge(self):
         """
@@ -1257,13 +1266,23 @@ class ModulesTool:
                 self.log.debug("Changing %s from '%s' to '%s' in environment for module command",
                                key, old_value, new_value)
 
-        log_changes = kwargs.get('log_changes', True)
+        debug_module_cmds = build_option('debug_module_cmds')
+        log_changes = kwargs.get('log_changes')
+        hide_output = kwargs.get('hide_output')
+
+        if log_changes is not None:
+            if hide_output is not None:
+                raise EasyBuildError("Cannot specify both log_changes and hide_output")
+            self.log.deprecated("Parameter 'log_changes' is replaced by 'hide_output'", '6.0')
+            hide_output = not log_changes
+
+        log_output = debug_module_cmds and not hide_output
         cmd_list = self.compose_cmd_list(args)
         cmd = ' '.join(cmd_list)
         # note: module commands are always run in dry mode, and are kept hidden in trace and dry run output
         res = run_shell_cmd(cmd_list, env=environ, fail_on_error=False, use_bash=False, split_stderr=True,
-                            hidden=True, in_dry_run=True, output_file=False,
-                            log_output_on_success=log_changes)
+                            hidden=True, in_dry_run=True, output_file=debug_module_cmds,
+                            log_output_on_success=log_output)
 
         # stdout will contain python code (to change environment etc)
         # stderr will contain text (just like the normal module command)
@@ -1289,7 +1308,7 @@ class ModulesTool:
             # keep track of current values of select env vars, so we can correct the adjusted values below
             # Identical to `{key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}`
             # but Python 2 treats that as a local function and refused the `exec` below
-            prev_ld_values = dict([(key, os.environ.get(key, '').split(os.pathsep)[::-1]) for key in LD_ENV_VAR_KEYS])
+            prev_ld_values = {key: os.environ.get(key, '').split(os.pathsep)[::-1] for key in LD_ENV_VAR_KEYS}
 
             # Change the environment
             try:
@@ -1310,7 +1329,7 @@ class ModulesTool:
 
                 if new_ld_val != curr_ld_val:
                     self.log.debug("Correcting paths in $%s from %s to %s" % (key, curr_ld_val, new_ld_val))
-                    self.set_path_env_var(key, new_ld_val)
+                    self.set_path_env_var(key, new_ld_val, log_changes=log_output)
 
             # Process stderr
             result = []
@@ -1693,9 +1712,9 @@ class EnvironmentModulesTcl(EnvironmentModulesC):
     DEPR_VERSION = '9999.9'
     VERSION_REGEXP = r'^Modules\s+Release\s+Tcl\s+(?P<version>\d\S*)\s'
 
-    def set_path_env_var(self, key, paths):
+    def set_path_env_var(self, key, paths, log_changes=True):
         """Set environment variable with given name to the given list of paths."""
-        super().set_path_env_var(key, paths)
+        super().set_path_env_var(key, paths, log_changes)
         # for Tcl Environment Modules, we need to make sure the _modshare env var is kept in sync
         setvar('%s_modshare' % key, ':1:'.join(paths), verbose=False)
 
@@ -2261,7 +2280,7 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, testing=False):
+def modules_tool(mod_paths=None, testing=False) -> ModulesTool:
     """
     Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
