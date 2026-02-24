@@ -33,6 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.environment as env
+from easybuild.tools.build_log import EasyBuildError
 
 
 class EnvironmentTest(EnhancedTestCase):
@@ -160,6 +161,91 @@ class EnvironmentTest(EnhancedTestCase):
             self.assertEqual(os.environ[key], expected[key])
 
         self.assertEqual(os.getenv('LD_PRELOAD'), None)
+
+    def test_wrap_env(self):
+        """Test wrap_env function."""
+
+        def reset_env():
+            os.environ['TEST_VAR_1'] = '/bar:/foo'
+            os.environ['TEST_VAR_2'] = '/bar'
+            os.environ['TEST_VAR_3'] = '/foo'
+
+        def check_env():
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/bar:/foo')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+
+        def null_and_check(vars):
+            for var in vars:
+                os.environ[var] = ''
+            for var in vars:
+                self.assertEqual(os.getenv(var), '')
+
+        prep = {
+            'TEST_VAR_1': '/usr/bin:/usr/sbin',
+            'TEST_VAR_2': '/usr/bin',
+        }
+        appd = {
+            'TEST_VAR_1': '/usr/local/bin',
+            'TEST_VAR_3': '/usr/local/sbin',
+        }
+        over = {
+            'TEST_VAR_3': 'overridden',
+        }
+        seps = {
+            'TEST_VAR_3': ';'
+        }
+
+        # Test prepend and append
+        reset_env()
+        check_env()
+        with env.wrap_env(prepend=prep, append=appd, sep=seps):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin:/bar:/foo:/usr/local/bin')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin:/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo;/usr/local/sbin')
+            # Test modifying the environment inside the context
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2', 'TEST_VAR_3'])
+        check_env()
+
+        # Test sep with strict=True
+        def foo():
+            with env.wrap_env(prepend=prep, append=appd, sep={}, strict=True):
+                pass
+        self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
+
+        # Test invalid value for sep
+        def foo():
+            with env.wrap_env(prepend=prep, append=appd, sep=None):
+                pass
+        self.assertErrorRegex(EasyBuildError, "sep must be a .*", foo)
+
+        # Test override
+        check_env()
+        with env.wrap_env(override=prep):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin')
+            self.assertEqual(os.getenv('TEST_VAR_3'), '/foo')
+            # Test modifying the environment inside the context
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2'])
+        check_env()
+
+        # Test override with prepend
+        with env.wrap_env(override=over, prepend=prep):
+            self.assertEqual(os.getenv('TEST_VAR_1'), '/usr/bin:/usr/sbin:/bar:/foo')
+            self.assertEqual(os.getenv('TEST_VAR_2'), '/usr/bin:/bar')
+            self.assertEqual(os.getenv('TEST_VAR_3'), 'overridden')
+            null_and_check(['TEST_VAR_1', 'TEST_VAR_2', 'TEST_VAR_3'])
+        check_env()
+
+        # Test override duplicate key with prepend
+        def foo():
+            with env.wrap_env(override=prep, prepend=prep, sep=None):
+                pass
+        self.assertErrorRegex(
+            EasyBuildError,
+            "The keys in override must not overlap with the keys in prepend or append.*",
+            foo
+            )
 
 
 def suite(loader=None):
