@@ -191,7 +191,7 @@ def setvar(key, value, verbose=True, log_changes=True, force_env=False):
 
 def appendvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
     """append value to key in the environment, using sep as separator"""
-    oldval = apply_context().get(key)
+    oldval = getvar(key)
     if oldval:
         newval = oldval + sep + value
     else:
@@ -201,7 +201,7 @@ def appendvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_
 
 def prependvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
     """prepend value to key in the environment, using sep as separator"""
-    oldval = apply_context().get(key)
+    oldval = getvar(key)
     if oldval:
         newval = value + sep + oldval
     else:
