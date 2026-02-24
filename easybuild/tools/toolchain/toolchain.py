@@ -61,7 +61,7 @@ import tempfile
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
-from easybuild.tools.environment import setvar
+from easybuild.tools.environment import setvar, prependvar
 from easybuild.tools.filetools import adjust_permissions, copy_file, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
@@ -830,7 +830,7 @@ class Toolchain:
         symlink_dir = tempfile.mkdtemp()
 
         # prepend location to symlinks to $PATH
-        setvar('PATH', '%s:%s' % (symlink_dir, os.getenv('PATH')))
+        prependvar('PATH', symlink_dir)
 
         for (path, cmds) in paths.values():
             for cmd in cmds:
@@ -1145,7 +1145,7 @@ class Toolchain:
                 adjust_permissions(cmd_wrapper, stat.S_IXUSR)
 
                 # prepend location to this wrapper to $PATH
-                setvar('PATH', '%s:%s' % (wrapper_dir, os.getenv('PATH')))
+                prependvar('PATH', wrapper_dir)
 
                 self.log.info("RPATH wrapper script for %s: %s (log: %s)", orig_cmd, which(cmd), rpath_wrapper_log)
             else:

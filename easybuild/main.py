@@ -49,6 +49,9 @@ from datetime import datetime
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
+from easybuild import os_hook  # Imported to inject hook that replaces system os with our wrapped version
+os_hook.install_os_hook()
+
 from easybuild.tools.build_log import EasyBuildError, print_error_and_exit, print_msg, print_warning, stop_logging
 from easybuild.tools.build_log import EasyBuildExit
 

@@ -32,7 +32,9 @@ Authors:
 """
 import copy
 import os
+from contextlib import contextmanager
 
+from easybuild.os_hook import OSProxy
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
@@ -45,8 +47,27 @@ ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-_changes = {}
+_contextes = {'': {}}
+_curr_context = ''
 
+def set_context(context_name, context = {}):
+    """
+    Set context for tracking environment changes.
+    """
+    global _curr_context
+    _curr_context = context_name
+    if context_name not in _contextes:
+        if context is not None:
+            context = copy.deepcopy(context)
+        else:
+            context = {}
+        _contextes[context_name] = context
+
+def get_context():
+    """
+    Return current context for tracking environment changes.
+    """
+    return _contextes[_curr_context]
 
 def write_changes(filename):
     """
@@ -54,7 +75,7 @@ def write_changes(filename):
     """
     try:
         with open(filename, 'w') as script:
-            for key, changed_value in _changes.items():
+            for key, changed_value in get_context().items():
                 script.write('export %s=%s\n' % (key, shell_quote(changed_value)))
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
@@ -65,32 +86,79 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    global _changes
-    _changes = {}
+    get_context().clear()
 
 
 def get_changes():
     """
     Return tracked changes made in environment.
     """
-    return _changes
+    return get_context()
+
+def apply_context(context = None):
+    """Return the current environment with the changes tracked in the context applied.
+
+    Args:
+        context (str, optional): The context to apply. Defaults to the current onee.
+    """
+    if context is None:
+        context = _curr_context
+    changes = get_context()
+    # print(f'Applying context {context} with changes: {changes}')
+    curr_env = ORIG_OS_ENVIRON.copy()
+    for key, changed_value in changes.items():
+        if changed_value is None:
+            curr_env.pop(key, None)
+        else:
+            curr_env[key] = changed_value
+    return curr_env
 
 
-def setvar(key, value, verbose=True, log_changes=True):
+def getvar(key, default=''):
+    """
+    Return value of key in the environment, or default if not found
+    """
+    return get_context().get(key, os._real_os.environ.get(key, default))
+
+
+@contextmanager
+def with_environment(copy_current=False):
+    """Context manager to run code in a dedicated context"""
+    # Get a key that does not exist in _contextes
+    base = '_context_'
+    cnt = 0
+    while (context := f"{base}{cnt}") in _contextes:
+        cnt += 1
+
+    prev_context = _curr_context
+    kwargs = {}
+    if copy_current:
+        kwargs['context'] = get_context()
+    set_context(context, **kwargs)
+    try:
+        yield
+    finally:
+        set_context(prev_context)
+        _contextes.pop(context, None)
+
+
+def setvar(key, value, verbose=True, log_changes=True, force_env=False):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
 
     :param verbose: include message in dry run output for defining this environment variable
     :param log_changes: show the change in the log
+    :param force_env: if True, also set the variable in os.environ, eg for calls to python functions that rely
+                      on some specific environment such as TMPDIR for tempfile.
     """
     try:
         oldval_info = "previous value: '%s'" % os.environ[key]
     except KeyError:
         oldval_info = "previously undefined"
-    # os.putenv() is not necessary. os.environ will call this.
-    os.environ[key] = value
-    _changes[key] = value
+    if force_env:
+        os._real_os.environ[key] = value
+    get_context()[key] = value
     if log_changes:
         _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
@@ -101,7 +169,27 @@ def setvar(key, value, verbose=True, log_changes=True):
         dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
-def unset_env_vars(keys, verbose=True):
+def appendvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
+    """append value to key in the environment, using sep as separator"""
+    oldval = apply_context().get(key)
+    if oldval:
+        newval = oldval + sep + value
+    else:
+        newval = value
+    setvar(key, newval, verbose=verbose, log_changes=log_changes, force_env=force_env)
+
+
+def prependvar(key, value, sep=os.pathsep, verbose=True, log_changes=True, force_env=False):
+    """prepend value to key in the environment, using sep as separator"""
+    oldval = apply_context().get(key)
+    if oldval:
+        newval = value + sep + oldval
+    else:
+        newval = value
+    setvar(key, newval, verbose=verbose, log_changes=log_changes, force_env=force_env)
+
+
+def unset_env_vars(keys, verbose=True, force_env=False):
     """
     Unset the keys given in the environment
     Returns a dict with the old values of the unset keys
@@ -115,7 +203,9 @@ def unset_env_vars(keys, verbose=True):
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
-            del os.environ[key]
+            if force_env:
+                del os._real_os.environ[key]
+            get_context()[key] = None
             if verbose and build_option('extended_dry_run'):
                 dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))
 
@@ -223,3 +313,29 @@ def sanitize_env():
     # unset all $PYTHON* environment variables
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
+
+
+class MockEnviron(dict):
+    """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
+    def __getitem__(self, key):
+        return getvar(key)
+
+    def __setitem__(self, key, value):
+        setvar(key, value, verbose=False, log_changes=False)
+
+    def __delitem__(self, key):
+        unset_env_vars([key], verbose=False)
+
+    def get(self, key, default=None):
+        return getvar(key, default)
+
+    def copy(self):
+        return apply_context()
+
+    def __deepcopy__(self, memo):
+        return apply_context()
+
+
+OSProxy.register_override('environ', MockEnviron())
+OSProxy.register_override('getenv', lambda key, default=None: getvar(key, default))
+OSProxy.register_override('unsetenv', lambda key: unset_env_vars([key], verbose=False))
