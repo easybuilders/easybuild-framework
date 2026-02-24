@@ -17,6 +17,12 @@ python-graph-dot
 python-hglib
 requests
 
-archspec
-
+# Some packages dropped support for Python 3.6, so specify max versions
+rich<13; python_version < '3.7'
 rich
+
+# Similar for dependencies of other packages
+cryptography<37; python_version < '3.7'
+PyNaCl<1.5; python_version < '3.7'
+
+archspec
