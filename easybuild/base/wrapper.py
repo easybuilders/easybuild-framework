@@ -39,7 +39,7 @@ class WrapperMeta(type):
         # create proxies for wrapped object's double-underscore attributes
         type.__init__(cls, name, bases, dct)
         if cls.__wraps__:
-            ignore = set("__%s__" % n for n in cls.__ignore__.split())
+            ignore = {"__%s__" % n for n in cls.__ignore__.split()}
             for name in dir(cls.__wraps__):
                 if name.startswith("__"):
                     if name not in ignore and name not in dct:

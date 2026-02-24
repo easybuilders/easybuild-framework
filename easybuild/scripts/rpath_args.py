@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2016-2025 Ghent University
+# Copyright 2016-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -36,6 +36,13 @@ author: Kenneth Hoste (HPC-UGent)
 import os
 import re
 import sys
+
+LINKER_COMMANDS = (
+    # binutils
+    'ld', 'ld.gold', 'ld.bfd',
+    # LLVM
+    'lld', 'ld.lld', 'ld64.lld',
+)
 
 
 def is_new_existing_path(new_path, paths):
@@ -80,7 +87,7 @@ rpath_include = sys.argv[3]
 args = sys.argv[4:]
 
 # determine whether or not to use -Wl to pass options to the linker based on name of command
-if cmd in ['ld', 'ld.gold', 'ld.bfd']:
+if cmd in LINKER_COMMANDS:
     ldflag_prefix = ''
 else:
     ldflag_prefix = '-Wl,'
@@ -113,6 +120,11 @@ while idx < len(args):
 
     # with '-c' no linking is done, so we must not inject any rpath
     elif arg == '-c':
+        add_rpath_args = False
+        cmd_args.append(arg)
+
+    # preprocess only mode, no linking is done
+    elif arg == '-E' and cmd not in LINKER_COMMANDS:
         add_rpath_args = False
         cmd_args.append(arg)
 

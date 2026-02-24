@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ from easybuild.base.wrapper import create_base_metaclass
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 
 try:
-    import rich  # noqa
+    import rich  # noqa # pylint:disable=unused-import
     HAVE_RICH = True
 except ImportError:
     HAVE_RICH = False
@@ -312,6 +312,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
+        'debug_module_cmds',
         'dump_autopep8',
         'dump_env_script',
         'enforce_checksums',
@@ -328,6 +329,7 @@ BUILD_OPTIONS_CMDLINE = {
         'ignore_test_failure',
         'install_latest_eb_release',
         'keep_debug_symbols',
+        'keep_going',
         'logtostdout',
         'minimal_toolchains',
         'module_only',
