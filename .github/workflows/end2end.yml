@@ -20,6 +20,7 @@ jobs:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
       options: >-
         --security-opt seccomp=unconfined
+        --security-opt label=disable
         --cap-add SYS_ADMIN
     steps:
       - name: Check out the repo
