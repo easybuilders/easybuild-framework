@@ -143,8 +143,9 @@ class LLVMCompilers(Compiler):
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         **(Compiler.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or {}),
-        # -march=native may not include all CPU features on aarch64, e.g. missing bf16 on Grace for LLVM 21.1.8
-        (systemtools.AARCH64, systemtools.ARM): '-mcpu=native -mtune=native',
+        # -mcpu=native is recommended way to specify feature set for aarch64, see:
+        # https://github.com/easybuilders/easybuild-framework/pull/5139#issuecomment-3961654073
+        (systemtools.AARCH64, systemtools.ARM): '-mcpu=native',
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.X86_64, systemtools.AMD): '-march=native',
