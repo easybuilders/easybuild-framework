@@ -72,6 +72,9 @@ jobs:
           if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
               EB_ARGS='--filter-deps=binutils'
           fi
+          if [[ "${{ matrix.container }}" == "rockylinux-9.5" ]]; then
+              sudo dnf install bubblewrap
+          fi
           sudo -u easybuild bash -l <<EOF
               rm -r ~/.local/easybuild/{software,modules}
               source /tmp/eb_env
