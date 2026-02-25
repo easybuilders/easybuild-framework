@@ -64,3 +64,16 @@ jobs:
               EB_ARGS='--filter-deps=binutils'
           fi
           sudo -u easybuild bash -l -c "source /tmp/eb_env; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
+
+      - name: End-to-end test of installing bzip2 with EasyBuild in bwrap namespace
+        shell: bash
+        run: |
+          EB_ARGS=''
+          if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
+              EB_ARGS='--filter-deps=binutils'
+          fi
+          sudo -u easybuild bash -l <EOF
+              rm -r ~/.local/easybuild/{software,modules}
+              source /tmp/eb_env
+              eb bzip2-1.0.8.eb --bwrap --bwrap-installpath /tmp/bwrap-installpath --robot ${EB_ARGS}
+          EOF
