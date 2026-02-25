@@ -342,6 +342,7 @@ class BuildLogTest(EnhancedTestCase):
     def test_print_msg_rich(self):
         """Test print_msg"""
         update_build_option('output_style', 'rich')
+
         def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_msg."""
             self.mock_stdout(True)
