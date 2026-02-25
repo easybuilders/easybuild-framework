@@ -317,6 +317,18 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
+
+    # Stopgap solution until deprecated compiler-only NVHPC toolchain is removed
+    # Both the new and old NVHPC toolchains share the same name, we need to
+    # selectively filter one out based on the version of the toolchain
+    # TODO: delete with EasyBuild 6.0
+    if parent_toolchain['name'] == "NVHPC":
+        wrong_nvhpc_tc_class_name = "NVHPCToolchain"
+        if LooseVersion(parent_toolchain['version']) < '25.0':
+            wrong_nvhpc_tc_class_name = "NVHPC"
+        wrong_nvhpc_tc_class = [tc for tc in all_tc_classes if tc.__name__ == wrong_nvhpc_tc_class_name]
+        all_tc_classes = set(all_tc_classes) - set(wrong_nvhpc_tc_class)
+
     subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
     optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
     composite_toolchains = {tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1}
