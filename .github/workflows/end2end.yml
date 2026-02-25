@@ -19,6 +19,7 @@ jobs:
     container:
       image: ghcr.io/easybuilders/${{ matrix.container }}-amd64
       options: >-
+        -- user 0
         --security-opt seccomp=unconfined
         --security-opt apparmor=unconfined
         --cap-add SYS_ADMIN
@@ -57,7 +58,7 @@ jobs:
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"
-              sudo -u easybuild bash -l -c "source /tmp/eb_env; $cmd"
+              runuser -u easybuild bash -l -c "source /tmp/eb_env; $cmd"
           done
 
       - name: End-to-end test of installing bzip2 with EasyBuild
@@ -67,7 +68,7 @@ jobs:
           if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
               EB_ARGS='--filter-deps=binutils'
           fi
-          sudo -u easybuild bash -l -c "source /tmp/eb_env; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
+          runuser -u easybuild bash -l -c "source /tmp/eb_env; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
 
       - name: End-to-end test of installing bzip2 with EasyBuild in bwrap namespace
         shell: bash
@@ -77,9 +78,9 @@ jobs:
               EB_ARGS='--filter-deps=binutils'
           fi
           if [[ "${{ matrix.container }}" == "fedora-41" ]]; then
-              sudo dnf install bubblewrap -y
+              dnf install bubblewrap -y
           fi
-          sudo -u easybuild bash -l <<EOF
+          runuser -u easybuild bash -l <<EOF
               rm -r ~/.local/easybuild/{software,modules}
               source /tmp/eb_env
               EB_VERBOSE=1 eb bzip2-1.0.8.eb --bwrap --bwrap-installpath /tmp/bwrap-installpath --robot ${EB_ARGS}
