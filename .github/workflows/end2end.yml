@@ -74,6 +74,7 @@ jobs:
           fi
           if [[ "${{ matrix.container }}" == "fedora-41" ]]; then
               sudo dnf install bubblewrap -y
+              sudo sysctl -w user.max_user_namespaces=62632
           fi
           sudo -u easybuild bash -l <<EOF
               rm -r ~/.local/easybuild/{software,modules}
