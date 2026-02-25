@@ -72,7 +72,7 @@ jobs:
           if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
               EB_ARGS='--filter-deps=binutils'
           fi
-          sudo -u easybuild bash -l <EOF
+          sudo -u easybuild bash -l <<EOF
               rm -r ~/.local/easybuild/{software,modules}
               source /tmp/eb_env
               eb bzip2-1.0.8.eb --bwrap --bwrap-installpath /tmp/bwrap-installpath --robot ${EB_ARGS}
