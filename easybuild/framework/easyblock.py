@@ -652,6 +652,7 @@ class EasyBlock:
 
         force_download = build_option('force_download') in [FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_SOURCES]
 
+        orig_github_account = self.cfg['github_account']
         for ext in exts_list:
             if isinstance(ext, (list, tuple)) and ext:
                 # expected format: (name, version, options (dict))
@@ -679,6 +680,7 @@ class EasyBlock:
                         'name': ext_name,
                         'version': ext_version,
                         'options': ext_options,
+                        'github_account': ext_options.get('github_account', orig_github_account),
                     }
 
                     # if a particular easyblock is specified, make sure it's used
