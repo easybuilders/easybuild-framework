@@ -790,12 +790,14 @@ class ModulesTool:
 
         self.log.debug("$MODULEPATH after set_mod_paths: %s" % os.environ.get('MODULEPATH', ''))
 
-    def use(self, path, priority=None):
+    def use(self, path, priority=None, force_module_command=False):
         """
         Add path to $MODULEPATH via 'module use'.
 
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
         """
         if priority:
             self.log.info("Ignoring specified priority '%s' when running 'module use %s' (Lmod-specific)",
@@ -809,8 +811,14 @@ class ModulesTool:
             mkdir(path, parents=True)
         self.run_module(['use', path])
 
-    def unuse(self, path):
-        """Remove module path via 'module unuse'."""
+    def unuse(self, path, force_module_command=False):
+        """
+        Remove a module path (usually) via 'module unuse'.
+
+        :param path: path to remove from $MODULEPATH
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
+        """
         self.run_module(['unuse', path])
 
     def add_module_path(self, path, set_mod_paths=True):
@@ -821,7 +829,7 @@ class ModulesTool:
         :param set_mod_paths: (re)set self.mod_paths
         """
         path = normalize_path(path)
-        if path not in curr_module_paths(normalize=True):
+        if path not in curr_module_paths(clean=False, normalize=True):
             # add module path via 'module use' and make sure self.mod_paths is synced
             self.use(path)
             if set_mod_paths:
@@ -2043,12 +2051,42 @@ class Lmod(ModulesTool):
                     mkdir(cache_dir, parents=True)
                 write_file(cache_fp, stdout)
 
-    def use(self, path, priority=None):
+    def _set_module_path(self, new_mod_path):
+        """
+        Set $MODULEPATH to the specified paths and logs the change.
+        new_mod_path can be None or an iterable of paths
+        """
+        if new_mod_path is not None:
+            if not isinstance(new_mod_path, list):
+                assert not isinstance(new_mod_path, str)  # Just to be sure
+                new_mod_path = list(new_mod_path)  # Expand generators
+            new_mod_path = mk_module_path(new_mod_path) if new_mod_path else None
+        cur_mod_path = os.environ.get('MODULEPATH')
+        if new_mod_path != cur_mod_path:
+            self.log.debug(
+                'Changing MODULEPATH from %s to %s',
+                '<unset>' if cur_mod_path is None else cur_mod_path,
+                '<unset>' if new_mod_path is None else new_mod_path,
+            )
+            if new_mod_path is None:
+                del os.environ['MODULEPATH']
+            else:
+                os.environ['MODULEPATH'] = new_mod_path
+
+    def _has_module_paths_with_priority(self):
+        """Return True if there are priorities attached to $MODULEPATH"""
+        # We simply check, if the Lmod variable is set and non-empty
+        # See https://github.com/TACC/Lmod/issues/509
+        return bool(os.environ.get('__LMOD_Priority_MODULEPATH'))
+
+    def use(self, path, priority=None, force_module_command=False):
         """
         Add path to $MODULEPATH via 'module use'.
 
         :param path: path to add to $MODULEPATH
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
         """
         if not path:
             raise EasyBuildError("Cannot add empty path to $MODULEPATH")
@@ -2062,35 +2100,26 @@ class Lmod(ModulesTool):
         else:
             # LMod allows modifying MODULEPATH directly. So do that to avoid the costly module use
             # unless priorities are in use already
-            if os.environ.get('__LMOD_Priority_MODULEPATH'):
+            if force_module_command or self._has_module_paths_with_priority():
                 self.run_module(['use', path])
             else:
                 path = normalize_path(path)
-                cur_mod_path = os.environ.get('MODULEPATH')
-                if cur_mod_path is None:
-                    new_mod_path = path
-                else:
-                    new_mod_path = [path] + [p for p in cur_mod_path.split(':') if normalize_path(p) != path]
-                    new_mod_path = ':'.join(new_mod_path)
-                self.log.debug('Changing MODULEPATH from %s to %s' %
-                               ('<unset>' if cur_mod_path is None else cur_mod_path, new_mod_path))
-                os.environ['MODULEPATH'] = new_mod_path
+                self._set_module_path([path] + [p for p in curr_module_paths(clean=False) if normalize_path(p) != path])
 
-    def unuse(self, path):
-        """Remove a module path"""
-        # We can simply remove the path from MODULEPATH to avoid the costly module call
-        cur_mod_path = os.environ.get('MODULEPATH')
-        if cur_mod_path is not None:
-            # Removing the last entry unsets the variable
-            if cur_mod_path == path:
-                self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
-                del os.environ['MODULEPATH']
-            else:
-                path = normalize_path(path)
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
-                if new_mod_path != cur_mod_path:
-                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
-                    os.environ['MODULEPATH'] = new_mod_path
+    def unuse(self, path, force_module_command=False):
+        """
+        Remove a module path
+
+        :param path: path to remove from $MODULEPATH
+        :param force_module_command: If False running the module command may be skipped which is faster
+                                     but does not reload modules
+        """
+        if force_module_command:
+            super(Lmod, self).unuse(path)
+        else:
+            # We can simply remove the path from MODULEPATH to avoid the costly module call
+            path = normalize_path(path)
+            self._set_module_path(p for p in curr_module_paths(clean=False) if normalize_path(p) != path)
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
@@ -2100,10 +2129,23 @@ class Lmod(ModulesTool):
         :param set_mod_paths: (re)set self.mod_paths
         :param priority: priority for this path in $MODULEPATH (Lmod-specific)
         """
-        # Lmod pushes a path to the front on 'module use', no need for (costly) 'module unuse'
-        modulepath = curr_module_paths()
+        # If the path is already first in MODULEPATH, do nothing if we don't want to add it with a priority
+        modulepath = None if priority is not None else curr_module_paths()
         if not modulepath or os.path.realpath(modulepath[0]) != os.path.realpath(path):
             self.use(path, priority=priority)
+            if (priority is None) == (not self._has_module_paths_with_priority()):
+                modulepath = curr_module_paths(normalize=True, clean=False)
+                path_idx = modulepath.index(normalize_path(path))
+                if path_idx != 0:
+                    prio_msg = "This can happen if paths were added via `module use` with a priority"
+                    if priority is not None:
+                        prio_msg += f" higher than {priority}."
+                    else:
+                        prio_msg += "."
+                    print_warning("Path '%s' could not be prepended to $MODULEPATH. "
+                                  "The following paths are still in front of it: %s\n"
+                                  "%s",
+                                  path, "; ".join(modulepath[:path_idx]), prio_msg, log=self.log)
             if set_mod_paths:
                 self.set_mod_paths()
 
@@ -2246,14 +2288,19 @@ def get_software_version(name):
     return version
 
 
-def curr_module_paths(normalize=False):
+def curr_module_paths(normalize=False, clean=True):
     """
     Return a list of current module paths.
 
     :param normalize: Normalize the paths
+    :param clean: If True remove empty and non-existing paths
     """
-    # avoid empty or nonexistent paths, which don't make any sense
-    module_paths = (p for p in os.environ.get('MODULEPATH', '').split(':') if p and os.path.exists(p))
+    if clean:
+        # avoid empty or nonexistent paths, which don't make any sense
+        module_paths = (p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p and os.path.exists(p))
+    else:
+        modulepath = os.environ.get('MODULEPATH')
+        module_paths = [] if modulepath is None else modulepath.split(os.pathsep)
     if normalize:
         module_paths = (normalize_path(p) for p in module_paths)
     return list(module_paths)
@@ -2263,7 +2310,7 @@ def mk_module_path(paths):
     """
     Create a string representing the list of module paths.
     """
-    return ':'.join(paths)
+    return os.pathsep.join(paths)
 
 
 def avail_modules_tools():
