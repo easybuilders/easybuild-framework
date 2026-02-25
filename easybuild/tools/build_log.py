@@ -341,7 +341,7 @@ def print_msg(msg, *args, **kwargs):
             from rich.console import Console
 
             buff = StringIO()
-            console = Console(file=buff, force_terminal=True)
+            console = Console(file=buff, force_terminal=sys.stdout.isatty())
             console.print(escape(msg), end='')
             msg = buff.getvalue()
 
