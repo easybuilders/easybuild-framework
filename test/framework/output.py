@@ -157,6 +157,7 @@ class OutputTest(EnhancedTestCase):
         """
         Test print_error function
         """
+        update_build_option('output_style', 'basic')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
         self.mock_stderr(True)
         self.mock_stdout(True)
@@ -166,11 +167,25 @@ class OutputTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        if use_rich():
-            # when using Rich, message printed to stderr won't have funny terminal escape characters for the color
-            expected = '\n\nThis is yellow: a banana\n\n'
-        else:
-            expected = '\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
+        expected = '\n\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
+        self.assertEqual(stderr, expected)
+
+    @only_if_module_is_available('rich')
+    def test_print_error_rich(self):
+        """
+        Test print_error function
+        """
+        update_build_option('output_style', 'rich')
+        msg = "This is yellow: " + colorize("a banana", color='yellow')
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_error(msg)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        expected = '\n\nThis is yellow: a banana\n\n'
         self.assertEqual(stderr, expected)
 
     def test_get_progress_bar(self):
