@@ -40,6 +40,8 @@ from easybuild.framework.easyconfig.tweak import tweak_one
 from easybuild.tools.build_log import (
     LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error,
     print_error_and_exit, print_msg, print_warning, stop_logging, time_str_since, raise_nosupport)
+from easybuild.tools.utilities import only_if_module_is_available
+from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import read_file, write_file
 
 
@@ -333,6 +335,33 @@ class BuildLogTest(EnhancedTestCase):
         run_check("testing, 1, %s, %s", ['2', '3'], silent=True)
         run_check("testing, 1, 2, 3", [], silent=True, stderr=True)
         run_check("testing, %s, %s, 3", ['1', '2'], silent=True, stderr=True)
+
+        self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
+
+    @only_if_module_is_available('rich')
+    def test_print_msg_rich(self):
+        """Test print_msg"""
+        update_build_option('output_style', 'rich')
+        def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
+            """Helper function to check stdout/stderr produced via print_msg."""
+            self.mock_stdout(True)
+            self.mock_stderr(True)
+            print_msg(msg, *args, **kwargs)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
+            self.mock_stdout(False)
+            self.mock_stderr(False)
+            # Check that the expected output stdout/stderr is being colorized
+            # In order to allow using more styles/schemes (or even to account to changes in the rich default)
+            # We only check for \x1b[0m which is the ANSI reset code that should be present in the output to undo
+            # whatever styling is being applied to the message.
+            if expected_stdout:
+                self.assertIn('\x1b[0m', stdout)  # make sure Rich formatting is present in the output
+            if expected_stderr:
+                self.assertIn('\x1b[0m', stderr)
+
+        run_check("testing, 1, 2, 3", [], expected_stdout="== testing, 1, 2, 3\n")
+        run_check("testing, 1, 2, 3", [], expected_stderr="== testing, 1, 2, 3\n", stderr=True)
 
         self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
 
