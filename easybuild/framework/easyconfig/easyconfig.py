@@ -324,7 +324,7 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     # TODO: delete with EasyBuild 6.0
     if parent_toolchain['name'] == "NVHPC":
         wrong_nvhpc_tc_class_name = "NVHPCToolchain"
-        if LooseVersion(parent_toolchain['version']) < '25.0':
+        if LooseVersion(parent_toolchain['version']) < LooseVersion('25.0'):
             wrong_nvhpc_tc_class_name = "NVHPC"
         wrong_nvhpc_tc_class = [tc for tc in all_tc_classes if tc.__name__ == wrong_nvhpc_tc_class_name]
         all_tc_classes = set(all_tc_classes) - set(wrong_nvhpc_tc_class)
