@@ -147,6 +147,8 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
         # Also disable trace output to keep stdout clean during tests
         os.environ['EASYBUILD_DISABLE_TRACE'] = '1'
+        # Disable color output to ensure that stdout is clean during tests
+        os.environ['EASYBUILD_OUTPUT_STYLE'] = 'no_color'
 
         # Store the environment as setup (including the above paths) for tests to restore
         self.orig_environ = copy.deepcopy(os.environ)
@@ -519,6 +521,7 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
         'show_progress_bar': False,
+        'output_style': 'no_color',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
         'trace': False,
