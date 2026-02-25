@@ -354,6 +354,7 @@ BUILD_OPTIONS_CMDLINE = {
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
+        'use_entrypoints',
         'use_existing_modules',
         'use_f90cache',
         'wait_on_lock_limit',

@@ -32,6 +32,8 @@ Authors:
 import difflib
 import os
 
+from easybuild.tools.entrypoints import EntrypointHook
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
@@ -233,12 +235,9 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
     """
     hook = find_hook(label, hooks, pre_step_hook=pre_step_hook, post_step_hook=post_step_hook)
     res = None
+    args = args or []
+    kwargs = kwargs or {}
     if hook:
-        if args is None:
-            args = []
-        if kwargs is None:
-            kwargs = {}
-
         if pre_step_hook:
             label = 'pre-' + label
         elif post_step_hook:
@@ -251,4 +250,26 @@ def run_hook(label, hooks, pre_step_hook=False, post_step_hook=False, args=None,
 
         _log.info("Running '%s' hook function (args: %s, keyword args: %s)...", hook.__name__, args, kwargs)
         res = hook(*args, **kwargs)
+
+    entrypoint_hooks = EntrypointHook.get_loaded_entrypoints(
+        step=label, pre_step=pre_step_hook, post_step=post_step_hook
+    )
+    if entrypoint_hooks:
+        msg = "Running entry point %s hook..." % label
+        if build_option('debug') and not build_option('silence_hook_trigger'):
+            print_msg(msg)
+        entrypoint_hooks.sort(
+            key=lambda x: (-x.priority, x.name),
+            )
+        for hook in entrypoint_hooks:
+            _log.info(
+                "Running entry point '%s' hook function (args: %s, keyword args: %s)...",
+                hook.name, args, kwargs
+            )
+            try:
+                res = hook.wrapped(*args, **kwargs)
+            except Exception as e:
+                _log.warning("Error running entry point '%s' hook: %s", hook.name, e)
+                raise EasyBuildError("Error running entry point '%s' hook: %s", hook.name, e) from e
+
     return res
