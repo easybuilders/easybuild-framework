@@ -47,10 +47,11 @@ class OSLoader(importlib.abc.Loader):
 
 def install_os_hook():
     """Install the os hooking mechanism to intercept imports of 'os' and return our proxy."""
-    sys.meta_path.insert(0, OSFinder())
+    if not any(isinstance(f, OSFinder) for f in sys.meta_path):
+        sys.meta_path.insert(0, OSFinder())
 
     # If already imported, replace in place
-    if "os" in sys.modules:
+    if "os" in sys.modules and not isinstance(sys.modules["os"], OSProxy):
         real_os = sys.modules["os"]
         sys.modules["os"] = OSProxy(real_os)
 
@@ -58,7 +59,7 @@ def install_os_hook():
     # Reload system modules that might have already imported os with a different name, at python initialization
     # EG tempfile imports os as _os and this is happening before we have a chance to install our hook.
     system_modules = [
-        "sys", "tempfile"
+        "sys", "tempfile",
     ]
     for name in system_modules:
         if name in sys.modules:
