@@ -162,22 +162,18 @@ def with_environment(copy_current=False):
         _contextes.pop(context, None)
 
 
-def setvar(key, value, verbose=True, log_changes=True, force_env=False):
+def setvar(key, value, verbose=True, log_changes=True):
     """
     put key in the environment with value
     tracks added keys until write_changes has been called
 
     :param verbose: include message in dry run output for defining this environment variable
     :param log_changes: show the change in the log
-    :param force_env: if True, also set the variable in os.environ, eg for calls to python functions that rely
-                      on some specific environment such as TMPDIR for tempfile.
     """
     try:
         oldval_info = "previous value: '%s'" % os.environ[key]
     except KeyError:
         oldval_info = "previously undefined"
-    if force_env:
-        os._real_os.environ[key] = value
     get_context()[key] = value
     if log_changes:
         _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
@@ -189,7 +185,7 @@ def setvar(key, value, verbose=True, log_changes=True, force_env=False):
         dry_run_msg("  export %s=%s" % (key, quoted_value), silent=build_option('silent'))
 
 
-def unset_env_vars(keys, verbose=True, force_env=False):
+def unset_env_vars(keys, verbose=True):
     """
     Unset the keys given in the environment
     Returns a dict with the old values of the unset keys
@@ -203,8 +199,6 @@ def unset_env_vars(keys, verbose=True, force_env=False):
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
-            if force_env:
-                del os._real_os.environ[key]
             get_context()[key] = None
             if verbose and build_option('extended_dry_run'):
                 dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))

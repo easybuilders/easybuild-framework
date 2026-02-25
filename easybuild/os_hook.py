@@ -53,3 +53,13 @@ def install_os_hook():
     if "os" in sys.modules:
         real_os = sys.modules["os"]
         sys.modules["os"] = OSProxy(real_os)
+
+    # https://stackoverflow.com/questions/79420610/undertanding-python-import-process-importing-custom-os-module
+    # Reload system modules that might have already imported os with a different name, at python initialization
+    # EG tempfile imports os as _os and this is happening before we have a chance to install our hook.
+    system_modules = [
+        "sys", "tempfile"
+    ]
+    for name in system_modules:
+        if name in sys.modules:
+            importlib.reload(sys.modules[name])
