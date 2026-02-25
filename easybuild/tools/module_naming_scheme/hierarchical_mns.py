@@ -35,6 +35,7 @@ import os
 import re
 
 from easybuild.toolchains.gcccore import GCCcore
+from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
@@ -240,15 +241,18 @@ class HierarchicalMNS(ModuleNamingScheme):
                 raise EasyBuildError("No compiler available in toolchain %s used to install MPI library %s v%s, "
                                      "which is required by the active module naming scheme.",
                                      ec['toolchain'], ec['name'], ec['version'])
-            else:
-                tc_comp_name, tc_comp_ver = tc_comp_info
-                fullver = self.det_full_version(ec)
-                paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
+            tc_comp_name, tc_comp_ver = tc_comp_info
+            fullver = self.det_full_version(ec)
+            paths.append(os.path.join(MPI, tc_comp_name, tc_comp_ver, ec['name'], fullver))
 
-        # special case for Cray toolchains
         elif modclass == MODULECLASS_TOOLCHAIN and tc_comp_info is None:
+            # special case for Cray toolchains
             if any(ec.name.startswith(x) for x in CRAY_TOOLCHAIN_NAME_PREFIXES):
                 paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
+            # special case for NVHPC toolchains that lack standalone MPI component
+            elif ec.name == "NVHPC" and LooseVersion(ec.version) >= LooseVersion('25.0'):
+                fullver = self.det_full_version(ec)
+                paths.append(os.path.join(MPI, "nvidia-compilers", fullver, ec.name, fullver))
 
         return paths
 
