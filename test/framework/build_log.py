@@ -40,7 +40,6 @@ from easybuild.framework.easyconfig.tweak import tweak_one
 from easybuild.tools.build_log import (
     LOGGING_FORMAT, EasyBuildError, EasyBuildLog, dry_run_msg, dry_run_warning, init_logging, print_error,
     print_error_and_exit, print_msg, print_warning, stop_logging, time_str_since, raise_nosupport)
-from easybuild.tools.utilities import only_if_module_is_available
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import read_file, write_file
 
@@ -338,9 +337,12 @@ class BuildLogTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Unknown named arguments", print_msg, 'foo', unknown_arg='bar')
 
-    @only_if_module_is_available('rich')
     def test_print_msg_rich(self):
         """Test print_msg"""
+        try:
+            import rich
+        except ImportError:
+            self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
 
         def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):

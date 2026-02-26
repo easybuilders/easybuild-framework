@@ -37,7 +37,6 @@ from easybuild.tools.config import build_option, get_output_style, update_build_
 from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, PROGRESS_BAR_TYPES
 from easybuild.tools.output import DummyRich, colorize, get_progress_bar, print_error, show_progress_bars
 from easybuild.tools.output import start_progress_bar, status_bar, stop_progress_bar, update_progress_bar, use_rich
-from easybuild.tools.utilities import only_if_module_is_available
 
 try:
     import rich.progress
@@ -142,11 +141,15 @@ class OutputTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
-    @only_if_module_is_available('rich')
     def test_colorize_rich(self):
         """
         Test colorize function
         """
+        try:
+            import rich
+            print(rich)
+        except ImportError:
+            self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
         for color in ('blue', 'cyan', 'green', 'purple', 'red', 'yellow'):
             self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
@@ -170,11 +173,14 @@ class OutputTest(EnhancedTestCase):
         expected = '\n\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
         self.assertEqual(stderr, expected)
 
-    @only_if_module_is_available('rich')
     def test_print_error_rich(self):
         """
         Test print_error function
         """
+        try:
+            import rich
+        except ImportError:
+            self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
         self.mock_stderr(True)
