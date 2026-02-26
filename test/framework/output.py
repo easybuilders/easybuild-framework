@@ -146,8 +146,7 @@ class OutputTest(EnhancedTestCase):
         Test colorize function
         """
         try:
-            import rich
-            print(rich)
+            import rich  # noqa # pylint:disable=unused-import
         except ImportError:
             self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
@@ -178,7 +177,7 @@ class OutputTest(EnhancedTestCase):
         Test print_error function
         """
         try:
-            import rich
+            import rich  # noqa # pylint:disable=unused-import
         except ImportError:
             self.skipTest("rich not available")
         update_build_option('output_style', 'rich')

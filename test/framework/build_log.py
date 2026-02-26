@@ -340,7 +340,7 @@ class BuildLogTest(EnhancedTestCase):
     def test_print_msg_rich(self):
         """Test print_msg"""
         try:
-            import rich
+            import rich  # noqa # pylint:disable=unused-import
         except ImportError:
             self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
