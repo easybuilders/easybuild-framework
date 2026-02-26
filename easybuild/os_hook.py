@@ -57,9 +57,11 @@ def install_os_hook():
 
     # https://stackoverflow.com/questions/79420610/undertanding-python-import-process-importing-custom-os-module
     # Reload system modules that might have already imported os with a different name, at python initialization
-    # EG tempfile imports os as _os and this is happening before we have a chance to install our hook.
+    # - tempfile imports os as _os and this is happening before we have a chance to install our hook.
+    # - os.path is a separate module (eg posixpath) that imports os into itself and needs to be reloaded to import
+    #   our hook for eg `os.path.expanduser` to work with `os.environ['HOME'] = '...'`
     system_modules = [
-        "sys", "tempfile",
+        "sys", "tempfile", "os.path"
     ]
     for name in system_modules:
         if name in sys.modules:
