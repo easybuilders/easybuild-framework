@@ -33,7 +33,7 @@ Authors:
 import copy
 import os
 import subprocess
-from contextlib import contextmanager
+# from contextlib import contextmanager
 
 from easybuild.os_hook import OSProxy, SubprocessProxy
 from easybuild.base import fancylogger
@@ -44,38 +44,51 @@ from easybuild.tools.utilities import shell_quote
 
 # take copy of original environemt, so we can restore (parts of) it later
 ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
+ORIG_CWD = os.getcwd()
 
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-_contextes = {'': {}}
-_curr_context = ''
 
+class EnvironmentContext(dict):
+    """Environment context manager to track changes to the environment in a specific context."""
+    def __init__(self, copy_from=None):
+        super().__init__()
+        if copy_from is None:
+            copy_from = ORIG_OS_ENVIRON
+        self.update(copy_from.copy())
+        self._changes = {}
+        self._cwd = ORIG_CWD
 
-# class EnvironmentContext(dict):
-#     """Environment context manager to track changes to the environment in a specific context."""
-#     def __init__(self):
-#         self.__dict__
+    @property
+    def changes(self):
+        return self._changes
 
-def set_context(context_name, context=None):
-    """
-    Set context for tracking environment changes.
-    """
-    global _curr_context
-    _curr_context = context_name
-    if context_name not in _contextes:
-        if context is not None:
-            context = copy.deepcopy(context)
+    @property
+    def cwd(self):
+        return self._cwd
+
+    def clear_changes(self):
+        """Clear the tracked changes, but keep the current environment state."""
+        self._changes.clear()
+
+    def chdir(self, path):
+        """Change the current working directory in this context."""
+        if os.path.isabs(path):
+            self._cwd = path
         else:
-            context = {}
-        _contextes[context_name] = context
+            self._cwd = os.path.normpath(os.path.join(self._cwd, path))
 
 
-def get_context():
+_curr_context: EnvironmentContext = EnvironmentContext()
+
+
+def get_context() -> EnvironmentContext:
     """
     Return current context for tracking environment changes.
     """
-    return _contextes[_curr_context]
+    # TODO: Make this function thread-aware so that different threads can have their own context if needed.
+    return _curr_context
 
 
 def write_changes(filename):
@@ -95,79 +108,30 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    # TODO: old clear only stop tracking changes, but the changes themselves remain
-    # get_context().clear()
+    get_context().clear_changes()
 
 
-def get_changes(show_unset=False):
+def get_changes(show_unset=False) -> dict:
     """
     Return tracked changes made in environment.
     """
-    changes = get_context()
-    if not show_unset:
-        return {k: v for k, v in changes.items() if v is not None}
-    return changes.copy()
+    return get_context().changes.copy()
 
 
-def apply_context(context=None):
-    """Return the current environment with the changes tracked in the context applied.
+# @contextmanager
+# def with_environment(copy_current=False):
+#     """Context manager to run code in a dedicated context"""
+#     global _curr_context
 
-    Args:
-        context (str, optional): The context to apply. Defaults to the current onee.
-    """
-    if context is None:
-        context = _curr_context
-    changes = get_context()
-    # print(f'Applying context {context} with changes: {changes}')
-    curr_env = ORIG_OS_ENVIRON.copy()
-    for key, changed_value in changes.items():
-        if changed_value is None:
-            curr_env.pop(key, None)
-        else:
-            curr_env[key] = changed_value
-    return curr_env
+#     prev_context = _curr_context
+#     to_copy = None if copy_current else prev_context
 
+#     _curr_context = EnvironmentContext(copy_from=to_copy)
 
-def getvar(key, default='', strict=False):
-    """
-    Return value of key in the environment, or default if not found
-    """
-    context = get_context()
-    if key in context:
-        val = context[key]
-        if val is None:
-            if strict:
-                raise KeyError(f"Key '{key}' is explicitly unset in the current context")
-            return default
-        return val
-    else:
-        if strict:
-            return ORIG_OS_ENVIRON[key]
-        else:
-            return ORIG_OS_ENVIRON.get(key, default)
-
-
-@contextmanager
-def with_environment(copy_current=False):
-    """Context manager to run code in a dedicated context"""
-    # Get a key that does not exist in _contextes
-    base = '_context_'
-    cnt = 0
-    context = f"{base}{cnt}"
-    while context in _contextes:
-        cnt += 1
-        context = f"{base}{cnt}"
-
-    prev_context = _curr_context
-    kwargs = {}
-    if copy_current:
-        kwargs['context'] = get_context()
-    set_context(context, **kwargs)
-    try:
-        yield
-    finally:
-        set_context(prev_context)
-        _contextes.pop(context, None)
+#     try:
+#         yield _curr_context
+#     finally:
+#         _curr_context = prev_context
 
 
 def setvar(key, value, verbose=True, log_changes=True):
@@ -182,7 +146,7 @@ def setvar(key, value, verbose=True, log_changes=True):
         oldval_info = "previous value: '%s'" % os.environ[key]
     except KeyError:
         oldval_info = "previously undefined"
-    get_context()[key] = value
+    os.environ[key] = value
     if log_changes:
         _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
@@ -207,7 +171,7 @@ def unset_env_vars(keys, verbose=True):
         if key in os.environ:
             _log.info("Unsetting environment variable %s (value: %s)" % (key, os.environ[key]))
             old_environ[key] = os.environ[key]
-            get_context()[key] = None
+            del os.environ[key]
             if verbose and build_option('extended_dry_run'):
                 dry_run_msg("  unset %s  # value was: %s" % (key, old_environ[key]), silent=build_option('silent'))
 
@@ -317,72 +281,54 @@ def sanitize_env():
     unset_env_vars(keys_to_unset, verbose=False)
 
 
-class UndefinedParam():
-    """Class to represent an undefined parameter different from None"""
-
-
-class ContextEnviron(dict):
+class EnvironProxy():
     """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
+    def __getattribute__(self, name):
+        return get_context().__getattribute__(name)
+
+    # This methods do not go through the instance __getattribute__
     def __getitem__(self, key):
-        return getvar(key, strict=True)
+        return get_context().__getitem__(key)
 
     def __setitem__(self, key, value):
-        setvar(key, value, verbose=False, log_changes=False)
+        get_context().__setitem__(key, value)
+        # setvar(key, value, verbose=False, log_changes=False)
 
     def __delitem__(self, key):
-        unset_env_vars([key], verbose=False)
+        get_context().__delitem__(key)
 
     def __iter__(self):
-        return iter(apply_context())
+        return get_context().__iter__()
 
     def __contains__(self, key):
-        return key in apply_context()
+        return get_context().__contains__(key)
 
-    def clear(self):
-        get_context().clear()
-        for key in ORIG_OS_ENVIRON:
-            unset_env_vars([key], verbose=False)
-
-    def pop(self, key, default=UndefinedParam):
-        if key in apply_context():
-            value = getvar(key)
-            unset_env_vars([key], verbose=False)
-            return value
-        else:
-            if default is UndefinedParam:
-                raise KeyError(key)
-            return default
-
-    def update(self, other):
-        for key, value in other.items():
-            setvar(key, value, verbose=False, log_changes=False)
-
-    def get(self, key, default=None):
-        return getvar(key, default)
-
-    def keys(self):
-        return apply_context().keys()
-
-    def items(self):
-        return apply_context().items()
-
-    def copy(self):
-        return apply_context()
-
-    def __deepcopy__(self, memo):
-        return apply_context()
+    def __len__(self):
+        return get_context().__len__()
 
 
 class ContextPopen(subprocess._real.Popen):
     """Custom Popen class to apply the current context's environment changes when spawning subprocesses."""
     def __init__(self, *args, **kwargs):
         if kwargs.get('env', None) is None:
-            kwargs['env'] = apply_context()
+            kwargs['env'] = get_context()
+
+        # cur_cwd = get_context().cwd
+        # req_cwd = kwargs.get('cwd', None)
+        # if req_cwd is None:
+        #    cwd = cur_cwd
+        # else:
+        #     if not os.path.isabs(req_cwd):
+        #         cwd = os.path.normpath(os.path.join(cur_cwd, req_cwd))
+        #     else:
+        #         cwd = req_cwd
+        # kwargs['cwd'] = cwd
+
         super().__init__(*args, **kwargs)
 
 
-OSProxy.register_override('environ', ContextEnviron())
-OSProxy.register_override('getenv', lambda key, default=None: getvar(key, default))
+OSProxy.register_override('environ', EnvironProxy())
+OSProxy.register_override('getenv', lambda key, default=None: get_context().get(key, default))
 OSProxy.register_override('unsetenv', lambda key: unset_env_vars([key], verbose=False))
 
 SubprocessProxy.register_override('Popen', ContextPopen)
