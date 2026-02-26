@@ -334,6 +334,11 @@ class MockEnviron(dict):
     def __contains__(self, key):
         return key in apply_context()
 
+    def clear(self):
+        get_context().clear()
+        for key in ORIG_OS_ENVIRON:
+            unset_env_vars([key], verbose=False)
+
     def pop(self, key, default=UndefinedParam):
         if key in apply_context():
             value = getvar(key)
@@ -343,6 +348,10 @@ class MockEnviron(dict):
             if default is UndefinedParam:
                 raise KeyError(key)
             return default
+
+    def update(self, other):
+        for key, value in other.items():
+            setvar(key, value, verbose=False, log_changes=False)
 
     def get(self, key, default=None):
         return getvar(key, default)
