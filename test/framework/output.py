@@ -52,6 +52,7 @@ class OutputTest(EnhancedTestCase):
         """Test status_bar function."""
 
         # restore default (was disabled in EnhancedTestCase.setUp to avoid messing up test output)
+        update_build_option('output_style', 'auto')
         update_build_option('show_progress_bar', True)
 
         if HAVE_RICH:
@@ -78,6 +79,7 @@ class OutputTest(EnhancedTestCase):
     def test_get_output_style(self):
         """Test get_output_style function."""
 
+        update_build_option('output_style', 'auto')
         self.assertEqual(build_option('output_style'), 'auto')
 
         for style in (None, 'auto'):
@@ -107,7 +109,7 @@ class OutputTest(EnhancedTestCase):
 
         # restore default configuration to show progress bars (disabled to avoid mangled test output)
         update_build_option('show_progress_bar', True)
-
+        update_build_option('output_style', 'auto')
         self.assertEqual(build_option('output_style'), 'auto')
 
         if HAVE_RICH:
@@ -129,16 +131,27 @@ class OutputTest(EnhancedTestCase):
         """
         Test colorize function
         """
-        if HAVE_RICH:
-            for color in ('blue', 'cyan', 'green', 'purple', 'red', 'yellow'):
-                self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
-        else:
-            self.assertEqual(colorize('test', 'blue'), '\x1b[0;34mtest\x1b[0m')
-            self.assertEqual(colorize('test', 'cyan'), '\x1b[0;36mtest\x1b[0m')
-            self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
-            self.assertEqual(colorize('test', 'purple'), '\x1b[0;35mtest\x1b[0m')
-            self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
-            self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
+        update_build_option('output_style', 'basic')
+        self.assertEqual(colorize('test', 'blue'), '\x1b[0;34mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'cyan'), '\x1b[0;36mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'purple'), '\x1b[0;35mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
+
+        self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+
+    def test_colorize_rich(self):
+        """
+        Test colorize function
+        """
+        try:
+            import rich  # noqa # pylint:disable=unused-import
+        except ImportError:
+            self.skipTest("rich not available")
+        update_build_option('output_style', 'rich')
+        for color in ('blue', 'cyan', 'green', 'purple', 'red', 'yellow'):
+            self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
 
         self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
@@ -146,6 +159,7 @@ class OutputTest(EnhancedTestCase):
         """
         Test print_error function
         """
+        update_build_option('output_style', 'basic')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
         self.mock_stderr(True)
         self.mock_stdout(True)
@@ -155,11 +169,28 @@ class OutputTest(EnhancedTestCase):
         self.mock_stderr(False)
         self.mock_stdout(False)
         self.assertEqual(stdout, '')
-        if HAVE_RICH:
-            # when using Rich, message printed to stderr won't have funny terminal escape characters for the color
-            expected = '\n\nThis is yellow: a banana\n\n'
-        else:
-            expected = '\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
+        expected = '\n\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
+        self.assertEqual(stderr, expected)
+
+    def test_print_error_rich(self):
+        """
+        Test print_error function
+        """
+        try:
+            import rich  # noqa # pylint:disable=unused-import
+        except ImportError:
+            self.skipTest("rich not available")
+        update_build_option('output_style', 'rich')
+        msg = "This is yellow: " + colorize("a banana", color='yellow')
+        self.mock_stderr(True)
+        self.mock_stdout(True)
+        print_error(msg)
+        stderr = self.get_stderr()
+        stdout = self.get_stdout()
+        self.mock_stderr(False)
+        self.mock_stdout(False)
+        self.assertEqual(stdout, '')
+        expected = '\n\nThis is yellow: a banana\n\n'
         self.assertEqual(stderr, expected)
 
     def test_get_progress_bar(self):
@@ -168,6 +199,7 @@ class OutputTest(EnhancedTestCase):
         """
         # restore default configuration to show progress bars (disabled to avoid mangled test output),
         # to ensure we'll get actual Progress instances when Rich is available
+        update_build_option('output_style', 'auto')
         update_build_option('show_progress_bar', True)
 
         for pbar_type in PROGRESS_BAR_TYPES:
