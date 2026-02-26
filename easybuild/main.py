@@ -365,6 +365,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     options = eb_go.options
 
     global _log
+
+    if options.bwrap:
+        _log.experimental("support for building in bwrap namespace (--bwrap)")
+
     # Unpack cfg_settings
     (build_specs, _log, _logfile, robot_path, search_query, _eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
@@ -877,7 +881,7 @@ def rerun_with_bwrap():
         cmd = bwrap_cmd + eb_cmd + bwrap_options
         _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
 
-        print_msg(f'Building/installing in bubblewrap namespace at {bwrap_installpath}')
+        print_msg(f'Building/installing in bwrap namespace at {bwrap_installpath}')
         sys.exit(subprocess.run(cmd).returncode)
 
 
