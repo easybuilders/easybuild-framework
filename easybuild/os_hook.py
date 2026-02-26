@@ -102,8 +102,9 @@ def install_os_hook():
     # - tempfile imports os as _os and this is happening before we have a chance to install our hook.
     # - os.path is a separate module (eg posixpath) that imports os into itself and needs to be reloaded to import
     #   our hook for eg `os.path.expanduser` to work with `os.environ['HOME'] = '...'`
+    # - shutil is used in CUDA sanity check with `shutil.which` to find `cuobjdum`
     system_modules = [
-        "sys", "tempfile", "os.path"
+        "sys", "tempfile", "os.path", "shutil"
     ]
     for name in system_modules:
         if name in sys.modules:
