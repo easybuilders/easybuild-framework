@@ -407,9 +407,6 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
         return cmd_str
 
-    if env is None:
-        env = apply_context()
-
     # make sure that qa_patterns is a list of 2-tuples (not a dict, or something else)
     if qa_patterns:
         if not isinstance(qa_patterns, list) or any(not isinstance(x, tuple) or len(x) != 2 for x in qa_patterns):

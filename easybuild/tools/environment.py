@@ -32,9 +32,10 @@ Authors:
 """
 import copy
 import os
+import subprocess
 from contextlib import contextmanager
 
-from easybuild.os_hook import OSProxy
+from easybuild.os_hook import OSProxy, SubprocessProxy
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
@@ -75,6 +76,7 @@ def get_context():
     Return current context for tracking environment changes.
     """
     return _contextes[_curr_context]
+
 
 def write_changes(filename):
     """
@@ -319,7 +321,7 @@ class UndefinedParam():
     """Class to represent an undefined parameter different from None"""
 
 
-class MockEnviron(dict):
+class ContextEnviron(dict):
     """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
     def __getitem__(self, key):
         return getvar(key, strict=True)
@@ -371,6 +373,16 @@ class MockEnviron(dict):
         return apply_context()
 
 
-OSProxy.register_override('environ', MockEnviron())
+OSProxy.register_override('environ', ContextEnviron())
 OSProxy.register_override('getenv', lambda key, default=None: getvar(key, default))
 OSProxy.register_override('unsetenv', lambda key: unset_env_vars([key], verbose=False))
+
+
+class ContextPopen(subprocess._real.Popen):
+    """Custom Popen class to apply the current context's environment changes when spawning subprocesses."""
+    def __init__(self, *args, **kwargs):
+        if kwargs.get('env', None) is None:
+            kwargs['env'] = apply_context()
+        super().__init__(*args, **kwargs)
+
+SubprocessProxy.register_override('Popen', ContextPopen)
