@@ -373,16 +373,16 @@ class ContextEnviron(dict):
         return apply_context()
 
 
-OSProxy.register_override('environ', ContextEnviron())
-OSProxy.register_override('getenv', lambda key, default=None: getvar(key, default))
-OSProxy.register_override('unsetenv', lambda key: unset_env_vars([key], verbose=False))
-
-
 class ContextPopen(subprocess._real.Popen):
     """Custom Popen class to apply the current context's environment changes when spawning subprocesses."""
     def __init__(self, *args, **kwargs):
         if kwargs.get('env', None) is None:
             kwargs['env'] = apply_context()
         super().__init__(*args, **kwargs)
+
+
+OSProxy.register_override('environ', ContextEnviron())
+OSProxy.register_override('getenv', lambda key, default=None: getvar(key, default))
+OSProxy.register_override('unsetenv', lambda key: unset_env_vars([key], verbose=False))
 
 SubprocessProxy.register_override('Popen', ContextPopen)

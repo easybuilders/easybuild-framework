@@ -68,7 +68,6 @@ from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, escape_for_rich, print_error
 from easybuild.tools.utilities import trace_msg
-from easybuild.tools.environment import apply_context
 
 
 _log = fancylogger.getLogger('run', fname=False)

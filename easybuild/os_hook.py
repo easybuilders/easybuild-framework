@@ -24,6 +24,7 @@ class SubprocessProxy(types.ModuleType):
     def register_override(cls, name, value):
         cls.overrides[name] = value
 
+
 class OSProxy(types.ModuleType):
     """Proxy module to intercept os attribute access."""
     overrides = {}
@@ -68,6 +69,7 @@ class OSLoader(importlib.abc.Loader):
     def exec_module(self, module):
         """Needs to be defined, can be used to alter the module after creation if needed."""
 
+
 class SubprocessLoader(importlib.abc.Loader):
     """Loader to create our SubprocessProxy instead of the real subprocess module."""
     def create_module(self, spec):
@@ -89,10 +91,7 @@ def install_os_hook():
         sys.meta_path.insert(0, HookFinder())
 
     # If already imported, replace in place
-    for name, proxy in [
-            ("os", OSProxy),
-            ("subprocess", SubprocessProxy)
-        ]:
+    for name, proxy in [("os", OSProxy), ("subprocess", SubprocessProxy)]:
         if name in sys.modules and not isinstance(sys.modules[name], proxy):
             real_module = sys.modules[name]
             sys.modules[name] = proxy(real_module)
