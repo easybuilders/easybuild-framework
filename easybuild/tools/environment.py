@@ -51,6 +51,11 @@ _contextes = {'': {}}
 _curr_context = ''
 
 
+# class EnvironmentContext(dict):
+#     """Environment context manager to track changes to the environment in a specific context."""
+#     def __init__(self):
+#         self.__dict__
+
 def set_context(context_name, context=None):
     """
     Set context for tracking environment changes.
@@ -88,7 +93,8 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    get_context().clear()
+    # TODO: old clear only stop tracking changes, but the changes themselves remain
+    # get_context().clear()
 
 
 def get_changes(show_unset=False):
@@ -256,7 +262,6 @@ def modify_env(old, new, verbose=True, log_changes=True):
     for key in old_keys:
         if key not in new_keys:
             _log.debug("Key in old environment found that is not in new one: %s (%s)", key, old[key])
-            os.unsetenv(key)
             del os.environ[key]
 
 
@@ -309,6 +314,8 @@ def sanitize_env():
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
 
+class UndefinedParam():
+    """Class to represent an undefined parameter different from None"""
 
 class MockEnviron(dict):
     """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
@@ -326,6 +333,16 @@ class MockEnviron(dict):
 
     def __contains__(self, key):
         return key in apply_context()
+
+    def pop(self, key, default=UndefinedParam):
+        if key in apply_context():
+            value = getvar(key)
+            unset_env_vars([key], verbose=False)
+            return value
+        else:
+            if default is UndefinedParam:
+                raise KeyError(key)
+            return default
 
     def get(self, key, default=None):
         return getvar(key, default)
