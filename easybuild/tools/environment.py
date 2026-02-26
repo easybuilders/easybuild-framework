@@ -314,8 +314,10 @@ def sanitize_env():
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
 
+
 class UndefinedParam():
     """Class to represent an undefined parameter different from None"""
+
 
 class MockEnviron(dict):
     """Hook into os.environ and replace it with calls from this module to track changes to the environment."""

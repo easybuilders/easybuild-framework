@@ -30,6 +30,7 @@ Usage: "python -m test.framework.suite" or "python test/framework/suite.py"
 @author: Toon Willems (Ghent University)
 @author: Kenneth Hoste (Ghent University)
 """
+# flake8: noqa: E402
 from easybuild.os_hook import install_os_hook
 install_os_hook()
 
