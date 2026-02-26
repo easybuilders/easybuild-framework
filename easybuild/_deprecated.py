@@ -45,6 +45,7 @@ import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
+from easybuild.tools.environment import apply_context
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import nub, trace_msg
 
@@ -163,6 +164,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
 
     cwd = os.getcwd()
 
+    env = apply_context()
+
     if isinstance(cmd, str):
         cmd_msg = cmd.strip()
     elif isinstance(cmd, list):
@@ -267,7 +270,7 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     _log.info('running cmd: %s ' % cmd)
     try:
         proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd)
+                                stdin=subprocess.PIPE, close_fds=True, executable=exec_cmd, env=env)
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
 
