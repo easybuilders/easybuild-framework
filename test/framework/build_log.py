@@ -345,8 +345,8 @@ class BuildLogTest(EnhancedTestCase):
 
         def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_msg."""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
+            self.mock_stdout(True, force_tty=True)
+            self.mock_stderr(True, force_tty=True)
             print_msg(msg, *args, **kwargs)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
