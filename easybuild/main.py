@@ -882,6 +882,8 @@ def rerun_with_bwrap():
         _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
 
         print_msg(f'Building/installing in bwrap namespace at {bwrap_installpath}')
+
+        os.environ['EB_BWRAP_CMD'] = ' '.join(bwrap_cmd)
         sys.exit(subprocess.run(cmd).returncode)
 
 
