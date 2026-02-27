@@ -77,7 +77,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.style import MAX_LINE_LENGTH
 from easybuild.framework.easyconfig.tools import dump_env_easyblock, get_paths_for
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.framework.extension import Extension, resolve_exts_filter_template
+from easybuild.framework.extension import Extension, construct_exts_filter_cmds
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
@@ -2017,10 +2017,15 @@ class EasyBlock:
 
         exts = []
         for idx, ext_inst in enumerate(self.ext_instances):
-            cmd, stdin = resolve_exts_filter_template(exts_filter, ext_inst)
-            res = run_shell_cmd(cmd, stdin=stdin, fail_on_error=False, hidden=True)
-            self.log.info(f"exts_filter result for {ext_inst.name}: exit code {res.exit_code}; output: {res.output}")
-            if res.exit_code == EasyBuildExit.SUCCESS:
+            cmds = construct_exts_filter_cmds(exts_filter, ext_inst) or []
+            for cmd, stdin in cmds:
+                res = run_shell_cmd(cmd, stdin=stdin, fail_on_error=False, hidden=True)
+                self.log.info(f"exts_filter result for {ext_inst.name}:cmd {cmd}; "
+                              f"exit code {res.exit_code}; output: {res.output}")
+                if res.exit_code != EasyBuildExit.SUCCESS:
+                    break
+            # Don't skip extension if there were no commands to check, e.g. modulename=False
+            if cmds and res.exit_code == EasyBuildExit.SUCCESS:
                 print_msg(f"skipping extension {ext_inst.name}", silent=self.silent, log=self.log)
             else:
                 self.log.info(f"Not skipping {ext_inst.name}")
@@ -2038,37 +2043,45 @@ class EasyBlock:
         """
         print_msg("skipping installed extensions (in parallel)", log=self.log)
 
-        installed_exts_ids = []
-        checked_exts_cnt = 0
+        cmds = [construct_exts_filter_cmds(exts_filter, ext) for ext in self.ext_instances]
+        # Consider extensions that don't need checking as checked
+        checked_exts_cnt = sum(0 if ext_cmds else 1 for ext_cmds in cmds)
         exts_cnt = len(self.ext_instances)
-        cmds = [resolve_exts_filter_template(exts_filter, ext) for ext in self.ext_instances]
 
         with ThreadPoolExecutor(max_workers=self.cfg.parallel) as thread_pool:
 
             # list of command to run asynchronously
             async_cmds = [thread_pool.submit(run_shell_cmd, cmd, stdin=stdin, hidden=True, fail_on_error=False,
-                                             asynchronous=True, task_id=idx) for (idx, (cmd, stdin)) in enumerate(cmds)]
+                                             asynchronous=True, task_id=idx)
+                          for (idx, ext_cmds) in enumerate(cmds)
+                          for (cmd, stdin) in ext_cmds]
 
+            pending_cmds_per_ext = [len(ext_cmds) for ext_cmds in cmds]
+            installed_exts = [True] * exts_cnt
             # process result of commands as they have completed running
             for done_task in concurrent.futures.as_completed(async_cmds):
                 res = done_task.result()
                 idx = res.task_id
                 ext_name = self.ext_instances[idx].name
                 self.log.info(f"exts_filter result for {ext_name}: exit code {res.exit_code}; output: {res.output}")
-                if res.exit_code == EasyBuildExit.SUCCESS:
-                    print_msg(f"skipping extension {ext_name}", log=self.log)
-                    installed_exts_ids.append(idx)
 
-                checked_exts_cnt += 1
-                exts_pbar_label = "skipping installed extensions "
-                exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
-                self.update_exts_progress_bar(exts_pbar_label)
+                if res.exit_code != EasyBuildExit.SUCCESS:
+                    installed_exts[idx] = False
+
+                pending_cmds_per_ext[idx] -= 1
+                if pending_cmds_per_ext[idx] == 0:
+                    checked_exts_cnt += 1
+                    exts_pbar_label = "skipping installed extensions "
+                    exts_pbar_label += "(%d/%d checked)" % (checked_exts_cnt, exts_cnt)
+                    self.update_exts_progress_bar(exts_pbar_label)
 
         # compose new list of extensions, skip over the ones that are already installed;
         # note: original order in extensions list should be preserved!
         retained_ext_instances = []
         for idx, ext in enumerate(self.ext_instances):
-            if idx not in installed_exts_ids:
+            if installed_exts[idx]:
+                print_msg(f"skipping extension {ext.name}", log=self.log)
+            else:
                 retained_ext_instances.append(ext)
                 self.log.info("Not skipping %s", ext.name)
 

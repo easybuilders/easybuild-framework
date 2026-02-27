@@ -1494,7 +1494,7 @@ class EasyBlockTest(EnhancedTestCase):
                 "ext1",
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
-                "ext4",
+                ("ext4", "0.2", {"source_tmpl": "dummy.tgz", "modulename": False}),
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
@@ -1510,20 +1510,23 @@ class EasyBlockTest(EnhancedTestCase):
         eb.installdir = config.install_path()
         eb.skip = True
 
-        self.mock_stdout(True)
-        eb.extensions_step(fetch=True)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            eb.extensions_step(fetch=True)
+            stdout = self.get_stdout()
+        logtxt = read_file(eb.logfile)
+        regexs = [r'Running .* shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
+        self.assert_multi_regex(regexs, logtxt)
+        # modulename: False skips the check
+        self.assertNotRegex(logtxt, r"Running .* shell command in .*:\n\sif \[ (False|ext4)")
 
         patterns = [
             r"^== skipping extension EXT-2",
             r"^== skipping extension ext3",
             r"^== installing extension ext1  \(1/2\)\.\.\.",
-            r"^== installing extension ext4  \(2/2\)\.\.\.",
+            r"^== installing extension ext4 0.2 \(2/2\)\.\.\.",
         ]
         for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            self.assertRegex(stdout, re.compile(pattern, re.M))
 
         # 'ext1' should be in eb.ext_instances
         eb_exts = [x.name for x in eb.ext_instances]
