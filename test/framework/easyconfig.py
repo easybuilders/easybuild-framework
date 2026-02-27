@@ -45,7 +45,6 @@ from unittest import TextTestRunner
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
-import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -79,13 +78,9 @@ from easybuild.tools.systemtools import get_cpu_architecture, get_shared_lib_ext
 
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import quote_str, quote_py_str
-from test.framework.github import GITHUB_TEST_ACCOUNT
-from test.framework.utilities import find_full_path
+from test.framework.github import requires_github_token
+from test.framework.utilities import find_full_path, requires_autopep8, requires_pycodestyle, requires_pygraph
 
-try:
-    import pycodestyle  # noqa # pylint:disable=unused-import
-except ImportError:
-    pass
 
 EXPECTED_DOTTXT_TOY_DEPS = """digraph graphname {
 toy;
@@ -111,9 +106,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-
-        github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
-        self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
         self.orig_easyconfig_DEPRECATED_EASYCONFIG_PARAMETERS = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS
         self.orig_easyconfig_DEPRECATED_EASYCONFIG_TEMPLATES = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_TEMPLATES
@@ -2779,24 +2771,17 @@ class EasyConfigTest(EnhancedTestCase):
                     'foo_extra1', '', 'moduleclass', '']
         self.assertEqual(param_regex.findall(ectxt), expected)
 
+    @requires_autopep8()
     def test_dump_autopep8(self):
         """Test dump() with autopep8 usage enabled (only if autopep8 is available)."""
-        try:
-            import autopep8 # noqa # pylint:disable=unused-import
-        except ImportError:
-            print("Skipping test_dump_autopep8, since autopep8 is not available")
-            return
         os.environ['EASYBUILD_DUMP_AUTOPEP8'] = '1'
         init_config()
         self.test_dump()
         del os.environ['EASYBUILD_DUMP_AUTOPEP8']
 
+    @requires_pycodestyle()
     def test_dump_extra(self):
         """Test EasyConfig's dump() method for files containing extra values"""
-
-        if 'pycodestyle' not in sys.modules:
-            print("Skipping test_dump_extra pycodestyle is not available")
-            return
 
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
@@ -2834,12 +2819,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         check_easyconfigs_style([testec])
 
+    @requires_pycodestyle()
     def test_dump_template(self):
         """ Test EasyConfig's dump() method for files containing templates"""
-
-        if 'pycodestyle' not in sys.modules:
-            print("Skipping test_dump_template pycodestyle is not available")
-            return
 
         rawtxt = '\n'.join([
             "easyblock = 'EB_foo'",
@@ -2923,12 +2905,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         check_easyconfigs_style([testec])
 
+    @requires_pycodestyle()
     def test_dump_comments(self):
         """ Test dump() method for files containing comments """
-
-        if 'pycodestyle' not in sys.modules:
-            print("Skipping test_dump_comments pycodestyle is not available")
-            return
 
         rawtxt = '\n'.join([
             "# #",
@@ -3278,16 +3257,9 @@ class EasyConfigTest(EnhancedTestCase):
         res = "sanity_check_paths = {\n    'files': [],\n    'dirs': ['lib/python%(pyshortver)s/site-packages'],\n}"
         self.assertEqual(to_template_str('sanity_check_paths', test_input, templ_const, templ_val), res)
 
+    @requires_pygraph()
     def test_dep_graph(self):
         """Test for dep_graph."""
-        try:
-            # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
-            # in which pkg_resources was removed;
-            # see also https://github.com/easybuilders/easybuild-framework/issues/5110
-            import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
-        except ImportError:
-            print("Skipping test_dep_graph, since pygraph is not available")
-            return
 
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
@@ -3318,19 +3290,11 @@ class EasyConfigTest(EnhancedTestCase):
         ordered_expected = '\n'.join(sorted(EXPECTED_DOTTXT_TOY_DEPS.split('\n')))
         self.assertEqual(ordered_dottxt, ordered_expected)
 
+    @requires_pygraph()
     def test_dep_graph_multi_deps(self):
         """
         Test for dep_graph using easyconfig that uses multi_deps.
         """
-        try:
-            # do specific import, since python-graph-dot is not compatible with setuptools >= 82.0.0
-            # in which pkg_resources was removed;
-            # see also https://github.com/easybuilders/easybuild-framework/issues/5110
-            import pygraph.classes.digraph  # noqa # pylint:disable=unused-import
-
-        except ImportError:
-            print("Skipping test_dep_graph_multi_deps, since pygraph is not available")
-            return
 
         test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
@@ -4918,10 +4882,11 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
 
-        if self.skip_github_tests:
-            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
-            return
+    @requires_github_token()
+    def test_det_copy_ec_specs_from_pr(self):
+        """Test det_copy_ec_specs function with --from-pr."""
 
+        cwd = os.getcwd()
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22345
         from_pr = 22345
