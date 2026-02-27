@@ -3659,32 +3659,44 @@ class FileToolsTest(EnhancedTestCase):
 
         topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         test_files = [
-            os.path.join('easybuild', 'tools', 'filetools.py'),
-            os.path.join('test', 'framework', 'modules.py'),
-            os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz'),
+            (topdir, os.path.join('test', 'framework', 'modules.py')),
+            (topdir, os.path.join('test', 'framework', 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')),
         ]
-        expected_entries = ['easybuild', 'test']
+        expected_entries = ['test']
         # test/framework/modules.py is not new
-        expected_new = [True, False, True]
+        expected_new = [False, True]
 
-        # we include setup.py conditionally because it may not be there,
+        # CI might copy the test folder, so find source dir
+        possible_dirs = [topdir,
+                         os.environ.get('GITHUB_WORKSPACE', ''),
+                         # Fallback: If we are run from the source dir without being installed
+                         os.getcwd(),
+                         ] + os.environ.get('PYTHONPATH', '').split(':')  # Or at least have it in PYTHONPATH
+
+        # we include those conditionally because it may not be there,
         # for example when running the tests on an actual easybuild-framework instalation,
         # as opposed to when running from a repository checkout...
         # setup.py is an important test case, since it has no parent directory
         # (it's straight in the easybuild-framework directory)
-        setup_py = 'setup.py'
-        if os.path.exists(os.path.join(topdir, setup_py)):
-            test_files.append(os.path.join(setup_py))
-            expected_entries.append(setup_py)
-            expected_new.append(True)
+        try:
+            srcdir = next(d for d in possible_dirs if os.path.basename(d) == 'easybuild-framework' and
+                          os.path.exists(os.path.join(d, 'easybuild', 'framework')))
+        except StopIteration:
+            print(f"Running on installation without source, skipping parts of the checks\nTried: {possible_dirs}")
+        else:
+            setup_py = 'setup.py'
+            filetools_py = os.path.join('easybuild', 'tools', 'filetools.py')
+            test_files.extend([(srcdir, setup_py), (srcdir, filetools_py)])
+            expected_entries.extend([setup_py, 'easybuild'])
+            expected_new.extend([True, True])
 
         # files being copied are expected to be in a directory named 'easybuild-framework',
         # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
         framework_dir = os.path.join(self.test_prefix, 'easybuild-framework')
-        for test_file in test_files:
-            ft.copy_file(os.path.join(topdir, test_file), os.path.join(framework_dir, test_file))
+        for root, test_file in test_files:
+            ft.copy_file(os.path.join(root, test_file), os.path.join(framework_dir, test_file))
 
-        test_paths = [os.path.join(framework_dir, f) for f in test_files]
+        test_paths = [os.path.join(framework_dir, f) for _root, f in test_files]
 
         res = ft.copy_framework_files(test_paths, target_dir)
 
@@ -3692,8 +3704,8 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(sorted(res.keys()), ['new', 'paths_in_repo'])
 
-        for idx, test_file in enumerate(test_files):
-            orig_path = os.path.join(topdir, test_file)
+        for idx, (root, test_file) in enumerate(test_files):
+            orig_path = os.path.join(root, test_file)
             copied_path = os.path.join(target_dir, test_file)
 
             self.assertExists(copied_path)
