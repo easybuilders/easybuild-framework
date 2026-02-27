@@ -580,8 +580,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         for line in iter(proc.stdout.readline, b''):
             _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
             stdout += line
+        proc.stdout.close()
         if split_stderr:
             stderr += proc.stderr.read() or b''
+            proc.stderr.close()
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 
