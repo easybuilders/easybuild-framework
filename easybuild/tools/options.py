@@ -48,7 +48,7 @@ import pwd
 from collections import OrderedDict
 
 import easybuild.tools.environment as env
-from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
+from easybuild.base import fancylogger
 from easybuild.base.fancylogger import setLogLevel
 from easybuild.base.generaloption import GeneralOption
 from easybuild.framework.easyblock import MODULE_ONLY_STEPS, EXTRACT_STEP, FETCH_STEP, EasyBlock
@@ -102,11 +102,12 @@ from easybuild.tools.modules import Lmod
 from easybuild.tools.robot import det_robot_path
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.package.utilities import avail_package_naming_schemes
-from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, OPTARCH_MAP_CHAR, OPTARCH_SEP, Compiler
+from easybuild.tools.toolchain.compiler import DEFAULT_OPT_LEVEL, Compiler, parse_optarch_string
 from easybuild.tools.toolchain.toolchain import DEFAULT_SEARCH_PATH_CPP_HEADERS, DEFAULT_SEARCH_PATH_LINKER, SEARCH_PATH
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.tools.repository.repository import avail_repositories
-from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, get_cpu_architecture, get_cpu_family
+from easybuild.tools.systemtools import DARWIN, UNKNOWN
+from easybuild.tools.systemtools import check_python_version, get_cpu_architecture, get_cpu_family
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
@@ -1100,34 +1101,10 @@ class EasyBuildOptions(GeneralOption):
             cleanup_and_exit(self.tmpdir)
 
     def _postprocess_optarch(self):
-        """Postprocess --optarch option."""
-        optarch_parts = self.options.optarch.split(OPTARCH_SEP)
-
-        # we expect to find a ':' in every entry in optarch, in case optarch is specified on a per-compiler basis
-        n_parts = len(optarch_parts)
-        map_char_cnts = [p.count(OPTARCH_MAP_CHAR) for p in optarch_parts]
-        if (n_parts > 1 and any(c != 1 for c in map_char_cnts)) or (n_parts == 1 and map_char_cnts[0] > 1):
-            raise EasyBuildError(
-                "The optarch option has an incorrect syntax: %s", self.options.optarch,
-                exit_code=EasyBuildExit.OPTION_ERROR
-            )
-        else:
-            # if there are options for different compilers, we set up a dict
-            if OPTARCH_MAP_CHAR in optarch_parts[0]:
-                optarch_dict = {}
-                for compiler, compiler_opt in [p.split(OPTARCH_MAP_CHAR) for p in optarch_parts]:
-                    if compiler in optarch_dict:
-                        raise EasyBuildError(
-                            "The optarch option contains duplicated entries for compiler %s: %s",
-                            compiler, self.options.optarch, exit_code=EasyBuildExit.OPTION_ERROR
-                        )
-                    else:
-                        optarch_dict[compiler] = compiler_opt
-                self.options.optarch = optarch_dict
-                self.log.info("Transforming optarch into a dict: %s", self.options.optarch)
-            # if optarch is not in mapping format, we do nothing and just keep the string
-            else:
-                self.log.info("Keeping optarch raw: %s", self.options.optarch)
+        """
+        Postprocess --optarch option.
+        """
+        self.options.optarch = parse_optarch_string(self.options.optarch, include_compiler=True)
 
     def _postprocess_close_pr_reasons(self):
         """Postprocess --close-pr-reasons options"""
