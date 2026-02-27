@@ -29,8 +29,10 @@ Unit tests for easyblock.py
 @author: Kenneth Hoste (Ghent University)
 @author: Maxime Boissonneault (Compute Canada)
 @author: Jan Andre Reuter (Juelich Supercomputing Centre)
+@author: Alexander Grund (TU Dresden)
 """
 import fileinput
+import itertools
 import os
 import re
 import shutil
@@ -2348,17 +2350,25 @@ class EasyBlockTest(EnhancedTestCase):
         toy_sources = os.path.join(testdir, 'sandbox', 'sources', 'toy')
         toy_ext_sources = os.path.join(toy_sources, 'extensions')
         toy_ec_file = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
-        toy_ec = process_easyconfig(toy_ec_file)[0]
+
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        new_ext_txt = "('baz', '0.0', {'nosource': True}),"  # With nosource option
+        new_ext_txt += "('barbar', '0.0', {'sources': [SOURCE_TAR_GZ]}),"  # With sources containing a list
+        test_ectxt = re.sub(r'\(name, version', new_ext_txt+r"\g<0>", read_file(toy_ec_file))
+        write_file(test_ec, test_ectxt)
+
+        toy_ec = process_easyconfig(test_ec)[0]
         toy_eb = EasyBlock(toy_ec['ec'])
 
         exts_file_info = toy_eb.collect_exts_file_info()
 
         self.assertIsInstance(exts_file_info, list)
-        self.assertEqual(len(exts_file_info), 4)
+        self.assertEqual(len(exts_file_info), 6)
 
         self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['sources'], ['bar-0.0.tar.gz'])
         self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
         bar_patch1 = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
@@ -2366,24 +2376,41 @@ class EasyBlockTest(EnhancedTestCase):
         bar_patch2 = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
         self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
+        self.assertEqual(len(exts_file_info[1]['checksums']), 1)
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['sources'], ['barbar-1.2.tar.gz'])
         self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-1.2.tar.gz'))
         self.assertNotIn('patches', exts_file_info[2])
+        self.assertEqual(len(exts_file_info[2]['checksums']), 0)
 
-        self.assertEqual(exts_file_info[3]['name'], 'toy')
-        self.assertEqual(exts_file_info[3]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[3]['name'], 'baz')
+        self.assertNotIn('sources', exts_file_info[3])
+        self.assertNotIn('sources', exts_file_info[3]['options'])
+        self.assertNotIn('src', exts_file_info[3])
         self.assertNotIn('patches', exts_file_info[3])
+        self.assertEqual(len(exts_file_info[3]['checksums']), 0)
+
+        self.assertEqual(exts_file_info[4]['name'], 'barbar')
+        self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[4]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[4])
+
+        self.assertEqual(exts_file_info[5]['name'], 'toy')
+        self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[5]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[5])
 
         # location of files is missing when fetch_files is set to False
         exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
 
         self.assertIsInstance(exts_file_info, list)
-        self.assertEqual(len(exts_file_info), 4)
+        self.assertEqual(len(exts_file_info), 6)
 
         self.assertEqual(exts_file_info[0], {'name': 'ulimit'})
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
+        self.assertEqual(exts_file_info[1]['sources'], ['bar-0.0.tar.gz'])
         self.assertNotIn('src', exts_file_info[1])
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
         self.assertNotIn('path', exts_file_info[1]['patches'][0])
@@ -2391,12 +2418,25 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertNotIn('path', exts_file_info[1]['patches'][1])
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
+        self.assertEqual(exts_file_info[2]['sources'], ['barbar-1.2.tar.gz'])
         self.assertNotIn('src', exts_file_info[2])
         self.assertNotIn('patches', exts_file_info[2])
 
-        self.assertEqual(exts_file_info[3]['name'], 'toy')
+        self.assertEqual(exts_file_info[3]['name'], 'baz')
+        self.assertNotIn('sources', exts_file_info[3])
+        self.assertNotIn('sources', exts_file_info[3]['options'])
         self.assertNotIn('src', exts_file_info[3])
         self.assertNotIn('patches', exts_file_info[3])
+
+        self.assertEqual(exts_file_info[4]['name'], 'barbar')
+        self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
+        self.assertNotIn('src', exts_file_info[4])
+        self.assertNotIn('patches', exts_file_info[4])
+
+        self.assertEqual(exts_file_info[5]['name'], 'toy')
+        self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
+        self.assertNotIn('src', exts_file_info[5])
+        self.assertNotIn('patches', exts_file_info[5])
 
         error_msg = "Can't verify checksums for extension files if they are not being fetched"
         self.assertErrorRegex(EasyBuildError, error_msg, toy_eb.collect_exts_file_info, fetch_files=False)
@@ -3333,21 +3373,21 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertEqual(res[0], expected)
             self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz:"))
 
+        ext_error_tmpl = "Checksums missing for one or more sources/patches of extension %s in "
+
         # check for main sources/patches should reveal two issues with checksums
         res = eb.check_checksums_for(eb.cfg)
         self.assertEqual(len(res), 2)
         run_checks()
 
         # full check also catches checksum issues with extensions
+        eb.json_checksums = {}  # Avoid picking up checksums from JSON file
         res = eb.check_checksums()
         self.assertEqual(len(res), 4)
         run_checks()
 
-        idx = 2
-        for ext in ['bar', 'barbar']:
-            expected = "Checksums missing for one or more sources/patches of extension %s in " % ext
-            self.assertTrue(res[idx].startswith(expected))
-            idx += 1
+        for ext, line in zip(('bar', 'barbar'), res[2:]):
+            self.assertIn(ext_error_tmpl % ext, line)
 
         # check whether tuple of alternative SHA256 checksums is correctly recognized
         toy_ec = os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
@@ -3410,6 +3450,24 @@ class EasyBlockTest(EnhancedTestCase):
         )]
         self.assertEqual(eb.check_checksums(), [])
 
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            # Templates of parent used in extensions
+            exts_list = [
+                ('%(namelower)s', version),
+            ]
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 1)
+        self.assertIn(ext_error_tmpl % 'uniq_1', res[0])
+
         # no checksums in easyconfig, then picked up from checksums.json next to easyconfig file
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         copy_file(toy_ec, test_ec)
@@ -3422,14 +3480,84 @@ class EasyBlockTest(EnhancedTestCase):
         expected += "found 1 sources + 2 patches vs 0 checksums"
         self.assertEqual(res[0], expected)
 
-        # all is fine is checksums.json is also copied
+        # all is fine if checksums.json is also copied
         copy_file(os.path.join(os.path.dirname(toy_ec), 'checksums.json'), self.test_prefix)
         eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
 
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            # Different ways of specifying sources, patches, template usages to make sure they are resolved correctly
+            exts_list = [
+                'ulimit',  # extension that is part of "standard library"
+                ('ext1', '0.0'), # Default source filename
+                ('ext2', '1.2', {
+                    'source_tmpl': "%(name)s.zip",
+                    'patches': ['%(name)s.patch'],
+                }),
+                ('ext3', '1.2', {
+                    'sources': "%(name)s.zip",
+                    'postinstallpatches': ['%(name)s.patch'],
+                }),
+                ('ext-%(namelower)s', version + '.14', {
+                    'sources': {'filename': '%(name)s-%(version)s.zip', 'download_filename': 'foo.tar'},
+                    'patches': [{'name': '%(name)s.patch'}],
+                }),
+                ('ext-ok1', version, {
+                    'checksums': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+                }),
+                ('ext-ok2', version, {
+                    'data_sources': {'filename': '%(name)s-%(version)s.zip', 'download_filename': 'bar.tar'},
+                    'checksums': '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
+                }),
+                ('ext-ok3', version, {
+                    'nosource': True
+                }),
+                ('ext-ok1', version, {
+                    'checksums': ['44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc']
+                }),
+                ('ext-ok2', version, {
+                    'nosource': True
+                }),
+            ]
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        res = eb.check_checksums()
+        self.assertEqual(len(res), 4)
+        extensions = ['ext1', 'ext2', 'ext3', 'ext-uniq_1']
+        for ext, line in zip(extensions, res):
+            self.assertIn(ext_error_tmpl % ext, line)
+
+        # Gradually add checksums to JSON dict and test that the associated extension checksums are now fine
+        sha256_cs = '81a3accc894592152f81814fbf133d39afad52885ab52c25018722c7bda92487'  # Valid format only
+        eb.json_checksums = {'ext1-0.0.tar.gz': sha256_cs}
+        for ext, line in itertools.zip_longest(extensions[1:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext2.zip'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[1:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext2.patch'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[2:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext3.zip'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[2:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext3.patch'] = sha256_cs
+        for ext, line in itertools.zip_longest(extensions[3:], eb.check_checksums(), fillvalue=''):
+            self.assertIn(ext_error_tmpl % ext, line)
+        eb.json_checksums['ext-uniq_1-3.14.zip'] = sha256_cs
+        eb.json_checksums['ext-uniq_1.patch'] = sha256_cs
+        self.assertEqual(eb.check_checksums(), [])
+
         # more checks for check_checksums_for method, which also takes regular dict as input
         self.assertEqual(eb.check_checksums_for({}), [])
-        expected = "Checksums missing for one or more sources/patches in test.eb: "
+        expected = f"Checksums missing for one or more sources/patches in {os.path.basename(self.eb_file)}: "
         expected += "found 1 sources + 0 patches vs 0 checksums"
         self.assertEqual(eb.check_checksums_for({'sources': ['test.tar.gz']}), [expected])
 
