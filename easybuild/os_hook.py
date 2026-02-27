@@ -1,88 +1,101 @@
 import importlib
+import importlib._bootstrap_external
 import importlib.abc
 import importlib.util
 import sys
 import types
 
 
-class SubprocessProxy(types.ModuleType):
+class ProxyLoader(importlib.abc.Loader):
+    """Loader to create our proxy instead of the real module."""
+    proxy_cls = None  # To be defined in subclasses
+
+    def create_module(self, spec):
+        # Import real module safely
+        sys.meta_path = [f for f in sys.meta_path if not isinstance(f, HookFinder)]
+        real_module = importlib.import_module(spec.name)
+        sys.meta_path.insert(0, HookFinder())
+
+        # Return proxy instead of real module
+        return self.proxy_cls(real_module)
+
+    def exec_module(self, module):
+        """Needs to be defined, can be used to alter the module after creation if needed."""
+
+
+class ModuleProxy(types.ModuleType):
+    """Generic proxy module to intercept attribute access."""
+    overrides = None
+    module_name = None
+
+    def __init__(self, real):
+        super().__init__(self.module_name)
+        self._real = real
+        # self._not_found = set()
+
+    def __getattr__(self, name):
+        # Intercept specific attributes
+        # if name in self.overrides:
+        #     # print(f"Intercepted access to {self.module_name}.{name}, returning override value.")
+        #     pass
+        # else:
+        #     self._not_found.add(name)
+        #     print("NOTFOUND", self.module_name, sorted(self._not_found))
+        return self.overrides.get(name, getattr(self._real, name))
+
+    def __dir__(self):
+        return dir(self._real)
+
+    @classmethod
+    def register_override(cls, name, value):
+        cls.overrides[name] = value
+
+    @classmethod
+    def loader(cls):
+        class Loader(ProxyLoader):
+            proxy_cls = cls
+        return Loader()
+
+
+class SubprocessProxy(ModuleProxy):
     """Proxy module to intercept subprocess attribute access."""
     overrides = {}
-
-    def __init__(self, real):
-        super().__init__("subprocess")
-        self._real = real
-
-    def __getattr__(self, name):
-        # Intercept specific attributes
-        return SubprocessProxy.overrides.get(name, getattr(self._real, name))
-
-    def __dir__(self):
-        return dir(self._real)
-
-    @classmethod
-    def register_override(cls, name, value):
-        cls.overrides[name] = value
+    module_name = "subprocess"
 
 
-class OSProxy(types.ModuleType):
+class OSProxy(ModuleProxy):
     """Proxy module to intercept os attribute access."""
     overrides = {}
+    module_name = "os"
 
-    def __init__(self, real):
-        super().__init__("os")
-        self._real = real
 
-    def __getattr__(self, name):
-        # Intercept specific attributes
-        return OSProxy.overrides.get(name, getattr(self._real, name))
+class PosixProxy(ModuleProxy):
+    """Proxy module to intercept posix attribute access."""
+    overrides = {}
+    module_name = "posix"
 
-    def __dir__(self):
-        return dir(self._real)
 
-    @classmethod
-    def register_override(cls, name, value):
-        cls.overrides[name] = value
+class PosixpathProxy(ModuleProxy):
+    """Proxy module to intercept posixpath attribute access."""
+    overrides = {}
+    module_name = "posixpath"
+
+
+proxy_map: dict[str, ModuleProxy] = {
+    "os": OSProxy,
+    "subprocess": SubprocessProxy,
+    "posix": PosixProxy,
+    "posixpath": PosixpathProxy,
+    # "builtins": BuiltinProxy,
+}
 
 
 class HookFinder(importlib.abc.MetaPathFinder):
     """Meta path finder to intercept imports of 'os' and return our proxy."""
     def find_spec(self, fullname, path, target=None):
-        if fullname == "os":
-            return importlib.util.spec_from_loader(fullname, OSLoader())
-        if fullname == "subprocess":
-            return importlib.util.spec_from_loader(fullname, SubprocessLoader())
+        if fullname in proxy_map:
+            return importlib.util.spec_from_loader(fullname, proxy_map[fullname].loader())
         return None
-
-
-class OSLoader(importlib.abc.Loader):
-    """Loader to create our OSProxy instead of the real os module."""
-    def create_module(self, spec):
-        # Import real os safely
-        sys.meta_path = [f for f in sys.meta_path if not isinstance(f, HookFinder)]
-        real_os = importlib.import_module("os")
-        sys.meta_path.insert(0, HookFinder())
-
-        # Return proxy instead of real module
-        return OSProxy(real_os)
-
-    def exec_module(self, module):
-        """Needs to be defined, can be used to alter the module after creation if needed."""
-
-
-class SubprocessLoader(importlib.abc.Loader):
-    """Loader to create our SubprocessProxy instead of the real subprocess module."""
-    def create_module(self, spec):
-        # Import real subprocess safely
-        sys.meta_path = [f for f in sys.meta_path if not isinstance(f, HookFinder)]
-        real_subprocess = importlib.import_module("subprocess")
-        sys.meta_path.insert(0, HookFinder())
-
-        # Return proxy instead of real module
-        return SubprocessProxy(real_subprocess)
-
-    def exec_module(self, module):
-        """Needs to be defined, can be used to alter the module after creation if needed."""
 
 
 def install_os_hook():
@@ -91,7 +104,7 @@ def install_os_hook():
         sys.meta_path.insert(0, HookFinder())
 
     # If already imported, replace in place
-    for name, proxy in [("os", OSProxy), ("subprocess", SubprocessProxy)]:
+    for name, proxy in proxy_map.items():
         if name in sys.modules and not isinstance(sys.modules[name], proxy):
             real_module = sys.modules[name]
             sys.modules[name] = proxy(real_module)
@@ -103,8 +116,13 @@ def install_os_hook():
     #   our hook for eg `os.path.expanduser` to work with `os.environ['HOME'] = '...'`
     # - shutil is used in CUDA sanity check with `shutil.which` to find `cuobjdum`
     system_modules = [
-        "sys", "tempfile", "os.path", "shutil"
+        "os", "sys", "tempfile", "posixpath", "shutil", "importlib", "io"
     ]
     for name in system_modules:
         if name in sys.modules:
+            # print(f"Reloading system module {name} to ensure it imports our os hook.")
             importlib.reload(sys.modules[name])
+
+    # Needed to override how import paths are resolved in case '' is in sys.path indicating the CWD.
+    # Cannot be reloaded without breaking stuff
+    importlib._bootstrap_external._os = sys.modules["posix"]
