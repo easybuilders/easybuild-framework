@@ -40,6 +40,7 @@ import re
 import shutil
 import stat
 import sys
+import tarfile
 import tempfile
 import textwrap
 import time
@@ -166,11 +167,39 @@ class FileToolsTest(EnhancedTestCase):
 
         foodir = os.path.join(tmpdir, 'foo')
         os.mkdir(foodir)
-        os.mkdir(os.path.join(tmpdir, '.bar'))
-        os.mkdir(os.path.join(tmpdir, 'easybuild'))
-
+        # No files
         os.chdir(tmpdir)
         self.assertTrue(os.path.samefile(foodir, ft.find_base_dir()))
+        # Uses specified path
+        os.chdir(self.test_prefix)
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir(tmpdir)))
+
+        # Only ignored files/folders
+        os.mkdir(os.path.join(tmpdir, '.bar'))
+        os.mkdir(os.path.join(tmpdir, 'easybuild'))
+        self.assertTrue(os.path.samefile(foodir, ft.find_base_dir(tmpdir)))
+
+        # Subfolder
+        bardir = os.path.join(foodir, 'bar')
+        os.mkdir(bardir)
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
+        # With ignored folder in subfolder
+        os.mkdir(os.path.join(bardir, '.bar'))
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
+
+        # Test recursiveness
+        subdir = os.path.join(bardir, 'sub')
+        os.mkdir(subdir)
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+        # Only file(s) in subfolder
+        ft.write_file(os.path.join(subdir, 'src.c'), 'code')
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+        ft.write_file(os.path.join(subdir, 'src2.c'), 'code')
+        self.assertTrue(os.path.samefile(subdir, ft.find_base_dir(tmpdir)))
+
+        # Files and folders in subfolder
+        os.mkdir(os.path.join(bardir, 'subdir'))
+        self.assertTrue(os.path.samefile(bardir, ft.find_base_dir(tmpdir)))
 
     def test_find_glob_pattern(self):
         """test find_glob_pattern function"""
@@ -1872,7 +1901,7 @@ class FileToolsTest(EnhancedTestCase):
         for with_backup in (True, False):
             update_build_option('backup_patched_files', with_backup)
             self.assertTrue(ft.apply_patch(toy_patch, path))
-            src_file = os.path.join(path, 'toy-0.0', 'toy.source')
+            src_file = os.path.join(path, 'toy.source')
             backup_file = src_file + '.orig'
             patched = ft.read_file(src_file)
             pattern = "I'm a toy, and very proud of it"
@@ -1889,7 +1918,7 @@ class FileToolsTest(EnhancedTestCase):
         toy_patch_gz = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
         with self.mocked_stdout_stderr():
             self.assertTrue(ft.apply_patch(toy_patch_gz, path))
-        patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
+        patched_gz = ft.read_file(os.path.join(path, 'toy.source'))
         pattern = "I'm a toy, and very very proud of it"
         self.assertIn(pattern, patched_gz)
 
@@ -1900,7 +1929,7 @@ class FileToolsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             ft.apply_patch(toy_patch_gz, path, options=' --reverse')
         # Change was really removed
-        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source')))
+        self.assertNotIn(pattern, ft.read_file(os.path.join(path, 'toy.source')))
 
         # test copying of files, both to an existing directory and a non-existing location
         test_file = os.path.join(self.test_prefix, 'foo.txt')
@@ -2478,31 +2507,46 @@ class FileToolsTest(EnhancedTestCase):
         foo = os.path.join(self.test_prefix, 'foo')
         self.assertErrorRegex(EasyBuildError, "Failed to change from .* to %s" % foo, ft.change_dir, foo)
 
+    def create_new_tarball(self, folder, filename=None):
+        """Create new tarball with contents of folder and return path"""
+        if filename is None:
+            tarball = tempfile.mktemp(suffix='.tar.gz')
+        else:
+            tarball = os.path.join(tempfile.mkdtemp(), filename)
+        with tarfile.open(tarball, "w:gz") as tar:
+            for name in glob.glob(os.path.join(folder, '*')):
+                tar.add(name, arcname=os.path.basename(name))
+        return tarball
+
     def test_extract_file(self):
         """Test extract_file"""
         cwd = os.getcwd()
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        toy_tarball = os.path.join(testdir, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'toy-0.0'))
+        ft.write_file(os.path.join(test_src, 'toy-0.0', 'toy.source'), 'content')
+        toy_tarball = self.create_new_tarball(test_src, filename='toy-0.0.tar.gz')
 
-        self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
+        extraction_path = os.path.join(self.test_prefix, 'extraction')  # New directory
+        toy_path = os.path.join(extraction_path, 'toy-0.0')
+        self.assertNotExists(os.path.join(toy_path, 'toy.source'))
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
         # still in same directory as before if change_into_dir is set to False
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
-        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+        ft.remove_dir(toy_path)
 
         toy_tarball_renamed = os.path.join(self.test_prefix, 'toy_tarball')
         shutil.copyfile(toy_tarball, toy_tarball_renamed)
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball_renamed, self.test_prefix, cmd="tar xfvz %s", change_into_dir=False)
+            path = ft.extract_file(toy_tarball_renamed, extraction_path, cmd="tar xfvz %s", change_into_dir=False)
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        shutil.rmtree(os.path.join(path, 'toy-0.0'))
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
+        ft.remove_dir(toy_path)
 
         # also test behaviour of extract_file under --dry-run
         build_options = {
@@ -2513,46 +2557,111 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
+        path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
         txt = self.get_stdout()
         self.mock_stdout(False)
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
+        self.assertTrue(os.path.samefile(path, extraction_path))
+        self.assertNotExists(toy_path)
         self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
-        self.assertExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
+            path = ft.extract_file(toy_tarball, extraction_path, forced=True, change_into_dir=False)
+        self.assertExists(os.path.join(toy_path, 'toy.source'))
+        self.assertTrue(os.path.samefile(path, toy_path))
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         build_options['extended_dry_run'] = False
         init_config(build_options=build_options)
 
-        ft.remove_dir(os.path.join(self.test_prefix, 'toy-0.0'))
+        ft.remove_dir(toy_path)
 
         ft.change_dir(cwd)
-        self.assertFalse(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertFalse(os.path.samefile(os.getcwd(), extraction_path))
 
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True)
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=True)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
 
-        self.assertTrue(os.path.samefile(path, self.test_prefix))
-        self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
+        self.assertTrue(os.path.samefile(path, toy_path))
+        self.assertTrue(os.path.samefile(os.getcwd(), toy_path))
         self.assertFalse(stderr)
         self.assertTrue("running shell command" in stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
-            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=True, trace=False)
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=True, trace=False)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
         self.assertFalse(stderr)
         self.assertFalse(stdout)
+
+        # Test tarball with multiple folders
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'multi-1.0'))
+        ft.write_file(os.path.join(test_src, 'multi-1.0', 'src.c'), 'content')
+        ft.mkdir(os.path.join(test_src, 'multi-bonus'))
+        ft.write_file(os.path.join(test_src, 'multi-bonus', 'src.c'), 'content')
+        test_tarball = self.create_new_tarball(test_src)
+        # Start fresh
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(test_tarball, extraction_path, change_into_dir=True)
+        self.assertTrue(os.path.samefile(path, extraction_path))
+        self.assertTrue(os.path.samefile(os.getcwd(), extraction_path))  # NOT a subfolder
+        self.assertExists(os.path.join(extraction_path, 'multi-1.0'))
+        self.assertExists(os.path.join(extraction_path, 'multi-bonus'))
+
+        # Extract multiple files with single folder to same folder, and file only
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'bar-0.0'))
+        ft.write_file(os.path.join(test_src, 'bar-0.0', 'bar.source'), 'content')
+        bar_tarball = self.create_new_tarball(test_src)
+
+        test_src = tempfile.mkdtemp()
+        ft.write_file(os.path.join(test_src, 'main.source'), 'content')
+        file_tarball = self.create_new_tarball(test_src)
+
+        ft.remove_dir(extraction_path)
+        ft.change_dir(cwd)
+        with self.mocked_stdout_stderr():
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, toy_path))
+            # Extracting the same tarball again detects the same folder
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, toy_path))
+
+            path = ft.extract_file(bar_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, os.path.join(extraction_path, 'bar-0.0')))
+
+            # Extracting the same tarball again now can't detect the same folder as there is another one next to it.
+            # Should fall back to the parent dir
+            path = ft.extract_file(toy_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+
+            # Contains just a file
+            path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+            # Same behavior when only a file is extracted
+            ft.remove_dir(extraction_path)
+            path = ft.extract_file(file_tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
+
+        # Folder and file
+        test_src = tempfile.mkdtemp()
+        ft.mkdir(os.path.join(test_src, 'multi-1.0'))
+        ft.write_file(os.path.join(test_src, 'multi-1.0', 'src.c'), 'content')
+        ft.write_file(os.path.join(test_src, 'main.c'), 'content')
+        test_tarball = self.create_new_tarball(test_src)
+        # When there is only a file or a file next to the folder the parent dir is returned
+        for tarball in (file_tarball, test_tarball):
+            ft.remove_dir(extraction_path)
+            with self.mocked_stdout_stderr():
+                path = ft.extract_file(tarball, extraction_path, change_into_dir=False)
+            self.assertTrue(os.path.samefile(path, extraction_path))
 
     def test_empty_dir(self):
         """Test empty_dir function"""
@@ -2586,8 +2695,7 @@ class FileToolsTest(EnhancedTestCase):
         txt = self.get_stdout()
         self.mock_stdout(False)
 
-        regex = re.compile("^directory [^ ]* emptied$")
-        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' found in: {txt}")
+        self.assertRegex(txt, "^directory [^ ]* emptied$")
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -2892,7 +3000,7 @@ class FileToolsTest(EnhancedTestCase):
         # to avoid accidental matches in other files already present (log files, etc.)
         ec_dir = tempfile.mkdtemp()
         test_ec = os.path.join(ec_dir, 'netCDF-C++-4.2-foss-2019a.eb')
-        ft.write_file(test_ec, ''),
+        ft.write_file(test_ec, '')
         for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
             var_defs, hits = ft.search_file([ec_dir], pattern, terse=True, filename_only=True)
             self.assertEqual(var_defs, [], msg='For pattern ' + pattern)
