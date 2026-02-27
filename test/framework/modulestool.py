@@ -111,7 +111,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
         os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         error_regex = ".*pattern .* not found in defined 'module' function"
-        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
+        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, mod_paths=["/nonexisting]"], testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -142,46 +142,47 @@ class ModulesToolTest(EnhancedTestCase):
 
     def test_lmod_specific(self):
         """Lmod-specific test (skipped unless Lmod is used as modules tool)."""
-        lmod_abspath = which(Lmod.COMMAND)
-        # only run this test if 'lmod' is available in $PATH
-        if lmod_abspath is not None:
-            build_options = {
-                'allow_modules_tool_mismatch': True,
-                'update_modules_tool_cache': True,
-            }
-            init_config(build_options=build_options)
+        build_options = {
+            'allow_modules_tool_mismatch': True,
+            'update_modules_tool_cache': True,
+        }
+        init_config(build_options=build_options)
 
+        lmod_abspath = next((cmd for cmd in (which(Lmod.COMMAND), os.environ.get(Lmod.COMMAND_ENVIRONMENT))
+                            if cmd and os.path.exists(cmd)), None)
+        if lmod_abspath is not None:
             lmod = Lmod(testing=True)
             self.assertTrue(os.path.samefile(lmod.cmd, lmod_abspath))
 
-            # drop any location where 'lmod' or 'spider' can be found from $PATH
-            paths = os.environ.get('PATH', '').split(os.pathsep)
-            new_paths = []
-            for path in paths:
-                lmod_cand_path = os.path.join(path, Lmod.COMMAND)
-                spider_cand_path = os.path.join(path, 'spider')
-                if not os.path.isfile(lmod_cand_path) and not os.path.isfile(spider_cand_path):
-                    new_paths.append(path)
-            os.environ['PATH'] = os.pathsep.join(new_paths)
+        # drop any location where 'lmod' or 'spider' can be found from $PATH
+        paths = os.environ.get('PATH', '').split(os.pathsep)
+        new_paths = []
+        for path in paths:
+            lmod_cand_path = os.path.join(path, Lmod.COMMAND)
+            spider_cand_path = os.path.join(path, 'spider')
+            if not os.path.isfile(lmod_cand_path) and not os.path.isfile(spider_cand_path):
+                new_paths.append(path)
+        os.environ['PATH'] = os.pathsep.join(new_paths)
 
-            # make sure $MODULEPATH contains path that provides some modules
-            os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+        # make sure $MODULEPATH contains path that provides some modules
+        os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
 
-            # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
-            fake_path = os.path.join(self.test_installpath, 'lmod')
-            fake_lmod_txt = '\n'.join([
-                '#!/bin/bash',
-                'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
-                'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ])
-            write_file(fake_path, fake_lmod_txt)
-            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
-            os.environ['LMOD_CMD'] = fake_path
-            init_config(build_options=build_options)
-            lmod = Lmod(testing=True)
-            self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
+        # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
+        fake_path = os.path.join(self.test_installpath, 'lmod')
+        fake_lmod_txt = '\n'.join([
+            '#!/bin/bash',
+            'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
+            'echo "os.environ[\'FOO\'] = \'foo\'"',
+        ])
+        write_file(fake_path, fake_lmod_txt)
+        os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+        os.environ['LMOD_CMD'] = fake_path
+        init_config(build_options=build_options)
+        lmod = Lmod(testing=True)
+        self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
 
-            # use correct full path for 'lmod' via $LMOD_CMD
+        # use correct full path for 'lmod' via $LMOD_CMD
+        if lmod_abspath is not None:
             os.environ['LMOD_CMD'] = lmod_abspath
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
@@ -194,18 +195,12 @@ class ModulesToolTest(EnhancedTestCase):
 
     def test_environment_modules_specific(self):
         """Environment Modules-specific test (skipped unless installed)."""
-        modulecmd_abspath = which(EnvironmentModules.COMMAND)
-        # only run this test if 'modulecmd.tcl' is installed
+        modulecmd_abspath = next((cmd for cmd in (which(EnvironmentModules.COMMAND),
+                                                  os.environ.get(EnvironmentModules.COMMAND_ENVIRONMENT))
+                                 if cmd and os.path.exists(cmd)), None)
+        # redefine '_module_raw' function with correct module command
         if modulecmd_abspath is not None:
-            # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
-            # command in EnvironmentModules)
-            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
-            os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
-            error_regex = ".*pattern .* not found in defined 'module' function"
-            self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
-
-            # redefine '_module_raw' function with correct module command
-            os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/modulecmd.tcl' bash $*`;\n}"
+            os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % modulecmd_abspath
             mt = EnvironmentModules(testing=True)
             self.assertIsInstance(mt.loaded_modules(), list)  # dummy usage
 
@@ -232,21 +227,28 @@ class ModulesToolTest(EnhancedTestCase):
                 self.assertTrue(os.path.exists(cache_fp))
                 os.remove(cache_fp)
 
-            # initialize Environment Modules tool with non-official version number
-            # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
-            fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
-            fake_modulecmd_txt = '\n'.join([
-                '#!/bin/bash',
-                'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
-                'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ])
-            write_file(fake_path, fake_modulecmd_txt)
-            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
-            os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
-            os.environ['MODULES_CMD'] = fake_path
-            EnvironmentModules.COMMAND = fake_path
-            mt = EnvironmentModules(testing=True)
-            self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+        # initialize Environment Modules tool with non-official version number
+        # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
+        fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
+        fake_modulecmd_txt = '\n'.join([
+            '#!/bin/bash',
+            'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
+            'echo "os.environ[\'FOO\'] = \'foo\'"',
+        ])
+        write_file(fake_path, fake_modulecmd_txt)
+        os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+        os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
+        os.environ['MODULES_CMD'] = fake_path
+        EnvironmentModules.COMMAND = fake_path
+        mt = EnvironmentModules(testing=True)
+        self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+
+        # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
+        # command in EnvironmentModules)
+        os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
+        os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
+        error_regex = ".*pattern .* not found in defined 'module' function"
+        self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
 
     def tearDown(self):
         """Testcase cleanup."""
