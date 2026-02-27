@@ -2823,7 +2823,9 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     # Ensure URL is also processed correctly by tools that don't collapse double slashes
     url = url.rstrip('/')
-    clone_cmd.append(f'{url}/{repo_name}.git')
+    repo_url = f'{url}/{repo_name}.git'
+
+    clone_cmd.append(repo_url)
 
     if clone_into:
         clone_cmd.append(clone_into)
@@ -2843,6 +2845,10 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # if a specific commit is asked for, check it out
     if commit:
         checkout_cmd.append(f"{commit}")
+    # The commit might not be reachable from the default branch that is fetched, so fetch it explicitely
+    # Only works for long commit hashes
+    if len(commit) == 40:
+        run_shell_cmd(f'{git_cmd} fetch {repo_url}', hidden=True, verbose_dry_run=True, work_dir=tmpdir)
     elif tag:
         checkout_cmd.append(f"refs/tags/{tag}")
 
