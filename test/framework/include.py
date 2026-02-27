@@ -246,7 +246,7 @@ class IncludeTest(EnhancedTestCase):
     def test_is_software_specific_easyblock(self):
         """Test is_software_specific_easyblock function."""
 
-        self.assertErrorRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
+        self.assertRaisesRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
 
         testdir = os.path.dirname(os.path.abspath(__file__))
         test_easyblocks = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')

@@ -103,7 +103,7 @@ class HooksTest(EnhancedTestCase):
     def test_load_hooks(self):
         """Test for load_hooks function."""
 
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
+        self.assertRaisesRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
 
         hooks = load_hooks(self.test_hooks_pymod)
 
@@ -141,7 +141,7 @@ class HooksTest(EnhancedTestCase):
 
         # clearing cached hooks results in error because hooks file is not found
         easybuild.tools.hooks._cached_hooks = {}
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
+        self.assertRaisesRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
 
     def test_find_hook(self):
         """Test for find_hook function."""
@@ -321,7 +321,7 @@ class HooksTest(EnhancedTestCase):
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
         error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
+        self.assertRaisesRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 
 def suite(loader=None):

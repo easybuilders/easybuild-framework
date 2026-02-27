@@ -1297,8 +1297,8 @@ class DocsTest(EnhancedTestCase):
         res = mk_rst_table(titles, table)
         self.assertEqual(res, expected_rst)
 
-        self.assertErrorRegex(ValueError, "Number of titles/columns should be equal", mk_md_table, titles, [])
-        self.assertErrorRegex(ValueError, "Number of titles/columns should be equal", mk_rst_table, titles, [])
+        self.assertRaisesRegex(ValueError, "Number of titles/columns should be equal", mk_md_table, titles, [])
+        self.assertRaisesRegex(ValueError, "Number of titles/columns should be equal", mk_rst_table, titles, [])
 
     def test_title_and_table(self):
         """
@@ -1338,8 +1338,8 @@ class DocsTest(EnhancedTestCase):
         self.assertEqual(res, expected_rst)
 
         error_pattern = "Number of titles/columns should be equal"
-        self.assertErrorRegex(ValueError, error_pattern, md_title_and_table, '', titles, [])
-        self.assertErrorRegex(ValueError, error_pattern, rst_title_and_table, '', titles, [('val 11', 'val 12')])
+        self.assertRaisesRegex(ValueError, error_pattern, md_title_and_table, '', titles, [])
+        self.assertRaisesRegex(ValueError, error_pattern, rst_title_and_table, '', titles, [('val 11', 'val 12')])
 
     def test_help(self):
         """

@@ -281,9 +281,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(convert_value_type('-123', int), -123)
         self.assertEqual(convert_value_type('1.6', float), 1.6)
         self.assertEqual(convert_value_type('5', float), 5.0)
-        self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '', int)
+        self.assertRaisesRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '', int)
         # 1.6 can't be parsed as an int (yields "invalid literal for int() with base 10" error)
-        self.assertErrorRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '1.6', int)
+        self.assertRaisesRegex(EasyBuildError, "Converting type of .* failed", convert_value_type, '1.6', int)
 
         # to list of strings
         self.assertEqual(convert_value_type('foo', LIST_OF_STRINGS), ['foo'])
@@ -306,7 +306,7 @@ class TypeCheckingTest(EnhancedTestCase):
         # no conversion function available for specific type
         class Foo():
             pass
-        self.assertErrorRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
+        self.assertRaisesRegex(EasyBuildError, "No conversion function available", convert_value_type, None, Foo)
 
     def test_to_toolchain_dict(self):
         """ Test toolchain string to dict conversion """
@@ -330,22 +330,22 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_toolchain_dict(tc), tc)
 
         # wrong type
-        self.assertErrorRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
-                              to_toolchain_dict, 1000)
+        self.assertRaisesRegex(EasyBuildError, r"Conversion of .* \(type .*\) to toolchain dict is not supported",
+                               to_toolchain_dict, 1000)
 
         # wrong number of elements
         errstr = "Can not convert .* to toolchain dict. Expected 2 or 3 elements"
-        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, True, a")
-        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel")
-        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
+        self.assertRaisesRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, True, a")
+        self.assertRaisesRegex(EasyBuildError, errstr, to_toolchain_dict, "intel")
+        self.assertRaisesRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', 'False', '7'])
 
         # invalid truth value
         errstr = "Invalid truth value .*"
-        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, foo")
-        self.assertErrorRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
+        self.assertRaisesRegex(EasyBuildError, errstr, to_toolchain_dict, "intel, 2015, foo")
+        self.assertRaisesRegex(EasyBuildError, errstr, to_toolchain_dict, ['gcc', '4', '7'])
 
         # missing keys
-        self.assertErrorRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})
+        self.assertRaisesRegex(EasyBuildError, "Incorrect set of keys", to_toolchain_dict, {'name': 'intel'})
 
     def test_to_dependency(self):
         """ Test dependency dict to tuple conversion """
@@ -398,14 +398,14 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # extra keys ruin it
         foo_dict.update({'extra_key': 'bogus'})
-        self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
+        self.assertRaisesRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, foo_dict)
 
         # no name/version
-        self.assertErrorRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
-                              to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
+        self.assertRaisesRegex(EasyBuildError, "Can not parse dependency without name and version: .*",
+                               to_dependency, {'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'})
         # too many values
         dep_spec = {'lib': '1.2.8', 'foo': '1.3', 'toolchain': 'lib, 1.2.8', 'versionsuffix': 'suff'}
-        self.assertErrorRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
+        self.assertRaisesRegex(EasyBuildError, r"Found unexpected \(key, value\) pair: .*", to_dependency, dep_spec)
 
     def test_to_dependencies(self):
         """Test to_dependencies function."""
@@ -614,7 +614,7 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertFalse(check_element_types({'one': 1}, {'two': int}))
 
         # errors
-        self.assertErrorRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
+        self.assertRaisesRegex(EasyBuildError, "Don't know how to check element types .*", check_element_types, 1, [])
 
     def test_to_list_of_strings(self):
         """Test to_list_of_strings function."""
@@ -634,9 +634,9 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # proper error reporting for other values
         error_pattern = r"Don't know how to convert provided value to a list of strings: "
-        self.assertErrorRegex(EasyBuildError, error_pattern + '123', to_list_of_strings, 123)
-        self.assertErrorRegex(EasyBuildError, error_pattern + 'True', to_list_of_strings, True)
-        self.assertErrorRegex(EasyBuildError, error_pattern, to_list_of_strings, [('foo', 'bar')])
+        self.assertRaisesRegex(EasyBuildError, error_pattern + '123', to_list_of_strings, 123)
+        self.assertRaisesRegex(EasyBuildError, error_pattern + 'True', to_list_of_strings, True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, to_list_of_strings, [('foo', 'bar')])
 
     def test_to_list_of_strings_and_tuples(self):
         """Test to_list_of_strings_and_tuples function."""
@@ -657,12 +657,12 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # conversion failures
         error_regex = "Expected value to be a list"
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 'foo')
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 1)
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, {'foo': 'bar'})
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 'foo')
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, 1)
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples, {'foo': 'bar'})
         error_msg = "Expected elements to be of type string, tuple or list"
-        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, ['foo', 1])
-        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, (1,))
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, ['foo', 1])
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples, (1,))
 
     def test_to_list_of_strings_and_tuples_and_dicts(self):
         """Test to_list_of_strings_and_tuples_and_dicts function."""
@@ -689,13 +689,13 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # conversion failures
         error_regex = "Expected value to be a list"
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 'foo')
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 1)
-        self.assertErrorRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, {'foo': 'bar'})
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 'foo')
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, 1)
+        self.assertRaisesRegex(EasyBuildError, error_regex, to_list_of_strings_and_tuples_and_dicts, {'foo': 'bar'})
         error_msg = "Expected elements to be of type string, tuple, dict or list"
-        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, ['foo', 1])
-        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1,))
-        self.assertErrorRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1, {'foo': 'bar'}))
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, ['foo', 1])
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1,))
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_list_of_strings_and_tuples_and_dicts, (1, {'foo': 'bar'}))
 
     def test_to_sanity_check_paths_dict(self):
         """Test to_sanity_check_paths_dict function."""
@@ -720,11 +720,11 @@ class TypeCheckingTest(EnhancedTestCase):
             self.assertEqual(to_sanity_check_paths_dict(inp), out)
 
         # conversion failures
-        self.assertErrorRegex(EasyBuildError, "Expected value to be a dict", to_sanity_check_paths_dict, [])
+        self.assertRaisesRegex(EasyBuildError, "Expected value to be a dict", to_sanity_check_paths_dict, [])
         error_msg = "Expected value to be a list"
-        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': 'foo', 'dirs': []})
         error_msg = "Expected elements to be of type string, tuple/list or dict"
-        self.assertErrorRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
+        self.assertRaisesRegex(EasyBuildError, error_msg, to_sanity_check_paths_dict, {'files': [], 'dirs': [1]})
 
     def test_to_checksums(self):
         """Test to_checksums function."""
@@ -786,7 +786,7 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # Error detection
         wrong_nesting = [('1stchecksum', ('md5', ('md5sum', 'altmd5sum')))]
-        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, wrong_nesting)
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, wrong_nesting)
         correct_nesting = [('1stchecksum', ('md5', 'md5sum'), ('md5', 'altmd5sum'))]
         self.assertEqual(to_checksums(correct_nesting), correct_nesting)
         # YEB (YAML EC) doesn't has tuples so it uses lists instead which need to get converted
@@ -796,9 +796,9 @@ class TypeCheckingTest(EnhancedTestCase):
         self.assertEqual(to_checksums(correct_nesting_yeb_conv), correct_nesting_yeb_conv)
 
         unexpected_set = [('1stchecksum', {'md5', 'md5sum'})]
-        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, unexpected_set)
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected type.*md5', to_checksums, unexpected_set)
         unexpected_dict = [{'src': ('md5sum', {'src': 'shasum'})}]
-        self.assertErrorRegex(EasyBuildError, 'Unexpected type.*shasum', to_checksums, unexpected_dict)
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected type.*shasum', to_checksums, unexpected_dict)
         correct_dict = [{'src': ('md5sum', 'shasum')}]
         self.assertEqual(to_checksums(correct_dict), correct_dict)
         correct_dict_1 = [{'src': [['md5', 'md5sum'], ['sha', 'shasum']]}]
@@ -812,10 +812,10 @@ class TypeCheckingTest(EnhancedTestCase):
             [{'src': ('md5sum', None)}],
             [{'src': ['md5sum', None]}],
         ]
-        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[0])
-        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[1])
-        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[2])
-        self.assertErrorRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[3])
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[0])
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[1])
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[2])
+        self.assertRaisesRegex(EasyBuildError, 'Unexpected None', to_checksums, unexpected_Nones[3])
 
     def test_ensure_iterable_license_specs(self):
         """Test ensure_iterable_license_specs function."""
@@ -829,15 +829,15 @@ class TypeCheckingTest(EnhancedTestCase):
 
         # Test unacceptable inputs
         error_msg = "Unsupported type .* for easyconfig parameter 'license_file'!"
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, 42)
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, {'1': 'foo'})
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [None])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42, 'foo'])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [['foo']])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [(42, 'foo')])
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
-        self.assertErrorRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, 42)
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, {'1': 'foo'})
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [None])
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42])
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [42, 'foo'])
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [['foo']])
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, [(42, 'foo')])
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42,))
+        self.assertRaisesRegex(EasyBuildError, error_msg, ensure_iterable_license_specs, (42, 'foo'))
 
 
 def suite(loader=None):
