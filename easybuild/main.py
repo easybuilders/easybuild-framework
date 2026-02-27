@@ -87,7 +87,7 @@ from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.utilities import time2str
+from easybuild.tools.utilities import time2str, trace_msg
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, UNKNOWN_EASYBLOCKS_VERSION
 from easybuild.tools.version import different_major_versions
 
@@ -96,7 +96,7 @@ _log = None
 
 # Info needed for bwrap
 BWRAP_INFO = {
-    'modules_to_install': [],
+    'modules_to_install': set(),
     'installpath_software': '',
     'installpath_modules': '',
     'bwrap_installpath': '',
@@ -596,7 +596,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
 
     # set global values for bubblewrap
     elif options.bwrap:
-        BWRAP_INFO['modules_to_install'] = dry_run(easyconfigs, modtool, modules_to_install=True)
+        BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
         BWRAP_INFO['installpath_software'] = install_path(typ='software')
         BWRAP_INFO['installpath_modules'] = install_path(typ='modules')
         BWRAP_INFO['bwrap_installpath'] = options.bwrap_installpath
@@ -881,7 +881,8 @@ def rerun_with_bwrap():
         cmd = bwrap_cmd + eb_cmd + bwrap_options
         _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
 
-        print_msg(f'Building/installing in bwrap namespace at {bwrap_installpath}')
+        print_msg('Building/installing in bwrap namespace')
+        trace_msg(f'bwrap prefix: {" ".join(bwrap_cmd)}')
 
         os.environ['EB_BWRAP_CMD'] = ' '.join(bwrap_cmd)
         sys.exit(subprocess.run(cmd).returncode)
