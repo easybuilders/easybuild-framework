@@ -272,6 +272,11 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
 
     # Make script that sets up bash shell with specified environment and working directory
     cmd_fp = os.path.join(tmpdir, 'cmd.sh')
+    # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
+    launch_cmd = 'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"'
+    bwrap_cmd = os.getenv('EB_BWRAP_CMD')
+    if bwrap_cmd:
+        launch_cmd = ' '.join([bwrap_cmd, launch_cmd])
     with open(cmd_fp, 'w') as fid:
         fid.write('#!/usr/bin/env bash\n')
         fid.write('# Run this script to set up a shell environment that EasyBuild used to run the shell command\n')
@@ -279,9 +284,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
             'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
             f'echo "# Shell for the command: \'"{shlex.quote(cmd_str)}"\'"',
             'echo "# Use command history, exit to stop"',
-            # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
-            'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
-            ]))
+            launch_cmd,
+        ]))
     os.chmod(cmd_fp, 0o775)
 
     return cmd_fp
