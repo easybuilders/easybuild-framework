@@ -49,7 +49,6 @@ import inspect
 import itertools
 import os
 import pathlib
-import platform
 import re
 import shutil
 import signal
@@ -65,7 +64,6 @@ from html.parser import HTMLParser
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
-from easybuild.tools import LooseVersion
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
 from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
