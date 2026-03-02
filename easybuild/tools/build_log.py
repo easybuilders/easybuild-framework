@@ -339,7 +339,7 @@ def print_msg(msg, *args, **kwargs):
             from rich.markup import escape
             from rich.console import Console
 
-            console = Console(force_terminal=sys.stdout.isatty())
+            console = Console()
             with console.capture() as capture:
                 console.print(escape(msg), end="")
 
