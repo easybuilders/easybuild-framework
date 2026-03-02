@@ -336,14 +336,14 @@ def print_msg(msg, *args, **kwargs):
             msg += '\n'
 
         if use_rich():
-            from io import StringIO
             from rich.markup import escape
             from rich.console import Console
 
-            buff = StringIO()
-            console = Console(file=buff, force_terminal=sys.stdout.isatty())
-            console.print(escape(msg), end='')
-            msg = buff.getvalue()
+            console = Console(force_terminal=sys.stdout.isatty())
+            with console.capture() as capture:
+                console.print(escape(msg), end="")
+
+            msg = capture.get()
 
         if stderr:
             sys.stderr.write(msg)
