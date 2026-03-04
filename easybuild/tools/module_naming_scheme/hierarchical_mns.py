@@ -35,8 +35,7 @@ import os
 import re
 
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 
