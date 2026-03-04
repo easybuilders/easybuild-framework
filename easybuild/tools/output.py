@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # #
-# Copyright 2021-2025 Ghent University
+# Copyright 2021-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -39,6 +39,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 
 try:
+    import rich.markup
     from rich.console import Console, Group
     from rich.live import Live
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -88,6 +89,13 @@ def colorize(txt, color):
         raise EasyBuildError("Unknown color: %s", color)
 
     return coltxt
+
+
+def escape_for_rich(txt):
+    """Make sure the text can be printed with rich if that is used"""
+    if use_rich():
+        txt = rich.markup.escape(txt)
+    return txt
 
 
 class DummyRich:
@@ -392,18 +400,19 @@ def print_checks(checks_data):
             print('\n'.join(lines))
 
 
-def print_error(error_msg, rich_highlight=True):
+def print_error(error_msg, rich_highlight=True, disable_rich=False):
     """
-    Print error message, using a Rich Console instance if possible.
+    Print error message, using a Rich Console instance if possible unless disable_rich=True.
     Newlines before/after message are automatically added.
 
     :param rich_highlight: boolean indicating whether automatic highlighting by Rich should be enabled
     """
-    if use_rich():
+    error_msg = f'\n\n{error_msg}\n'
+    if not disable_rich and use_rich():
         console = Console(stderr=True)
-        console.print('\n\n' + error_msg + '\n', highlight=rich_highlight)
+        console.print(error_msg, highlight=rich_highlight)
     else:
-        sys.stderr.write('\n' + error_msg + '\n\n')
+        print(error_msg, file=sys.stderr)
 
 
 # this constant must be defined at the end, since functions used as values need to be defined

@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -49,7 +49,6 @@ import inspect
 import itertools
 import os
 import pathlib
-import platform
 import re
 import shutil
 import signal
@@ -65,7 +64,6 @@ from html.parser import HTMLParser
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
-from easybuild.tools import LooseVersion
 # import build_log must stay, to use of EasyBuildLog
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
 from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
@@ -2550,14 +2548,12 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         if os.path.exists(target_path) and os.stat(target_path).st_mode & stat.S_IWUSR:
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
-                        pyver = LooseVersion(platform.python_version())
-                        if pyver >= LooseVersion('3.7'):
+                        # If we have anything other than a PermissionError we bail out
+                        if not isinstance(err, PermissionError):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
-                        elif LooseVersion('3.7') > pyver >= LooseVersion('3'):
-                            if not isinstance(err, PermissionError):
-                                raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
-                        # double-check whether the copy actually succeeded
+                        # double-check whether the copy actually succeeded (or may have already happened
+                        # if the contents are the same)
                         if not os.path.exists(target_path) or not filecmp.cmp(path, target_path, shallow=False):
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
@@ -2569,8 +2565,10 @@ def copy_file(path, target_path, force_in_dry_run=False):
                         except OSError as err:
                             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
-                        msg = ("Failed to copy extended attributes from file %s to %s, due to a bug in shutil (see "
-                               "https://bugs.python.org/issue24538). Copy successful with workaround.")
+                        msg = ("In some cases, we may fail to copy extended attributes from file %s to %s, due to a "
+                               "bug in shutil (see https://bugs.python.org/issue24538). We may also have already "
+                               "copied the file over so we just check the contents and update the xattrs. "
+                               "Copy successful with workaround.")
                         _log.info(msg, path, target_path)
 
                 elif os.path.islink(path):
@@ -2821,6 +2819,8 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # checkout is done separately below for specific commits
     clone_cmd.append('--no-checkout')
 
+    # Ensure URL is also processed correctly by tools that don't collapse double slashes
+    url = url.rstrip('/')
     clone_cmd.append(f'{url}/{repo_name}.git')
 
     if clone_into:

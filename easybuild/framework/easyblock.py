@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -81,7 +81,7 @@ from easybuild.framework.extension import Extension, resolve_exts_filter_templat
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
-from easybuild.tools.build_log import print_error, print_msg, print_warning
+from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
@@ -172,6 +172,14 @@ class EasyBlock:
             _log.nosupport("Found 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
 
         return extra
+
+    @staticmethod
+    def src_parameter_names():
+        """
+        Return list of EasyConfig parameter that contribute to the sources in the `src` member
+        (or equivalently to the `sources` parameter of a parsed EasyConfig)
+        """
+        return ['sources']
 
     #
     # INIT
@@ -1919,7 +1927,7 @@ class EasyBlock:
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name], log_changes=False)
+                self.modules_tool.unload([self.short_mod_name], hide_output=True)
                 self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
@@ -2982,7 +2990,8 @@ class EasyBlock:
             if os.path.isabs(self.rpath_wrappers_dir):
                 _log.info(f"Using {self.rpath_wrappers_dir} to store/use RPATH wrappers")
             else:
-                raise EasyBuildError(f"Path used for rpath_wrappers_dir is not an absolute path: {path}")
+                raise EasyBuildError("Path used for rpath_wrappers_dir is not an absolute path: %s",
+                                     self.rpath_wrappers_dir)
 
         if self.iter_idx > 0:
             # reset toolchain for iterative runs before preparing it again
@@ -4358,7 +4367,7 @@ class EasyBlock:
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
-        if self.toolchain.mpi_family() and self.toolchain.mpi_family() in toolchain.OPENMPI:
+        if self.toolchain.mpi_family() and self.toolchain.mpi_family() == toolchain.OPENMPI:
             env.setvar('OMPI_MCA_rmaps_base_oversubscribe', '1')
 
         # run sanity checks from an empty temp directory
@@ -5066,8 +5075,8 @@ def build_and_install_one(ecdict, init_env):
         app = app_class(ecdict['ec'])
         _log.info("Obtained application instance for %s (easyblock: %s)" % (name, easyblock))
     except EasyBuildError as err:
-        print_error("Failed to get application instance for %s (easyblock: %s): %s" % (name, easyblock, err.msg),
-                    silent=silent)
+        print_error_and_exit("Failed to get application instance for %s (easyblock: %s): %s", name, easyblock, err.msg,
+                             silent=silent, exit_code=err.exit_code)
 
     # application settings
     stop = build_option('stop')
@@ -5603,8 +5612,8 @@ def inject_checksums(ecs, checksum_type):
         if app.src:
             placeholder = '# PLACEHOLDER FOR SOURCES/PATCHES WITH CHECKSUMS'
 
-            # grab raw lines for source_urls, sources, data_sources, patches
-            keys = ['data_sources', 'patches', 'source_urls', 'sources']
+            # grab raw lines for the following params
+            keys = ['data_sources', 'source_urls'] + app.src_parameter_names() + ['patches']
             raw = {}
             for key in keys:
                 regex = re.compile(r'^(%s(?:.|\n)*?\])\s*$' % key, re.M)
@@ -5615,15 +5624,11 @@ def inject_checksums(ecs, checksum_type):
 
             _log.debug("Raw lines for %s easyconfig parameters: %s", '/'.join(keys), raw)
 
-            # inject combination of source_urls/sources/patches/checksums into easyconfig
-            # by replacing first occurence of placeholder that was put in place
-            sources_raw = raw.get('sources', '')
-            data_sources_raw = raw.get('data_sources', '')
-            source_urls_raw = raw.get('source_urls', '')
-            patches_raw = raw.get('patches', '')
+            # inject combination of the grabbed lines and the checksums into the easyconfig
+            # by replacing first the occurence of the placeholder that was put in place
+            raw_text = ''.join(raw.get(key, '') for key in keys)
             regex = re.compile(placeholder + '\n', re.M)
-            ectxt = regex.sub(source_urls_raw + sources_raw + data_sources_raw + patches_raw + checksums_txt + '\n',
-                              ectxt, count=1)
+            ectxt = regex.sub(raw_text + checksums_txt + '\n', ectxt, count=1)
 
             # get rid of potential remaining placeholders
             ectxt = regex.sub('', ectxt)

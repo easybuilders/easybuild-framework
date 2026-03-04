@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -312,6 +312,7 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
+        'debug_module_cmds',
         'dump_autopep8',
         'dump_env_script',
         'enforce_checksums',

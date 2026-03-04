@@ -1,0 +1,36 @@
+#%Module
+proc ModulesHelp { } {
+    puts stderr {
+
+Description
+===========
+C, C++ and Fortran compilers included with the NVIDIA HPC SDK
+
+
+More information
+================
+ - Homepage: https://developer.nvidia.com/hpc-sdk/
+    }
+}
+
+module-whatis {Description: C, C++ and Fortran compilers included with the NVIDIA HPC SDK}
+module-whatis {Homepage: https://developer.nvidia.com/hpc-sdk/}
+module-whatis {URL: https://developer.nvidia.com/hpc-sdk/}
+
+set root /prefix/software/nvidia-compilers/25.9
+
+conflict nvidia-compilers
+
+if { ![ is-loaded GCCcore/12.3.0 ] } {
+    module load GCCcore/12.3.0
+}
+
+if { ![ is-loaded binutils/2.40-GCCcore-12.3.0 ] } {
+    module load binutils/2.40-GCCcore-12.3.0
+}
+
+setenv	EBROOTNVIDIAMINCOMPILERS		"$root"
+setenv	EBVERSIONNVIDIAMINCOMPILERS		"25.9"
+setenv	EBDEVELNVIDIAMINCOMPILERS		"$root/easybuild/nvidia-compilers-25.9-easybuild-devel"
+
+# Built with EasyBuild version 5.2.1.dev0-rea8433dcf5e6edea3e72ad9bd9e23023ecc6b228
