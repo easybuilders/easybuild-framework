@@ -36,7 +36,7 @@ import re
 
 from easybuild.toolchains.gcccore import GCCcore
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 
@@ -250,7 +250,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             if any(ec.name.startswith(x) for x in CRAY_TOOLCHAIN_NAME_PREFIXES):
                 paths.append(os.path.join(TOOLCHAIN, ec.name, ec.version))
             # special case for NVHPC toolchains that lack standalone MPI component
-            elif ec.name == "NVHPC" and LooseVersion(ec.version) >= LooseVersion('25.0'):
+            elif ec.name == "NVHPC" and "GCCcore" not in {dep['name'] for dep in ec['dependencies']}:
                 fullver = self.det_full_version(ec)
                 paths.append(os.path.join(MPI, "nvidia-compilers", fullver, ec.name, fullver))
 
