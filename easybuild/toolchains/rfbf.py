@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gfbf compiler toolchain (includes GCC, FlexiBLAS and FFTW)
+EasyBuild support for rfbf compiler toolchain (includes ROCm-LLVM, FlexiBLAS and FFTW)
 
 Authors:
 

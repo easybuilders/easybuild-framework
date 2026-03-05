@@ -42,7 +42,7 @@ from easybuild.tools import LooseVersion
 
 class RFoss(Rompi, FlexiBLAS, ScaLAPACK, Fftw):
     """Compiler toolchain with ROCm-LLVM, OpenMPI, FlexiBLAS, ScaLAPACK and FFTW."""
-    NAME = 'lfoss'
+    NAME = 'rfoss'
     SUBTOOLCHAIN = [
         Rompi.NAME,
         Rfbf.NAME

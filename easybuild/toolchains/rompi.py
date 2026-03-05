@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for lompi compiler toolchain (includes LLVM and OpenMPI).
+EasyBuild support for rompi compiler toolchain (includes ROCm-LLVM and OpenMPI).
 
 Authors:
 
