@@ -41,6 +41,7 @@ Authors:
 * Samuel Moors (Vrije Universiteit Brussel)
 """
 import copy
+import json
 import os
 import stat
 import subprocess
@@ -101,6 +102,7 @@ BWRAP_INFO = {
     'installpath_modules': '',
     'bwrap_installpath': '',
 }
+BWRAP_INFO_JSON = 'bwrap_info.json'
 EASYBUILD_MAIN = 'easybuild.main'
 
 if sys.version_info < (3, 9):
@@ -594,8 +596,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         with rich_live_cm():
             inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
 
-    # set global values for bubblewrap
     elif options.bwrap:
+        # set global values for bubblewrap
         BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
         BWRAP_INFO['installpath_software'] = install_path(typ='software')
         BWRAP_INFO['installpath_modules'] = install_path(typ='modules')
@@ -866,6 +868,10 @@ def rerun_with_bwrap():
         bwrap_mpath = os.path.join(bwrap_installpath, 'modules')
         bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
 
+        # write json file with bwrap install info into bwrap installpath
+        bwrap_infopath = os.path.join(BWRAP_INFO['bwrap_installpath'], BWRAP_INFO_JSON)
+        write_file(bwrap_infopath, json.dumps(BWRAP_INFO, default=list, indent=2, sort_keys=True), backup=True)
+
         for mod in bwrap_modules:
             spath = os.path.join(os.path.realpath(installpath_software), mod)
             bwrap_spath = os.path.join(bwrap_installpath, 'software', mod)
@@ -875,15 +881,19 @@ def rerun_with_bwrap():
 
         eb_cmd = ['python', '-m', EASYBUILD_MAIN] + sys.argv[1:]
 
-        # disable `--bwrap`: this time we do a real installation
+        # disable `--bwrap`: this time we do a real installation (in bwrap namespace)
         bwrap_options = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
 
         cmd = bwrap_cmd + eb_cmd + bwrap_options
         _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
 
         print_msg('Building/installing in bwrap namespace')
+        trace_msg(f'bwrap info file: {bwrap_infopath}')
+        trace_msg(f'bwrap options: {bwrap_options}')
         trace_msg(f'bwrap prefix: {" ".join(bwrap_cmd)}')
 
+        # set environment variable EB_BWRAP_CMD to make it available for the interactive debug shell
+        # when rerunning with bwrap
         os.environ['EB_BWRAP_CMD'] = ' '.join(bwrap_cmd)
         sys.exit(subprocess.run(cmd).returncode)
 
