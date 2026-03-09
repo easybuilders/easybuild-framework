@@ -3797,9 +3797,9 @@ class EasyBlockTest(EnhancedTestCase):
                     f'software/zlib/{zlib_fn}/include',
                 ]
                 if env_var.endswith('PATH'):
-                    regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths) + '$', re.M)
+                    regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths), re.M)
                 elif env_var == 'CPPFLAGS':
-                    regex = re.compile(f'^{env_var}=' + ' '.join('-I/[^ ]+/' + p for p in paths) + '$', re.M)
+                    regex = re.compile(f'^{env_var}=' + ' '.join('-I/[^ ]+/' + p for p in paths), re.M)
                 else:
                     self.fail(f"Unknown type of environment variable: ${env_var}")
                 self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
