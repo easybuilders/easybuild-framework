@@ -1191,6 +1191,22 @@ class Toolchain:
             else:
                 dep_roots.extend(self.get_software_root(dep['name']))
 
+        # Exactly how the include headers or link libraries are going to be referenced is configuration dependent,
+        # gather all the options and add them as fallback options for the chosen method
+        # (allows for transitive dependencies)
+        paths_options = {'cpp_headers': [], 'linker': []}
+        for search_path_var, paths_list in paths_options.items:
+            for env_var in [y for x in SEARCH_PATH[search_path_var].values() for y in x if y.endswith('PATH')]:
+                paths = os.getenv(env_var)
+                if paths:
+                    self.log.debug(f"Determining fallback directories to retain from ${env_var}: {paths}")
+                    paths_list = unique_ordered_extend(paths_list, paths.split(':'))
+                    # Now that we have the value, we make sure that EasyBuild will reset the environment variable later
+                    # (and only use the configured option)
+                    self.variables.append(env_var, '')
+            for var in SEARCH_PATH[search_path_var][self.search_path[search_path_var]]:
+                self.variables.append_subdirs(var, paths_list)
+
         for dep_root in dep_roots:
             self._add_dependency_cpp_headers(dep_root, extra_dirs=cpp)
             self._add_dependency_linker_paths(dep_root, extra_dirs=ld)
