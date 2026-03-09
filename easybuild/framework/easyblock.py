@@ -2650,6 +2650,14 @@ class EasyBlock:
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        source_deps = self.cfg['source_deps']
+        pre_fetch_env = None
+        # load modules for source dependencies (if any)
+        if source_deps:
+            pre_fetch_env = copy.deepcopy(os.environ)
+            source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
+            self.modules_tool.load(source_deps_mod_names)
+
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
         if self.dry_run:
@@ -2736,6 +2744,9 @@ class EasyBlock:
             self.log.info("Skipped installation dirs check per user request")
 
         stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        if pre_fetch_env:
+            restore_env(pre_fetch_env)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
