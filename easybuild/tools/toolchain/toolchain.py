@@ -1204,7 +1204,7 @@ class Toolchain:
                     paths_list = unique_ordered_extend(paths_list, paths)
                     # Now that we have the value, we make sure that EasyBuild will reset the environment variable later
                     # and only use the configured option
-                    # (our RPATH wrappers rely on LIBRAARY_PATH so we need an exception for that)
+                    # (our RPATH wrappers rely on LIBRARY_PATH so we need an exception for that)
                     if env_var != 'LIBRARY_PATH':
                         self.variables.append(env_var, '')
             for var in SEARCH_PATH[search_path_var][self.search_path[search_path_var]]:
