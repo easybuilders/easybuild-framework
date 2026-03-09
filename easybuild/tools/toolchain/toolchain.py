@@ -1201,12 +1201,12 @@ class Toolchain:
                 if paths_value:
                     self.log.debug(f"Determining fallback directories to retain from ${env_var}: {paths_value}")
                     paths = paths_value.split(':')
-                    # Add the paths in reverse order (as last entry gets priority in the relevant class)
-                    paths.reverse()
                     paths_list = unique_ordered_extend(paths_list, paths)
                     # Now that we have the value, we make sure that EasyBuild will reset the environment variable later
-                    # (and only use the configured option)
-                    self.variables.append(env_var, '')
+                    # and only use the configured option
+                    # (our RPATH wrappers rely on LIBRAARY_PATH so we need an exception for that)
+                    if env_var != 'LIBRARY_PATH':
+                        self.variables.append(env_var, '')
             for var in SEARCH_PATH[search_path_var][self.search_path[search_path_var]]:
                 self.variables.append_subdirs(var, '', subdirs=paths_list)
 
