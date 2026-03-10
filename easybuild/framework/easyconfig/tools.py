@@ -74,11 +74,6 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 # a NameError should be caught where these are used
 
 try:
-    # PyGraph (used for generating dependency graphs)
-    # https://pypi.python.org/pypi/python-graph-core
-    from pygraph.classes.digraph import digraph
-    # https://pypi.python.org/pypi/python-graph-dot
-    import pygraph.readwrite.dot as dot
     # graphviz (used for creating dependency graph images)
     import graphviz
 except ImportError:
@@ -166,7 +161,7 @@ def find_resolved_modules(easyconfigs, avail_modules, modtool, retain_all_deps=F
     return ordered_ecs, new_easyconfigs, avail_modules
 
 
-@only_if_module_is_available('pygraph.classes.digraph', pkgname='python-graph-core')
+@only_if_module_is_available('graphviz', pkgname='graphviz')
 def dep_graph(filename, specs):
     """
     Create a dependency graph for the given easyconfigs.
@@ -188,63 +183,30 @@ def dep_graph(filename, specs):
 
         return node_name
 
-    # enhance list of specs
-    all_nodes = set()
+    base, ext = os.path.splitext(filename)
+
+    dep_graph = graphviz.Digraph(format=ext[1:], name=os.path.basename(base))
+    builddep_edge_attrs = {'style': 'dotted', 'color': 'blue', 'arrowhead': 'diamond'}
     for spec in specs:
-        spec['module'] = mk_node_name(spec['ec'])
-        all_nodes.add(spec['module'])
-        spec['ec']._all_dependencies = [mk_node_name(s) for s in spec['ec'].all_dependencies]
-        all_nodes.update(spec['ec'].all_dependencies)
+        node = mk_node_name(spec['ec'])
+        dep_graph.node(node)
+        for dep in spec['ec'].dependencies(runtime_only=True):
+            node_dep = mk_node_name(dep)
+            dep_graph.node(node_dep)
+            dep_graph.edge(node, node_dep)
+        for dep in spec['ec'].dependencies(build_only=True):
+            node_dep = mk_node_name(dep)
+            dep_graph.node(node_dep)
+            dep_graph.edge(node, node_dep, **builddep_edge_attrs)
 
-        # Get the build dependencies for each spec so we can distinguish them later
-        spec['ec'].build_dependencies = [mk_node_name(s) for s in spec['ec'].builddependencies()]
-        all_nodes.update(spec['ec'].build_dependencies)
-
-    # build directed graph
-    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
-    dgr = digraph()
-    dgr.add_nodes(all_nodes)
-    edge_attrs = [('style', 'dotted'), ('color', 'blue'), ('arrowhead', 'diamond')]
-    for spec in specs:
-        for dep in spec['ec'].all_dependencies:
-            dgr.add_edge((spec['module'], dep))
-            if dep in spec['ec'].build_dependencies:
-                dgr.add_edge_attributes((spec['module'], dep), attrs=edge_attrs)
-
-    what = "dependency graph for %d easyconfigs to %s" % (len(specs), filename)
+    what = f"dependency graph for {len(specs)} easyconfigs to {filename}"
     silent = build_option('silent')
-    if _dep_graph_dump(dgr, filename):
-        print_msg("Wrote " + what, silent=silent)
-    else:
+    try:
+        dep_graph.render(base, cleanup=True)
+    except Exception:
         print_error_and_exit("Failed writing " + what, silent=silent)
-
-
-@only_if_module_is_available('pygraph.readwrite.dot', pkgname='python-graph-dot')
-def _dep_graph_dump(dgr, filename):
-    """Dump dependency graph to file, in specified format."""
-    # write to file
-    dottxt = dot.write(dgr)
-    if os.path.splitext(filename)[-1] == '.dot':
-        # create .dot file
-        try:
-            write_file(filename, dottxt)
-        except EasyBuildError as e:
-            print(str(e))
-            return False
-        else:
-            return True
     else:
-        return _dep_graph_gv(dottxt, filename)
-
-
-@only_if_module_is_available('graphviz', pkgname='graphviz')
-def _dep_graph_gv(dottxt, filename):
-    """Render dependency graph to file using graphviz."""
-    # try and render graph in specified file format
-    gvv = graphviz.Source(dottxt)
-    if gvv.pipe():
-        name, ext = os.path.splitext(filename)
-        return gvv.render(filename=name, format=ext[1:], cleanup=True)
+        print_msg("Wrote " + what, silent=silent)
 
 
 def get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None):

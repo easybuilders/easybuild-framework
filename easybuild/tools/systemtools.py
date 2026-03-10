@@ -221,8 +221,6 @@ EASYBUILD_OPTIONAL_DEPENDENCIES = {
     'pbs-python': ('pbs', "using Torque as --job backend"),
     'pycodestyle': (None, "code style checking: --check-style, --check-contrib"),
     'pysvn': (None, "using SVN repository as easyconfigs archive"),
-    'python-graph-core': ('pygraph.classes.digraph', "creating dependency graph: --dep-graph"),
-    'python-graph-dot': ('pygraph.readwrite.dot', "saving dependency graph as dot file: --dep-graph"),
     'python-hglib': ('hglib', "using Mercurial repository as easyconfigs archive"),
     'requests': (None, "fallback library for downloading files"),
     'Rich': (None, "eb command rich terminal output"),

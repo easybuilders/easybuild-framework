@@ -25,7 +25,7 @@ jobs:
   build:
     needs: setup
     runs-on: ${{matrix.os || 'ubuntu-24.04'}}
-    env: 
+    env:
       JOB_OS: ${{matrix.os || 'ubuntu-24.04'}}
     strategy:
       matrix:
@@ -81,6 +81,8 @@ jobs:
           # Avoid segfault with older Pythons: https://github.com/pyenv/pyenv/issues/2239#issuecomment-1079275184
           APT_PKGS+=" clang"
         fi
+        # graphviz is needed for test_dep_graph
+        APT_PKGS+=" graphviz"
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
         if ! sudo apt-get install $APT_PKGS; then
@@ -245,7 +247,6 @@ jobs:
             # try and make sure output of running tests is clean (no printed messages/warnings)
             IGNORE_PATTERNS="no GitHub token available"
             IGNORE_PATTERNS+="|skipping SvnRepository test"
-            IGNORE_PATTERNS+="|Skipping test_dep_graph"
             IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
