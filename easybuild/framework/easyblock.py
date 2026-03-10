@@ -1738,14 +1738,6 @@ class EasyBlock:
             if envar_val.is_path
         }
         self.log.debug(f"Tentative module environment requirements before path expansion: {env_var_requirements}")
-        # TODO: handle non-path variables in make_module_extra
-        # in the meantime, just report if any is found
-        non_path_envars = set(self.module_load_environment) - set(env_var_requirements)
-        if non_path_envars:
-            self.log.warning(
-                f"Non-path variables found in module load environment: {non_path_envars}."
-                "This is not yet supported by this version of EasyBuild."
-            )
 
         mod_lines = ['\n']
 
@@ -1769,6 +1761,10 @@ class EasyBlock:
                                                                      prepend=search_paths.mod_prepend,
                                                                      delim=search_paths.delimiter)
                 mod_lines.append(extra_mod_lines)
+
+        for env_var, value in sorted(self.module_load_environment.items()):
+            if env_var not in env_var_requirements:
+                mod_lines.append(self.module_generator.set_environment(env_var, value.delimiter.join(value.contents)))
 
         if self.dry_run:
             self.dry_run_msg('')
