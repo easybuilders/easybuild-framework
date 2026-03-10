@@ -3041,14 +3041,13 @@ class EasyBlock:
 
         # Set CUDA compute capabilities from default value in nvidia-compiler/NVHPC toolchains
         if get_software_root('nvidia-compilers'):
-            cuda_cc_cfg = self.cfg.get('cuda_compute_capabilities')
-            cuda_cc_opt = build_option('cuda_compute_capabilities')
+            cuda_cc = self.cfg.get_cuda_cc_template_value('cuda_compute_capabilities', required=False)
             cuda_cc_nvhpc = os.getenv('EBNVHPCCUDACC', None)
-            if not cuda_cc_cfg and not cuda_cc_opt and cuda_cc_nvhpc:
+            if not cuda_cc and cuda_cc_nvhpc:
                 self.cfg['cuda_compute_capabilities'] = cuda_cc_nvhpc.split(',')
                 self.log.info(
                     "Updated empty 'cuda_compute_capabilities' option with default CUDA compute capability "
-                    f"defined in nvidia-compilers: {self.cfg['cuda_compute_capabilities']}"
+                    f"defined in nvidia-compilers: {cuda_cc_nvhpc}"
                 )
 
         # guess directory to start configure/build/install process in, and move there
@@ -3460,7 +3459,7 @@ class EasyBlock:
         self.log.info("Checking binaries/libraries for CUDA device code...")
 
         fail_msgs = []
-        cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
+        cfg_ccs = self.cfg.get_cuda_cc_template_value('cuda_cc_space_sep', required=False).split()
         ignore_failures = not build_option('cuda_sanity_check_error_on_failed_checks')
         strict_cc_check = build_option('cuda_sanity_check_strict')
         accept_ptx_as_devcode = build_option('cuda_sanity_check_accept_ptx_as_devcode')
@@ -3471,7 +3470,7 @@ class EasyBlock:
         ignore_file_list = [os.path.join(self.installdir, d) for d in self.cfg['cuda_sanity_ignore_files']]
 
         # If there are no CUDA compute capabilities defined, return
-        if cfg_ccs is None or len(cfg_ccs) == 0:
+        if not cfg_ccs:
             self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities were configured")
             return fail_msgs
 
@@ -3653,8 +3652,7 @@ class EasyBlock:
                         self.log.warning(fail_msg)
 
                 # Check whether there is ptx code for the highest CC in cfg_ccs
-                # Make sure to use LooseVersion so that e.g. 9.0 < 9.0a < 9.2 < 9.10
-                highest_cc = [sorted(cfg_ccs, key=LooseVersion)[-1]]
+                highest_cc = [cfg_ccs[-1]]  # Template is already sorted
                 missing_ptx_ccs = list(set(highest_cc) - set(found_ptx_ccs))
 
                 if missing_ptx_ccs:
