@@ -2878,11 +2878,10 @@ class EasyBlock:
         """
         Unpack the source files.
         """
-        for src in self.src:
+        for i, src in enumerate(self.src):
             self.log.info("Unpacking source %s" % src['name'])
             srcdir = extract_file(src['path'], self.builddir, cmd=src['cmd'],
-                                  extra_options=self.cfg['unpack_options'], change_into_dir=False)
-            change_dir(srcdir)
+                                  extra_options=self.cfg['unpack_options'], change_into_dir=(i == 0))
             if srcdir:
                 self.src[self.src.index(src)]['finalpath'] = srcdir
             else:
