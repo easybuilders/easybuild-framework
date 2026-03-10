@@ -5337,6 +5337,24 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIsInstance(ec2['ec'].toolchain, SystemToolchain)
         self.assertTrue(os.path.samefile(ec2['ec'].path, toy_ec))
 
+        # Returned easyconfigs are independent as-if there was no caching
+        ec3 = process_easyconfig(toy_ec)[0]
+        ec3['ec']['name'] = 'newname'
+        ec3['ec']['version'] = '99.1234'
+        ec3['spec'] = 'non-existing.eb'
+        ec3['dependencies'].append('Dummy')
+        self.assertEqual(ec3['ec'].name, 'newname')
+        self.assertEqual(ec3['ec'].version, '99.1234')
+        self.assertEqual(ec3['spec'], 'non-existing.eb')
+        self.assertEqual(ec3['dependencies'], ['Dummy'])
+        # Neither the previously returned nor newly requested ECs are modified by the above
+        ec2_2 = process_easyconfig(toy_ec)[0]
+        for orig_ec in (ec2, ec2_2):
+            self.assertEqual(orig_ec['ec'].name, 'toy')
+            self.assertEqual(orig_ec['ec'].version, '0.0')
+            self.assertEqual(orig_ec['spec'], toy_ec)
+            self.assertEqual(orig_ec['dependencies'], [])
+
         # also check whether easyconfigs cache works with end-to-end test
         args = [libtoy_ec, '--trace']
         self.mock_stdout(True)
