@@ -1988,6 +1988,7 @@ class EasyConfig:
         and cuda_compute_capabilities easyconfig parameter.
         Returns user-friendly error message in case neither are defined,
         or if an unknown key is used.
+        The individual values are sorted in ascending order.
 
         :param required: If False and the key is not found, return an empty string instead of raising an error.
         """
