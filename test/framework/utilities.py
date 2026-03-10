@@ -85,7 +85,7 @@ for key in list(os.environ):
 
 
 class EnhancedTestCase(TestCase):
-    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+    """Enhanced test case, provides extra functionality (e.g. an assertRaisesRegex method)."""
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""

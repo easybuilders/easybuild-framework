@@ -75,7 +75,7 @@ class EasyBuildLibTest(TestCase):
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
 
         self.configure()
 
@@ -90,7 +90,7 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
+        self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
 
         self.configure()
 
@@ -108,7 +108,7 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, mkdir, test_dir)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mkdir, test_dir)
 
         self.configure()
 
@@ -122,7 +122,7 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Undefined build option: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, modules_tool)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, modules_tool)
 
         self.configure()
 

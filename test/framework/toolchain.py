@@ -341,27 +341,27 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'minimal_build_env': 'CC=gcc'})
         error_pattern = "Incorrect mapping in --minimal-build-env value: 'CC=gcc'"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
 
         init_config(build_options={'minimal_build_env': 'foo:bar:baz'})
         error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
 
         init_config(build_options={'minimal_build_env': 'CC:gcc,foo'})
         error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo'"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
 
         init_config(build_options={'minimal_build_env': 'foo:bar:baz,CC:gcc'})
         error_pattern = "Incorrect mapping in --minimal-build-env value: 'foo:bar:baz'"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
 
         init_config(build_options={'minimal_build_env': 'CC:gcc,'})
         error_pattern = "Incorrect mapping in --minimal-build-env value: ''"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
 
         # for a full toolchain, a more extensive build environment is set up (incl. $CFLAGS & co),
         # and the specs in --minimal-build-env are ignored
@@ -885,7 +885,7 @@ class ToolchainTest(EnhancedTestCase):
         write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandrybridge;Intel:-xAVX'}")
         msg = "syntax is not allowed"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
+            self.assertRaisesRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
 
         # check that setting optarch flags work
         write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '-march=sandybridge'}")
@@ -1004,7 +1004,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({"search-path-cpp-headers": "WRONG_MODE"})
         with self.mocked_stdout_stderr():
             error_pattern = "Unknown value selected for toolchain option search-path-cpp-headers"
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
     def test_search_path_linker(self):
@@ -1056,7 +1056,7 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({"search-path-linker": "WRONG_MODE"})
         with self.mocked_stdout_stderr():
             error_pattern = "Unknown value selected for toolchain option search-path-linker"
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
     def test_cgoolf_toolchain(self):
@@ -1762,7 +1762,7 @@ class ToolchainTest(EnhancedTestCase):
         error_msg = "List of toolchain dependency modules and toolchain definition do not match"
         tc = self.get_toolchain('foss', version='2018a-brokenFFTW')
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_msg, tc.prepare)
         self.modtool.purge()
 
         # missing optional toolchain elements are fine
@@ -1776,7 +1776,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test preparing for a toolchain for which no module is available."""
         tc = self.get_toolchain('intel', version='1970.01')
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, "No module found for toolchain", tc.prepare)
 
     def test_mpi_cmd_prefix(self):
         """Test mpi_exec_nranks function."""
@@ -1877,11 +1877,11 @@ class ToolchainTest(EnhancedTestCase):
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(ranks)s -- %(cmd)s", 'silent': True})
         error_pattern = \
             r"Missing templates in mpi-cmd-template value 'mpiexec -np %\(ranks\)s -- %\(cmd\)s': %\(nr_ranks\)s"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
 
         init_config(build_options={'mpi_cmd_template': "mpirun %(foo)s -np %(nr_ranks)s %(cmd)s", 'silent': True})
         error_pattern = "Failed to complete MPI cmd template .* with .*: KeyError 'foo'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tc.mpi_cmd_for, 'test', 1)
 
     def test_get_mpi_cmd_template(self):
         """Test get_mpi_cmd_template function."""
@@ -1899,7 +1899,7 @@ class ToolchainTest(EnhancedTestCase):
         # Intel MPI is a special case, also requires MPI version to be known
         impi = toolchain.INTELMPI
         error_pattern = "Intel MPI version unknown, can't determine MPI command template!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_mpi_cmd_template, impi, {})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, get_mpi_cmd_template, impi, {})
 
         mpi_cmd_tmpl, params = get_mpi_cmd_template(toolchain.INTELMPI, input_params, mpi_version='1.0')
         self.assertEqual(mpi_cmd_tmpl, "mpirun %(mpdbf)s %(nodesfile)s -np %(nr_ranks)s %(cmd)s")
@@ -2004,10 +2004,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_software_version(['toy']), ['1.2.3'])
         self.assertEqual(tc.get_software_version(['toy', 'foobar']), ['1.2.3', '4.5'])
         # Non existing modules raise an error
-        self.assertErrorRegex(EasyBuildError, 'non-existing was not found',
-                              tc.get_software_version, 'non-existing')
-        self.assertErrorRegex(EasyBuildError, 'non-existing was not found',
-                              tc.get_software_version, ['toy', 'non-existing', 'foobar'])
+        self.assertRaisesRegex(EasyBuildError, 'non-existing was not found',
+                               tc.get_software_version, 'non-existing')
+        self.assertRaisesRegex(EasyBuildError, 'non-existing was not found',
+                               tc.get_software_version, ['toy', 'non-existing', 'foobar'])
         # Can use required=False to avoid
         self.assertEqual(tc.get_software_version('non-existing', required=False), [None])
         self.assertEqual(tc.get_software_version(['toy', 'non-existing', 'foobar'], required=False),
@@ -2267,7 +2267,7 @@ class ToolchainTest(EnhancedTestCase):
         # and corresponding environment variables are not set
         error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
         # make iccifort module set $EBROOT* and $EBVERSION* to pass toolchain verification
@@ -2306,7 +2306,7 @@ class ToolchainTest(EnhancedTestCase):
         # and corresponding environment variables are not set
         error_pattern = "List of toolchain dependency modules and toolchain definition do not match"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, tc.prepare)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, tc.prepare)
         self.modtool.purge()
 
         # Verify that it works loading a module that contains a combined iccifort module
@@ -2455,7 +2455,7 @@ class ToolchainTest(EnhancedTestCase):
         if ccache is None:
             msg = r"ccache binary not found in \$PATH, required by --use-ccache"
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
+                self.assertRaisesRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache
         for cache_tool in ['ccache', 'f90cache']:

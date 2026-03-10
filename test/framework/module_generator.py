@@ -315,8 +315,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends-on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected,
-                                          self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertRaisesRegex(EasyBuildError, expected,
+                                           self.modgen.load_module, "mod_name", depends_on=True)
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -361,8 +361,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends_on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected,
-                                          self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertRaisesRegex(EasyBuildError, expected,
+                                           self.modgen.load_module, "mod_name", depends_on=True)
 
     def test_load_multi_deps(self):
         """Test generated load statement when multi_deps is involved."""
@@ -542,11 +542,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_modulerc(self):
         """Test modulerc method."""
-        self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
+        self.assertRaisesRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
 
         arg = {'foo': 'bar'}
         error_pattern = "Incorrect module_version spec, expected keys"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
         mod_ver_spec = {'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'}
         modulerc_path = os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC)
@@ -555,7 +555,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) < LooseVersion('7.0'):
             error = "Expected module file .* not found; "
             error += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory"
-            self.assertErrorRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+            self.assertRaisesRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
 
         # if the wrapped module file is in place, everything should be fine
         write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
@@ -774,9 +774,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                              "which only expects relative paths." % self.modgen.app.installdir,
-                              append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+        self.assertRaisesRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
+                               "which only expects relative paths." % self.modgen.app.installdir,
+                               append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
@@ -908,9 +908,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                              "which only expects relative paths." % self.modgen.app.installdir,
-                              prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+        self.assertRaisesRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
+                               "which only expects relative paths." % self.modgen.app.installdir,
+                               prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
@@ -1422,7 +1422,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         err_pattern = 'nosucheasyconfigparameteravailable'
         ec_file = os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
+        self.assertRaisesRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -1504,7 +1504,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'versionsuffix': {'name': 'system', 'version': 'system'},
         }
         error_pattern = "versionsuffix value should be a string, found 'dict'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
 
     def test_mod_name_validation(self):
         """Test module naming validation."""
@@ -1645,7 +1645,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+        self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         init_config(build_options=build_options)
@@ -1682,7 +1682,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
         ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+        self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
         init_config(build_options=build_options)

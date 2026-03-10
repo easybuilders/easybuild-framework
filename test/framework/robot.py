@@ -224,7 +224,7 @@ class RobotTest(EnhancedTestCase):
         # this should not resolve (cannot find gzip-1.4.eb), both with and without robot enabled
         ecs = [deepcopy(easyconfig_dep)]
         msg = "Missing dependencies"
-        self.assertErrorRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
+        self.assertRaisesRegex(EasyBuildError, msg, resolve_dependencies, ecs, self.modtool)
 
         # test if dependencies of an automatically found file are also loaded
         easyconfig_dep['dependencies'] = [{
@@ -578,7 +578,7 @@ class RobotTest(EnhancedTestCase):
         }
 
         error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file or existing module found\)"
-        self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
+        self.assertRaisesRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool)
 
         # check behaviour if only module file is available
         MockModule.avail_modules = ['somedep/4.5.6']
@@ -587,7 +587,7 @@ class RobotTest(EnhancedTestCase):
         self.assertEqual(res[0]['full_mod_name'], 'test/123')
 
         error = r"Missing dependencies: somedep/4.5.6 \(no easyconfig file found in robot search path\)"
-        self.assertErrorRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
+        self.assertRaisesRegex(EasyBuildError, error, resolve_dependencies, [ec], self.modtool, retain_all_deps=True)
 
         res = resolve_dependencies([ec], self.modtool, retain_all_deps=True, raise_error_missing_ecs=False)
         self.assertEqual(len(res), 2)
@@ -662,7 +662,7 @@ class RobotTest(EnhancedTestCase):
             '--unittest-file=%s' % self.logfile,
         ]
         error_pattern = "One or more files not found: intel-2012a.eb"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, logfile=dummylogfn, raise_error=True)
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
@@ -1034,7 +1034,7 @@ class RobotTest(EnhancedTestCase):
         })
         tc = {'name': 'gompi', 'version': '2018a'}
         error_msg = "Multiple versions of GCC found in dependencies of toolchain gompi: 4.6.4, 6.4.0-2.28"
-        self.assertErrorRegex(EasyBuildError, error_msg, get_toolchain_hierarchy, tc)
+        self.assertRaisesRegex(EasyBuildError, error_msg, get_toolchain_hierarchy, tc)
 
     def test_find_resolved_modules(self):
         """Test find_resolved_modules function."""
@@ -1536,8 +1536,8 @@ class RobotTest(EnhancedTestCase):
         test_ectxt = regex.sub(tc_spec, gzip_ectxt)
         write_file(test_ec, test_ectxt)
         ecs, _ = parse_easyconfigs([(test_ec, False)])
-        self.assertErrorRegex(EasyBuildError, "Missing dependencies", resolve_dependencies,
-                              ecs, self.modtool, retain_all_deps=True)
+        self.assertRaisesRegex(EasyBuildError, "Missing dependencies", resolve_dependencies,
+                               ecs, self.modtool, retain_all_deps=True)
 
         # --consider-archived-easyconfigs must be used to let robot pick up archived easyconfigs
         init_config(build_options={
