@@ -110,6 +110,7 @@ from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, g
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
+from easybuild.tools.entrypoints import EntrypointHook, EntrypointEasyblock, EntrypointToolchain
 
 
 try:
@@ -303,6 +304,9 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', EXTRACT_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
+            'use-entrypoints': (
+                "Use entry points for easyblocks, toolchains, and hooks", None, 'store_true', False,
+            ),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -1661,6 +1665,19 @@ class EasyBuildOptions(GeneralOption):
                     opts_dict[opt] = (cur_opt_val, loc)
 
         pretty_print_opts(opts_dict)
+
+        if build_option('use_entrypoints', default=True):
+            for prefix, cls in [
+                ('Hook', EntrypointHook),
+                ('Easyblock', EntrypointEasyblock),
+                ('Toolchain', EntrypointToolchain),
+            ]:
+                ept_list = cls.retrieve_entrypoints()
+                if ept_list:
+                    print()
+                    print("%ss from entrypoints (%d):" % (prefix, len(ept_list)))
+                    for ept in ept_list:
+                        print('-', ept)
 
 
 def parse_options(args=None, with_include=True):
