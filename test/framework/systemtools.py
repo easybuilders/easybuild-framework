@@ -1225,6 +1225,38 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
                               {'foo': '1', 'arch=POWER': '2'})
 
+    def test_pick_opt_arch(self):
+        """Test pick_opt_arch"""
+        options = {
+            (st.X86_64, ): 'opt-x86',
+            (st.X86_64, st.AMD): 'opt-amd',
+            (st.X86_64, st.AMD, st.AVX2): 'opt-amd-avx2',
+            (st.AARCH32, st.INTEL): 'opt-aarch32',
+            st.AARCH64: 'opt-aarch64',
+            (st.AARCH64, st.INTEL, st.SSE): 'opt-aarch64-sse',
+        }
+        avx = [st.SSE, st.SSE2, st.AVX]
+        avx2 = avx + [st.AVX2]
+        avx512 = avx2 + [st.AVX512F]
+        for include_none in (False, True):
+            if include_none:
+                # Special fallback option when no entry matches
+                options[None] = 'opt-none'
+            self.assertEqual(st.pick_opt_arch(options, st.X86_64, st.INTEL, avx2), 'opt-x86')
+            self.assertEqual(st.pick_opt_arch(options, st.X86_64, st.INTEL, []), 'opt-x86')
+            self.assertEqual(st.pick_opt_arch(options, st.X86_64, st.AMD, avx), 'opt-amd')
+            self.assertEqual(st.pick_opt_arch(options, st.X86_64, st.AMD, avx2), 'opt-amd-avx2')
+            self.assertEqual(st.pick_opt_arch(options, st.X86_64, st.AMD, avx512), 'opt-amd-avx2')
+            self.assertEqual(st.pick_opt_arch(options, st.AARCH64, st.AMD, avx2), 'opt-aarch64')
+            self.assertEqual(st.pick_opt_arch(options, st.AARCH64, st.INTEL, avx2), 'opt-aarch64-sse')
+            self.assertEqual(st.pick_opt_arch(options, st.AARCH64, st.INTEL, [st.SSE]), 'opt-aarch64-sse')
+            if include_none:
+                self.assertEqual(st.pick_opt_arch(options, st.AARCH32, st.AMD, avx2), 'opt-none')
+                self.assertEqual(st.pick_opt_arch(options, st.POWER, st.IBM, []), 'opt-none')
+            else:
+                self.assertEqual(st.pick_opt_arch(options, st.AARCH32, st.AMD, avx2), None)
+                self.assertEqual(st.pick_opt_arch(options, st.POWER, st.IBM, []), None)
+
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
 

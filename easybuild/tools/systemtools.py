@@ -115,6 +115,16 @@ KNOWN_ARCH_CONSTANTS = ('aarch64', 'ppc64le', 'riscv64', 'x86_64')
 
 ARCH_KEY_PREFIX = 'arch='
 
+# Vector extension constants
+SSE = 'sse'
+SSE2 = 'sse2'
+SSSE3 = 'ssse3'
+SSE4_1 = 'sse4_1'
+SSE4_2 = 'sse4_2'
+AVX = 'avx'
+AVX2 = 'avx2'
+AVX512F = 'avx512f'
+
 # Vendor constants
 AMD = 'AMD'
 APM = 'Applied Micro'
@@ -149,6 +159,8 @@ PROC_MEMINFO_FP = '/proc/meminfo'
 CPU_ARCHITECTURES = [AARCH32, AARCH64, POWER, RISCV32, RISCV64, X86_64]
 CPU_FAMILIES = [AMD, ARM, INTEL, POWER, POWER_LE, RISCV]
 CPU_VENDORS = [AMD, APM, APPLE, ARM, BROADCOM, CAVIUM, DEC, IBM, INTEL, MARVELL, MOTOROLA, NVIDIA, QUALCOMM]
+# Vector extensions of CPUs in ascending order (later => better)
+CPU_VECTOR_EXTS = [SSE, SSE2, SSSE3, SSE4_1, SSE4_2, AVX, AVX2, AVX512F]
 # ARM implementer IDs (i.e., the hexadeximal keys) taken from ARMv8-A Architecture Reference Manual
 # (ARM DDI 0487A.j, Section G6.2.102, Page G6-4493)
 VENDOR_IDS = {
@@ -668,6 +680,13 @@ def get_isa_riscv():
     else:
         _log.debug(f"Could not determine ISA string (OS: {os_type}), defaulting to {isa_string}")
     return isa_string
+
+
+def get_cpu_vector_exts():
+    """Get list of (relevant) CPU vector extensions"""
+    cpu_features = set(get_cpu_features())
+    # Values of the vector extension constants purposely match the cpu feature value
+    return [i for i in CPU_VECTOR_EXTS if i in cpu_features]
 
 
 def get_gpu_info(environment=None):
@@ -1517,6 +1536,37 @@ def pick_dep_version(dep_version):
             typ = type(dep_version)
             raise EasyBuildError("Unknown value type for version: %s (%s), should be string value", typ, dep_version)
 
+    return result
+
+
+def pick_opt_arch(options, arch, cpu_family, vector_exts):
+    """
+    Pick the best matching entry from the options dict based on CPU arch and features
+
+    :param options: Dictionary mapping tuples of system specs to optarchs.
+                    E.g. (X86_64, AMD, AVX2): 'mavx2'
+    :param arch: Current CPU arch
+    :param cpu_family: Current CPU family
+    :param vector_exts: Vector extensions supported by current CPU
+    """
+    def create_possible_keys():
+        """Yield a list of possible keys from most specific to least specific"""
+        for ext in vector_exts:
+            yield (arch, cpu_family, ext)
+        yield (arch, cpu_family)
+        yield (arch, )
+        # Also allow single string entry
+        yield arch
+        # Default fallback for any arch
+        yield None
+
+    result = None
+    for key in create_possible_keys():
+        try:
+            result = options[key]
+            break
+        except KeyError:
+            pass
     return result
 
 
