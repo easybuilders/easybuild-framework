@@ -54,7 +54,7 @@ from easybuild.tools.systemtools import get_shared_lib_ext
 
 
 # number of modules included for testing purposes
-TEST_MODULES_COUNT = 119
+TEST_MODULES_COUNT = 120
 
 
 class ModulesTest(EnhancedTestCase):
