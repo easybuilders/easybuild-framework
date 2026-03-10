@@ -101,20 +101,20 @@ TEMPLATE_NAMES_DYNAMIC = {
                            "via amdgcn_capabilities easyconfig parameter",
     'amdgcn_cc_space_sep': "Space-separated list of AMDGCN capabilities",
     'amdgcn_cc_semicolon_sep': "Semicolon-separated list of AMDGCN capabilities",
-    'cuda_compute_capabilities': "Comma-separated list of CUDA compute capabilities, as specified via "
+    'cuda_compute_capabilities': "Comma-separated list of sorted CUDA compute capabilities, as specified via "
                                  "--cuda-compute-capabilities configuration option or "
                                  "via cuda_compute_capabilities easyconfig parameter",
-    'cuda_cc_cmake': 'List of CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
-    'cuda_cc_nvhpc': 'List of CUDA compute capabilities suitable for use with -gpu option in NVHPC compilers',
-    'cuda_cc_space_sep': 'Space-separated list of CUDA compute capabilities',
+    'cuda_cc_cmake': 'List of sorted CUDA compute capabilities suitable for use with $CUDAARCHS in CMake 3.18+',
+    'cuda_cc_nvhpc': 'List of sorted CUDA compute capabilities suitable for use with -gpu option in NVHPC compilers',
+    'cuda_cc_space_sep': 'Space-separated list of sorted CUDA compute capabilities',
     'cuda_cc_space_sep_no_period':
-    "Space-separated list of CUDA compute capabilities, without periods (e.g. '80 90').",
-    'cuda_cc_semicolon_sep': 'Semicolon-separated list of CUDA compute capabilities',
-    'cuda_int_comma_sep': 'Comma-separated list of integer CUDA compute capabilities',
-    'cuda_int_space_sep': 'Space-separated list of integer CUDA compute capabilities',
-    'cuda_int_semicolon_sep': 'Semicolon-separated list of integer CUDA compute capabilities',
-    'cuda_sm_comma_sep': 'Comma-separated list of sm_* values that correspond with CUDA compute capabilities',
-    'cuda_sm_space_sep': 'Space-separated list of sm_* values that correspond with CUDA compute capabilities',
+    "Space-separated list of sorted CUDA compute capabilities, without periods (e.g. '80 90').",
+    'cuda_cc_semicolon_sep': 'Semicolon-separated list of sorted CUDA compute capabilities',
+    'cuda_int_comma_sep': 'Comma-separated list of integer sorted CUDA compute capabilities',
+    'cuda_int_space_sep': 'Space-separated list of integer sorted CUDA compute capabilities',
+    'cuda_int_semicolon_sep': 'Semicolon-separated list of integer sorted CUDA compute capabilities',
+    'cuda_sm_comma_sep': 'Comma-separated list of sm_* values that correspond with sorted CUDA compute capabilities',
+    'cuda_sm_space_sep': 'Space-separated list of sm_* values that correspond with sorted CUDA compute capabilities',
     'mpi_cmd_prefix': 'Prefix command for running MPI programs (with default number of ranks)',
     'parallel': "Degree of parallelism for e.g. make",
     # can't be a boolean (True/False), must be a string value since it's a string template
