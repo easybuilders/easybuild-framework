@@ -3737,9 +3737,11 @@ class EasyBlockTest(EnhancedTestCase):
         # put dummy modules in place where we can control $EBROOT value
         openmpi_fn = '4.1.5-GCC-12.3.0'
         zlib_fn = '1.2.13-GCCcore-12.3.0'
+        cuda_fn = '9.1.85'
         mod_files = [
             ('OpenMPI', openmpi_fn),
             ('zlib', zlib_fn),
+            ('CUDA', cuda_fn)
         ]
 
         test_mods = os.path.join(self.test_prefix, 'modules')
@@ -3747,7 +3749,7 @@ class EasyBlockTest(EnhancedTestCase):
         for name, mod_fn in mod_files:
             mod_fp = os.path.join(testdir, 'modules', name, mod_fn)
 
-            header_fn = 'zlib.h' if name == 'zlib' else 'mpi.h'
+            header_fn = f'{name}.h' if name != 'OpenMPI' else 'mpi.h'
 
             dep_root = os.path.join(self.test_prefix, 'software', name, mod_fn)
             write_file(os.path.join(dep_root, 'include', header_fn), '')
@@ -3758,6 +3760,9 @@ class EasyBlockTest(EnhancedTestCase):
             # add statement to inject extra subdirectory to $CPATH,
             # which is supposed to be retained in build environment
             mod_txt += f'\nprepend-path\tCPATH\t$root/include/{name}'
+            # Add a transitive dependency to zlib
+            if name == 'zlib':
+                mod_txt += f'\nmodule load CUDA/{cuda_fn}'
 
             test_mod_file = os.path.join(test_mods, name, mod_fn)
             write_file(test_mod_file, mod_txt)
@@ -3795,6 +3800,8 @@ class EasyBlockTest(EnhancedTestCase):
                     f'software/OpenMPI/{openmpi_fn}/include',
                     f'software/zlib/{zlib_fn}/include/zlib',
                     f'software/zlib/{zlib_fn}/include',
+                    f'software/CUDA/{cuda_fn}/include/CUDA',
+                    f'software/CUDA/{cuda_fn}/include',
                 ]
                 if env_var.endswith('PATH'):
                     regex = re.compile(f'^{env_var}=' + ':'.join('[^ ]+/' + p for p in paths) + '$', re.M)

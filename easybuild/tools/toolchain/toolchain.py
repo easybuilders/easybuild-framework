@@ -1191,6 +1191,25 @@ class Toolchain:
             else:
                 dep_roots.extend(self.get_software_root(dep['name']))
 
+        # Exactly how the include headers or link libraries are going to be referenced is configuration dependent,
+        # gather all the options from the environment and add them as fallback options for the chosen method
+        # (allows for transitive dependencies)
+        paths_options = {'cpp_headers': [], 'linker': []}
+        for search_path_var, paths_list in paths_options.items():
+            for env_var in [y for x in SEARCH_PATH[search_path_var].values() for y in x if y.endswith('PATH')]:
+                paths_value = os.getenv(env_var)
+                if paths_value:
+                    self.log.debug(f"Determining fallback directories to retain from ${env_var}: {paths_value}")
+                    paths = paths_value.split(':')
+                    paths_list = unique_ordered_extend(paths_list, paths)
+                    # Now that we have the value, we make sure that EasyBuild will reset the environment variable later
+                    # and only use the configured option
+                    # (our RPATH wrappers rely on LIBRARY_PATH so we need an exception for that)
+                    if env_var != 'LIBRARY_PATH':
+                        self.variables.setdefault(env_var, append_empty=True)
+            for var in SEARCH_PATH[search_path_var][self.search_path[search_path_var]]:
+                self.variables.append_subdirs(var, '', subdirs=paths_list)
+
         for dep_root in dep_roots:
             self._add_dependency_cpp_headers(dep_root, extra_dirs=cpp)
             self._add_dependency_linker_paths(dep_root, extra_dirs=ld)
@@ -1221,6 +1240,14 @@ class Toolchain:
             header_dirs = unique_ordered_extend(header_dirs, extra_dirs)
 
             self.log.info(f"Adding header paths to toolchain variable '{env_var}': {dep_root} (subdirs: {header_dirs})")
+            # it may already exist, in which case we remove it to add it back with higher priority
+            for header_dir in header_dirs:
+                if env_var in self.variables.keys():
+                    header_path = os.path.join(dep_root, header_dir)
+                    self.log.debug(f"Attempting to remove any previous instance of {header_path} from {env_var} list: "
+                                   f"{self.variables[env_var]}")
+                    self.variables[env_var].try_remove([header_path])
+                    self.log.debug(f"New value of {env_var} list: {self.variables[env_var]}")
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)
 
     def _add_dependency_linker_paths(self, dep_root, extra_dirs=None):
