@@ -240,23 +240,30 @@ jobs:
             # create file owned by root but writable by anyone (used by test_copy_file)
             sudo touch /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
             sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
+
+            if [ "$GITHUB_REPOSITORY_OWNER" == 'easybuilders' ] || [ '${{github.event.pull_request.head.repo.owner}}' == 'easybuilders' ]; then
+              FORCE_EB_GITHUB_TESTS=1
+            else
+              echo "Not force-enabling Github tests"
+              echo "\$GITHUB_EVENT_NAME=GITHUB_EVENT_NAME"
+              echo "\$GITHUB_REPOSITORY_OWNER=$GITHUB_REPOSITORY_OWNER"
+              echo "PR HEAD repo owner=${{github.event.pull_request.head.repo.owner}}"
+            fi
+
             # run test suite
             python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
             # try and make sure output of running tests is clean (no printed messages/warnings)
-            IGNORE_PATTERNS="no GitHub token available"
-            IGNORE_PATTERNS+="|skipping SvnRepository test"
+            IGNORE_PATTERNS="^[s.]*$" # Only PASS (.) and SKIP (s) status on line
             IGNORE_PATTERNS+="|Skipping test_dep_graph"
-            IGNORE_PATTERNS+="|requires Lmod as modules tool"
             IGNORE_PATTERNS+="|stty: 'standard input': Inappropriate ioctl for device"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: Python 3.7"
             IGNORE_PATTERNS+="|from cryptography.* import "
             IGNORE_PATTERNS+="|Blowfish"
-            IGNORE_PATTERNS+="|GC3Pie not available, skipping test"
             IGNORE_PATTERNS+="|CryptographyDeprecationWarning: TripleDES has been moved"
             IGNORE_PATTERNS+="|algorithms.TripleDES"
-            # ignore lines with only successful ('.') and skipped ('s') tests
-            IGNORE_PATTERNS+="|^[\.s]+$"
+
+            TEST_OUTPUT=$(sed -n '/------------------------------/q;p' test_framework_suite.log)  # Everything up to the result divider
             # '|| true' is needed to avoid that GitHub Actions stops the job on non-zero exit of grep (i.e. when there are no matches)
-            PRINTED_MSG=$(egrep -v "${IGNORE_PATTERNS}" test_framework_suite.log | grep '\.\n*[A-Za-z]' || true)
-            test "x$PRINTED_MSG" = "x" || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
+            PRINTED_MSG=$(echo "$TEST_OUTPUT" | egrep -v "${IGNORE_PATTERNS}" || true)
+            [[ -z $PRINTED_MSG ]] || (echo "ERROR: Found printed messages in output of test suite" && echo "${PRINTED_MSG}" && exit 1)
           done
