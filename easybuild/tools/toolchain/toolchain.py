@@ -1242,10 +1242,10 @@ class Toolchain:
             self.log.info(f"Adding header paths to toolchain variable '{env_var}': {dep_root} (subdirs: {header_dirs})")
             # it may already exist, in which case we remove it to add it back with higher priority
             for header_dir in header_dirs:
-                self.log.debug(f"Existing variables are {self.variables.keys()}")
                 if env_var in self.variables.keys():
                     header_path = os.path.join(dep_root, header_dir)
-                    self.log.debug(f"Attempting to remove any previous instance of {header_path} from {env_var} list: {self.variables[env_var]}")
+                    self.log.debug(f"Attempting to remove any previous instance of {header_path} from {env_var} list: "
+                                   f"{self.variables[env_var]}")
                     self.variables[env_var].try_remove([header_path])
                     self.log.debug(f"New value of {env_var} list: {self.variables[env_var]}")
             self.variables.append_subdirs(env_var, dep_root, subdirs=header_dirs)

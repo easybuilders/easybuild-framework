@@ -3802,7 +3802,7 @@ class EasyBlockTest(EnhancedTestCase):
                     regex = re.compile(f'^{env_var}=' + ' '.join('-I/[^ ]+/' + p for p in paths) + '$', re.M)
                 else:
                     self.fail(f"Unknown type of environment variable: ${env_var}")
-                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output \n{log_txt}")
+                self.assertTrue(regex.search(log_txt), f"Pattern '{regex.pattern}' not found in log output")
 
         # verify fix made in https://github.com/easybuilders/easybuild-framework/pull/5048
         test_ec_txt = read_file(toy_ec)
