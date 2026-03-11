@@ -44,7 +44,7 @@ trap keyboard_interrupt SIGINT
 # Python 3.6+ required
 REQ_MIN_PY3VER=6
 
-EASYBUILD_MAIN='easybuild.main'
+EASYBUILD_MAIN='easybuild.cli'
 
 # easybuild module to import to check whether EasyBuild framework is available;
 # don't use easybuild.main here, since that's a very expensive module to import (it makes the 'eb' command slow)

@@ -77,6 +77,7 @@ easybuild_packages = [
     "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
     "easybuild.tools.py2vs3", "easybuild.tools.repository",
     "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli", "easybuild.tools._toml_writer",
+    "easybuild.cli", "easybuild.cli.options",
     "test.framework", "test",
 ]
 
@@ -119,6 +120,9 @@ implement support for installing particular (groups of) software packages.""",
         # utility scripts
         'easybuild/scripts/install_eb_dep.sh',
     ],
+    extras_require={
+        'eb_click': ['click', 'rich', 'rich_click'],
+    },
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),
