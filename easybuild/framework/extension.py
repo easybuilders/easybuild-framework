@@ -63,11 +63,12 @@ def get_modulenames(ext, use_name_for_false):
         if isinstance(modulenames, list):
             if not modulenames:
                 raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
-                                     "Use `False` to skip checking the module!")
+                                     "Use `False` to skip checking for module existence!")
         elif modulenames is False:
             return [ext['name']] if use_name_for_false else []
         elif not isinstance(modulenames, str):
-            raise EasyBuildError(f"Wrong type of modulename for {ext['name']}: {type(modulenames)}: {modulenames}")
+            raise EasyBuildError(f"Invalid type for modulename of {ext['name']}. "
+                                 f"Expected False, str, or list, but got {type(modulenames).__name__}: {modulenames}")
         else:
             modulenames = [modulenames]
     return modulenames
