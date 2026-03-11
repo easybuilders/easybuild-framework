@@ -120,11 +120,6 @@ implement support for installing particular (groups of) software packages.""",
         # utility scripts
         'easybuild/scripts/install_eb_dep.sh',
     ],
-    entry_points={
-        'console_scripts': [
-            'eb2 = easybuild.cli:eb',
-        ]
-    },
     extras_require={
         'eb2': ['click', 'rich', 'rich_click'],
     },
