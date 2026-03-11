@@ -62,7 +62,7 @@ from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categoriz
 from easybuild.framework.easyconfig.tools import dep_graph, det_copy_ec_specs, find_related_easyconfigs, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak, tweak_one
-from easybuild.framework.extension import resolve_exts_filter_template
+from easybuild.framework.extension import construct_exts_filter_cmds
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, module_classes, update_build_option
@@ -4773,8 +4773,8 @@ class EasyConfigTest(EnhancedTestCase):
 
             self.assertRaises(EasyBuildError, EasyConfig, test_ec)
 
-    def test_resolve_exts_filter_template(self):
-        """Test for resolve_exts_filter_template function."""
+    def test_construct_exts_filter_cmds(self):
+        """Test for construct_exts_filter_cmds function."""
         class TestExtension:
             def __init__(self, values):
                 self.name = values['name']
@@ -4783,11 +4783,11 @@ class EasyConfigTest(EnhancedTestCase):
                 self.options = values.get('options', {})
 
         error_msg = 'exts_filter should be a list or tuple'
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+        self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds,
                               '[ 1 == 1 ]', {})
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+        self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds,
                               ['[ 1 == 1 ]'], {})
-        self.assertErrorRegex(EasyBuildError, error_msg, resolve_exts_filter_template,
+        self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds,
                               ['[ 1 == 1 ]', 'true', 'false'], {})
 
         test_cases = [
@@ -4818,10 +4818,16 @@ class EasyConfigTest(EnhancedTestCase):
              ),
         ]
         for exts_filter, ext, expected_value in test_cases:
-            value = resolve_exts_filter_template(exts_filter, ext)
-            self.assertEqual(value, expected_value)
-            value = resolve_exts_filter_template(exts_filter, TestExtension(ext))
-            self.assertEqual(value, expected_value)
+            value = construct_exts_filter_cmds(exts_filter, ext)
+            self.assertEqual(value, [expected_value])
+            value = construct_exts_filter_cmds(exts_filter, TestExtension(ext))
+            self.assertEqual(value, [expected_value])
+
+        exts_filter = ('run %(ext_name)s', None)
+        value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': False}})
+        self.assertEqual(value, [])
+        value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': ['name', 'alt']}})
+        self.assertEqual(value, [('run name', None), ('run alt', None)])
 
     def test_cuda_compute_capabilities(self):
         """Tests that the cuda_compute_capabilities templates are correct"""
