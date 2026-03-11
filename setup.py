@@ -121,7 +121,7 @@ implement support for installing particular (groups of) software packages.""",
         'easybuild/scripts/install_eb_dep.sh',
     ],
     extras_require={
-        'eb2': ['click', 'rich', 'rich_click'],
+        'eb_click': ['click', 'rich', 'rich_click'],
     },
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
