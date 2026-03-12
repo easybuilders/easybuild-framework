@@ -36,7 +36,7 @@ from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.utilities import shell_quote
-from easybuild.tools.contextes import get_context, ORIG_OS_ENVIRON
+from easybuild.tools.contextes import get_context, ORIG_OS_ENVIRON  # noqa(F401)
 
 
 _log = fancylogger.getLogger('environment', fname=False)

@@ -43,7 +43,6 @@ class EnvironmentContext(dict):
             _path = os.path.normpath(os.path.join(self._cwd, path))
         return _path
 
-
     def getcwd(self):
         """Get the current working directory in this context."""
         if not os.path.exists(self._cwd):
@@ -93,6 +92,7 @@ class EnvironProxy():
     def __len__(self):
         return get_context().__len__()
 
+
 ################################################################################
 # os environment specific overrides
 os_hook.OSProxy.register_override('environ', EnvironProxy())
@@ -100,20 +100,13 @@ os_hook.OSProxy.register_override('getenv', lambda key, default=None: get_contex
 os_hook.OSProxy.register_override('unsetenv', lambda key: get_context().pop(key, None))
 os_hook.OSProxy.register_override('pushenv', lambda key, value: get_context().__setitem__(key, value))
 
+
 ################################################################################
 # os CWD specific overrides
 def _gcp(path):
     """Utility function to get the context path for a given path."""
     return get_context().get_context_path(path)
 
-
-def _gcp_one(func):
-    """Utility function to wrap a function that takes a single path argument,
-    applying the context path transformation."""
-    @wraps(func)
-    def wrapped(path, *args, **kwargs):
-        return func(_gcp(path), *args, **kwargs)
-    return wrapped
 
 def _gcp_one(func):
     """Utility function to wrap a function that takes a single path argument, that can be relative to a directory
@@ -170,12 +163,14 @@ for proxy in [os_hook.OSProxy, os_hook.PosixProxy]:
         orig = getattr(_os, func_name)
         proxy.register_override(func_name, _gcp_two(orig))
 
+
 def _wrapped_symlink(src, dst, *args, **kwargs):
     """Dedicated wrapper for os.symlink.
     The behavior of symlink is a bit special, as the src is not interpreted.
     Similar to doing ln -s SRC DST, SRC is not relative to the CWD but will be evaluated when accessing the symlink."""
 
     return _os.symlink(src, _gcp(dst), *args, **kwargs)
+
 
 os_hook.OSProxy.register_override('symlink', _wrapped_symlink)
 
@@ -194,18 +189,19 @@ for func_name in [
     orig = getattr(_posixpath, func_name)
     os_hook.PosixpathProxy.register_override(func_name, _gcp_one(orig))
 
-for func_name in ['samefile',]:
+for func_name in ['samefile', ]:
     orig = getattr(_posixpath, func_name)
     os_hook.PosixpathProxy.register_override(func_name, _gcp_two(orig))
 
-# os_hook.PosixpathProxy.register_override('realpath', gcp_one(my_realpath))
 
 def my_relpath(path, start=os.curdir, *args):
     return _posixpath.relpath(_gcp(path), _gcp(start), *args)
 
+
 os_hook.PosixpathProxy.register_override(
     'relpath', my_relpath
 )
+
 
 ################################################################################
 # subprocess.Popen override
@@ -219,6 +215,8 @@ class ContextPopen(subprocess._real.Popen):
         kwargs['cwd'] = context.get_context_path(kwargs.get('cwd', '.'))
 
         super().__init__(*args, **kwargs)
+
+
 os_hook.SubprocessProxy.register_override('Popen', ContextPopen)
 
 ################################################################################
