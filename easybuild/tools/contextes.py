@@ -227,6 +227,20 @@ original_open = builtins.open
 builtins.open = _gcp_one(original_open)
 # io.open = context_open(original_open)
 
+
+# Needed for python3.7. EG `shutil.copytree` -> `copystat` will behave differently depending on whether `stat` is in
+# `supports_follow_symlinks` or not. Since the code tests for `function in os.supports_follow_symlinks` and not for
+# `function.__name__ in os.supports_follow_symlinks`, we have to replace the functions in `os.supports_follow_symlinks`
+# with the wrapped versions.
+if hasattr(os, 'supports_follow_symlinks'):
+    print(os.supports_follow_symlinks)
+    new_follow_symlinks = set()
+    for func in os.supports_follow_symlinks:
+        print(func)
+        print(func.__name__)
+        new_follow_symlinks.add(getattr(os, func.__name__))
+    os.supports_follow_symlinks = new_follow_symlinks
+
 # import io
 # print(os.open)
 # print(os._real.open)
