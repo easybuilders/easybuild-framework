@@ -126,3 +126,6 @@ def install_os_hook():
     # Needed to override how import paths are resolved in case '' is in sys.path indicating the CWD.
     # Cannot be reloaded without breaking stuff
     importlib._bootstrap_external._os = sys.modules["posix"]
+
+    # To ensure we have the contextes module loaded to set all the function overrides
+    importlib.import_module("easybuild.tools.contextes")

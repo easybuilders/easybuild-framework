@@ -30,77 +30,17 @@ Authors:
 * Toon Willems (Ghent University)
 * Ward Poelmans (Ghent University)
 """
-import builtins
-import copy
 import os
-import posixpath
-import subprocess
 
-from functools import wraps
-
-from easybuild import os_hook
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.utilities import shell_quote
-
-
-# take copy of original environemt, so we can restore (parts of) it later
-ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
-ORIG_CWD = os.getcwd()
+from easybuild.tools.contextes import get_context, ORIG_OS_ENVIRON
 
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-
-class EnvironmentContext(dict):
-    """Environment context manager to track changes to the environment in a specific context."""
-    def __init__(self, copy_from=None):
-        super().__init__()
-        if copy_from is None:
-            copy_from = ORIG_OS_ENVIRON
-        self.update(copy_from.copy())
-        self._changes = {}
-        self._cwd = ORIG_CWD
-
-    @property
-    def changes(self):
-        return self._changes
-
-    def clear_changes(self):
-        """Clear the tracked changes, but keep the current environment state."""
-        self._changes.clear()
-
-    def get_context_path(self, path: str) -> str:
-        """Get the absolute path for a given path in the context of this environment."""
-        if os.path.isabs(path):
-            return path
-        else:
-            return os.path.normpath(os.path.join(self._cwd, path))
-
-    def getcwd(self):
-        """Get the current working directory in this context."""
-        if not os.path.exists(self._cwd):
-            raise FileNotFoundError("Current working directory '%s' does not exist in this context" % self._cwd)
-        return self._cwd
-
-    def chdir(self, path):
-        """Change the current working directory in this context."""
-        path = self.get_context_path(path)
-        if not os.path.exists(path):
-            raise OSError("Cannot change directory to '%s': No such file or directory" % path)
-        self._cwd = path
-
-
-_curr_context: EnvironmentContext = EnvironmentContext()
-
-
-def get_context() -> EnvironmentContext:
-    """
-    Return current context for tracking environment changes.
-    """
-    # TODO: Make this function thread-aware so that different threads can have their own context if needed.
-    return _curr_context
 
 
 def write_changes(filename):
@@ -182,7 +122,6 @@ def restore_env_vars(env_keys):
         if env_keys[key] is not None:
             _log.info("Restoring environment variable %s (value: %s)" % (key, env_keys[key]))
             os.environ[key] = env_keys[key]
-            # get_context()[key] = env_keys[key]
 
 
 def read_environment(env_vars, strict=False):
@@ -275,142 +214,3 @@ def sanitize_env():
     # unset all $PYTHON* environment variables
     keys_to_unset = [key for key in os.environ if key.startswith('PYTHON')]
     unset_env_vars(keys_to_unset, verbose=False)
-
-
-class EnvironProxy():
-    """Hook into os.environ and replace it with calls from this module to track changes to the environment."""
-    def __getattribute__(self, name):
-        return get_context().__getattribute__(name)
-
-    # This methods do not go through the instance __getattribute__
-    def __getitem__(self, key):
-        return get_context().__getitem__(key)
-
-    def __setitem__(self, key, value):
-        get_context().__setitem__(key, value)
-
-    def __delitem__(self, key):
-        get_context().__delitem__(key)
-
-    def __iter__(self):
-        return get_context().__iter__()
-
-    def __contains__(self, key):
-        return get_context().__contains__(key)
-
-    def __len__(self):
-        return get_context().__len__()
-
-
-################################################################################
-# os environment specific overrides
-os_hook.OSProxy.register_override('environ', EnvironProxy())
-os_hook.OSProxy.register_override('getenv', lambda key, default=None: get_context().get(key, default))
-os_hook.OSProxy.register_override('unsetenv', lambda key: get_context().__delitem__(key))
-os_hook.OSProxy.register_override('pushenv', lambda key, value: get_context().__setitem__(key, value))
-
-################################################################################
-# os CWD specific overrides
-def _gcp(path):
-    """Utility function to get the context path for a given path."""
-    return get_context().get_context_path(path)
-
-
-def _gcp_one(func):
-    """Utility function to wrap a function that takes a single path argument,
-    applying the context path transformation."""
-    @wraps(func)
-    def wrapped(path, *args, **kwargs):
-        return func(_gcp(path), *args, **kwargs)
-    return wrapped
-
-
-def _gcp_two(func):
-    """Utility function to wrap a function that takes two path arguments,
-    applying the context path transformation to both."""
-    @wraps(func)
-    def wrapped(src, dst, *args, **kwargs):
-        return func(_gcp(src), _gcp(dst), *args, **kwargs)
-    return wrapped
-
-
-_os = os._real
-for proxy in [os_hook.OSProxy, os_hook.PosixProxy]:
-# for proxy in [os_hook.OSProxy]:
-    proxy.register_override('chdir', lambda path: get_context().chdir(path))
-    proxy.register_override('getcwd', lambda: get_context().getcwd())
-    proxy.register_override('scandir', lambda path='.': _os.scandir(_gcp(path)))
-    for func_name in [
-        'open', 'listdir', 'mkdir', 'remove', 'rmdir', 'chmod', 'stat', 'lstat',
-        'access', 'walk', 'readlink', 'unlink', 'utime', 'chroot',
-        'makedirs', 'removedirs', 'rmdir', 'statvfs', 'link', 'readlink',
-        'mkfifo', 'mknod', 'pathconf',
-        'getxattr', 'setxattr', 'listxattr', 'removexattr',
-    ]:
-        orig = getattr(_os, func_name)
-        proxy.register_override(func_name, _gcp_one(orig))
-    for func_name in [
-        'rename', 'link', 'replace'
-    ]:
-        orig = getattr(_os, func_name)
-        proxy.register_override(func_name, _gcp_two(orig))
-
-def _wrapped_symlink(src, dst, *args, **kwargs):
-    """Dedicated wrapper for os.symlink.
-    The behavior of symlink is a bit special, as the src is not interpreted.
-    Similar to doing ln -s SRC DST, SRC is not relative to the CWD but will be evaluated when accessing the symlink."""
-
-    return _os.symlink(src, _gcp(dst), *args, **kwargs)
-
-os_hook.OSProxy.register_override('symlink', _wrapped_symlink)
-
-################################################################################
-# posixpath overrides
-_posixpath = posixpath._real
-os_hook.OSProxy.register_override('path', posixpath)
-for func_name in [
-    'abspath', 'exists',
-    # 'expanduser',
-    # 'expandvars',
-    'getatime', 'getctime', 'getmtime', 'getsize',
-    'isfile', 'isdir', 'islink', 'ismount',
-    'realpath',
-]:
-    orig = getattr(_posixpath, func_name)
-    os_hook.PosixpathProxy.register_override(func_name, _gcp_one(orig))
-
-for func_name in ['samefile',]:
-    orig = getattr(_posixpath, func_name)
-    os_hook.PosixpathProxy.register_override(func_name, _gcp_two(orig))
-
-# os_hook.PosixpathProxy.register_override('realpath', gcp_one(my_realpath))
-
-def my_relpath(path, start=os.curdir, *args):
-    return _posixpath.relpath(_gcp(path), _gcp(start), *args)
-
-os_hook.PosixpathProxy.register_override(
-    'relpath', my_relpath
-)
-
-################################################################################
-# subprocess.Popen override
-class ContextPopen(subprocess._real.Popen):
-    """Custom Popen class to apply the current context's environment changes when spawning subprocesses."""
-    def __init__(self, *args, **kwargs):
-        context = get_context()
-        if kwargs.get('env', None) is None:
-            kwargs['env'] = context
-
-        kwargs['cwd'] = context.get_context_path(kwargs.get('cwd', '.'))
-
-        super().__init__(*args, **kwargs)
-os_hook.SubprocessProxy.register_override('Popen', ContextPopen)
-
-################################################################################
-# open() overrides
-# os_hook.BuiltinProxy.register_override('open', context_open(open))
-
-original_open = builtins.open
-builtins.open = _gcp_one(original_open)
-# import io
-# io.open = context_open(original_open)
