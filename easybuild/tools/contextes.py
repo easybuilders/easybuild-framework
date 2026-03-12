@@ -97,7 +97,7 @@ class EnvironProxy():
 # os environment specific overrides
 os_hook.OSProxy.register_override('environ', EnvironProxy())
 os_hook.OSProxy.register_override('getenv', lambda key, default=None: get_context().get(key, default))
-os_hook.OSProxy.register_override('unsetenv', lambda key: get_context().__delitem__(key))
+os_hook.OSProxy.register_override('unsetenv', lambda key: get_context().pop(key, None))
 os_hook.OSProxy.register_override('pushenv', lambda key, value: get_context().__setitem__(key, value))
 
 ################################################################################

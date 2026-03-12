@@ -48,6 +48,7 @@ import tempfile
 import traceback
 from datetime import datetime
 
+# if os.environ.get('EB_ISOLATED_CONTEXTS', '').lower() in ('1', 'true', 'yes'):
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
 from easybuild import os_hook  # Imported to inject hook that replaces system os with our wrapped version
@@ -840,26 +841,26 @@ def prepare_main(args=None, logfile=None, testing=None):
 
 def main_with_hooks(args=None):
     # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
-    # try:
-    init_session_state, eb_go, cfg_settings = prepare_main(args=args)
-    # except EasyBuildError as err:
-    #     print_error_and_exit(err.msg, exit_code=err.exit_code)
+    try:
+        init_session_state, eb_go, cfg_settings = prepare_main(args=args)
+    except EasyBuildError as err:
+        print_error_and_exit(err.msg, exit_code=err.exit_code)
 
     hooks = load_hooks(eb_go.options.hooks)
 
-    # try:
-    exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
-    sys.exit(int(exit_code))
-    # except EasyBuildError as err:
-    #     run_hook(FAIL, hooks, args=[err])
-    #     print_error_and_exit(err.msg, exit_code=err.exit_code)
-    # except KeyboardInterrupt as err:
-    #     run_hook(CANCEL, hooks, args=[err])
-    #     print_error_and_exit("Cancelled by user: %s", err)
-    # except Exception as err:
-    #     run_hook(CRASH, hooks, args=[err])
-    #     sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")
-    #     raise
+    try:
+        exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        sys.exit(int(exit_code))
+    except EasyBuildError as err:
+        run_hook(FAIL, hooks, args=[err])
+        print_error_and_exit(err.msg, exit_code=err.exit_code)
+    except KeyboardInterrupt as err:
+        run_hook(CANCEL, hooks, args=[err])
+        print_error_and_exit("Cancelled by user: %s", err)
+    except Exception as err:
+        run_hook(CRASH, hooks, args=[err])
+        sys.stderr.write("EasyBuild crashed! Please consider reporting a bug, this should not happen...\n\n")
+        raise
 
 
 if __name__ == "__main__":
