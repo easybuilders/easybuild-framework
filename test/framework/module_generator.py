@@ -1639,6 +1639,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                 ['Toolchain/cpeGNU/21.04'],
                                 ['Core']),
             'HPL-2.1-CrayCCE-5.1.29.eb': ('HPL/2.1', 'Toolchain/CrayCCE/5.1.29', [], [], ['Core']),
+            'nvidia-compilers-25.9.eb': ('nvidia-compilers/25.9', 'Core',
+                                         ['Compiler/nvidia-compilers/25.9'],
+                                         ['Compiler/nvidia-compilers/25.9'],
+                                         ['Core']),
+            'NVHPC-25.9.eb': ('NVHPC/25.9', 'Core',
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
+                              ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
@@ -1676,6 +1684,12 @@ class ModuleGeneratorTest(EnhancedTestCase):
                       ['MPI/intel/%s/impi/5.1.2.150' % iccver]),
             imkl_ec: ('imkl/11.3.1.150', 'MPI/intel/%s/impi/5.1.2.150/numlib' % iccver,
                       [], []),
+            'nvidia-compilers-25.9.eb': ('nvidia-compilers/25.9', 'Core/compiler',
+                                         ['Compiler/nvidia-compilers/25.9/%s' % c for c in moduleclasses],
+                                         ['Compiler/nvidia-compilers/25.9']),
+            'NVHPC-25.9.eb': ('NVHPC/25.9', 'Core/toolchain',
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9/%s' % c for c in moduleclasses],
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
