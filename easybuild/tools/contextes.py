@@ -32,7 +32,7 @@ class EnvironmentContext(dict):
         """Clear the tracked changes, but keep the current environment state."""
         self._changes.clear()
 
-    def get_context_path(self, path: str | int) -> str:
+    def get_context_path(self, path):
         """Get the absolute path for a given path in the context of this environment."""
         # if not isinstance(path, str):
         #     print(f'GET_CONTEXT_PATH: type(path)={type(path)} path={path}, cwd={self._cwd}')

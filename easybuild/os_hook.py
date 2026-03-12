@@ -81,7 +81,7 @@ class PosixpathProxy(ModuleProxy):
     module_name = "posixpath"
 
 
-proxy_map: dict[str, ModuleProxy] = {
+proxy_map = {
     "os": OSProxy,
     "subprocess": SubprocessProxy,
     "posix": PosixProxy,

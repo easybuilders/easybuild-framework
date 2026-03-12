@@ -42,7 +42,6 @@ from easybuild.tools.contextes import get_context, ORIG_OS_ENVIRON  # noqa(F401)
 _log = fancylogger.getLogger('environment', fname=False)
 
 
-
 def write_changes(filename):
     """
     Write current changes to filename and reset environment afterwards
