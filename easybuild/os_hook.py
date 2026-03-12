@@ -129,3 +129,8 @@ def install_os_hook():
 
     # To ensure we have the contextes module loaded to set all the function overrides
     importlib.import_module("easybuild.tools.contextes")
+
+    sys.modules["posixpath"].os = sys.modules["os"]
+    sys.modules["posixpath"]._real.os = sys.modules["os"]
+    sys.modules["io"].os = sys.modules["os"]
+    # sys.modules["io"]._real.os = sys.modules["os"]
