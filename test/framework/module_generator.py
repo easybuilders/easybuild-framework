@@ -1644,9 +1644,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                          ['Compiler/nvidia-compilers/25.9'],
                                          ['Core']),
             'NVHPC-25.9.eb': ('NVHPC/25.9', 'Core',
-                             ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
-                             ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
-                             ['Core']),
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9'],
+                              ['Core']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals)
@@ -1688,8 +1688,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
                                          ['Compiler/nvidia-compilers/25.9/%s' % c for c in moduleclasses],
                                          ['Compiler/nvidia-compilers/25.9']),
             'NVHPC-25.9.eb': ('NVHPC/25.9', 'Core/toolchain',
-                             ['MPI/nvidia-compilers/25.9/NVHPC/25.9/%s' % c for c in moduleclasses],
-                             ['MPI/nvidia-compilers/25.9/NVHPC/25.9']),
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9/%s' % c for c in moduleclasses],
+                              ['MPI/nvidia-compilers/25.9/NVHPC/25.9']),
         }
         for ecfile, mns_vals in test_ecs.items():
             test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
