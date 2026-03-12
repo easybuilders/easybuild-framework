@@ -39,7 +39,7 @@ class EnvironmentContext(dict):
         if isinstance(path, int):
             return path
         _path = path
-        if not os.path.isabs(path):
+        if path and not os.path.isabs(path):
             _path = os.path.normpath(os.path.join(self._cwd, path))
         return _path
 
