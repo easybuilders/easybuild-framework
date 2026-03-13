@@ -40,13 +40,10 @@ TC_CONSTANT_ROCM = "ROCm"
 
 
 class ROCmCompilers(LLVMCompilers):
-    """Compiler toolchain with ROCm compilers (amdclang/amdflang)."""
+    """Compiler toolchain with ROCm compilers (clang/flang)."""
     COMPILER_FAMILY = TC_CONSTANT_ROCM
     SUBTOOLCHAIN = SYSTEM_TOOLCHAIN_NAME
 
-    COMPILER_CC = 'amdclang'
-    COMPILER_CXX = 'amdclang++'
-
-    COMPILER_F77 = 'amdflang'
-    COMPILER_F90 = 'amdflang'
-    COMPILER_FC = 'amdflang'
+    # We use clang, clang++ and flang for now (instead of amdclang/amdclang++/amdflang).
+    # These are simply inherited from LLVMCompilers, so we don't need to respecify them
+    # See https://github.com/easybuilders/easybuild-framework/pull/5099#issuecomment-4054952860
