@@ -3166,16 +3166,31 @@ class FileToolsTest(EnhancedTestCase):
         del git_config['extra_config_params']
 
         del git_config['tag']
+        git_config['commit'] = '90366eac4408c5d615d69c5444ed784734b167c8'
+        string_args['commit'] = git_config['commit']
+        expected = '\n'.join([
+            r'  running command "git clone --no-checkout %(git_repo)s"',
+            r"  \(in .*/tmp.*\)",
+            r'  running command "git fetch %(git_repo)s %(commit)s"',
+            r"  \(in testrepository\)",
+            r'  running command "git checkout %(commit)s && git submodule update --init --recursive"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
+        run_check()
+
+        # clone & fetch does not work for short hashes
         git_config['commit'] = '8456f86'
+        string_args['commit'] = git_config['commit']
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git submodule update --init --recursive"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
+            r'  running command "git checkout %(commit)s && git submodule update --init --recursive"',
+            r"  \(in testrepository\)",
+            r'  running command "tar cfvz .*/target/test.tar.gz --exclude .git testrepository"',
+            r"  \(in .*/tmp.*\)",
+        ]) % string_args
         run_check()
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
@@ -3263,18 +3278,15 @@ class FileToolsTest(EnhancedTestCase):
             self.assertFalse(os.path.isdir(os.path.join(extracted_repo_dir, '.git')))
 
             del git_config['tag']
-            git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.xz')
-            self.assertEqual(res, test_file)
-            self.assertTrue(os.path.isfile(test_file))
-            test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
-            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            with self.mocked_stdout_stderr():
-                extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
-            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'README.md')))
-            self.assertFalse(os.path.isdir(os.path.join(extracted_repo_dir, '.git')))
+            test_tar_gzs = []
+            for i, commit in enumerate(['90366eac4408c5d615d69c5444ed784734b167c8', '90366ea']):
+                git_config['commit'] = commit
+                test_file = os.path.join(target_dir, 'test2-%s.tar.gz' % i)
+                res = ft.get_source_tarball_from_git(os.path.basename(test_file), target_dir, git_config)
+                self.assertEqual(res, test_file)
+                self.assertTrue(os.path.isfile(test_file))
+                test_tar_gzs.append(os.path.basename(test_file))
+                self.assertEqual(sorted(os.listdir(target_dir)), test_tar_gzs)
 
             git_config['keep_git_dir'] = True
             res = ft.get_source_tarball_from_git('test3', target_dir, git_config)
