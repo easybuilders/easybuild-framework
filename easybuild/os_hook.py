@@ -116,7 +116,7 @@ def install_os_hook():
     #   our hook for eg `os.path.expanduser` to work with `os.environ['HOME'] = '...'`
     # - shutil is used in CUDA sanity check with `shutil.which` to find `cuobjdum`
     system_modules = [
-        "os", "sys", "tempfile", "posixpath", "shutil", "importlib", "io"
+        "os", "sys", "tempfile", "posixpath", "shutil", "importlib", "io", "glob",
     ]
     for name in system_modules:
         if name in sys.modules:
