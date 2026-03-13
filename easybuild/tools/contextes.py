@@ -34,11 +34,13 @@ class EnvironmentContext(dict):
 
     def get_context_path(self, path):
         """Get the absolute path for a given path in the context of this environment."""
+        # print(str(path))
         # if not isinstance(path, str):
         #     print(f'GET_CONTEXT_PATH: type(path)={type(path)} path={path}, cwd={self._cwd}')
+        #     # print(path.__dict__)
         if isinstance(path, int):
             return path
-        _path = path
+        _path = str(path)
         if path and not os.path.isabs(path):
             _path = os.path.normpath(os.path.join(self._cwd, path))
         return _path
@@ -113,6 +115,13 @@ def _gcp_one(func):
     file descriptor"""
     @wraps(func)
     def wrapped(path, *args, **kwargs):
+        # Exception specific for behavior of pathlib in python<3.11 where the first argument passed can be a
+        # _NormalAccessor object
+        # print(f'_gcp_one: path={path} args={args} kwargs={kwargs}')
+        if path.__class__.__name__ == '_NormalAccessor':
+            args = list(args)
+            path = args.pop(0)
+
         # If dir_fd is specified, the path is relative to that directory and not to the context's CWD,
         # to preserve the expected behavior of dir_fd. EG: when calling shutil.rmtree, it can internally use
         # os.scandir and recursively delete relative paths, w.r.t the directory file descriptor.
@@ -142,6 +151,7 @@ one_path_funcs = [
     'makedirs', 'removedirs', 'rmdir', 'statvfs', 'link', 'readlink',
     'mkfifo', 'mknod', 'pathconf',
     'getxattr', 'setxattr', 'listxattr', 'removexattr',
+    'scandir',
 ]
 # one_path_funcs_dirfd = [
 #     'open', 'access', 'chmod', 'chown', 'lstat', 'mkdir', 'mkfifo', 'mknod', 'readlink', 'remove', 'rmdir',
@@ -154,7 +164,6 @@ two_path_funcs_dirfd = [
 for proxy in [os_hook.OSProxy, os_hook.PosixProxy]:
     proxy.register_override('chdir', lambda path: get_context().chdir(path))
     proxy.register_override('getcwd', lambda: get_context().getcwd())
-    proxy.register_override('scandir', lambda path='.': _os.scandir(_gcp(path)))
     for func_name in one_path_funcs:
         orig = getattr(_os, func_name)
         proxy.register_override(func_name, _gcp_one(orig))
@@ -233,11 +242,8 @@ builtins.open = _gcp_one(original_open)
 # `function.__name__ in os.supports_follow_symlinks`, we have to replace the functions in `os.supports_follow_symlinks`
 # with the wrapped versions.
 if hasattr(os, 'supports_follow_symlinks'):
-    print(os.supports_follow_symlinks)
     new_follow_symlinks = set()
     for func in os.supports_follow_symlinks:
-        print(func)
-        print(func.__name__)
         new_follow_symlinks.add(getattr(os, func.__name__))
     os.supports_follow_symlinks = new_follow_symlinks
 
