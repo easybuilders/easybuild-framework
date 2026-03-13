@@ -3637,6 +3637,13 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(copied_toy_eb), ft.read_file(toy_eb))
         self.assertTrue(os.path.samefile(res['paths_in_repo'][2], copied_toy_eb))
 
+        # Copy only modified files
+        ft.write_file(copied_toy_eb, "")
+        res = ft.copy_easyblocks(test_ebs, self.test_prefix)
+        self.assertEqual(res['eb_names'], ['toy'])
+        self.assertEqual(res['new'], [False])
+        self.assertEqual(ft.read_file(copied_toy_eb), ft.read_file(toy_eb))
+
     def test_copy_framework_files(self):
         """Test for copy_framework_files function."""
 
@@ -3668,7 +3675,7 @@ class FileToolsTest(EnhancedTestCase):
         expected_new = [True, False, True]
 
         # we include setup.py conditionally because it may not be there,
-        # for example when running the tests on an actual easybuild-framework instalation,
+        # for example when running the tests on an actual easybuild-framework installation,
         # as opposed to when running from a repository checkout...
         # setup.py is an important test case, since it has no parent directory
         # (it's straight in the easybuild-framework directory)
@@ -3702,6 +3709,16 @@ class FileToolsTest(EnhancedTestCase):
             self.assertTrue(os.path.samefile(copied_path, res['paths_in_repo'][idx]))
 
         self.assertEqual(res['new'], expected_new)
+
+        # Copy unmodified files (i.e. same again) does nothing
+        res = ft.copy_framework_files(test_paths, target_dir)
+        self.assertEqual(res, {'paths_in_repo': [], 'new': []})
+
+        # Copy single modified file
+        modified_file = os.path.join(target_dir, test_files[0])
+        ft.write_file(modified_file, "")
+        res = ft.copy_framework_files(test_paths, target_dir)
+        self.assertEqual(res, {'paths_in_repo': [modified_file], 'new': [False]})
 
     def test_locks(self):
         """Tests for lock-related functions."""
