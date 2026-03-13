@@ -40,7 +40,7 @@ class EnvironmentContext(dict):
         #     # print(path.__dict__)
         if isinstance(path, int):
             return path
-        _path = str(path)
+        _path = path
         if path and not os.path.isabs(path):
             _path = os.path.normpath(os.path.join(self._cwd, path))
         return _path
@@ -153,10 +153,6 @@ one_path_funcs = [
     'getxattr', 'setxattr', 'listxattr', 'removexattr',
     'scandir',
 ]
-# one_path_funcs_dirfd = [
-#     'open', 'access', 'chmod', 'chown', 'lstat', 'mkdir', 'mkfifo', 'mknod', 'readlink', 'remove', 'rmdir',
-#     'stat', 'symlink', 'unlink', 'utime', 'fwalk'
-# ]
 two_path_funcs_dirfd = [
     'rename', 'link', 'replace'
 ]
@@ -173,12 +169,16 @@ for proxy in [os_hook.OSProxy, os_hook.PosixProxy]:
         proxy.register_override(func_name, _gcp_two(orig))
 
 
+@wraps(_os.symlink)
 def _wrapped_symlink(src, dst, *args, **kwargs):
     """Dedicated wrapper for os.symlink.
     The behavior of symlink is a bit special, as the src is not interpreted.
     Similar to doing ln -s SRC DST, SRC is not relative to the CWD but will be evaluated when accessing the symlink."""
 
-    return _os.symlink(src, _gcp(dst), *args, **kwargs)
+    if kwargs.get('dir_fd') is None:
+        dst = _gcp(dst)
+
+    return _os.symlink(src, dst, *args, **kwargs)
 
 
 os_hook.OSProxy.register_override('symlink', _wrapped_symlink)
@@ -230,22 +230,14 @@ os_hook.SubprocessProxy.register_override('Popen', ContextPopen)
 
 ################################################################################
 # open() overrides
-# os_hook.BuiltinProxy.register_override('open', context_open(open))
+# os_hook.BuiltinProxy.register_override('open', _gcp_one(open))
 
 original_open = builtins.open
+# open called as is calls builtins.open under the hood, but proxying builtin itself does not work so we directly
+# override builtins.open here to replace `open` calls across the code.
 builtins.open = _gcp_one(original_open)
 # io.open = context_open(original_open)
 
-
-# Needed for python3.7. EG `shutil.copytree` -> `copystat` will behave differently depending on whether `stat` is in
-# `supports_follow_symlinks` or not. Since the code tests for `function in os.supports_follow_symlinks` and not for
-# `function.__name__ in os.supports_follow_symlinks`, we have to replace the functions in `os.supports_follow_symlinks`
-# with the wrapped versions.
-if hasattr(os, 'supports_follow_symlinks'):
-    new_follow_symlinks = set()
-    for func in os.supports_follow_symlinks:
-        new_follow_symlinks.add(getattr(os, func.__name__))
-    os.supports_follow_symlinks = new_follow_symlinks
 
 # import io
 # print(os.open)
@@ -256,3 +248,13 @@ if hasattr(os, 'supports_follow_symlinks'):
 # importlib.reload(io)
 # print(io.open)
 # exit(0)
+
+# Needed for python <= 3.7. EG `shutil.copytree` -> `copystat` will behave differently depending on whether `stat` is in
+# `supports_follow_symlinks` or not. Since the code tests for `function in os.supports_follow_symlinks` and not for
+# `function.__name__ in os.supports_follow_symlinks`, we have to replace the functions in `os.supports_follow_symlinks`
+# with the wrapped versions.
+if hasattr(os, 'supports_follow_symlinks'):
+    new_follow_symlinks = set()
+    for func in os.supports_follow_symlinks:
+        new_follow_symlinks.add(getattr(os, func.__name__))
+    os.supports_follow_symlinks = new_follow_symlinks
