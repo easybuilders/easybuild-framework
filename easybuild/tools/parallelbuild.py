@@ -43,8 +43,9 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.bwraptools import BWRAP_INFO
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
-from easybuild.tools.filetools import get_cwd
+from easybuild.tools.filetools import get_cwd, mkdir
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.job.backend import job_backend, JobBackend
 from easybuild.tools.repository.repository import init_repository
@@ -154,17 +155,27 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True, t
     # cfr. https://github.com/easybuilders/easybuild-framework/issues/3307
     opts.append('--disable-job')
 
+    bwrap_cmd = BWRAP_INFO['bwrap_cmd']
+    if bwrap_cmd:
+        opts.extend(BWRAP_INFO['bwrap_options'])
+
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
     try_opts_str = ' ' + ' '.join(try_opts).replace('%', '%%')
 
-    eb_cmd = build_option('job_eb_cmd')
-
-    command = ' && '.join([
+    pre_cmd = [
         "unset TMPDIR",
-        "cd %s" % curdir,
-        "%s %%(spec)s %s %%(add_opts)s --testoutput=%%(output_dir)s" % (eb_cmd, opts_str),
-    ])
+        f"cd {curdir}",
+    ]
+
+    eb_cmd = build_option('job_eb_cmd')
+    full_eb_cmd = f"{eb_cmd} %(spec)s {opts_str} %(add_opts)s --testoutput=%(output_dir)s"
+
+    if bwrap_cmd:
+        full_eb_cmd = f'{" ".join(bwrap_cmd)} {full_eb_cmd}'
+
+    command = ' && '.join(pre_cmd + [full_eb_cmd])
+
     _log.info("Command template for jobs: %s", command)
     if testing:
         _log.debug("Skipping actual submission of jobs since testing mode is enabled")
