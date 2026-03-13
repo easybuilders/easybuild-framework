@@ -39,6 +39,7 @@ Authors:
 * Maxime Boissonneault (Compute Canada)
 * Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
 """
+# flake8: noqa: E402
 import copy
 import os
 import stat
@@ -47,9 +48,13 @@ import tempfile
 import traceback
 from datetime import datetime
 
+# if os.environ.get('EB_ISOLATED_CONTEXTS', '').lower() in ('1', 'true', 'yes'):
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error_and_exit, print_msg, print_warning, stop_logging
+from easybuild import os_hook  # Imported to inject hook that replaces system os with our wrapped version
+os_hook.install_os_hook()
+
+from easybuild.tools.build_log import EasyBuildError, print_error_and_exit, print_msg, print_warning, stop_logging   # noqa: E402
 from easybuild.tools.build_log import EasyBuildExit
 
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json

@@ -30,22 +30,16 @@ Authors:
 * Toon Willems (Ghent University)
 * Ward Poelmans (Ghent University)
 """
-import copy
 import os
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.utilities import shell_quote
-
-
-# take copy of original environemt, so we can restore (parts of) it later
-ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
+from easybuild.tools.contextes import get_context, ORIG_OS_ENVIRON  # noqa(F401)
 
 
 _log = fancylogger.getLogger('environment', fname=False)
-
-_changes = {}
 
 
 def write_changes(filename):
@@ -54,7 +48,7 @@ def write_changes(filename):
     """
     try:
         with open(filename, 'w') as script:
-            for key, changed_value in _changes.items():
+            for key, changed_value in get_changes().items():
                 script.write('export %s=%s\n' % (key, shell_quote(changed_value)))
     except IOError as err:
         raise EasyBuildError("Failed to write to %s: %s", filename, err)
@@ -65,15 +59,14 @@ def reset_changes():
     """
     Reset the changes tracked by this module
     """
-    global _changes
-    _changes = {}
+    get_context().clear_changes()
 
 
-def get_changes():
+def get_changes(show_unset=False) -> dict:
     """
     Return tracked changes made in environment.
     """
-    return _changes
+    return get_context().changes.copy()
 
 
 def setvar(key, value, verbose=True, log_changes=True):
@@ -88,9 +81,7 @@ def setvar(key, value, verbose=True, log_changes=True):
         oldval_info = "previous value: '%s'" % os.environ[key]
     except KeyError:
         oldval_info = "previously undefined"
-    # os.putenv() is not necessary. os.environ will call this.
     os.environ[key] = value
-    _changes[key] = value
     if log_changes:
         _log.info("Environment variable %s set to %s (%s)", key, value, oldval_info)
 
@@ -171,7 +162,6 @@ def modify_env(old, new, verbose=True, log_changes=True):
     for key in old_keys:
         if key not in new_keys:
             _log.debug("Key in old environment found that is not in new one: %s (%s)", key, old[key])
-            os.unsetenv(key)
             del os.environ[key]
 
 
