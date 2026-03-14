@@ -592,9 +592,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         # updating modules_to_install because process_eb_args may run multiple times:
         # once for each easyconfig in the easystack
         BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
-        if BWRAP_INFO['modules_to_install']:
-            if not options.job:
-                return True
+        if not options.job:
+            return True
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [
