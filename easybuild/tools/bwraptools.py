@@ -54,7 +54,14 @@ _log = fancylogger.getLogger('bwrap', fname=False)
 
 
 def prepare_bwrap(bwrap_installpath):
-    "Prepare for running EasyBuild with bwrap"
+    """
+    Prepare for running EasyBuild with bwrap:
+    - update BWRAP_INFO
+    - write json metadata file with BWRAP_INFO
+    - set environment variable EB_BWRAP_CMD
+
+    :param bwrap_installpath: bwrap installpath
+    """
 
     BWRAP_INFO['bwrap_installpath'] = bwrap_installpath
     BWRAP_INFO['installpath_software'] = install_path(typ='software')
@@ -76,9 +83,6 @@ def prepare_bwrap(bwrap_installpath):
     # disable `--bwrap` to prepare for a real installation (in bwrap namespace)
     BWRAP_INFO['bwrap_eb_options'] = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
 
-
-def log_bwrap():
-    "Log, print, write metadata for bwrap"
     _log.info(f'Info needed for bwrap: {BWRAP_INFO}')
 
     # write json file with bwrap install info into bwrap installpath

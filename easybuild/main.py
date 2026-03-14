@@ -65,7 +65,7 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.bwraptools import BWRAP_INFO, log_bwrap, prepare_bwrap
+from easybuild.tools.bwraptools import BWRAP_INFO, prepare_bwrap
 from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
@@ -593,7 +593,6 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         # once for each easyconfig in the easystack
         BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
         if BWRAP_INFO['modules_to_install']:
-            prepare_bwrap(options.bwrap_installpath)
             if not options.job:
                 return True
 
@@ -872,7 +871,7 @@ def main_with_hooks(args=None):
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
         if int(exit_code) == 0 and build_option('bwrap') and BWRAP_INFO['modules_to_install']:
-            log_bwrap()
+            prepare_bwrap(eb_go.options.bwrap_installpath)
             if not eb_go.options.job:
                 rerun_with_bwrap()
         sys.exit(int(exit_code))
