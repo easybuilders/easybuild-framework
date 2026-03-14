@@ -74,8 +74,7 @@ def prepare_bwrap(bwrap_installpath):
     BWRAP_INFO['bwrap_cmd'] = bwrap_cmd
 
     # disable `--bwrap` to prepare for a real installation (in bwrap namespace)
-    bwrap_eb_options = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
-    BWRAP_INFO['bwrap_eb_options'] = bwrap_eb_options
+    BWRAP_INFO['bwrap_eb_options'] = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
 
 
 def log_bwrap():
