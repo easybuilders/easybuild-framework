@@ -38,10 +38,12 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 * Maxime Boissonneault (Compute Canada)
 * Bart Oldeman (McGill University, Calcul Quebec, Digital Research Alliance of Canada)
+* Samuel Moors (Vrije Universiteit Brussel)
 """
 import copy
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import traceback
@@ -63,7 +65,8 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.config import find_last_log, get_repository, get_repositorypath, build_option
+from easybuild.tools.bwraptools import BWRAP_INFO, prepare_bwrap
+from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.environment import restore_env
@@ -92,6 +95,7 @@ from easybuild.tools.version import different_major_versions
 
 _log = None
 
+EASYBUILD_MAIN = 'easybuild.main'
 
 if sys.version_info < (3, 9):
     full_py_ver = '.'.join(str(x) for x in sys.version_info[:3])
@@ -355,6 +359,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     options = eb_go.options
 
     global _log
+
+    if options.bwrap:
+        _log.experimental("support for building in bwrap namespace (--bwrap)")
+
     # Unpack cfg_settings
     (build_specs, _log, _logfile, robot_path, search_query, _eb_tmpdir, try_to_generate,
      from_pr_list, tweaked_ecs_paths) = cfg_settings
@@ -387,8 +395,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         'sync_pr_with_develop',
         'update_branch_github',
         'update_pr',
-        ) if getattr(options, opt)
-    ]
+    ) if getattr(options, opt)]
+
     any_pr_option_set = len(set_pr_options) > 0
     if len(set_pr_options) > 1:
         raise EasyBuildError("The following options are set but incompatible: %s.\nYou can only use one at a time!",
@@ -579,6 +587,13 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     elif options.inject_checksums_to_json:
         with rich_live_cm():
             inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
+
+    elif options.bwrap:
+        # updating modules_to_install because process_eb_args may run multiple times:
+        # once for each easyconfig in the easystack
+        BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
+        if not options.job:
+            return True
 
     # cleanup and exit after dry run, searching easyconfigs or submitting regression test
     stop_options = [
@@ -834,6 +849,15 @@ def prepare_main(args=None, logfile=None, testing=None):
     return init_session_state, eb_go, cfg_settings
 
 
+def rerun_with_bwrap():
+    "Rerun EasyBuild with bwrap"
+    eb_cmd = ['python', '-m', EASYBUILD_MAIN] + sys.argv[1:]
+    full_cmd = BWRAP_INFO['bwrap_cmd'] + eb_cmd + BWRAP_INFO['bwrap_eb_options']
+
+    _log.info(f'Rerunning EasyBuild with command: {" ".join(full_cmd)}')
+    sys.exit(subprocess.run(full_cmd).returncode)
+
+
 def main_with_hooks(args=None):
     # take into account that EasyBuildError may be raised when parsing the EasyBuild configuration
     try:
@@ -845,6 +869,10 @@ def main_with_hooks(args=None):
 
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
+        if int(exit_code) == 0 and build_option('bwrap') and BWRAP_INFO['modules_to_install']:
+            prepare_bwrap(eb_go.options.bwrap_installpath)
+            if not eb_go.options.job:
+                rerun_with_bwrap()
         sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])

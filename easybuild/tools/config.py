@@ -113,6 +113,7 @@ DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
+    'bwrap_installpath': 'bwrap',
     'containerpath': 'containers',
     'installpath': '',
     'packagepath': 'packages',
@@ -304,6 +305,7 @@ BUILD_OPTIONS_CMDLINE = {
         'allow_modules_tool_mismatch',
         'allow_unresolved_templates',
         'backup_patched_files',
+        'bwrap',
         'consider_archived_easyconfigs',
         'container_build_image',
         'cuda_sanity_check_accept_ptx_as_devcode',

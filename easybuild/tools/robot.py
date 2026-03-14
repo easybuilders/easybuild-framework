@@ -230,7 +230,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True):
     return res
 
 
-def dry_run(easyconfigs, modtool, short=False):
+def dry_run(easyconfigs, modtool, short=False, modules_to_install=False):
     """
     Compose dry run overview for supplied easyconfigs:
     * [ ] for unavailable
@@ -240,6 +240,7 @@ def dry_run(easyconfigs, modtool, short=False):
     :param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
     :param modtool: ModulesTool instance to use
     :param short: use short format for overview: use a variable for common prefixes
+    :param modules_to_install: return list of modules to be (re)installed
     """
     terse = build_option('terse')
     if build_option('robot') is None:
@@ -264,6 +265,8 @@ def dry_run(easyconfigs, modtool, short=False):
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs if spec['spec'] is not None])
     # only allow short if common prefix is long enough
     short = short and common_prefix is not None and len(common_prefix) > len(var_name) * 2
+    if modules_to_install:
+        modinstall = []
     for spec in all_specs:
         if spec in unbuilt_specs:
             ans = '-' if terse else ' '
@@ -273,6 +276,10 @@ def dry_run(easyconfigs, modtool, short=False):
             ans = 'R'
         else:
             ans = 'x'
+
+        if modules_to_install and ans != 'x':
+            modinstall.append(spec['full_mod_name'])
+            continue
 
         if spec['ec'] is not None and spec['ec'].short_mod_name != spec['ec'].full_mod_name:
             mod = "%s | %s" % (spec['ec'].mod_subdir, spec['ec'].short_mod_name)
@@ -289,6 +296,9 @@ def dry_run(easyconfigs, modtool, short=False):
             item = spec['spec']
 
         lines.append(dry_run_fmt.format(status=ans, ec=item, module=mod))
+
+    if modules_to_install:
+        return modinstall
 
     if short and not terse:
         # insert after 'Dry run:' message

@@ -1,0 +1,63 @@
+name: End-to-end test of EasyBuild with bwrap
+
+on: [push, pull_request]
+
+jobs:
+  end2end:
+    name: End-to-end test (runner VM)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Install system packages
+        run: sudo apt-get install -y lmod bubblewrap
+
+      - name: Allow unprivileged user namespaces (Ubuntu 24.04)
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+
+      - name: Download and unpack easyblocks and easyconfigs repositories
+        run: |
+          cd "$HOME"
+          for pkg in easyblocks easyconfigs; do
+              curl -OL "https://github.com/easybuilders/easybuild-${pkg}/archive/develop.tar.gz"
+              tar xfz develop.tar.gz
+              rm -f develop.tar.gz
+          done
+
+      - name: Set up environment
+        shell: bash
+        run: |
+          # collect environment variables to be set in subsequent steps in script that can be sourced
+          echo "export PATH=$PWD:$PATH" > /tmp/eb_env
+          echo "export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop" >> /tmp/eb_env
+
+      - name: Run commands to check test environment
+        shell: bash
+        run: |
+          cmds=(
+            "whoami"
+            "pwd"
+            "env | sort"
+            "eb --version"
+            "eb --show-system-info"
+            "eb --check-eb-deps"
+            "eb --show-config"
+            "eb -x UnZip-6.0.eb"
+          )
+
+          for cmd in "${cmds[@]}"; do
+              echo ">>> $cmd"
+              bash -lc "source /tmp/eb_env; $cmd"
+          done
+
+      - name: End-to-end test of installing UnZip with EasyBuild in bwrap namespace
+        shell: bash
+        run: |
+          bash -l <<EOF
+            source /tmp/eb_env
+            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
+          EOF
