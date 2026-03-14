@@ -41,7 +41,6 @@ Authors:
 * Samuel Moors (Vrije Universiteit Brussel)
 """
 import copy
-import json
 import os
 import stat
 import subprocess
@@ -66,13 +65,13 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.bwraptools import BWRAP_INFO, BWRAP_INFO_JSON
-from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath, install_path
+from easybuild.tools.bwraptools import BWRAP_INFO, log_bwrap, prepare_bwrap
+from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import adjust_permissions, cleanup, copy_files, dump_index, load_index
-from easybuild.tools.filetools import locate_files, mkdir, read_file, register_lock_cleanup_signal_handlers, write_file
+from easybuild.tools.filetools import locate_files, read_file, register_lock_cleanup_signal_handlers, write_file
 from easybuild.tools.github import check_github, close_pr, find_easybuild_easyconfig
 from easybuild.tools.github import add_pr_labels, install_github_token, list_prs, merge_pr, new_branch_github, new_pr
 from easybuild.tools.github import new_pr_from_branch
@@ -89,7 +88,7 @@ from easybuild.tools.parallelbuild import submit_jobs
 from easybuild.tools.repository.repository import init_repository
 from easybuild.tools.systemtools import check_easybuild_deps
 from easybuild.tools.testing import create_test_report, overall_test_report, regtest, session_state
-from easybuild.tools.utilities import time2str, trace_msg
+from easybuild.tools.utilities import time2str
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION, UNKNOWN_EASYBLOCKS_VERSION
 from easybuild.tools.version import different_major_versions
 
@@ -396,8 +395,8 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         'sync_pr_with_develop',
         'update_branch_github',
         'update_pr',
-        ) if getattr(options, opt)
-    ]
+    ) if getattr(options, opt)]
+
     any_pr_option_set = len(set_pr_options) > 0
     if len(set_pr_options) > 1:
         raise EasyBuildError("The following options are set but incompatible: %s.\nYou can only use one at a time!",
@@ -590,10 +589,11 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
             inject_checksums_to_json(ordered_ecs, options.inject_checksums_to_json)
 
     elif options.bwrap:
+        # updating modules_to_install because process_eb_args may run multiple times:
+        # once for each easyconfig in the easystack
         BWRAP_INFO['modules_to_install'].update(set(dry_run(easyconfigs, modtool, modules_to_install=True)))
         if BWRAP_INFO['modules_to_install']:
-            BWRAP_INFO['bwrap_installpath'] = options.bwrap_installpath
-            prepare_bwrap()
+            prepare_bwrap(options.bwrap_installpath)
             if not options.job:
                 return True
 
@@ -851,55 +851,13 @@ def prepare_main(args=None, logfile=None, testing=None):
     return init_session_state, eb_go, cfg_settings
 
 
-def prepare_bwrap():
-    "Prepare for running EasyBuild with bwrap"
-
-    BWRAP_INFO['installpath_software'] = install_path(typ='software')
-    BWRAP_INFO['installpath_modules'] = install_path(typ='modules')
-    installpath_software = BWRAP_INFO['installpath_software']
-    bwrap_installpath = BWRAP_INFO['bwrap_installpath']
-    bwrap_mpath = os.path.join(bwrap_installpath, 'modules')
-    bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
-
-    for mod in BWRAP_INFO['modules_to_install']:
-        spath = os.path.join(os.path.realpath(installpath_software), mod)
-        bwrap_spath = os.path.join(bwrap_installpath, 'software', mod)
-        mkdir(spath, parents=True)
-        mkdir(bwrap_spath, parents=True)
-        bwrap_cmd.extend(['--bind', bwrap_spath, spath])
-
-    BWRAP_INFO['bwrap_cmd'] = bwrap_cmd
-
-    # disable `--bwrap` to prepare for a real installation (in bwrap namespace)
-    bwrap_options = ['--disable-bwrap', f'--installpath-modules={bwrap_mpath}']
-    BWRAP_INFO['bwrap_options'] = bwrap_options
-
-    _log.info(f'Info needed for bwrap: {BWRAP_INFO}')
-
-    # write json file with bwrap install info into bwrap installpath
-    bwrap_infopath = os.path.join(BWRAP_INFO['bwrap_installpath'], BWRAP_INFO_JSON)
-    write_file(bwrap_infopath, json.dumps(BWRAP_INFO, default=list, indent=2, sort_keys=True), backup=True)
-
-    print_msg('Building/installing in bwrap namespace')
-    trace_msg(f'bwrap info file: {bwrap_infopath}')
-    trace_msg(f'bwrap options: {bwrap_options}')
-    trace_msg(f'bwrap prefix: {" ".join(bwrap_cmd)}')
-
-    # set environment variable EB_BWRAP_CMD to make it available for the interactive debug shell
-    # when rerunning with bwrap
-    os.environ['EB_BWRAP_CMD'] = ' '.join(bwrap_cmd)
-
-
 def rerun_with_bwrap():
     "Rerun EasyBuild with bwrap"
-
-    if not BWRAP_INFO['modules_to_install']:
-        return
-
     eb_cmd = ['python', '-m', EASYBUILD_MAIN] + sys.argv[1:]
-    cmd = BWRAP_INFO['bwrap_cmd'] + eb_cmd + BWRAP_INFO['bwrap_options']
-    _log.info(f'Rerunning EasyBuild with command: {" ".join(cmd)}')
-    sys.exit(subprocess.run(cmd).returncode)
+    full_cmd = BWRAP_INFO['bwrap_cmd'] + eb_cmd + BWRAP_INFO['bwrap_eb_options']
+
+    _log.info(f'Rerunning EasyBuild with command: {" ".join(full_cmd)}')
+    sys.exit(subprocess.run(full_cmd).returncode)
 
 
 def main_with_hooks(args=None):
@@ -913,8 +871,10 @@ def main_with_hooks(args=None):
 
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
-        if int(exit_code) == 0 and build_option('bwrap') and not eb_go.options.job:
-            rerun_with_bwrap()
+        if int(exit_code) == 0 and build_option('bwrap') and BWRAP_INFO['modules_to_install']:
+            log_bwrap()
+            if not eb_go.options.job:
+                rerun_with_bwrap()
         sys.exit(int(exit_code))
     except EasyBuildError as err:
         run_hook(FAIL, hooks, args=[err])

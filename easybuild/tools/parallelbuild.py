@@ -157,7 +157,7 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True, t
 
     bwrap_cmd = BWRAP_INFO['bwrap_cmd']
     if bwrap_cmd:
-        opts.extend(BWRAP_INFO['bwrap_options'])
+        opts.extend(BWRAP_INFO['bwrap_eb_options'])
 
     # compose string with command line options, properly quoted and with '%' characters escaped
     opts_str = ' '.join(opts).replace('%', '%%')
