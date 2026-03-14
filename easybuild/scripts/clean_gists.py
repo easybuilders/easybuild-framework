@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2014-2025 Ward Poelmans
+# Copyright 2014-2026 Ward Poelmans
 #
 # https://github.com/easybuilders/easybuild
 #

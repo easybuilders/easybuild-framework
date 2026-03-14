@@ -3,6 +3,33 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
+v5.2.1 (20 Feb 2026)
+--------------------
+
+update/bugfix release
+
+- bug fixes:
+  - ignore stderr for `rocm-smi` during test report creation (#5087)
+  - use initially stored environment to determine GPU info for test reports (#5088)
+  - add back `easybuild.toolchains.compiler.nvhpc` as deprecated toolchain compiler (#5089, #5096, #5105)
+  - properly handle toolchains defining `openmp` toolchain opt as `dict` (relevant for NVHPC toolchain) (#5093)
+  - enhance `get_source_tarball_from_git` to ensure that Git repo URL does not contain double slashes due to trailing slash in source URL (#5097)
+  - fix crash with `MarkupError` in Rich when showing failed shell command containing special characters (#5098)
+  - fix sub-toolchains of NVHPC and NVHPCToolchain and load each one where appropriate (#5103)
+  - don't require installation prefix for toolchain dependencies that are an external module (#5108)
+- enhancements:
+  - add support for injecting checksums for Rust crates (#4661)
+  - include full shell command that failed in raised error (#5074)
+  - improve error reporting for failures in `eb --merge-pr` and similar (#5076)
+  - add LLVM toolchains using ParaStationMPI (#5094)
+- enhancements and fixes for test suite:
+  - ignore output lines with skipped tests in check for unexpected output of test suite (#5082)
+  - import specific submodule `pygraph.classes.digraph` in `test_dep_graph*` so we can skip the test if import fails with setuptools >= 82.0.0 (#5111, #5116)
+- other changes:
+  - extend list of easyconfig parameters that extensions should not inherit: `sources`, `patches`, `checksums`, `skipsteps` (#5075)
+  - deprecate `print_error` function and replace it with new `print_error_and_exit` function (#5092)
+  - replace use of `datetime.utcfromtimestamp` which is deprecated since Python 3.12 (#5091)
+
 
 v5.2.0 (23 Dec 2025)
 --------------------
