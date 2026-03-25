@@ -151,6 +151,32 @@ def read_environment(env_vars, strict=False):
     return result
 
 
+def get_environment_variable(name, required=False, empty=True):
+    """
+    Get the value of an environment variable with optional validation.
+
+    :param name: name of the environment variable
+    :param required: if True, raise EasyBuildError when the variable is not defined
+    :param empty: if False, treat empty string values as missing
+    :return: value of the environment variable, or empty string if not set
+    """
+    value = os.environ.get(name)
+
+    if value is None:
+        if required:
+            raise EasyBuildError("Required environment variable '%s' is not defined", name)
+        _log.debug("Environment variable '%s' is not defined, returning empty string", name)
+        return ''
+
+    if not empty and value == '':
+        if required:
+            raise EasyBuildError("Required environment variable '%s' is defined but empty", name)
+        _log.debug("Environment variable '%s' is empty, returning empty string", name)
+        return ''
+
+    return value
+
+
 def modify_env(old, new, verbose=True, log_changes=True):
     """
     Compares two os.environ dumps. Adapts final environment.
