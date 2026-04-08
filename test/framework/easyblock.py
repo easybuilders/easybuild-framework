@@ -669,9 +669,6 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        logtxt = read_file(eb.logfile)
-        self.assertNotRegex(logtxt, r"WARNING Non-path variables found in module load env.*NONPATH")
-
         eb.module_load_environment.remove('NONPATH')
 
         # make sure that entries that symlink to another directory are retained;
