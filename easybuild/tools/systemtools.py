@@ -1527,7 +1527,7 @@ def pick_system_specific_value(description, options_or_value, allow_none=False):
     if isinstance(options_or_value, dict):
         if not options_or_value:
             raise EasyBuildError("Found empty dict as %s!", description)
-        other_keys = [x for x in options_or_value.keys() if not x.startswith(ARCH_KEY_PREFIX)]
+        other_keys = [x for x in options_or_value if not x.startswith(ARCH_KEY_PREFIX)]
         if other_keys:
             other_keys = ','.join(sorted(other_keys))
             raise EasyBuildError("Unexpected keys in %s: %s (only '%s' keys are supported)",
