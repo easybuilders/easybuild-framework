@@ -99,6 +99,8 @@ class DelimitedPathList(click.Path):
             res = value.split(self.delimiter)
         elif isinstance(value, (list, tuple)):
             res = value
+        elif value is False or value is None:
+            res = value
         else:
             raise click.BadParameter(f"Expected a comma-separated string, got {value}")
         if self.resolve_full:
@@ -144,6 +146,8 @@ class DelimitedString(click.ParamType):
         if isinstance(value, str):
             res = value.split(self.delimiter)
         elif isinstance(value, (list, tuple)):
+            res = value
+        elif value is False or value is None:
             res = value
         else:
             raise click.BadParameter(f"Expected a string or a comma-separated string, got {value}")
@@ -224,8 +228,8 @@ class OptionData:
             if self.lst is None:
                 raise ValueError(f"Choice type requires a list of choices for option {self.name}")
             kwargs['type'] = click.Choice(self.lst, case_sensitive=True)
-            if self.default is not None:
-                kwargs['is_flag'] = True
+            # if self.default is not None:
+            #     kwargs['is_flag'] = True
         elif self.type in ['int', int]:
             kwargs['type'] = click.INT
         elif self.type in ['float', float]:
@@ -246,6 +250,9 @@ class OptionData:
         # store_or_None implies that the option can be used as a flag with no value
         if self.action == 'store_or_None':
             kwargs['default'] = None
+            kwargs['flag_value'] = self.default
+        elif self.action == 'store_or_False':
+            kwargs['default'] = False
             kwargs['flag_value'] = self.default
 
         decls = other_decls + [decl]
@@ -326,4 +333,5 @@ for grp, dct in extracter._option_dicts.items():
     if dct is None:
         continue
     for key, value in dct.items():
+        # print(f"Registering option: group={grp}, key={key}, value={value}, prefix={prefix}")
         EasyBuildCliOption.register_option(grp, key, value, prefix=prefix)
