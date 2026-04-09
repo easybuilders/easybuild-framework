@@ -25,7 +25,7 @@
 import os
 import re
 
-from typing import Callable, Any
+from typing import Callable, Any, List, Dict
 from dataclasses import dataclass
 
 from click.shell_completion import CompletionItem
@@ -178,8 +178,8 @@ class OptionData:
     default: Any
     group: str = None
     short: str = None
-    meta: dict = None
-    lst: list = None
+    meta: Dict = None
+    lst: List = None
 
     def __post_init__(self):
         if self.short is not None and not isinstance(self.short, str):
@@ -258,8 +258,8 @@ class OptionData:
 
 
 class EasyBuildCliOption():
-    OPTIONS: list[OptionData] = []
-    OPTIONS_MAP: dict[str, OptionData] = {}
+    OPTIONS: List[OptionData] = []
+    OPTIONS_MAP: Dict[str, OptionData] = {}
 
     @classmethod
     def apply_options(cls, function: Callable) -> Callable:
