@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is triple-licensed under GPLv2 (see below), MIT, and
 # BSD three-clause licenses.
@@ -143,7 +143,10 @@ class LLVMCompilers(Compiler):
     # used when 'optarch' toolchain option is enabled (and --optarch is not specified)
     COMPILER_OPTIMAL_ARCHITECTURE_OPTION = {
         **(Compiler.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or {}),
-        (systemtools.AARCH64, systemtools.ARM): '-march=native',
+        # -mcpu=native is recommended way to specify feature set for aarch64, see:
+        # https://github.com/easybuilders/easybuild-framework/pull/5139#issuecomment-3961654073 and
+        # https://developer.arm.com/community/arm-community-blogs/b/tools-software-ides-blog/posts/compiler-flags-across-architectures-march-mtune-and-mcpu
+        (systemtools.AARCH64, systemtools.ARM): '-mcpu=native',
         (systemtools.POWER, systemtools.POWER): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.POWER, systemtools.POWER_LE): '-mcpu=native',  # no support for march=native on POWER
         (systemtools.X86_64, systemtools.AMD): '-march=native',

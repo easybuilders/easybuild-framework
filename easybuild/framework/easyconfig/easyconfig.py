@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -48,6 +48,7 @@ import os
 import re
 from collections import OrderedDict
 from contextlib import contextmanager
+from typing import Optional
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -65,6 +66,7 @@ from easybuild.framework.easyconfig.parser import fetch_parameters_from_easyconf
 from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMPLATES, DEPRECATED_EASYCONFIG_TEMPLATES
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
+from easybuild.tools.entrypoints import EntrypointEasyblock
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
@@ -317,6 +319,18 @@ def get_toolchain_hierarchy(parent_toolchain, incl_capabilities=False):
     """
     # obtain list of all possible subtoolchains
     _, all_tc_classes = search_toolchain('')
+
+    # Stopgap solution until deprecated compiler-only NVHPC toolchain is removed
+    # Both the new and old NVHPC toolchains share the same name, we need to
+    # selectively filter one out based on the version of the toolchain
+    # TODO: delete with EasyBuild 6.0
+    if parent_toolchain['name'] == "NVHPC":
+        wrong_nvhpc_tc_class_name = "NVHPCToolchain"
+        if LooseVersion(parent_toolchain['version']) < LooseVersion('25.0'):
+            wrong_nvhpc_tc_class_name = "NVHPC"
+        wrong_nvhpc_tc_class = [tc for tc in all_tc_classes if tc.__name__ == wrong_nvhpc_tc_class_name]
+        all_tc_classes = set(all_tc_classes) - set(wrong_nvhpc_tc_class)
+
     subtoolchains = {tc_class.NAME: getattr(tc_class, 'SUBTOOLCHAIN', None) for tc_class in all_tc_classes}
     optional_toolchains = {tc_class.NAME for tc_class in all_tc_classes if getattr(tc_class, 'OPTIONAL', False)}
     composite_toolchains = {tc_class.NAME for tc_class in all_tc_classes if len(tc_class.__bases__) > 1}
@@ -2040,9 +2054,15 @@ def get_easyblock_class(easyblock, name=None, error_on_failed_import=True, error
                           class_name, modulepath)
                 cls = get_class_for(modulepath, class_name)
             else:
-                modulepath = get_module_path(easyblock)
-                cls = get_class_for(modulepath, class_name)
-                _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
+                eb_from_eps = EntrypointEasyblock.get_loaded_entrypoints(name=easyblock)
+                if eb_from_eps:
+                    ep = eb_from_eps[0]
+                    cls = ep.wrapped
+                    _log.info("Obtained easyblock class '%s' from entrypoint '%s'", easyblock, str(ep))
+                else:
+                    modulepath = get_module_path(easyblock)
+                    cls = get_class_for(modulepath, class_name)
+                    _log.info("Derived full easyblock module path for %s: %s" % (class_name, modulepath))
         else:
             # if no easyblock specified, try to find if one exists
             if name is None:
@@ -2236,6 +2256,59 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
     return value
 
 
+def _copy_ec_dict(easyconfig):
+    """Copy an easyconfig dict as (initially) parsed"""
+    # deepcopy on the EasyConfig instance doesn't fully copy it,
+    # but requires the copy() method, so temporarily remove it
+    ec = easyconfig.pop('ec')
+    try:
+        new_easyconfig = copy.deepcopy(easyconfig)  # Copy the rest of the dict
+    finally:
+        # always put back EasyConfig instance
+        easyconfig['ec'] = ec
+    new_easyconfig['ec'] = ec.copy()
+    return new_easyconfig
+
+
+def _copy_ec_dicts(easyconfigs):
+    """Copy list of easyconfig dicts as (initially) parsed"""
+    return [_copy_ec_dict(ec) for ec in easyconfigs]
+
+
+def make_easyconfig_dict(ec: EasyConfig, original_spec: Optional[str] = None) -> dict:
+    """Embed the easyconfig into a dictionary with entries for name, dependencies etc."""
+    result = {
+        'ec': ec,
+        'spec': ec.path,
+        'short_mod_name': ec.short_mod_name,
+        'full_mod_name': ec.full_mod_name,
+        'dependencies': [],
+        'builddependencies': [],
+        'hiddendependencies': [],
+        'hidden': ec.hidden,
+    }
+    if original_spec is not None:
+        result['original_spec'] = original_spec
+
+    name = ec.name
+    # add build dependencies
+    for dep in ec['builddependencies']:
+        _log.debug("Adding build dependency %s for app %s." % (dep, name))
+        result['builddependencies'].append(dep)
+
+    # add dependencies (including build & hidden dependencies)
+    for dep in ec.dependencies():
+        _log.debug("Adding dependency %s for app %s." % (dep, name))
+        result['dependencies'].append(dep)
+
+    # add toolchain as dependency too
+    if not is_system_toolchain(ec['toolchain']['name']):
+        tc = ec.toolchain.as_dict()
+        _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
+        result['dependencies'].append(tc)
+    return result
+
+
 def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, hidden=None):
     """
     Process easyconfig, returning some information for each block
@@ -2255,7 +2328,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
-            return [e.copy() for e in _easyconfigs_cache[cache_key]]
+            return _copy_ec_dicts(_easyconfigs_cache[cache_key])
 
     easyconfigs = []
     for spec in blocks:
@@ -2272,45 +2345,14 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
                 exit_code = EasyBuildExit.EASYCONFIG_ERROR
             raise EasyBuildError("Failed to process easyconfig %s: %s", spec, err.msg, exit_code=exit_code)
 
-        name = ec['name']
-
-        easyconfig = {
-            'ec': ec,
-        }
+        if parse_only:
+            easyconfig = {'ec': ec}
+        else:
+            easyconfig = make_easyconfig_dict(ec, original_spec=path if len(blocks) > 1 else None)
         easyconfigs.append(easyconfig)
 
-        if not parse_only:
-            # also determine list of dependencies, module name (unless only parsed easyconfigs are requested)
-            easyconfig.update({
-                'spec': ec.path,
-                'short_mod_name': ec.short_mod_name,
-                'full_mod_name': ec.full_mod_name,
-                'dependencies': [],
-                'builddependencies': [],
-                'hiddendependencies': [],
-                'hidden': ec.hidden,
-            })
-            if len(blocks) > 1:
-                easyconfig['original_spec'] = path
-
-            # add build dependencies
-            for dep in ec['builddependencies']:
-                _log.debug("Adding build dependency %s for app %s." % (dep, name))
-                easyconfig['builddependencies'].append(dep)
-
-            # add dependencies (including build & hidden dependencies)
-            for dep in ec.dependencies():
-                _log.debug("Adding dependency %s for app %s." % (dep, name))
-                easyconfig['dependencies'].append(dep)
-
-            # add toolchain as dependency too
-            if not is_system_toolchain(ec['toolchain']['name']):
-                tc = ec.toolchain.as_dict()
-                _log.debug("Adding toolchain %s as dependency for app %s." % (tc, name))
-                easyconfig['dependencies'].append(tc)
-
     if cache_key is not None:
-        _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
+        _easyconfigs_cache[cache_key] = _copy_ec_dicts(easyconfigs)
 
     return easyconfigs
 

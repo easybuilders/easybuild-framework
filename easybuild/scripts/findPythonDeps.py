@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ##
-# Copyright 2021-2025 Alexander Grund
+# Copyright 2021-2026 Alexander Grund
 #
 # https://github.com/easybuilders/easybuild
 #

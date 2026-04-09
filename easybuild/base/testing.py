@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2025 Ghent University
+# Copyright 2014-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -139,6 +139,7 @@ class TestCase(OrigTestCase):
 
         self.orig_sys_stdout = sys.stdout
         self.orig_sys_stderr = sys.stderr
+        self.stdout_std_err_buffers = []
 
     def convert_exception_to_str(self, err):
         """Convert an Exception instance to a string."""
@@ -177,19 +178,25 @@ class TestCase(OrigTestCase):
                 regex = re.compile(regex)
             self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
 
-    def mock_stdout(self, enable):
+    def mock_stdout(self, enable, force_tty=False):
         """Enable/disable mocking stdout."""
         sys.stdout.flush()
         if enable:
             sys.stdout = StringIO()
+            self.stdout_std_err_buffers.append(sys.stdout)
+            if force_tty:
+                sys.stdout.isatty = lambda: True
         else:
             sys.stdout = self.orig_sys_stdout
 
-    def mock_stderr(self, enable):
+    def mock_stderr(self, enable, force_tty=False):
         """Enable/disable mocking stdout."""
         sys.stderr.flush()
         if enable:
             sys.stderr = StringIO()
+            self.stdout_std_err_buffers.append(sys.stderr)
+            if force_tty:
+                sys.stderr.isatty = lambda: True
         else:
             sys.stderr = self.orig_sys_stderr
 
@@ -253,4 +260,6 @@ class TestCase(OrigTestCase):
         """Cleanup after running a test."""
         self.mock_stdout(False)
         self.mock_stderr(False)
+        for buf in self.stdout_std_err_buffers:
+            buf.close()
         super().tearDown()

@@ -1,5 +1,5 @@
 ##
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -53,7 +53,7 @@ from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.environment import modify_env
 from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
-from easybuild.tools.modules import curr_module_paths, modules_tool, reset_module_caches
+from easybuild.tools.modules import curr_module_paths, modules_tool, ModulesTool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
 
@@ -147,6 +147,8 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_DISABLE_SHOW_PROGRESS_BAR'] = '1'
         # Also disable trace output to keep stdout clean during tests
         os.environ['EASYBUILD_DISABLE_TRACE'] = '1'
+        # Disable color output to ensure that stdout is clean during tests
+        os.environ['EASYBUILD_OUTPUT_STYLE'] = 'no_color'
 
         # Store the environment as setup (including the above paths) for tests to restore
         self.orig_environ = copy.deepcopy(os.environ)
@@ -211,7 +213,7 @@ class EnhancedTestCase(TestCase):
         self.env_path = os.environ.get('PATH')
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
-        self.modtool = modules_tool()
+        self.modtool: ModulesTool = modules_tool()
         self.reset_modulepath([os.path.join(testdir, 'modules')])
         reset_module_caches()
 
@@ -519,6 +521,7 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
         'show_progress_bar': False,
+        'output_style': 'no_color',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
         'trace': False,

@@ -1,5 +1,5 @@
 # #
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -341,6 +341,13 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # delete instance of BuildOptions
         BuildOptions.__class__._instances.clear()
 
+        # if build options is not initialised yet, we'll get an error when querying any build option (even known ones)
+        error_pattern = "Build options are not initialized yet, or undefined build option used: 'debug'"
+        self.assertErrorRegex(EasyBuildError, error_pattern, build_option, 'debug')
+
+        # specifying a default value can be used as workaround
+        self.assertEqual(build_option('debug', default='DEFAULT'), 'DEFAULT')
+
         # make sure BuildOptions is a singleton class
         bo1 = BuildOptions()
         bo2 = BuildOptions()
@@ -376,6 +383,12 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # specific build options should be set
         self.assertEqual(bo['robot_path'], '/some/robot/path')
         self.assertEqual(bo['stop'], 'configure')
+
+        # test error reporting when unknown build option is used
+        self.assertErrorRegex(EasyBuildError, "undefined build option used: 'foobar'", build_option, 'foobar')
+
+        # specifying a default value can be used as workaround
+        self.assertEqual(build_option('foobar', default='DEFAULT'), 'DEFAULT')
 
         # also check some default values that should be an empty list
         for opt in ('accept_eula_for', 'from_pr', 'include_easyblocks_from_pr', 'robot'):

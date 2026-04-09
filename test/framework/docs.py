@@ -1,5 +1,5 @@
 # #
-# Copyright 2012-2025 Ghent University
+# Copyright 2012-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -1036,7 +1036,8 @@ class DocsTest(EnhancedTestCase):
             r"^syntax: %\(CONSTANT_NAME\)s",
             r"^only in 'DEFAULT' section:",
             r"^\* HOME: Current user's home directory, expanded '~' \[value: %s\]" % os.getenv('HOME'),
-            r"^\* USER: Current username, translated uid from password file \[value: %s\]" % os.getenv('USER'),
+            r"^\* USER: Current username, translated uid from password file \(when available\) \[value: %s\]" %
+            os.getenv('USER'),
         ]
         txt = avail_cfgfile_constants(option_parser.go_cfg_constants)
         for pattern in txt_patterns:
@@ -1052,7 +1053,8 @@ class DocsTest(EnhancedTestCase):
             r"^# Constants available \(only\) in configuration files",
             r"^## Only in 'DEFAULT' section:",
             r"^``HOME``\s*\|Current user's home directory, expanded '~'\s*\|``%s``$" % os.getenv('HOME'),
-            r"^``USER``\s*\|Current username, translated uid from password file\s*\|``%s``" % os.getenv('USER'),
+            r"^``USER``\s*\|Current username, translated uid from password file \(when available\)\s*\|``%s``" %
+            os.getenv('USER'),
         ]
         txt_md = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='md')
         for pattern in md_patterns:
@@ -1063,7 +1065,8 @@ class DocsTest(EnhancedTestCase):
             r"^Constants available \(only\) in configuration files\n-{49}\n",
             r"^Only in 'DEFAULT' section:\n-{26}",
             r"^``HOME``\s*Current user's home directory, expanded '~'\s*``%s``$" % os.getenv('HOME'),
-            r"^``USER``\s*Current username, translated uid from password file\s*``%s``" % os.getenv('USER'),
+            r"^``USER``\s*Current username, translated uid from password file \(when available\)\s*``%s``" %
+            os.getenv('USER'),
         ]
         txt_rst = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='rst')
         for pattern in rst_patterns:

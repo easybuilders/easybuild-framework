@@ -1,5 +1,5 @@
 # #
-# Copyright 2018-2025 Ghent University
+# Copyright 2018-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -72,7 +72,7 @@ class EasyBuildLibTest(TestCase):
     def test_run_cmd(self):
         """Test use of run_cmd function in the context of using EasyBuild framework as a library."""
 
-        error_pattern = r"Undefined build option: .*"
+        error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
@@ -88,7 +88,7 @@ class EasyBuildLibTest(TestCase):
     def test_run_shell_cmd(self):
         """Test use of run_shell_cmd function in the context of using EasyBuild framework as a library."""
 
-        error_pattern = r"Undefined build option: .*"
+        error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
 
@@ -106,7 +106,7 @@ class EasyBuildLibTest(TestCase):
 
         test_dir = os.path.join(self.tmpdir, 'test123')
 
-        error_pattern = r"Undefined build option: .*"
+        error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, mkdir, test_dir)
 
@@ -120,7 +120,7 @@ class EasyBuildLibTest(TestCase):
     def test_modules_tool(self):
         """Test use of modules_tool function in the context of using EasyBuild framework as a library."""
 
-        error_pattern = r"Undefined build option: .*"
+        error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         self.assertErrorRegex(EasyBuildError, error_pattern, modules_tool)
 

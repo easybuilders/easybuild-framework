@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -113,6 +113,7 @@ DEFAULT_MODULE_SYNTAX = 'Lua'
 DEFAULT_MODULES_TOOL = 'Lmod'
 DEFAULT_PATH_SUBDIRS = {
     'buildpath': 'build',
+    'bwrap_installpath': 'bwrap',
     'containerpath': 'containers',
     'installpath': '',
     'packagepath': 'packages',
@@ -304,6 +305,7 @@ BUILD_OPTIONS_CMDLINE = {
         'allow_modules_tool_mismatch',
         'allow_unresolved_templates',
         'backup_patched_files',
+        'bwrap',
         'consider_archived_easyconfigs',
         'container_build_image',
         'cuda_sanity_check_accept_ptx_as_devcode',
@@ -312,12 +314,14 @@ BUILD_OPTIONS_CMDLINE = {
         'cuda_sanity_check_strict',
         'debug',
         'debug_lmod',
+        'debug_module_cmds',
         'dump_autopep8',
         'dump_env_script',
         'enforce_checksums',
         'experimental',
         'extended_dry_run',
         'fail_on_mod_files_gcccore',
+        'fetch_all',
         'force',
         'generate_devel_module',
         'group_writable_installdir',
@@ -353,6 +357,7 @@ BUILD_OPTIONS_CMDLINE = {
         'upload_test_report',
         'update_modules_tool_cache',
         'use_ccache',
+        'use_entrypoints',
         'use_existing_modules',
         'use_f90cache',
         'wait_on_lock_limit',
@@ -676,13 +681,19 @@ def init_build_options(build_options=None, cmdline_options=None):
 def build_option(key, **kwargs):
     """Obtain value specified build option."""
 
-    build_options = BuildOptions()
-    if key in build_options:
-        return build_options[key]
-    elif 'default' in kwargs:
+    # return build option value if BuildOptions has been initialised and it's a known build option
+    if BuildOptions.__class__._instances:
+        build_options = BuildOptions()
+        if key in build_options:
+            return build_options[key]
+
+    # if above didn't return a value, return the specified default (if specified)
+    if 'default' in kwargs:
         return kwargs['default']
+
+    # if above didn't return a value, we give up
     else:
-        error_msg = "Undefined build option: '%s'. " % key
+        error_msg = f"Build options are not initialized yet, or undefined build option used: '{key}'. "
         error_msg += "Make sure you have set up the EasyBuild configuration using set_up_configuration() "
         error_msg += "(from easybuild.tools.options) in case you're not using EasyBuild via the 'eb' CLI."
         raise EasyBuildError(error_msg, exit_code=EasyBuildExit.OPTION_ERROR)
@@ -844,7 +855,8 @@ def get_module_syntax():
 
 def get_output_style():
     """Return output style to use."""
-    output_style = build_option('output_style')
+
+    output_style = build_option('output_style', default=OUTPUT_STYLE_BASIC)
 
     if output_style == OUTPUT_STYLE_AUTO:
         if HAVE_RICH:

@@ -1,5 +1,5 @@
 ##
-# Copyright 2013-2025 Ghent University
+# Copyright 2013-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -51,9 +51,9 @@ from easybuild.tools.systemtools import check_linked_shared_libs, check_os_depen
 from easybuild.tools.systemtools import det_parallelism, det_pypkg_version, get_avail_core_count
 from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_architectures, get_cpu_arch_name
 from easybuild.tools.systemtools import get_cpu_architecture, get_cpu_family, get_cpu_features, get_cpu_model
-from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_isa_riscv
-from easybuild.tools.systemtools import get_os_name, get_os_type, get_os_version, get_platform_name, get_shared_lib_ext
-from easybuild.tools.systemtools import get_system_info, get_total_memory, get_linked_libs_raw
+from easybuild.tools.systemtools import get_cpu_speed, get_cpu_vendor, get_gcc_version, get_glibc_version, get_gpu_info
+from easybuild.tools.systemtools import get_isa_riscv, get_os_name, get_os_type, get_os_version, get_platform_name
+from easybuild.tools.systemtools import get_shared_lib_ext, get_system_info, get_total_memory, get_linked_libs_raw
 from easybuild.tools.systemtools import find_library_path, locate_solib, pick_dep_version, pick_system_specific_value
 
 
@@ -493,6 +493,38 @@ host = linux
 compile_size = 64bit
 compressed"""
 
+NVIDIA_SMI_QUERY_GPU = """NVIDIA A100-SXM4-80GB, 590.48.01
+NVIDIA A100-SXM4-80GB, 590.48.01
+NVIDIA A100-SXM4-80GB, 590.48.01
+NVIDIA A100-SXM4-80GB, 590.48.01
+"""
+
+AMD_SMI_DRIVER = """gpu,market_name,vendor_id,vendor_name,subvendor_id,device_id,subsystem_id,rev_id,asic_serial,oam_id,num_compute_units,target_graphics_version,name,version,model_number,product_serial,fru_id,product_name,manufacturer_name
+0,AMD Instinct MI250X/MI250,0x1002,Advanced Micro Devices Inc. [AMD/ATI],0x1002,0x740c,0x0b0c,0x01,0x3CCB39FB2A8110E1,2,104,gfx90a,amdgpu,6.16.6,102-D65209-00,692221001283,113-AMDD652050Cxx.005,AMD INSTINCT MI250 (MCM) OAM AC MBA,AMD
+1,AMD Instinct MI250X/MI250,0x1002,Advanced Micro Devices Inc. [AMD/ATI],0x1002,0x740c,0x0b0c,0x01,0x64B724733CB8B110,3,104,gfx90a,amdgpu,6.16.6,102-D65209-00,692221001283,113-AMDD652050Cxx.005,AMD INSTINCT MI250 (MCM) OAM AC MBA,AMD
+2,AMD Instinct MI250X/MI250,0x1002,Advanced Micro Devices Inc. [AMD/ATI],0x1002,0x740c,0x0b0c,0x01,0x5E2E1B58D9F7DA2F,6,104,gfx90a,amdgpu,6.16.6,102-D65209-00,692221001647,113-AMDD652050Cxx.005,AMD INSTINCT MI250 (MCM) OAM AC MBA,AMD
+3,AMD Instinct MI250X/MI250,0x1002,Advanced Micro Devices Inc. [AMD/ATI],0x1002,0x740c,0x0b0c,0x01,0x80AE481AA5AABA72,7,104,gfx90a,amdgpu,6.16.6,102-D65209-00,692221001647,113-AMDD652050Cxx.005,AMD INSTINCT MI250 (MCM) OAM AC MBA,AMD"""  # noqa (ignore long lines)
+
+ROCM_SMI_DRIVER_VERSION_STDOUT = """name, value
+"Driver version", "6.18.4"
+"""
+
+ROCM_SMI_DRIVER_VERSION_STDERR = "WARNING: AMD GPU device(s) is/are in a low-power state. Check power control/runtime_status"  # noqa (ignore long lines)
+
+ROCM_SMI_DRIVER_VERSION = (ROCM_SMI_DRIVER_VERSION_STDOUT, ROCM_SMI_DRIVER_VERSION_STDERR)
+
+ROCM_SMI_DRIVER_VERSION_BROKEN_STDERR = """cat: /sys/module/amdgpu/initstate: No such file or directory
+ERROR:root:Driver not initialized (amdgpu not found in modules)"""
+
+ROCM_SMI_DRIVER_VERSION_BROKEN = ('', ROCM_SMI_DRIVER_VERSION_BROKEN_STDERR)
+
+ROCM_SMI_PRODUCT_NAME = """device,Card Series,Card Model,Card Vendor,Card SKU,Subsystem ID,Device Rev,Node ID,GUID,GFX Version
+card0,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,8,13025,gfx90a
+card1,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,9,24866,gfx90a
+card2,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,10,36962,gfx90a
+card3,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,11,51627,gfx90a
+"""  # noqa (ignore long lines)
+
 MACHINE_NAME = None
 
 
@@ -539,19 +571,44 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "file mock_non_cuda_sharedlib_unexpected": FILE_SHAREDLIB,
         "file mock_cuda_staticlib": "current ar archive",
         "file mock_noncuda_file": "ASCII text",
+        "file mock_noncuda_exe_ascii": "ASCII text executable",
+        "file mock_noncuda_exe_utf8": "UTF-8 Unicode text executable",
         "cuobjdump mock_cuda_bin": CUOBJDUMP_FAT,
         "cuobjdump mock_cuda_sharedlib": CUOBJDUMP_PTX_ONLY,
         "cuobjdump mock_invalid_cuda_sharedlib": CUOBJDUMP_INVALID,
         "cuobjdump mock_cuda_staticlib": CUOBJDUMP_DEVICE_CODE_ONLY,
+        "nvidia-smi --query-gpu=gpu_name,driver_version --format=csv,noheader": NVIDIA_SMI_QUERY_GPU,
+        "amd-smi static --driver --board --asic --csv": AMD_SMI_DRIVER,
+        "rocm-smi --showdriverversion --csv": ROCM_SMI_DRIVER_VERSION,
+        "rocm-smi --showproductname --csv": ROCM_SMI_PRODUCT_NAME,
     }
-    known_fail_cmds = {
+
+    if os.getenv('MOCKED_BROKEN_ROCM_SMI'):
+        known_cmds.update({
+            "rocm-smi --showdriverversion --csv": ROCM_SMI_DRIVER_VERSION_BROKEN,
+        })
+
+    known_fail_cmds = {**{
         "cuobjdump mock_non_cuda_sharedlib": ("cuobjdump info  : File '/path/to/mock.so' does not contain device code",
                                               255),
-        "cuobjdump mock_non_cuda_sharedlib_unexpected": ("cuobjdump info    : Some unexpected output", 255),
-    }
+    }, **{
+        f"cuobjdump {file}": ("cuobjdump info    : Some unexpected output", 255)
+        for file in (
+            "mock_non_cuda_sharedlib_unexpected",
+            "mock_noncuda_file",
+            "mock_noncuda_exe_ascii",
+            "mock_noncuda_exe_utf8",
+            )
+    }}
     if cmd in known_cmds:
-        return RunShellCmdResult(cmd=cmd, exit_code=0, output=known_cmds[cmd], stderr=None, work_dir=os.getcwd(),
+        output = known_cmds[cmd]
+        if isinstance(output, tuple) and len(output) == 2:
+            output, stderr = output
+        else:
+            stderr = None
+        return RunShellCmdResult(cmd=cmd, exit_code=0, output=output, stderr=stderr, work_dir=os.getcwd(),
                                  out_file=None, err_file=None, cmd_sh=None, thread_id=None, task_id=None)
+
     elif cmd in known_fail_cmds:
         return RunShellCmdResult(cmd=cmd, exit_code=known_fail_cmds[cmd][1], output=known_fail_cmds[cmd][0],
                                  stderr=None, work_dir=os.getcwd(), out_file=None, err_file=None, cmd_sh=None,
@@ -586,6 +643,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.orig_HAVE_DISTRO = st.HAVE_DISTRO
         self.orig_ETC_OS_RELEASE = st.ETC_OS_RELEASE
         self.orig_archspec_cpu_host = getattr(st, 'archspec_cpu_host', None)
+        self.orig_which = st.which
 
     def tearDown(self):
         """Cleanup after systemtools test."""
@@ -606,6 +664,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.ETC_OS_RELEASE = self.orig_ETC_OS_RELEASE
         if self.orig_archspec_cpu_host is not None:
             st.archspec_cpu_host = self.orig_archspec_cpu_host
+        st.which = self.orig_which
         super().tearDown()
 
     def test_avail_core_count_native(self):
@@ -1410,7 +1469,9 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_bin'), CUOBJDUMP_FAT)
 
         # Test case 3: call on a file that is NOT an executable, object or archive:
-        self.assertIsNone(get_cuda_object_dump_raw('mock_noncuda_file'))
+        for file in ("mock_noncuda_file", "mock_noncuda_exe_ascii", "mock_noncuda_exe_utf8"):
+            with self.subTest(file=file):
+                self.assertIsNone(get_cuda_object_dump_raw(file))
 
         # Test case 4: call on a file that is an shared lib, but not a CUDA shared lib
         # Check debug message in this case
@@ -1458,8 +1519,10 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_cuda_architectures('mock_cuda_bin', 'ptx'), mock_cuda_bin_ptx)
 
         # Test case 2: call on a file that is NOT an executable, object or archive:
-        self.assertIsNone(get_cuda_architectures('mock_noncuda_file', 'elf'))
-        self.assertIsNone(get_cuda_architectures('mock_noncuda_file', 'ptx'))
+        for file in ("mock_noncuda_file", "mock_noncuda_exe_ascii", "mock_noncuda_exe_utf8"):
+            with self.subTest(file=file):
+                self.assertIsNone(get_cuda_architectures(file, 'elf'))
+                self.assertIsNone(get_cuda_architectures(file, 'ptx'))
 
         # Test case 3: call on a file that is an shared lib, but not a CUDA shared lib
         self.assertIsNone(get_cuda_architectures('mock_non_cuda_sharedlib', 'elf'))
@@ -1536,6 +1599,57 @@ class SystemToolsTest(EnhancedTestCase):
         write_file(txt_file, 'not-a-binary')
         res = get_linked_libs_raw(txt_file)
         self.assertIs(res, None)
+
+    def test_get_gpu_info(self):
+        """
+        Test get_gpu_info function.
+        """
+        st.get_os_type = lambda: DARWIN
+        self.assertEqual(get_gpu_info(), {})
+
+        st.get_os_type = lambda: LINUX
+        self.assertEqual(get_gpu_info(), {})
+
+        st.run_shell_cmd = mocked_run_shell_cmd
+
+        # NVIDIA GPUs
+        def which_nvidia_smi(cmd, *args, **kwargs):
+            return cmd == 'nvidia-smi'
+
+        st.which = which_nvidia_smi
+
+        expected = {
+            'NVIDIA': {'NVIDIA A100-SXM4-80GB, 590.48.01': 4},
+        }
+        self.assertEqual(get_gpu_info(), expected)
+
+        # AMD GPUs (via amd-smi)
+        def which_amd_smi(cmd, *args, **kwargs):
+            return cmd == 'amd-smi'
+
+        st.which = which_amd_smi
+        expected = {
+            'AMD': {'AMD INSTINCT MI250 (MCM) OAM AC MBA (device id: 0x740c, gfx: gfx90a, driver: 6.16.6)': 4},
+        }
+        self.assertEqual(get_gpu_info(), expected)
+
+        # AMD GPUs (via rocm-smi)
+        def which_rocm_smi(cmd, *args, **kwargs):
+            return cmd == 'rocm-smi'
+
+        st.which = which_rocm_smi
+
+        expected = {
+            'AMD': {'AMD Instinct MI250X/MI250 (model: 0x740c, driver: 6.18.4)': 4},
+        }
+        self.assertEqual(get_gpu_info(), expected)
+
+        # force rocm-smi to generate broken output (no stdout, only stderr)
+        os.environ['MOCKED_BROKEN_ROCM_SMI'] = 'yes'
+        expected = {
+            'AMD': {'AMD Instinct MI250X/MI250 (model: 0x740c, driver: UNKNOWN)': 4},
+        }
+        self.assertEqual(get_gpu_info(), expected)
 
 
 def suite(loader=None):

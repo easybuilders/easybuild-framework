@@ -1,0 +1,79 @@
+name: End-to-end test of EasyBuild with bwrap
+
+on: [push, pull_request]
+
+jobs:
+  end2end:
+    name: End-to-end test (runner VM)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+
+      - name: Install system packages
+        run: sudo apt-get install -y lmod bubblewrap
+
+      - name: Allow unprivileged user namespaces (Ubuntu 24.04)
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_unconfined=0
+
+      - name: Download and unpack easyblocks and easyconfigs repositories
+        run: |
+          cd "$HOME"
+          for pkg in easyblocks easyconfigs; do
+              curl -OL "https://github.com/easybuilders/easybuild-${pkg}/archive/develop.tar.gz"
+              tar xfz develop.tar.gz
+              rm -f develop.tar.gz
+          done
+
+      - name: Set up environment
+        shell: bash
+        run: |
+          # collect environment variables to be set in subsequent steps in script that can be sourced
+          echo "export PATH=$PWD:$PATH" > /tmp/eb_env
+          echo "export PYTHONPATH=$PWD:$HOME/easybuild-easyblocks-develop:$HOME/easybuild-easyconfigs-develop" >> /tmp/eb_env
+
+      - name: Run commands to check test environment
+        shell: bash
+        run: |
+          cmds=(
+            "whoami"
+            "pwd"
+            "env | sort"
+            "eb --version"
+            "eb --show-system-info"
+            "eb --check-eb-deps"
+            "eb --show-config"
+            "eb -x UnZip-6.0.eb"
+          )
+
+          for cmd in "${cmds[@]}"; do
+              echo ">>> $cmd"
+              bash -lc "source /tmp/eb_env; $cmd"
+          done
+
+      - name: End-to-end test of installing UnZip with EasyBuild in bwrap namespace
+        shell: bash
+        run: |
+          bash -l <<EOF
+            source /tmp/eb_env
+
+            # make sure that --prefix also determines default value for bwrap-installpath
+            eb --show-config --prefix /tmp | grep "bwrap-installpath [ ]* \(C\) = /tmp/bwrap"
+
+            # test installation of UnZip + bzip2 dependency
+            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
+
+            # no module files should be created in configured install path (default: $HOME/.local/easybuild),
+            # not for UnZip, nor for bzip2 dependency
+            (test -d $HOME/.local/easybuild/modules/all/UnZip || echo 'no UnZip module dir found: OK') > /tmp/out-UnZip-mod
+            (test -d $HOME/.local/easybuild/modules/all/bzip2 || echo 'no bzip2 module dir found: OK') > /tmp/out-bzip2-mod
+
+            # software subdirectories in configured install path should be empty
+            (test -e $HOME/.local/easybuild/software/UnZip/6.0/* || echo 'UnZip software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-UnZip-sw-dir
+            (test -e $HOME/.local/easybuild/software/bzip2/1.0.8/* || echo 'bzip2 software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-bzip2-sw-dir
+
+            grep 'no UnZip module dir found: OK' /tmp/out-UnZip-mod && grep 'no bzip2 module dir found: OK' /tmp/out-bzip2-mod && grep 'UnZip software dir in .* is empty' /tmp/out-UnZip-sw-dir && grep 'bzip2 software dir in .* is empty' /tmp/out-bzip2-sw-dir && ls -l /tmp/bwrap-installpath/modules/all/{bzip2/1.0.8.lua,UnZip/6.0.lua} && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/bin/* && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/easybuild/*log*
+          EOF

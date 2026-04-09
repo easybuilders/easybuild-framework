@@ -1,5 +1,5 @@
 # #
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -101,7 +101,7 @@ with the following fields:
 """
 
 
-class RunShellCmdError(BaseException):
+class RunShellCmdError(Exception):
 
     def __init__(self, cmd_result, caller_info, *args, **kwargs):
         """Constructor for RunShellCmdError."""
@@ -272,6 +272,15 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
 
     # Make script that sets up bash shell with specified environment and working directory
     cmd_fp = os.path.join(tmpdir, 'cmd.sh')
+
+    # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
+    launch_cmd = 'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"'
+
+    # prefix launch command with bwrap (if used)
+    bwrap_cmd = os.getenv('EB_BWRAP_CMD')
+    if bwrap_cmd:
+        launch_cmd = bwrap_cmd + ' ' + launch_cmd
+
     with open(cmd_fp, 'w') as fid:
         fid.write('#!/usr/bin/env bash\n')
         fid.write('# Run this script to set up a shell environment that EasyBuild used to run the shell command\n')
@@ -279,9 +288,8 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
             'EB_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )',
             f'echo "# Shell for the command: \'"{shlex.quote(cmd_str)}"\'"',
             'echo "# Use command history, exit to stop"',
-            # using -i to force interactive shell, so env.sh is also sourced when -c is used to run commands
-            'bash --rcfile $EB_SCRIPT_DIR/env.sh -i "$@"',
-            ]))
+            launch_cmd,
+        ]))
     os.chmod(cmd_fp, 0o775)
 
     return cmd_fp
@@ -580,8 +588,10 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         for line in iter(proc.stdout.readline, b''):
             _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
             stdout += line
+        proc.stdout.close()
         if split_stderr:
             stderr += proc.stderr.read() or b''
+            proc.stderr.close()
     else:
         (stdout, stderr) = proc.communicate(input=stdin)
 

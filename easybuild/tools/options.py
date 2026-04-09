@@ -1,5 +1,5 @@
 ##
-# Copyright 2009-2025 Ghent University
+# Copyright 2009-2026 Ghent University
 #
 # This file is part of EasyBuild,
 # originally created by the HPC team of Ghent University (http://ugent.be/hpc/en),
@@ -110,6 +110,7 @@ from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, g
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
+from easybuild.tools.entrypoints import EntrypointHook, EntrypointEasyblock, EntrypointToolchain
 
 
 try:
@@ -244,14 +245,22 @@ class EasyBuildOptions(GeneralOption):
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
 
         # set up constants to seed into config files parser, by section
+        try:
+            user = pwd.getpwuid(os.geteuid()).pw_name
+        except Exception:
+            # On some systems you may not have NSS on compute nodes, but the env vars should be available
+            try:
+                user = os.getenv("USER") or os.getenv("LOGNAME") or str(os.geteuid())
+            except Exception:
+                user = "unknown_userid"
+
         self.go_cfg_constants = {
             self.DEFAULTSECT: {
                 'DEFAULT_REPOSITORYPATH': (self.default_repositorypath[0],
                                            "Default easyconfigs repository path"),
                 'DEFAULT_ROBOT_PATHS': (os.pathsep.join(self.default_robot_paths),
                                         "List of default robot paths ('%s'-separated)" % os.pathsep),
-                'USER': (pwd.getpwuid(os.geteuid()).pw_name,
-                         "Current username, translated uid from password file"),
+                'USER': (user, "Current username, translated uid from password file (when available)"),
                 'HOME': (os.path.expanduser('~'),
                          "Current user's home directory, expanded '~'")
             }
@@ -273,6 +282,8 @@ class EasyBuildOptions(GeneralOption):
         descr = ("Basic options", "Basic runtime options for EasyBuild.")
 
         opts = OrderedDict({
+            'bwrap': ("Build/install in bubblewrap namespace, enabling installation to a temporary location before "
+                      "moving to the final destination", None, 'store_true', False),
             'dry-run': ("Print build overview incl. dependencies (full paths)", None, 'store_true', False),
             'dry-run-short': ("Print build overview incl. dependencies (short paths)", None, 'store_true', False, 'D'),
             'extended-dry-run': ("Print build environment and (expected) build procedure that will be performed",
@@ -303,6 +314,9 @@ class EasyBuildOptions(GeneralOption):
             'stop': ("Stop the installation after certain step",
                      'choice', 'store_or_None', EXTRACT_STEP, 's', all_stops),
             'strict': ("Set strictness level", 'choice', 'store', WARN, strictness_options),
+            'use-entrypoints': (
+                "Use entry points for easyblocks, toolchains, and hooks", None, 'store_true', False,
+            ),
         })
 
         self.log.debug("basic_options: descr %s opts %s" % (descr, opts))
@@ -438,6 +452,7 @@ class EasyBuildOptions(GeneralOption):
                                          "more compute capabilities than defined in --cuda-compute-capabilities.",
                                          None, 'store_true', False),
             'debug-lmod': ("Run Lmod modules tool commands in debug module", None, 'store_true', False),
+            'debug-module-cmds': ("Show additional information of module commands", None, 'store_true', False),
             'default-opt-level': ("Specify default optimisation level", 'choice', 'store', DEFAULT_OPT_LEVEL,
                                   Compiler.COMPILER_OPT_OPTIONS),
             'deprecated': ("Run pretending to be (future) version, to test removal of deprecated code.",
@@ -464,6 +479,8 @@ class EasyBuildOptions(GeneralOption):
                                           False),
             'fetch': ("Allow downloading sources ignoring OS and modules tool dependencies, "
                       "implies --stop=fetch, --ignore-osdeps and ignore modules tool", None, 'store_true', False),
+            'fetch-all': ("Download sources (like --fetch), don't stop when download failed for one of the easyconfig",
+                          None, 'store_true', False),
             'filter-deps': ("List of dependencies that you do *not* want to install with EasyBuild, "
                             "because equivalent OS packages are installed. (e.g. --filter-deps=zlib,ncurses)",
                             'strlist', 'extend', None),
@@ -628,6 +645,8 @@ class EasyBuildOptions(GeneralOption):
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
+            'bwrap-installpath': ("Bubblewrap install path for software and modules", None, 'store',
+                                  mk_full_default_path('bwrap_installpath')),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
             'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
@@ -1311,8 +1330,8 @@ class EasyBuildOptions(GeneralOption):
             # prefix applies to selected path configuration options;
             # repository has to be reinitialised to take new repositorypath in account;
             # in the legacy-style configuration, repository is initialised in configuration file itself;
-            path_opts = ['buildpath', 'containerpath', 'installpath', 'packagepath', 'repository', 'repositorypath',
-                         'sourcepath', 'sourcepath_data']
+            path_opts = ['buildpath', 'bwrap_installpath', 'containerpath', 'installpath', 'packagepath',
+                         'repository', 'repositorypath', 'sourcepath', 'sourcepath_data']
             for dest in path_opts:
                 if not self.options._action_taken.get(dest, False):
                     if dest == 'repository':
@@ -1361,6 +1380,10 @@ class EasyBuildOptions(GeneralOption):
         # Update the search_paths (if any) to absolute paths
         if self.options.search_paths is not None:
             self.options.search_paths = [os.path.abspath(path) for path in self.options.search_paths]
+
+        # --fetch-all implies --fetch
+        if self.options.fetch_all:
+            self.options.fetch = True
 
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
@@ -1660,6 +1683,19 @@ class EasyBuildOptions(GeneralOption):
                     opts_dict[opt] = (cur_opt_val, loc)
 
         pretty_print_opts(opts_dict)
+
+        if build_option('use_entrypoints', default=True):
+            for prefix, cls in [
+                ('Hook', EntrypointHook),
+                ('Easyblock', EntrypointEasyblock),
+                ('Toolchain', EntrypointToolchain),
+            ]:
+                ept_list = cls.retrieve_entrypoints()
+                if ept_list:
+                    print()
+                    print("%ss from entrypoints (%d):" % (prefix, len(ept_list)))
+                    for ept in ept_list:
+                        print('-', ept)
 
 
 def parse_options(args=None, with_include=True):
