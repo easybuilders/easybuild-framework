@@ -81,7 +81,7 @@ jobs:
           pip install .[eb_click]
           pip install $HOME/easybuild-easyblocks-develop
           pip install $HOME/easybuild-easyconfigs-develop
-          chown -R easybuild:easybuild $VENVDIR
+          chown -R easybuild $VENVDIR
 
       - name: Run commands to check test environment using the click cli
         shell: bash
