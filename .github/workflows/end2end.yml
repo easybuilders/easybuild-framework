@@ -65,12 +65,16 @@ jobs:
           fi
           sudo -u easybuild bash -l -c "source /tmp/eb_env; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
 
+      - name: Ensure `python3 -m venv` can be used
+        if: startsWith(matrix.container, 'ubuntu')
+        shell: bash
+        run: |
+          apt update && apt install -y python3-venv
+
       - name: Create a virtual environment and install EasyBuild with the click cli extra
-        if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
           export VENVDIR=/home/easybuild/venv
-          apt update && apt install -y python3-venv
           python3 -m venv $VENVDIR
           source $VENVDIR/bin/activate
           pip install --upgrade pip
@@ -80,7 +84,6 @@ jobs:
           chown -R easybuild:easybuild $VENVDIR
 
       - name: Run commands to check test environment using the click cli
-        if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
           export VENVDIR=/home/easybuild/venv
@@ -102,7 +105,6 @@ jobs:
           done
 
       - name: End-to-end test of installing bzip2 with EasyBuild using the click cli
-        if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
           export VENVDIR=/home/easybuild/venv
