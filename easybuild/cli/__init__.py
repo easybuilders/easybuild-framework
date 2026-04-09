@@ -46,10 +46,12 @@ else:
         ])
 
     from .options import EasyBuildCliOption, EasyconfigParam
+    from easybuild.tools.version import this_is_easybuild
 
     @click.command()
     @EasyBuildCliOption.apply_options
     @click.argument('other_args', nargs=-1, type=EasyconfigParam(), required=False)
+    @click.version_option(version=this_is_easybuild(), message='%(version)s')
     def eb(other_args):
         """EasyBuild command line interface."""
         # Really no need to re-build the arguments if we support the exact same syntax we can just let them pass
