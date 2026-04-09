@@ -69,20 +69,21 @@ jobs:
         if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
+          export VENVDIR=/home/easybuild/venv
           apt update && apt install -y python3-venv
-          python3 -m venv venv
-          source venv/bin/activate
+          python3 -m venv $VENVDIR
+          source $VENVDIR/bin/activate
           pip install --upgrade pip
           pip install .[eb_click]
           pip install $HOME/easybuild-easyblocks-develop
           pip install $HOME/easybuild-easyconfigs-develop
-          chown -R easybuild:easybuild venv
-          chmod 755 /root
+          chown -R easybuild:easybuild $VENVDIR
 
       - name: Run commands to check test environment using the click cli
         if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
+          export VENVDIR=/home/easybuild/venv
           cmds=(
             "whoami"
             "pwd"
@@ -97,15 +98,16 @@ jobs:
           )
           for cmd in "${cmds[@]}"; do
               echo ">>> $cmd"
-              sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source /root/venv/bin/activate; $cmd"
+              sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; $cmd"
           done
 
       - name: End-to-end test of installing bzip2 with EasyBuild using the click cli
         if: matrix.container == 'ubuntu-24.04'
         shell: bash
         run: |
+          export VENVDIR=/home/easybuild/venv
           EB_ARGS=''
           if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
               EB_ARGS='--filter-deps=binutils'
           fi
-          sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source /root/venv/bin/activate; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
+          sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
