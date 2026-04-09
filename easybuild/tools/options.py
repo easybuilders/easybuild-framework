@@ -555,6 +555,7 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
+            'output-theme': ("Set output theme (when using Rich output style)", None, 'store', 'default'),
             'parallel': ("Specify level of parallelism that should be used during build procedure, "
                          "(bypasses auto-detection of number of available cores; "
                          "actual value is determined by this value + 'max_parallel' easyconfig parameter)",

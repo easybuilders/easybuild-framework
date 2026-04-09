@@ -139,7 +139,7 @@ class EasybuildEntrypoint:
 
     @classmethod
     def load_entrypoints(cls):
-        """Load all the entrypoints in this group. This is needed for the modules contining the entrypoints to be
+        """Load all the entrypoints in this group. This is needed for the modules containing the entrypoints to be
         actually imported in order to process the function decorators that will register them in the
         `registered` dict."""
         for ep in cls.retrieve_entrypoints():
@@ -175,6 +175,11 @@ class EasybuildEntrypoint:
         """Validate the entrypoint."""
         if self.module is None or self.name is None:
             raise EasyBuildError("Entrypoint `%s` has no module or name associated", self.wrapped)
+
+
+class EntrypointRichTheme(EasybuildEntrypoint):
+    """Class to represent a rich theme entrypoint."""
+    group = 'easybuild.rich_theme'
 
 
 class EntrypointHook(EasybuildEntrypoint):

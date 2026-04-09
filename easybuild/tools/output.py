@@ -35,11 +35,14 @@ import functools
 from collections import OrderedDict
 import sys
 
-from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
+from easybuild.tools.build_log import EasyBuildError, EB_MSG_PREFIX
+from easybuild.tools.entrypoints import EntrypointRichTheme
+from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style, DEFAULT_THEME_NAME
 
 try:
     import rich.markup
+    from rich.theme import Theme
+    from rich.highlighter import Highlighter, RegexHighlighter, ReprHighlighter
     from rich.console import Console, Group
     from rich.live import Live
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -74,6 +77,23 @@ PROGRESS_BAR_EASYCONFIG = 'easyconfig'
 STATUS_BAR = 'status'
 
 _progress_bar_cache = {}
+
+DEFAULT_THEME_DCT = {
+    'easybuild.success': 'bold green reverse',
+    'easybuild.warning': 'bold orange3 reverse',
+    'easybuild.error': 'bold red reverse',
+    'easybuild.prefix1': 'bold yellow3',
+    'easybuild.prefix2': 'dim yellow3',
+}
+DEFAULT_HIGHLIGHTS = [
+    r'(?P<error>(ERROR)|(FAILED)|(FAIL))',
+    r'(?P<warning>WARNING)',
+    r'(?P<success>(COMPLETED)|(SUCCESS)|(PASSED)|(PASS)|(OK))',
+    fr'(?P<prefix1>{EB_MSG_PREFIX} )',
+    fr'(?P<prefix2> >> )',
+]
+CACHED_THEME = None
+CACHED_HIGHLIGHTER = None
 
 
 def colorize(txt, color):
@@ -131,6 +151,72 @@ def use_rich():
     Return whether or not to use Rich to produce rich output.
     """
     return get_output_style() == OUTPUT_STYLE_RICH
+
+
+def get_rich_theme():
+    """
+    Get Rich theme to use for rich output.
+    """
+    global CACHED_THEME
+    if CACHED_THEME is not None:
+        return CACHED_THEME
+    if not use_rich():
+        class DummyTheme:
+            pass
+        res = DummyTheme()
+    else:
+
+        use_entrypoints = build_option('use_entrypoints', default=True)
+        output_theme = build_option('output_theme', default=DEFAULT_THEME_NAME)
+        if output_theme == DEFAULT_THEME_NAME:
+            theme_dct = DEFAULT_THEME_DCT
+        else:
+            if not use_entrypoints:
+                raise EasyBuildError(
+                    "Cannot use custom Rich theme '%s' without entry points support enabled", output_theme
+                )
+            for entrypoint in EntrypointRichTheme.retrieve_entrypoints():
+                if entrypoint.name == output_theme:
+                    theme_dct = entrypoint.load()
+                    break
+            else:
+                raise EasyBuildError("Unknown specified Rich theme '%s'", output_theme)
+        res = Theme(theme_dct)
+    CACHED_THEME = res
+    return res
+
+
+def get_rich_highlighter():
+    """
+    Get Rich highlighter to use for rich output.
+    """
+    global CACHED_HIGHLIGHTER
+    if CACHED_HIGHLIGHTER is not None:
+        return CACHED_HIGHLIGHTER
+    if not use_rich():
+        class DummyHighlighter:
+            pass
+        res = DummyHighlighter()
+    else:
+        class EasybuildHighlighter(RegexHighlighter):
+            """Highlighter for EasyBuild messages, to highlight ERROR, WARNING, SUCCESS and similar lines."""
+            highlights = DEFAULT_HIGHLIGHTS
+            base_style = "easybuild."
+
+        class CombinedHighlighter(Highlighter):
+            """Combined highlighter that applies both EasybuildHighlighter and ReprHighlighter."""
+            def __init__(self):
+                super().__init__()
+                self.easybuild_highlighter = EasybuildHighlighter()
+                self.repr_highlighter = ReprHighlighter()
+
+            def highlight(self, text):
+                self.easybuild_highlighter.highlight(text)
+                self.repr_highlighter.highlight(text)
+
+        res = CombinedHighlighter()
+    CACHED_HIGHLIGHTER = res
+    return res
 
 
 def show_progress_bars():
