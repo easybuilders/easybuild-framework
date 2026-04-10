@@ -112,4 +112,4 @@ jobs:
           if [[ "${{ matrix.container }}" == "fedora-41" ]] || [[ "${{ matrix.container }}" == "ubuntu-24.04" ]]; then
               EB_ARGS='--filter-deps=binutils'
           fi
-          sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; eb bzip2-1.0.8.eb --trace --robot ${EB_ARGS}"
+          sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; eb bzip2-1.0.8.eb --rebuild --trace --robot ${EB_ARGS}"
