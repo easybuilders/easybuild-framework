@@ -1182,7 +1182,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # checkout target branch
     if pr_branch is None:
-        if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if pr_target_repo == GITHUB_EASYCONFIGS_REPO and file_info.get('ecs'):
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
         elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
             label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]

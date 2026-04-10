@@ -4700,21 +4700,37 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+        # Should error when no files were modified
+        # Pick an existing easyconfig, use SYSTEM toolchain to allow easy parsing
+        gcc_ecs = glob.glob(os.path.join(git_working_dir, '**', 'GCC', 'GCC-*.eb'), recursive=True)
+        if not gcc_ecs:
+            self.fail("Found no GCC easyconfigs in checkout to use for this test")
+        unmodified_ec = os.path.join(self.test_prefix, os.path.basename(gcc_ecs[0]))
+        copy_file(gcc_ecs[0], unmodified_ec)
+        args = common_new_pr_args + [unmodified_ec]
+        with self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, 'No changed files.*empty pull request',
+                                  self.eb_main, args, raise_error=True)
+
         # New patch only
         with mock.patch('easybuild.tools.github.find_software_name_for_patch') as mock_find_sw_name:
-            mock_find_sw_name.return_value = 'toy'
-            args = common_new_pr_args + [toy_patch]
-            with self.mocked_stdout_stderr():
-                self.assertErrorRegex(EasyBuildError, 'use --pr-title', self.eb_main, args, raise_error=True)
-            args += ['--pr-title=New patch']
-            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
-            self.assertMultiRegex((
-                r'^\* target: easybuilders/easybuild-easyconfigs:develop',
-                r'^\* title: "New patch"',
-                r"^\* overview of changes:",
-                rf".*/{os.path.basename(toy_patch)}\s*\|",
-            ), txt, multi_line=True)
-        # With corresponding EC no pr-title needs to be specified
+            for with_unmodified_ec in (False, True):
+                with self.subTest(f'With unmodified easyconfig: {with_unmodified_ec}'):
+                    mock_find_sw_name.return_value = 'toy'
+                    args = common_new_pr_args + [toy_patch]
+                    if with_unmodified_ec:
+                        args.append(unmodified_ec)
+                    with self.mocked_stdout_stderr():
+                        self.assertErrorRegex(EasyBuildError, 'use --pr-title', self.eb_main, args, raise_error=True)
+                    args += ['--pr-title=New patch']
+                    txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+                    self.assertMultiRegex((
+                        r'^\* target: easybuilders/easybuild-easyconfigs:develop',
+                        r'^\* title: "New patch"',
+                        r"^\* overview of changes:",
+                        rf".*/{os.path.basename(toy_patch)}\s*\|",
+                    ), txt, multi_line=True)
+        # With corresponding, new EC no pr-title needs to be specified
         args = common_new_pr_args + [toy_patch, toy_ec]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
         self.assertMultiRegex((
