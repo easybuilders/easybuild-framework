@@ -37,13 +37,12 @@ import sys
 import tempfile
 import textwrap
 from importlib import reload
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 from urllib.request import URLError
 
 import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
-import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
@@ -4708,13 +4707,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(toy_ec, toy_ec_txt)
 
-        args = [
+        # Shared arguments for dry-run opening a new PR
+        common_new_pr_args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            toy_ec,
             '-D',
-            '--disable-cleanup-tmpdir',
         ]
+        args = common_new_pr_args + ['--disable-cleanup-tmpdir', toy_ec]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
@@ -4723,7 +4722,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             git_working_dir = dirs[0]
         else:
             self.fail("Failed to find temporary git working dir: %s" % dirs)
-        args.append(f'--git-working-dirs-path={git_working_dir}')
+        common_new_pr_args.append(f'--git-working-dirs-path={git_working_dir}')
 
         remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
         regexs = [
@@ -4740,7 +4739,32 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+        # New patch only
+        with mock.patch('easybuild.tools.github.find_software_name_for_patch') as mock_find_sw_name:
+            mock_find_sw_name.return_value = 'toy'
+            args = common_new_pr_args + [toy_patch]
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, 'use --pr-title', self.eb_main, args, raise_error=True)
+            args += ['--pr-title=New patch']
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            self.assertMultiRegex((
+                r'^\* target: easybuilders/easybuild-easyconfigs:develop',
+                r'^\* title: "New patch"',
+                r"^\* overview of changes:",
+                rf".*/{os.path.basename(toy_patch)}\s*\|",
+            ), txt, multi_line=True)
+        # With corresponding EC no pr-title needs to be specified
+        args = common_new_pr_args + [toy_patch, toy_ec]
+        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+        self.assertMultiRegex((
+            r'^\* target: easybuilders/easybuild-easyconfigs:develop',
+            r'^\* title: ".*toy v0.0.*"',
+            r"^\* overview of changes:",
+            rf".*/{os.path.basename(toy_patch)}\s*\|",
+        ), txt, multi_line=True)
+
         # Commit message must not be specified for only new ECs
+        args = common_new_pr_args + [toy_ec]
         args_new_pr = args + ['--pr-commit-msg=just a test']
         error_msg = r"PR commit msg \(--pr-commit-msg\) should not be used"
         with self.mocked_stdout_stderr():
