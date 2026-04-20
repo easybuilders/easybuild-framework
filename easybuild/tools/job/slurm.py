@@ -355,7 +355,7 @@ class Slurm(JobBackend):
             self._print_final_report_line(job.name, job.slurm_state, job.jobid, job.elapsed, str_reason)
         # Summary of skipped jobs
         print_msg("[Slurm backend] List of skipped jobs (%d):" % (len(self._jobs_skipped)))
-        for job, deps in self._jobs_skipped:
+        for job, _deps in self._jobs_skipped:
             self._print_final_report_line(job.name, "SKIPPED", "Not submitted", "-", job.message)
 
     def _print_final_report_line(self, name, status, jobid, duration, msg):
