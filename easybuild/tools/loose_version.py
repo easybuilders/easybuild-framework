@@ -15,6 +15,9 @@ import re
 from itertools import zip_longest
 
 
+from typing import Iterable, Optional, Union
+
+
 class LooseVersion:
     """Version numbering for anarchists and software realists.
 
@@ -26,7 +29,7 @@ class LooseVersion:
 
     component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
 
-    def __init__(self, vstring=None):
+    def __init__(self, vstring: Optional[str] = None) -> None:
         self._vstring = vstring
         if vstring:
             components = [x for x in self.component_re.split(vstring)
@@ -50,7 +53,7 @@ class LooseVersion:
         """Readonly access to the parsed version (list or None)"""
         return self._version
 
-    def is_prerelease(self, other, markers):
+    def is_prerelease(self, other: Union[str, 'LooseVersion'], markers: Iterable[str]) -> bool:
         """Check if this is a prerelease of other
 
         Markers is a list of strings that denote a prerelease
@@ -66,13 +69,13 @@ class LooseVersion:
                     return True
         return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._vstring
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "LooseVersion ('%s')" % str(self)
 
-    def _cmp(self, other):
+    def _cmp(self, other: Union[str, 'LooseVersion']) -> int:
         """Rich comparison method used by the operators below"""
         if isinstance(other, str):
             other = LooseVersion(other)
@@ -93,20 +96,20 @@ class LooseVersion:
                 return 1
         return 0
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return self._cmp(other) == 0
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return self._cmp(other) != 0
 
-    def __lt__(self, other):
+    def __lt__(self, other: object) -> bool:
         return self._cmp(other) < 0
 
-    def __le__(self, other):
+    def __le__(self, other: object) -> bool:
         return self._cmp(other) <= 0
 
-    def __gt__(self, other):
+    def __gt__(self, other: object) -> bool:
         return self._cmp(other) > 0
 
-    def __ge__(self, other):
+    def __ge__(self, other: object) -> bool:
         return self._cmp(other) >= 0

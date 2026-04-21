@@ -30,6 +30,8 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
+from typing import Dict, List, Tuple
+
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -42,7 +44,7 @@ class Cuda(Compiler):
     COMPILER_CUDA_MODULE_NAME = ['CUDA']
     COMPILER_CUDA_FAMILY = TC_CONSTANT_CUDA
 
-    COMPILER_CUDA_UNIQUE_OPTS = {
+    COMPILER_CUDA_UNIQUE_OPTS: Dict[str, Tuple[List[str], str]] = {
         # handle '-gencode arch=X,code=Y' nvcc options (also -arch, -code)
         # -arch always needs to be specified, -code is optional (defaults to -arch if missing)
         # -gencode is syntactic sugar for combining -arch/-code

@@ -38,6 +38,7 @@ Authors:
 import copy
 import os
 import sys
+from typing import Any, List, Optional, Sequence, Tuple
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
@@ -54,9 +55,10 @@ from easybuild.tools.utilities import flatten, nub
 _log = fancylogger.getLogger('tools.robot', fname=False)
 
 
-def det_robot_path(robot_paths_option, tweaked_ecs_paths, extra_ec_paths, auto_robot=False):
+def det_robot_path(robot_paths_option: Sequence[str], tweaked_ecs_paths: Optional[Tuple[str, str]],
+                   extra_ec_paths: Optional[Sequence[str]], auto_robot: bool = False) -> List[str]:
     """Determine robot path."""
-    robot_path = robot_paths_option[:]
+    robot_path = list(robot_paths_option)
     _log.info("Using robot path(s): %s", robot_path)
 
     tweaked_ecs_path, tweaked_ecs_deps_path = None, None
@@ -77,7 +79,8 @@ def det_robot_path(robot_paths_option, tweaked_ecs_paths, extra_ec_paths, auto_r
     return robot_path
 
 
-def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True, return_conflicts=False):
+def check_conflicts(easyconfigs: list, modtool: Any, check_inter_ec_conflicts: bool = True,
+                    return_conflicts: bool = False) -> bool:
     """
     Check for conflicts in dependency graphs for specified easyconfigs.
 
@@ -105,7 +108,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True, return_
 
     def mk_dep_keys(deps):
         """Create keys for given list of dependencies."""
-        res = []
+        res: List[Any] = []
         for dep in deps:
             # filter out dependencies marked as external module
             if not dep.get('external_module', False):
@@ -236,7 +239,8 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True, return_
     return res
 
 
-def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
+def dry_run(easyconfigs: list, modtool: Any, short: bool = False,
+            return_modules_to_install: bool = False) -> str:
     """
     Compose dry run overview for supplied easyconfigs:
     * [ ] for unavailable
@@ -312,7 +316,7 @@ def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
     return '\n'.join(lines)
 
 
-def missing_deps(easyconfigs, modtool, terse=False):
+def missing_deps(easyconfigs, modtool, terse: bool = False) -> str:
     """
     Determine subset of easyconfigs for which no module is installed yet.
     """
@@ -336,7 +340,7 @@ def missing_deps(easyconfigs, modtool, terse=False):
     return '\n'.join(lines)
 
 
-def raise_error_missing_deps(missing_deps, extra_msg=None):
+def raise_error_missing_deps(missing_deps: Sequence[Any], extra_msg: Optional[str] = None) -> None:
     """Raise error to report missing dependencies."""
 
     _log.warning("Missing dependencies (details): %s", missing_deps)
@@ -352,7 +356,8 @@ def raise_error_missing_deps(missing_deps, extra_msg=None):
     raise EasyBuildError(error_msg, exit_code=EasyBuildExit.MISSING_DEPENDENCY)
 
 
-def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_error_missing_ecs=True):
+def resolve_dependencies(easyconfigs: list, modtool: Any,
+                         retain_all_deps: bool = False, raise_error_missing_ecs: bool = True) -> list:
     """
     Work through the list of easyconfigs to determine an optimal order
     :param easyconfigs: list of easyconfigs
