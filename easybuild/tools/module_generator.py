@@ -44,6 +44,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from string import Template
 from textwrap import wrap
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -1224,7 +1225,7 @@ class ModuleGeneratorLua(ModuleGenerator):
     SYNTAX = 'Lua'
     MODULE_FILE_EXTENSION = '.lua'
     MODULE_SHEBANG = ''  # no 'shebang' in Lua module files
-    CHARS_TO_ESCAPE = []
+    CHARS_TO_ESCAPE: List[str] = []
 
     INSTALLDIR_REGEX = r'^local root\s+=\s+"(?P<installdir>.*)"'
     LOAD_REGEX = r'^\s*(?:load|depends_on)\("(\S+)"'
