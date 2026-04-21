@@ -37,6 +37,7 @@ import os
 import pprint
 import re
 import tempfile
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
@@ -100,7 +101,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
 
     PYHEADER_ALLOWED_BUILTINS = None  # allow all
     PYHEADER_MANDATORY = ['version', 'name', 'toolchain', 'homepage', 'description']
-    PYHEADER_BLACKLIST = []
+    PYHEADER_BLACKLIST: List[str] = []
 
     def __init__(self, *args, **kwargs):
         """FormatOneZero constructor."""

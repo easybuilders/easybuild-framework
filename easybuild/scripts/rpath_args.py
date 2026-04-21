@@ -37,6 +37,7 @@ import os
 import re
 import sys
 
+
 LINKER_COMMANDS = (
     # binutils
     'ld', 'ld.gold', 'ld.bfd',
