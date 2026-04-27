@@ -66,12 +66,15 @@ class Slurm(JobBackend):
                 raise EasyBuildError("Required command '%s' not found", cmd)
 
         super().__init__(*args, **kwargs)
-
-        # Add maximum jobs submitted to a queue
+        # Interval between polls for status of jobs (in seconds), ie between each sacct call
+        # Default value set in tools/options.py is 30s
         self.job_polling_interval = build_option('job_polling_interval')
-        # If 0, no limit. we set it -1 to have the test in complete function always true
+        self.log.info("Polling interval is : %s", self.job_polling_interval)
+        # Maximum number of concurrent jobs (queued and running)
+        # Default value set in tools/options.py is 0
         self.job_max_jobs = sys.maxsize if build_option('job_max_jobs') == 0 else build_option('job_max_jobs')
         self.log.info("Maximum number of jobs in the queue is : %s", self.job_max_jobs)
+        # Type of dependency to set between jobs
         job_deps_type = build_option('job_deps_type')
         if job_deps_type is None:
             job_deps_type = JOB_DEPS_TYPE_ABORT_ON_ERROR
