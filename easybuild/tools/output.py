@@ -82,16 +82,16 @@ DEFAULT_THEME_DCT = {
     'easybuild.success': 'on green',
     'easybuild.warning': 'on orange3',
     'easybuild.error': 'on red',
-    'easybuild.prefix1': 'gray50',
-    'easybuild.prefix2': 'gray50',
+    'easybuild.prefix1': 'grey50',
+    'easybuild.prefix2': 'grey50',
     'easybuild.installing': 'bold',
     'easybuild.installed': 'bold',
-    'easybuild.timing': 'gray50',
+    'easybuild.timing': 'grey50',
     'repr.path': 'bright_blue',
     'repr.number': 'red',
     'repr.ipv6': 'yellow',  # time
     'repr.call': 'none',  # file(s)
-    'repr.ellipsis': 'gray50',
+    'repr.ellipsis': 'grey50',
     'repr.brace': 'none',
 }
 DEFAULT_HIGHLIGHTS = [
