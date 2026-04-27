@@ -79,18 +79,30 @@ STATUS_BAR = 'status'
 _progress_bar_cache = {}
 
 DEFAULT_THEME_DCT = {
-    'easybuild.success': 'bold green reverse',
-    'easybuild.warning': 'bold orange3 reverse',
-    'easybuild.error': 'bold red reverse',
-    'easybuild.prefix1': 'bold yellow3',
-    'easybuild.prefix2': 'dim yellow3',
+    'easybuild.success': 'on green',
+    'easybuild.warning': 'on orange3',
+    'easybuild.error': 'on red',
+    'easybuild.prefix1': 'gray50',
+    'easybuild.prefix2': 'gray50',
+    'easybuild.installing': 'bold',
+    'easybuild.installed': 'bold',
+    'easybuild.timing': 'gray50',
+    'repr.path': 'bright_blue',
+    'repr.number': 'red',
+    'repr.ipv6': 'yellow',  # time
+    'repr.call': 'none',  # file(s)
+    'repr.ellipsis': 'gray50',
+    'repr.brace': 'none',
 }
 DEFAULT_HIGHLIGHTS = [
     r'(?P<error>(ERROR)|(FAILED)|(FAIL))',
     r'(?P<warning>WARNING)',
     r'(?P<success>(COMPLETED)|(SUCCESS)|(PASSED)|(PASS)|(OK))',
     fr'(?P<prefix1>{EB_MSG_PREFIX} )',
-    fr'(?P<prefix2> >> )',
+    r'(?P<prefix2> >> )',
+    r'.* (?P<installing>(building and installing|installing extension|installing bundle component).*)\.\.\.',
+    r'(?P<timing>\(took .*\))',
+    r'\[SUCCESS\] (?P<installed>\S+)',
 ]
 CACHED_THEME = None
 CACHED_HIGHLIGHTER = None
@@ -211,8 +223,9 @@ def get_rich_highlighter():
                 self.repr_highlighter = ReprHighlighter()
 
             def highlight(self, text):
-                self.easybuild_highlighter.highlight(text)
                 self.repr_highlighter.highlight(text)
+                # easybuild_highlighter comes last to take priority
+                self.easybuild_highlighter.highlight(text)
 
         res = CombinedHighlighter()
     CACHED_HIGHLIGHTER = res
