@@ -583,10 +583,10 @@ class GithubTest(EnhancedTestCase):
             return
 
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
-        self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
+        self.assertRegex(sha, '^[0-9a-f]{40}$')
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
                                          branch='develop')
-        self.assertTrue(re.match('^[0-9a-f]{40}$', sha))
+        self.assertRegex(sha, '^[0-9a-f]{40}$')
 
     def test_github_download_repo(self):
         """Test download_repo function."""
@@ -602,7 +602,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
-        self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
+        self.assertRegex(read_file(shafile), '^[0-9a-f]{40}$')
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2024a.eb'))
 
         # current directory should not have changed after calling download_repo
@@ -627,7 +627,7 @@ class GithubTest(EnhancedTestCase):
                                 github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertIn('easybuild', os.listdir(repodir))
-        self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
+        self.assertRegex(read_file(shafile), '^[0-9a-f]{40}$')
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_github_download_repo_commit(self):
@@ -728,8 +728,7 @@ class GithubTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             path = gh.find_easybuild_easyconfig(github_user=GITHUB_TEST_ACCOUNT)
         expected = os.path.join('e', 'EasyBuild', r'EasyBuild-[1-9]+\.[0-9]+\.[0-9]+\.eb')
-        regex = re.compile(expected)
-        self.assertTrue(regex.search(path), "Pattern '%s' found in '%s'" % (regex.pattern, path))
+        self.assertRegex(path, expected)
         self.assertExists(path)
 
     def test_github_find_patches(self):
@@ -749,7 +748,7 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual(ec, 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
-        self.assertTrue(re.search(reg, txt))
+        self.assertRegex(txt, reg)
 
         with self.mocked_stdout():
             self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
@@ -1219,8 +1218,7 @@ class GithubTest(EnhancedTestCase):
             r"== fetching branch 'main' from https://github.com/%s\.\.\." % github_path,
             r"== pushing branch 'test123' to remote 'github_.*' \(git@github.com:%s\) \[DRY RUN\]" % github_path,
         ]) + r'$'
-        regex = re.compile(pattern)
-        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' doesn't match: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout.strip(), pattern)
 
     def test_github_pr_test_report(self):
         """Test for post_pr_test_report function."""
@@ -1247,9 +1245,7 @@ class GithubTest(EnhancedTestCase):
             r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
             r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assert_multi_regex(patterns, stdout)
 
         with self.mocked_stdout_stderr():
             post_pr_test_report('1234', gh.GITHUB_EASYBLOCKS_REPO, test_report, "OK!", init_session_state, True)
@@ -1261,9 +1257,7 @@ class GithubTest(EnhancedTestCase):
             r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
             r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assert_multi_regex(patterns, stdout)
 
         # also test combination of --from-pr and --include-easyblocks-from-pr
         update_build_option('include_easyblocks_from_pr', ['6789'])
@@ -1279,9 +1273,7 @@ class GithubTest(EnhancedTestCase):
             r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assert_multi_regex(patterns, stdout)
 
     def test_github_create_test_report(self):
         """Test create_test_report function."""

@@ -1037,14 +1037,14 @@ class SystemToolsTest(EnhancedTestCase):
     def test_platform_name_linux(self):
         """Test getting platform name (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        self.assertTrue(re.match('.*-unknown-linux$', get_platform_name()))
-        self.assertTrue(re.match('.*-unknown-linux-gnu$', get_platform_name(withversion=True)))
+        self.assertRegex(get_platform_name(), '.*-unknown-linux$')
+        self.assertRegex(get_platform_name(withversion=True), '.*-unknown-linux-gnu$')
 
     def test_platform_name_darwin(self):
         """Test getting platform name (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        self.assertTrue(re.match('.*-apple-darwin$', get_platform_name()))
-        self.assertTrue(re.match('.*-apple-darwin.*$', get_platform_name(withversion=True)))
+        self.assertRegex(get_platform_name(), '.*-apple-darwin$')
+        self.assertRegex(get_platform_name(withversion=True), '.*-apple-darwin.*$')
 
     def test_os_name(self):
         """Test getting OS name."""
@@ -1266,8 +1266,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertIsNone(det_pypkg_version('doesnotexist', 'doesnotexist.foo'))
 
         rich_ver = det_pypkg_version('rich', 'rich')
-        regex = re.compile(r'^[0-9]+\.[0-9].*')
-        self.assertTrue(regex.match(rich_ver), f"Pattern {regex.pattern} should match for: {rich_ver}")
+        self.assertRegex(rich_ver, r'^[0-9]+\.[0-9].*')
 
     def test_pick_system_specific_value(self):
         """Test pick_system_specific_value function."""
@@ -1418,15 +1417,12 @@ class SystemToolsTest(EnhancedTestCase):
             test_file = os.path.join(self.test_prefix, 'test.txt')
             write_file(test_file, 'test')
 
-            warning_regex = re.compile(r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!", re.M)
-
             with self.mocked_stdout_stderr():
                 res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
                 stderr = self.get_stderr()
                 stdout = self.get_stdout()
 
-            fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
-            self.assertTrue(warning_regex.search(stderr), fail_msg)
+            self.assertRegex(stderr, r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!")
             self.assertFalse(stdout)
 
             self.assertEqual(res, None)
@@ -1498,8 +1494,7 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res)
-        fail_msg = "Pattern '%s' should be found in: %s" % (debug_regex.pattern, logtxt)
-        self.assertTrue(debug_regex.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, debug_regex)
 
         # Test case 5: call on a file where cuobjdump produces really unexpected output
         error_pattern = r"Dumping CUDA binary file information for .* via .* failed!"
@@ -1553,8 +1548,7 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res_elf)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
-        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_elf)
         self.assertEqual(res_ptx, ['9.0', '9.0a'])
 
         # Test case 5: call on CUDA static lib, which only contains device code
@@ -1568,8 +1562,7 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res_ptx)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_ptx.pattern, logtxt)
-        self.assertTrue(warning_regex_ptx.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_ptx)
         self.assertEqual(res_elf, ['10.0', '10.0a', '10.0f'])
 
         # Test case 6: call on CUDA shared lib which lacks an arch = sm_XX entry (should never happen)
@@ -1581,8 +1574,7 @@ class SystemToolsTest(EnhancedTestCase):
             res_elf = get_cuda_architectures('mock_invalid_cuda_sharedlib', 'elf')
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
-        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_elf)
         self.assertIsNone(res_elf)
 
     def test_get_linked_libs_raw(self):

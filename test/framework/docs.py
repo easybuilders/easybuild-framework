@@ -807,8 +807,7 @@ class DocsTest(EnhancedTestCase):
         toc = [":ref:`" + n + "`" for n in sorted(set(names))]
         pattern = " - ".join(toc)
 
-        regex = re.compile(pattern)
-        self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
+        self.assertRegex(ebdoc, pattern)
 
         # MarkDown format
         eb_overview = gen_easyblocks_overview_md(gen_easyblocks_pkg, 'easyconfigs', common_params, doc_functions)
@@ -846,8 +845,7 @@ class DocsTest(EnhancedTestCase):
 
         toc = ["\\[" + n + "\\]\\(#" + n.lower() + "\\)" for n in sorted(names)]
         pattern = " - ".join(toc)
-        regex = re.compile(pattern)
-        self.assertTrue(re.search(regex, ebdoc), "Pattern %s found in %s" % (regex.pattern, ebdoc))
+        self.assertRegex(ebdoc, pattern)
 
     def test_license_docs(self):
         """Test license_documentation function."""
@@ -856,12 +854,10 @@ class DocsTest(EnhancedTestCase):
         self.assertIn(gplv3, lic_docs)
 
         lic_docs = avail_easyconfig_licenses(output_format='rst')
-        regex = re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M)
-        self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
+        self.assertRegex(lic_docs, re.compile(r"^``GPLv3``\s*The GNU General Public License", re.M))
 
         lic_docs = avail_easyconfig_licenses(output_format='md')
-        regex = re.compile(r"^``GPLv3``\s*|The GNU General Public License", re.M)
-        self.assertTrue(regex.search(lic_docs), "%s found in: %s" % (regex.pattern, lic_docs))
+        self.assertRegex(lic_docs, re.compile(r"^``GPLv3``\s*|The GNU General Public License", re.M))
 
         # expect NotImplementedError for JSON output
         self.assertRaises(NotImplementedError, avail_easyconfig_licenses, output_format='json')
@@ -919,17 +915,17 @@ class DocsTest(EnhancedTestCase):
 
         # GCC/4.6.3 is installed, no gzip module installed
         txt = list_software(output_format='txt', detailed=True, only_installed=True)
-        self.assertTrue(re.search(r'^\* GCC', txt, re.M))
-        self.assertTrue(re.search(r'^\s*\* GCC v4.6.3: system', txt, re.M))
-        self.assertFalse(re.search(r'^\* gzip', txt, re.M))
-        self.assertFalse(re.search(r'gzip v1\.', txt, re.M))
+        self.assertRegex(txt, re.compile(r'^\* GCC', re.M))
+        self.assertRegex(txt, re.compile(r'^\s*\* GCC v4.6.3: system', re.M))
+        self.assertNotRegex(txt, re.compile(r'^\* gzip', re.M))
+        self.assertNotRegex(txt, r'gzip v1\.')
 
         txt = list_software(output_format='rst', detailed=True, only_installed=True)
-        self.assertTrue(re.search(r'^\*GCC\*', txt, re.M))
-        self.assertTrue(re.search(r'4\.6\.3.*system', txt, re.M))
-        self.assertFalse(re.search(r'^\*gzip\*', txt, re.M))
-        self.assertFalse(re.search(r'1\.4', txt, re.M))
-        self.assertFalse(re.search(r'1\.5', txt, re.M))
+        self.assertRegex(txt, re.compile(r'^\*GCC\*', re.M))
+        self.assertRegex(txt, r'4\.6\.3.*system')
+        self.assertNotRegex(txt, re.compile(r'^\*gzip\*', re.M))
+        self.assertNotRegex(txt, r'1\.4')
+        self.assertNotRegex(txt, r'1\.5')
 
         # check for specific patterns in output for larger set of test easyconfigs
         build_options = {
@@ -994,9 +990,7 @@ class DocsTest(EnhancedTestCase):
         ]
 
         for txt in (list_toolchains(), list_toolchains(output_format='txt')):
-            for pattern in txt_patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+            self.assert_multi_regex(txt_patterns, txt)
 
         md_patterns = [
             r"^# List of known toolchains",
@@ -1006,9 +1000,7 @@ class DocsTest(EnhancedTestCase):
             r"^\*\*system\*\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*\s+\|\*\(none\)\*$",
         ]
         txt_md = list_toolchains(output_format='md')
-        for pattern in md_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns, txt_md)
 
         rst_patterns = [
             r"^List of known toolchains\n\-{24}",
@@ -1018,9 +1010,7 @@ class DocsTest(EnhancedTestCase):
             r"^\*\*system\*\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*\s+\*\(none\)\*$",
         ]
         txt_rst = list_toolchains(output_format='rst')
-        for pattern in rst_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns, txt_rst)
 
         # expect NotImplementedError for json output format
         with self.assertRaises(NotImplementedError):
@@ -1040,14 +1030,10 @@ class DocsTest(EnhancedTestCase):
             os.getenv('USER'),
         ]
         txt = avail_cfgfile_constants(option_parser.go_cfg_constants)
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         txt = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='txt')
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         md_patterns = [
             r"^# Constants available \(only\) in configuration files",
@@ -1057,9 +1043,7 @@ class DocsTest(EnhancedTestCase):
             os.getenv('USER'),
         ]
         txt_md = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='md')
-        for pattern in md_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns, txt_md)
 
         rst_patterns = [
             r"^Constants available \(only\) in configuration files\n-{49}\n",
@@ -1069,9 +1053,7 @@ class DocsTest(EnhancedTestCase):
             os.getenv('USER'),
         ]
         txt_rst = avail_cfgfile_constants(option_parser.go_cfg_constants, output_format='rst')
-        for pattern in rst_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns, txt_rst)
 
         # expect NotImplementedError for json output format
         with self.assertRaises(NotImplementedError):
@@ -1089,14 +1071,10 @@ class DocsTest(EnhancedTestCase):
         ]
 
         txt = avail_easyconfig_constants()
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         txt = avail_easyconfig_constants(output_format='txt')
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         md_patterns = [
             r"^# Constants that can be used in easyconfigs",
@@ -1105,9 +1083,7 @@ class DocsTest(EnhancedTestCase):
             r"OS packages providing openSSL development support$",
         ]
         txt_md = avail_easyconfig_constants(output_format='md')
-        for pattern in md_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns, txt_md)
 
         rst_patterns = [
             r"^Constants that can be used in easyconfigs\n-{41}",
@@ -1116,9 +1092,7 @@ class DocsTest(EnhancedTestCase):
             r"OS packages providing openSSL development support$",
         ]
         txt_rst = avail_easyconfig_constants(output_format='rst')
-        for pattern in rst_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns, txt_rst)
 
         # expect NotImplementedError for json output format
         with self.assertRaises(NotImplementedError):
@@ -1139,14 +1113,10 @@ class DocsTest(EnhancedTestCase):
         ]
 
         txt = avail_easyconfig_templates()
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         txt = avail_easyconfig_templates(output_format='txt')
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         md_patterns = [
             r"^## Template names/values derived from easyconfig instance",
@@ -1157,9 +1127,7 @@ class DocsTest(EnhancedTestCase):
             r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
         ]
         txt_md = avail_easyconfig_templates(output_format='md')
-        for pattern in md_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns, txt_md)
 
         rst_patterns = [
             r"^Template names/values derived from easyconfig instance\n\-+",
@@ -1170,9 +1138,7 @@ class DocsTest(EnhancedTestCase):
             r"^``SOURCE_TAR_GZ``\s+|Source \.tar\.gz bundle \(%\(name\)s-%\(version\)s.tar.gz\)",
         ]
         txt_rst = avail_easyconfig_templates(output_format='rst')
-        for pattern in rst_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns, txt_rst)
 
         # expect NotImplementedError for json output format
         with self.assertRaises(NotImplementedError):
@@ -1191,12 +1157,8 @@ class DocsTest(EnhancedTestCase):
         oneapi_txt = r"^\s+oneapi: Use oneAPI compilers icx/icpx/ifx instead of classic compilers \(default: None\)"
 
         for txt in (avail_toolchain_opts('foss'), avail_toolchain_opts('foss', output_format='txt')):
-            for pattern in txt_patterns_foss:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
-
-            regex = re.compile(oneapi_txt, re.M)
-            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+            self.assert_multi_regex(txt_patterns_foss, txt)
+            self.assertNotRegex(txt, re.compile(oneapi_txt, re.M))
 
         txt_patterns_intel = [
             r"^Available options for intel toolchain:",
@@ -1204,9 +1166,7 @@ class DocsTest(EnhancedTestCase):
         ] + txt_patterns_foss[1:]
 
         for txt in (avail_toolchain_opts('intel'), avail_toolchain_opts('intel', output_format='txt')):
-            for pattern in txt_patterns_intel:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+            self.assert_multi_regex(txt_patterns_intel, txt)
 
         # MarkDown output format
         md_patterns_foss = [
@@ -1217,13 +1177,10 @@ class DocsTest(EnhancedTestCase):
         ]
 
         txt_md = avail_toolchain_opts('foss', output_format='md')
-        for pattern in md_patterns_foss:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns_foss, txt_md)
 
         oneapi_md = r"^``oneapi``\s+\|Use oneAPI compilers icx/icpx/ifx instead of classic compilers\s+\|``None``"
-        regex = re.compile(oneapi_md, re.M)
-        self.assertFalse(regex.search(txt_md), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt_md))
+        self.assertNotRegex(txt_md, re.compile(oneapi_md, re.M))
 
         md_patterns_intel = [
             r"^## Available options for intel toolchain",
@@ -1231,9 +1188,7 @@ class DocsTest(EnhancedTestCase):
         ] + md_patterns_foss[1:]
 
         txt_md = avail_toolchain_opts('intel', output_format='md')
-        for pattern in md_patterns_intel:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns_intel, txt_md)
 
         # rst output format
         rst_patterns_foss = [
@@ -1244,13 +1199,10 @@ class DocsTest(EnhancedTestCase):
         ]
 
         txt_rst = avail_toolchain_opts('foss', output_format='rst')
-        for pattern in rst_patterns_foss:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns_foss, txt_rst)
 
         oneapi_rst = r"^``oneapi``\s+Use oneAPI compilers icx/icpx/ifx instead of classic compilers\s+``None``"
-        regex = re.compile(oneapi_rst, re.M)
-        self.assertFalse(regex.search(txt_rst), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt_rst))
+        self.assertNotRegex(txt_rst, re.compile(oneapi_rst, re.M))
 
         rst_patterns_intel = [
             r"^Available options for intel toolchain\n-{37}",
@@ -1258,9 +1210,7 @@ class DocsTest(EnhancedTestCase):
         ] + rst_patterns_foss[1:]
 
         txt_rst = avail_toolchain_opts('intel', output_format='rst')
-        for pattern in rst_patterns_intel:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns_intel, txt_rst)
 
         # expect NotImplementedError for json output format
         with self.assertRaises(NotImplementedError):
@@ -1369,9 +1319,7 @@ class DocsTest(EnhancedTestCase):
             r"^All long option names can be passed as environment variables",
         ]
         txt = get_eb_help_output()
-        for pattern in txt_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(txt_patterns, txt)
 
         short_patterns = [
             r"^Usage: eb \[options\] easyconfig \[...\]",
@@ -1384,18 +1332,14 @@ class DocsTest(EnhancedTestCase):
             r"^All long option names can be passed as environment variables",
         ]
         txt_short = get_eb_help_output('short')
-        for pattern in short_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_short), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_short))
+        self.assert_multi_regex(short_patterns, txt_short)
 
         config_patterns = [
             r"^\[MAIN\]\n# Enable debug log mode \(default: False\)\n#debug=",
             r"^\[override\](\n.*)+#filter-deps=",
         ]
         txt_cfg = get_eb_help_output('config')
-        for pattern in config_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_cfg), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_cfg))
+        self.assert_multi_regex(config_patterns, txt_cfg)
 
         md_patterns = [
             r"^## Usage\n\n``eb \[options\] easyconfig \[...\]``",
@@ -1405,9 +1349,7 @@ class DocsTest(EnhancedTestCase):
             r"^``-e CLASS, --easyblock=CLASS``\s+\|easyblock to use",
         ]
         txt_md = get_eb_help_output('md')
-        for pattern in md_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_md), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_md))
+        self.assert_multi_regex(md_patterns, txt_md)
 
         rst_patterns = [
             r"^Usage\n-{5}\n\n``eb \[options\] easyconfig \[...\]``",
@@ -1417,9 +1359,7 @@ class DocsTest(EnhancedTestCase):
             r"^``-e CLASS, --easyblock=CLASS``\s+easyblock to use",
         ]
         txt_rst = get_eb_help_output('rst')
-        for pattern in rst_patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(txt_rst), "Pattern '%s' should be found in: %s" % (regex.pattern, txt_rst))
+        self.assert_multi_regex(rst_patterns, txt_rst)
 
 
 def suite(loader=None):
