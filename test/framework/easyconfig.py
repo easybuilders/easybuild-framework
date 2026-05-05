@@ -452,7 +452,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         regex = re.compile("^mandatory_key = 'default'$", re.M)
         ectxt = read_file(test_ecfile)
-        self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+        self.assertRegex(ectxt, regex)
 
         # parsing again should work fine (if mandatory easyconfig parameters are indeed retained)
         ec = EasyConfig(test_ecfile, extra_options=extra_vars)
@@ -1056,7 +1056,7 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(res[1])
         self.assertEqual(ec['version'], specs['version'])
         txt = read_file(res[1])
-        self.assertTrue(re.search("^version = [\"']%s[\"']$" % ver, txt, re.M))
+        self.assertRegex(txt, re.compile("^version = [\"']%s[\"']$" % ver, re.M))
         remove_file(res[1])
 
         # should pick correct toolchain version as well, i.e. now newer than what's specified,
@@ -1072,7 +1072,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['toolchain']['version'], specs['toolchain_version'])
         txt = read_file(res[1])
         pattern = "^toolchain = .*version.*[\"']%s[\"'].*}$" % specs['toolchain_version']
-        self.assertTrue(re.search(pattern, txt, re.M))
+        self.assertRegex(txt, re.compile(pattern, re.M))
         os.remove(res[1])
 
         # should be able to prepend to list of patches and handle list of dependencies
@@ -1300,10 +1300,10 @@ class EasyConfigTest(EnhancedTestCase):
         # should match lib/x86_64/2.7.18, lib/aarch64/3.8.6, lib/ppc64le/3.9.2, etc.
         lib_arch_regex = re.compile(r'^lib/[a-z0-9_]+/[23]\.[0-9]+\.[0-9]+$')
         dirs1 = ec['sanity_check_paths']['dirs'][1]
-        self.assertTrue(lib_arch_regex.match(dirs1), "Pattern '%s' should match '%s'" % (lib_arch_regex.pattern, dirs1))
+        self.assertRegex(dirs1, lib_arch_regex)
         inc_regex = re.compile('^include/(aarch64|ppc64le|x86_64)$')
         dirs2 = ec['sanity_check_paths']['dirs'][2]
-        self.assertTrue(inc_regex.match(dirs2), "Pattern '%s' should match '%s'" % (inc_regex, dirs2))
+        self.assertRegex(dirs2, inc_regex)
         self.assertEqual(ec['homepage'], "http://example.com/P/p/v3/")
         expected = ("CUDA: 10.1.105, 10, 1, 10.1; "
                     "Java: 1.7.80, 1, 7, 1.7; "
@@ -2622,9 +2622,7 @@ class EasyConfigTest(EnhancedTestCase):
                 r'^description = ["\']',
                 r"^toolchain = {'name': .*, 'version': .*}",
             ]
-            for pattern in patterns:
-                regex = re.compile(pattern, re.M)
-                self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+            self.assert_multi_regex(patterns, ectxt)
 
             # parse result again
             dumped_ec = EasyConfig(test_ec)
@@ -2911,10 +2909,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"\('ext1', '1\.0\.0'\),",
             r"sanity_check_paths = {\n    'files': \['files/%\(namelower\)s/foobar', 'files/x-test'\]",
         ]
-
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+        self.assert_multi_regex(patterns, ectxt)
 
         ectxt.endswith('moduleclass = "tools"')
 
@@ -2993,9 +2988,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"    'files': \['files/foobar'\],  # comment on files",
             r"    'dirs': \[\],",
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+        self.assert_multi_regex(patterns, ectxt)
 
         self.assertTrue(ectxt.endswith("# trailing comment\n"))
 
@@ -3229,9 +3222,7 @@ class EasyConfigTest(EnhancedTestCase):
                 r"    'https://anotherexample\.com',  # fallback URL",
             ]),
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(ectxt), "Pattern '%s' found in: %s" % (regex.pattern, ectxt))
+        self.assert_multi_regex(patterns, ectxt)
 
         self.assertTrue(ectxt.endswith('\n'.join([
             '#',
@@ -3610,9 +3601,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"# Build statistics",
             r"buildstats\s*=",
         ]
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertFalse(regex.search(txt), "Pattern '%s' NOT found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(regexs, txt, assert_true=False)
 
         # make sure copied easyconfig still parses
         ec = EasyConfig(copied_toy_ec)
@@ -3653,7 +3642,7 @@ class EasyConfigTest(EnhancedTestCase):
         # 'arch' needs to be handled separately, since value depends on system architecture
         self.assertIn('arch', res)
         arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+        self.assertRegex(arch, arch_regex)
 
         self.assertEqual(res, expected)
 
@@ -3772,7 +3761,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         self.assertIn('arch', res)
         arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+        self.assertRegex(arch, arch_regex)
 
         expected = {
             'module_name': None,
@@ -3874,8 +3863,8 @@ class EasyConfigTest(EnhancedTestCase):
             '--robot',
         ]
         outtxt = self.eb_main(args, raise_error=True)
-        self.assertTrue(re.search(r'module: GCC/\.4\.9\.2', outtxt))
-        self.assertTrue(re.search(r'module: gzip/1\.6-GCC-4\.9\.2', outtxt))
+        self.assertIn('module: GCC/.4.9.2', outtxt)
+        self.assertIn('module: gzip/1.6-GCC-4.9.2', outtxt)
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
@@ -4284,8 +4273,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = check_sha256_checksums(ecs)
         self.assertEqual(len(res), 1)
-        regex = re.compile(r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
-        self.assertTrue(regex.match(res[0]), "Pattern '%s' found in: %s" % (regex.pattern, res[0]))
+        self.assertRegex(res[0], r"Non-SHA256 checksum\(s\) found for toy-0.0.tar.gz:.*not_really_a_sha256_checksum")
 
         # Extension with nosource: True
         test_ec_txt = passing_test_ec_txt + "exts_list = [('bar', '0.0', { 'nosource': True })]"
@@ -4611,7 +4599,7 @@ class EasyConfigTest(EnhancedTestCase):
             r'^$',
         ]
         for idx, pattern in enumerate(patterns):
-            self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
+            self.assertRegex(stdout[idx], pattern)
 
         # cleanup
         remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
@@ -5012,10 +5000,8 @@ class EasyConfigTest(EnhancedTestCase):
             eb.prepare_step()
             eb.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        self.assertRegex(modtxt, guarded_load_regex)
+        self.assertNotRegex(modtxt, recursive_unload_regex)
 
         remove_file(test_module)
 
@@ -5035,15 +5021,11 @@ class EasyConfigTest(EnhancedTestCase):
             eb_bis.make_module_step()
         modtxt = read_file(test_module)
         if self.modtool.supports_safe_auto_load:
-            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
-            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
-            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+            self.assertRegex(modtxt, guarded_load_regex)
+            self.assertNotRegex(modtxt, recursive_unload_regex)
         else:
-            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+            self.assertNotRegex(modtxt, guarded_load_regex)
+            self.assertRegex(modtxt, recursive_unload_regex)
 
         # recursive_mod_unload build option is honored
         update_build_option('recursive_mod_unload', True)
@@ -5054,15 +5036,11 @@ class EasyConfigTest(EnhancedTestCase):
             eb.make_module_step()
         modtxt = read_file(test_module)
         if self.modtool.supports_safe_auto_load:
-            fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
-            self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
-            fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-            self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+            self.assertRegex(modtxt, guarded_load_regex)
+            self.assertNotRegex(modtxt, recursive_unload_regex)
         else:
-            fail_msg = "Pattern '%s' should not be found in: %s" % (guarded_load_regex.pattern, modtxt)
-            self.assertFalse(guarded_load_regex.search(modtxt), fail_msg)
-            fail_msg = "Pattern '%s' should be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-            self.assertTrue(recursive_unload_regex.search(modtxt), fail_msg)
+            self.assertNotRegex(modtxt, guarded_load_regex)
+            self.assertRegex(modtxt, recursive_unload_regex)
 
         # disabling via easyconfig parameter works even when recursive_mod_unload build option is enabled
         self.assertTrue(build_option('recursive_mod_unload'))
@@ -5079,10 +5057,8 @@ class EasyConfigTest(EnhancedTestCase):
             eb_bis.prepare_step()
             eb_bis.make_module_step()
         modtxt = read_file(test_module)
-        fail_msg = "Pattern '%s' should be found in: %s" % (guarded_load_regex.pattern, modtxt)
-        self.assertTrue(guarded_load_regex.search(modtxt), fail_msg)
-        fail_msg = "Pattern '%s' should not be found in: %s" % (recursive_unload_regex.pattern, modtxt)
-        self.assertFalse(recursive_unload_regex.search(modtxt), fail_msg)
+        self.assertRegex(modtxt, guarded_load_regex)
+        self.assertNotRegex(modtxt, recursive_unload_regex)
 
     def test_pure_ec(self):
         """
@@ -5363,8 +5339,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
             stdout = self.get_stdout()
 
-        regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0", re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, "generating module file @ .*/modules/all/libtoy/0.0")
 
         # wipe libtoy easyconfig (but path still needs to exist)
         write_file(libtoy_ec, '')
@@ -5374,8 +5349,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
             stdout = self.get_stdout()
 
-        regex = re.compile(r"libtoy/0\.0 is already installed", re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, r"libtoy/0\.0 is already installed")
 
     def test_templates(self):
         """
@@ -5411,8 +5385,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(ec['description'], "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
 
             self.assertFalse(stdout.getvalue())
-            regex = re.compile(r"WARNING: Failed to resolve all templates.* %\(pyshortver\)s", re.M)
-            self.assertRegex(stderr.getvalue(), regex)
+            self.assertRegex(stderr.getvalue(), r"WARNING: Failed to resolve all templates.* %\(pyshortver\)s")
 
 
 def suite(loader=None):
