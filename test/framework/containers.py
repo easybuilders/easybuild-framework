@@ -82,12 +82,6 @@ class ContainersTest(EnhancedTestCase):
 
         return stdout, stderr
 
-    def check_regexs(self, regexs, stdout):
-        """Helper function to check output of stdout."""
-        for regex in regexs:
-            regex = re.compile(regex, re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
-
     def test_end2end_singularity_recipe_config(self):
         """End-to-end test for --containerize (recipe only), using --container-config."""
         containerpath = os.path.join(self.test_prefix, 'containers')
@@ -117,7 +111,7 @@ class ContainersTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         args[-1] = 'bootstrap=yum,osversion=7.6.1810'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
 
         txt = read_file(test_container_recipe)
         expected = '\n'.join([
@@ -132,8 +126,7 @@ class ContainersTest(EnhancedTestCase):
         # when installing from scratch, a bunch of OS packages are installed too
         pkgs = ['epel-release', 'python', 'setuptools', 'Lmod', r'gcc-c\+\+', 'make', 'patch', 'tar']
         for pkg in pkgs:
-            regex = re.compile(r"^yum install .*%s" % pkg, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            self.assertRegex(txt, re.compile(r"^yum install .*%s" % pkg, re.M))
 
         pip_patterns = [
             # EasyBuild is installed with pip3 by default
@@ -147,15 +140,13 @@ class ContainersTest(EnhancedTestCase):
             r"if \[ ! -d /scratch \]; then mkdir -p /scratch",
         ]
         eb_pattern = r"eb toy-0.0.eb --robot\s*$"
-        for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
-            regex = re.compile('^' + pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+        self.assert_multi_regex(pip_patterns + post_commands_patterns + [eb_pattern], txt)
 
         remove_file(test_container_recipe)
 
         # can also specify a custom mirror URL
         args[-1] += ',mirrorurl=https://example.com'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
 
         txt = read_file(test_container_recipe)
         expected = '\n'.join([
@@ -208,10 +199,9 @@ class ContainersTest(EnhancedTestCase):
 
             # no OS packages are installed by default when starting from an existing image
             self.assertNotIn("yum install", txt)
-
-            for pattern in pip_patterns + post_commands_patterns + [eb_pattern]:
-                regex = re.compile('^' + pattern, re.M)
-                self.assertTrue(regex.search(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            self.assert_multi_regex(
+                (f'^{pattern}' for pattern in pip_patterns + post_commands_patterns + [eb_pattern]),
+                txt)
 
         remove_file(test_container_recipe)
 
@@ -221,12 +211,10 @@ class ContainersTest(EnhancedTestCase):
         txt = read_file(test_container_recipe)
 
         for pattern in pip_patterns:
-            regex = re.compile('^' + pattern, re.M)
-            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+            self.assertNotRegex(txt, re.compile('^' + pattern, re.M))
 
         for pattern in ["easy_install easybuild", eb_pattern]:
-            regex = re.compile('^' + pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+            self.assertRegex(txt, re.compile('^' + pattern, re.M))
 
         remove_file(test_container_recipe)
 
@@ -236,12 +224,10 @@ class ContainersTest(EnhancedTestCase):
         txt = read_file(test_container_recipe)
 
         for pattern in post_commands_patterns:
-            regex = re.compile('^' + pattern, re.M)
-            self.assertFalse(regex.search(txt), "Pattern '%s' should not be found in: %s" % (regex.pattern, txt))
+            self.assertNotRegex(txt, re.compile('^' + pattern, re.M))
 
         for pattern in ["id easybuild", eb_pattern]:
-            regex = re.compile('^' + pattern, re.M)
-            self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+            self.assertRegex(txt, re.compile('^' + pattern, re.M))
 
         remove_file(test_container_recipe)
 
@@ -250,8 +236,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args, raise_error=True)
         txt = read_file(test_container_recipe)
 
-        regex = re.compile(r"^eb toy-0.0.eb --robot --debug -l", re.M)
-        self.assertTrue(regex.search(txt), "Pattern '%s' should be found in: %s" % (regex.pattern, txt))
+        self.assertRegex(txt, re.compile(r"^eb toy-0.0.eb --robot --debug -l", re.M))
 
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""
@@ -298,7 +283,7 @@ class ContainersTest(EnhancedTestCase):
                 r"^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
                 r"^== Singularity image created at %s/containers/toy-0.0\.%s" % (self.test_prefix, ext),
             ]
-            self.check_regexs(regexs, stdout)
+            self.assert_multi_regex(regexs, stdout)
 
             self.assertExists(os.path.join(containerpath, 'toy-0.0.%s' % ext))
 
@@ -319,7 +304,7 @@ class ContainersTest(EnhancedTestCase):
             r"^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*",
             r"^== Singularity image created at %s/containers/foo-bar\.img$" % self.test_prefix,
         ]
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
 
         cont_img = os.path.join(containerpath, 'foo-bar.img')
         self.assertExists(cont_img)
@@ -338,21 +323,21 @@ class ContainersTest(EnhancedTestCase):
         regexs.extend([
             "WARNING: overwriting existing container image at %s due to --force" % cont_img,
         ])
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
         self.assertExists(cont_img)
 
         # also check behaviour under --extended-dry-run
         args.append('--extended-dry-run')
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
 
         # test use of --container-tmpdir
         args.append('--container-tmpdir=%s' % self.test_prefix)
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs[-3] = r"^== Running 'sudo\s*SINGULARITY_TMPDIR=%s \S*/singularity build .*" % self.test_prefix
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
 
     def test_end2end_dockerfile(self):
         containerpath = os.path.join(self.test_prefix, 'containers')
@@ -378,7 +363,7 @@ class ContainersTest(EnhancedTestCase):
             stdout, stderr = self.run_main(base_args + ['--container-config=%s' % cont_base])
             self.assertFalse(stderr)
             regexs = ["^== Dockerfile definition file created at %s/containers/Dockerfile.toy-0.0" % self.test_prefix]
-            self.check_regexs(regexs, stdout)
+            self.assert_multi_regex(regexs, stdout)
             remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
         self.run_main(base_args + ['--container-config=centos:7'])
@@ -402,12 +387,10 @@ class ContainersTest(EnhancedTestCase):
             "eb --robot toy-0.0.eb GCC-4.9.2.eb",
             "module load toy/0.0 GCC/4.9.2",
         ]
-        self.check_regexs(regexs, def_file)
+        self.assert_multi_regex(regexs, def_file)
 
         # there should be no leading/trailing whitespace included
-        for pattern in [r'^\s+', r'\s+$']:
-            regex = re.compile(pattern)
-            self.assertFalse(regex.search(def_file), "Pattern '%s' should *not* be found in: %s" % (pattern, def_file))
+        self.assert_multi_regex((r'^\s+', r'\s+$'), def_file, assert_true=False)
 
     def test_end2end_docker_image(self):
 
@@ -448,12 +431,12 @@ class ContainersTest(EnhancedTestCase):
             r"^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
             r"^== Docker image created at toy-0.0:latest",
         ]
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
 
         args.extend(['--force', '--extended-dry-run'])
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
-        self.check_regexs(regexs, stdout)
+        self.assert_multi_regex(regexs, stdout)
 
     def test_container_config_template_recipe(self):
         """Test use of --container-config and --container-template-recipe."""
@@ -480,8 +463,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
 
         self.assertFalse(stderr)
-        regex = re.compile("^== Singularity definition file created at .*/containers/Singularity.toy-0.0$")
-        self.assertTrue(regex.match(stdout), "Stdout matches pattern '%s': %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, "^== Singularity definition file created at .*/containers/Singularity.toy-0.0$")
 
         expected = '\n'.join([
             "# this is just a test",

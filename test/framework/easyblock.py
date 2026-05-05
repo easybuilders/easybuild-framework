@@ -582,9 +582,9 @@ class EasyBlockTest(EnhancedTestCase):
         with eb.module_generator.start_module_creation():
             txt = eb.make_module_req()
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
+            self.assertRegex(txt, r"\nprepend-path\s+PATH\s+\$root/bin\n")
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
+            self.assertRegex(txt, r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n')
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -662,11 +662,11 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(list(eb.module_load_environment), ['PATH', 'LD_LIBRARY_PATH', 'NONPATH'])
 
         if get_module_syntax() == 'Tcl':
-            self.assertTrue(re.match(r"^\nprepend-path\s+PATH\s+\$root/bin\n$", txt, re.M))
-            self.assertFalse(re.match(r"^\nprepend-path\s+NONPATH\s+\$root/non_path\n$", txt, re.M))
+            self.assertRegex(txt, r"\nprepend-path\s+PATH\s+\$root/bin\n")
+            self.assertNotRegex(txt, r"\nprepend-path\s+NONPATH\s+\$root/non_path\n")
         elif get_module_syntax() == 'Lua':
-            self.assertTrue(re.match(r'^\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n$', txt, re.M))
-            self.assertFalse(re.match(r'^\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n$', txt, re.M))
+            self.assertRegex(txt, r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n')
+            self.assertNotRegex(txt, r'\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n')
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -1115,11 +1115,9 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2']:
-            regex = re.compile('(load|depends[-_]on).*%s' % mod)
-            self.assertNotRegex(mod_dep_txt, regex)
+            self.assertNotRegex(mod_dep_txt, '(load|depends[-_]on).*%s' % mod)
 
-        regex = re.compile('(load|depends[-_]on).*FFTW/3.3.7')
-        self.assertRegex(mod_dep_txt, regex)
+        self.assertRegex(mod_dep_txt, '(load|depends[-_]on).*FFTW/3.3.7')
 
     def test_make_module_dep_of_dep_hmns(self):
         """Test for make_module_dep under HMNS with dependencies of dependencies"""
@@ -1161,8 +1159,7 @@ class EasyBlockTest(EnhancedTestCase):
         # GCC, OpenMPI and hwloc modules should *not* be included in loads for dependencies
         mod_dep_txt = eb.make_module_dep()
         for mod in ['GCC/6.4.0-2.28', 'OpenMPI/2.1.2', 'hwloc/1.11.8']:
-            regex = re.compile('load.*%s' % mod)
-            self.assertNotRegex(mod_dep_txt, regex)
+            self.assertNotRegex(mod_dep_txt, 'load.*%s' % mod)
 
     def test_det_iter_cnt(self):
         """Test det_iter_cnt method."""
@@ -2088,9 +2085,8 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check whether 'This is easyblock' log message is there
         tup = ('EB_toy', 'easybuild.easyblocks.toy', '.*test/framework/sandbox/easybuild/easyblocks/t/toy.pyc*')
-        eb_log_msg_re = re.compile(r"INFO This is easyblock %s from module %s (%s)" % tup, re.M)
         logtxt = read_file(eb.logfile)
-        self.assertRegex(logtxt, eb_log_msg_re)
+        self.assertRegex(logtxt, r"INFO This is easyblock %s from module %s (%s)" % tup)
 
     def test_fetch_sources(self):
         """Test fetch_sources method."""
@@ -2468,8 +2464,7 @@ class EasyBlockTest(EnhancedTestCase):
                     res = eb.obtain_file(file_url)
             except EasyBuildError as err:
                 # if this fails, it should be because there's no online access
-                download_fail_regex = re.compile('socket error')
-                self.assertRegex(str(err), download_fail_regex)
+                self.assertIn('socket error', str(err))
 
             # result may be None during offline testing
             if res is not None:
@@ -2652,8 +2647,7 @@ class EasyBlockTest(EnhancedTestCase):
         try:
             eb.check_readiness_step()
         except EasyBuildError as err:
-            err_regex = re.compile("Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
-            self.assertRegex(str(err), err_regex)
+            self.assertRegex(str(err), "Missing modules dependencies .*: nosuchsoftware/1.2.3-GCC-6.4.0-2.28")
 
         shutil.rmtree(tmpdir)
 
@@ -2701,9 +2695,9 @@ class EasyBlockTest(EnhancedTestCase):
 
             for dep in excluded_deps:
                 if get_module_syntax() == 'Tcl':
-                    self.assertNotRegex(modtxt, re.compile(r'module load %s' % dep))
+                    self.assertNotIn('module load %s' % dep, modtxt)
                 elif get_module_syntax() == 'Lua':
-                    self.assertNotRegex(modtxt, re.compile(r'load("%s")' % dep))
+                    self.assertNotIn('load("%s")' % dep, modtxt)
                 else:
                     self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -4073,8 +4067,7 @@ class EasyBlockTest(EnhancedTestCase):
             log_txt = read_file(self.logfile)
 
             # check whether $EBROOTZLIB is correctly set in build environment of 'bar' extension
-            regex = re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M)
-            self.assertRegex(log_txt, regex)
+            self.assertRegex(log_txt, re.compile(f"^EBROOTZLIB=.*/software/zlib/{zlib_fn}$", re.M))
 
             # check whether $C_INCLUDE_PATH is correctly set in build environment of 'bar' extension
             for env_var in env_vars[search_path_cpp_headers]:

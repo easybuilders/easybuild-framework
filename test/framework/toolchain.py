@@ -389,10 +389,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('OMPI_F77'), 'gfortran')
         self.assertEqual(os.getenv('OMPI_FC'), 'gfortran')
 
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"^-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno$")
         for key in ['CFLAGS', 'CXXFLAGS', 'F90FLAGS', 'FCFLAGS', 'FFLAGS']:
             val = os.getenv(key)
-            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
+            self.assertRegex(val, flags_regex)
 
     def test_get_variable_compilers(self):
         """Test get_variable function to obtain compiler variables."""
@@ -890,8 +890,7 @@ class ToolchainTest(EnhancedTestCase):
         write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '-march=sandybridge'}")
         with self.mocked_stdout_stderr():
             out = self.eb_main([test_ec], raise_error=True, do_build=True)
-        regex = re.compile("_set_optimal_architecture: using -march=sandybridge as optarch for x86_64")
-        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        self.assertIn("_set_optimal_architecture: using -march=sandybridge as optarch for x86_64", out)
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
@@ -926,10 +925,10 @@ class ToolchainTest(EnhancedTestCase):
         tc.set_options({})
         with self.mocked_stdout_stderr():
             tc.prepare()
-        flags_regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno")
+        flags_regex = re.compile(r"^-O2 -ftree-vectorize -m(arch|cpu)=native -fno-math-errno$")
         for var in flag_vars:
             val = os.getenv(var)
-            self.assertTrue(flags_regex.match(val), "'%s' should match pattern '%s'" % (val, flags_regex.pattern))
+            self.assertRegex(val, flags_regex)
 
         # check other precision flags
         precs = ['strict', 'precise', 'loose', 'veryloose']
@@ -937,7 +936,7 @@ class ToolchainTest(EnhancedTestCase):
         for prec in precs:
             prec_flags[prec] = ' '.join(Gcc.COMPILER_UNIQUE_OPTION_MAP[prec])
 
-        for prec in prec_flags:
+        for prec, flags in prec_flags.items():
             for enable in [True, False]:
                 tc = self.get_toolchain('foss', version='2018a')
                 tc.set_options({prec: enable})
@@ -945,11 +944,11 @@ class ToolchainTest(EnhancedTestCase):
                     tc.prepare()
                 for var in flag_vars:
                     if enable:
-                        regex = re.compile(r"-O2 -ftree-vectorize -m(arch|cpu)=native %s" % prec_flags[prec])
+                        regex = re.compile(r"^-O2 -ftree-vectorize -m(arch|cpu)=native %s$" % flags)
                     else:
                         regex = flags_regex
                     val = os.getenv(var)
-                    self.assertTrue(regex.match(val), "%s: '%s' should match pattern '%s'" % (prec, val, regex.pattern))
+                    self.assertRegex(val, regex)
 
                 self.modtool.purge()
 
@@ -1393,9 +1392,9 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(tc.get_variable('CUDA_CXX'), 'nvcc -ccbin="g++"')
         # -L/path flags will not be there if the software installations are not available
         val = tc.get_variable('CUDA_CFLAGS')
-        self.assertTrue(re.compile(nvcc_flags).match(val), "'%s' matches '%s'" % (val, nvcc_flags))
+        self.assertRegex(val, f'^{nvcc_flags}$')
         val = tc.get_variable('CUDA_CXXFLAGS')
-        self.assertTrue(re.compile(nvcc_flags).match(val), "'%s' matches '%s'" % (val, nvcc_flags))
+        self.assertRegex(val, f'^{nvcc_flags}$')
 
         # check compiler prefixes
         self.assertEqual(tc.comp_family(prefix='CUDA'), "CUDA")
@@ -1813,10 +1812,8 @@ class ToolchainTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             tc.prepare()
 
-        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4")
-        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix(nr_ranks=4)))
-        mpi_exec_nranks_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 1")
-        self.assertTrue(mpi_exec_nranks_re.match(tc.mpi_cmd_prefix()))
+        self.assertRegex(tc.mpi_cmd_prefix(nr_ranks=4), "^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4")
+        self.assertRegex(tc.mpi_cmd_prefix(), "^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 1")
 
         # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
@@ -1864,8 +1861,7 @@ class ToolchainTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             tc.prepare()
 
-        mpi_cmd_for_re = re.compile("^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
-        self.assertTrue(mpi_cmd_for_re.match(tc.mpi_cmd_for('test', 4)))
+        self.assertRegex(tc.mpi_cmd_for('test', 4), "^mpirun --file=.*/mpdboot -machinefile .*/nodes -np 4 test$")
 
         # test specifying custom template for MPI commands
         init_config(build_options={'mpi_cmd_template': "mpiexec -np %(nr_ranks)s -- %(cmd)s", 'silent': True})
@@ -1907,13 +1903,11 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(params['nr_ranks'], 123)
 
         mpdbf = params['mpdbf']
-        regex = re.compile('^--file=.*/mpdboot$')
-        self.assertTrue(regex.match(mpdbf), "'%s' should match pattern '%s'" % (mpdbf, regex.pattern))
+        self.assertRegex(mpdbf, '^--file=.*/mpdboot$')
         self.assertExists(mpdbf.split('=')[1])
 
         nodesfile = params['nodesfile']
-        regex = re.compile('^-machinefile /.*/nodes$')
-        self.assertTrue(regex.match(nodesfile), "'%s' should match pattern '%s'" % (nodesfile, regex.pattern))
+        self.assertRegex(nodesfile, '^-machinefile /.*/nodes$')
         self.assertExists(nodesfile.split(' ')[1])
 
     def test_prepare_deps(self):
@@ -2487,9 +2481,7 @@ class ToolchainTest(EnhancedTestCase):
             "This is a ccache wrapper",
             "Command ccache found at .*%s" % os.path.dirname(path),
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern)
-            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        self.assert_multi_regex(patterns, out)
 
         # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
         ccache_path = os.path.join(self.test_prefix, 'scripts', 'ccache')
@@ -2514,9 +2506,7 @@ class ToolchainTest(EnhancedTestCase):
 
         with self.mocked_stdout_stderr():
             out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
-        for pattern in patterns:
-            regex = re.compile(pattern)
-            self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        self.assert_multi_regex(patterns, out)
 
         self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
         self.assertTrue(os.path.samefile(os.environ['F90CACHE_DIR'], f90cache_dir))
@@ -3352,8 +3342,8 @@ class ToolchainTest(EnhancedTestCase):
         # warning is printed and $TMPDIR is set to shorter path if existing $TMPDIR is too long
         os.environ['TMPDIR'] = long_tmpdir
         tc, stdout, stderr = prep()
-        regex = re.compile(r"^WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{8}$")
-        self.assertTrue(regex.match(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertRegex(stderr,
+                         r"WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{8}$")
 
         # new $TMPDIR should be /tmp/xxxxxx
         tmpdir = os.environ.get('TMPDIR')
