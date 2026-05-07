@@ -48,6 +48,7 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.client import HTTPException
 from string import ascii_letters
+from typing import List, NamedTuple
 from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
@@ -88,6 +89,14 @@ try:
     from git import GitCommandError
 except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
+
+
+class CategorizedPaths(NamedTuple):
+    easyconfigs: List[str]
+    easyconfigs: List[str]
+    files_to_delete: List[str]
+    patch_files: List[str]
+    py_files: List[str]
 
 
 GITHUB_URL = 'https://github.com'
@@ -1052,7 +1061,8 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_account=None, commit_msg=None):
+def _easyconfigs_pr_common(paths: CategorizedPaths, ecs, start_branch=None, pr_branch=None,
+                           start_account=None, commit_msg=None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -1072,8 +1082,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     # we need files to create the PR with
     non_existing_paths = []
     ec_paths = []
-    if paths['easyconfigs'] or paths['py_files']:
-        for path in paths['easyconfigs'] + paths['py_files']:
+    if paths.easyconfigs or paths.py_files:
+        for path in paths.easyconfigs + paths.py_files:
             if not os.path.exists(path):
                 non_existing_paths.append(path)
             else:
@@ -1085,7 +1095,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 exit_code=EasyBuildExit.OPTION_ERROR
             )
 
-    if not any(paths.values()):
+    if not any(paths):
         raise EasyBuildError("No paths specified", exit_code=EasyBuildExit.OPTION_ERROR)
 
     pr_target_repo = det_pr_target_repo(paths)
@@ -1139,7 +1149,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
 
     # figure out commit message to use
     if commit_msg:
-        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']
+        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths.files_to_delete
                 and is_new_pr):  # Only if opening a new PR
             msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
             msg += "the PR title will be automatically generated."
@@ -1150,11 +1160,11 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 raise EasyBuildError(msg)
         cnt = len(file_info['paths_in_repo'])
         _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
-    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
+    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths.files_to_delete:
         # automagically derive meaningful commit message if all easyconfig files are new
         commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
-        if paths['patch_files']:
-            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+        if paths.patch_files:
+            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths.patch_files)
     elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
         commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
     else:
@@ -1163,22 +1173,22 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                           if not new]
         if modified_files:
             msg += '\nModified: ' + ', '.join(modified_files)
-        if paths['files_to_delete']:
-            msg += '\nDeleted: ' + ', '.join(paths['files_to_delete'])
+        if paths.files_to_delete:
+            msg += '\nDeleted: ' + ', '.join(paths.files_to_delete)
         raise EasyBuildError("A meaningful commit message must be specified via --pr-commit-msg when "
                              "modifying/deleting files or targeting the framework repo." + msg,
                              exit_code=EasyBuildExit.OPTION_ERROR)
 
     # figure out to which software name patches relate, and copy them to the right place
-    if paths['patch_files']:
-        patch_specs = det_patch_specs(paths['patch_files'], file_info, [target_dir])
+    if paths.patch_files:
+        patch_specs = det_patch_specs(paths.patch_files, file_info, [target_dir])
 
         print_msg("copying patch files to %s..." % target_dir)
         patch_info = copy_patch_files(patch_specs, target_dir)
 
     # determine path to files to delete (if any)
     deleted_paths = []
-    for fn in paths['files_to_delete']:
+    for fn in paths.files_to_delete:
         fullpath = os.path.join(repo_path, fn)
         if os.path.exists(fullpath):
             deleted_paths.append(fullpath)
@@ -1217,8 +1227,8 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     if pr_branch is None:
         if ec_paths and pr_target_repo == GITHUB_EASYCONFIGS_REPO:
             label = file_info['ecs'][0].name + re.sub('[.-]', '', file_info['ecs'][0].version)
-        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.get('py_files'):
-            label = os.path.splitext(os.path.basename(paths['py_files'][0]))[0]
+        elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and paths.py_files:
+            label = os.path.splitext(os.path.basename(paths.py_files[0]))[0]
         else:
             label = ''.join(random.choice(ascii_letters) for _ in range(10))
         pr_branch = '%s_new_pr_%s' % (time.strftime("%Y%m%d%H%M%S"), label)
@@ -1233,7 +1243,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
     git_repo.index.add(file_info['paths_in_repo'])
     git_repo.index.add(dep_info['paths_in_repo'])
 
-    if paths['patch_files']:
+    if paths.patch_files:
         _log.debug("Staging all %d new/modified patch files", len(patch_info['paths_in_repo']))
         git_repo.index.add(patch_info['paths_in_repo'])
 
@@ -1913,7 +1923,7 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_branch_github(paths, ecs, commit_msg=None):
+def new_branch_github(paths: CategorizedPaths, ecs, commit_msg=None):
     """
     Create new branch on GitHub using specified files
 
@@ -1971,7 +1981,8 @@ def det_pr_title(ecs):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None, pr_metadata=None, commit_msg=None):
+def new_pr_from_branch(branch_name: CategorizedPaths, title=None, descr=None,
+                       pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
     Create new pull request from specified branch on GitHub.
     """
@@ -2152,7 +2163,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
                 print_msg("This PR should be labelled %s" % ', '.join(labels), log=_log, prefix=False)
 
 
-def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
+def new_pr(paths: CategorizedPaths, ecs, title=None, descr=None, commit_msg=None):
     """
     Open new pull request using specified files
 
@@ -2184,8 +2195,8 @@ def new_pr(paths, ecs, title=None, descr=None, commit_msg=None):
                         raise EasyBuildError(msg, exit_code=EasyBuildExit.EASYCONFIG_ERROR)
                     patch = patch_info['name']
 
-                if patch not in paths['patch_files'] and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
-                                                                            patch)):
+                if patch not in paths.patch_files and not os.path.isfile(os.path.join(os.path.dirname(ec_path),
+                                                                         patch)):
                     print_warning("new patch file %s, referenced by %s, is not included in this PR" %
                                   (patch, ec.filename()))
 
@@ -2226,7 +2237,7 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
     return account, branch
 
 
-def det_pr_target_repo(paths):
+def det_pr_target_repo(paths: CategorizedPaths):
     """Determine target repository for pull request from given cagetorized list of files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
@@ -2234,21 +2245,18 @@ def det_pr_target_repo(paths):
     pr_target_repo = build_option('pr_target_repo')
 
     # determine target repository for PR based on which files are provided
-    # (see categorize_files_by_type function)
     if pr_target_repo is None:
 
         _log.info("Trying to derive target repository based on specified files...")
 
-        easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
-
         # Python files provided, and no easyconfig files or patches
-        if py_files and not (easyconfigs or patch_files):
+        if paths.py_files and not (paths.easyconfigs or paths.patch_files):
 
             _log.info("Only Python files provided, no easyconfig files or patches...")
 
             # if all Python files are easyblocks, target repo should be easyblocks;
             # otherwise, target repo is assumed to be framework
-            if all(get_easyblock_class_name(path) for path in py_files):
+            if all(get_easyblock_class_name(path) for path in paths.py_files):
                 pr_target_repo = GITHUB_EASYBLOCKS_REPO
                 _log.info("All Python files are easyblocks, target repository is assumed to be %s", pr_target_repo)
             else:
@@ -2257,7 +2265,8 @@ def det_pr_target_repo(paths):
 
         # if no Python files are provided, only easyconfigs & patches, or if files to delete are .eb files,
         # then target repo is assumed to be easyconfigs
-        elif easyconfigs or patch_files or (files_to_delete and all(x.endswith('.eb') for x in files_to_delete)):
+        elif paths.easyconfigs or paths.patch_files or (paths.files_to_delete and all(x.endswith('.eb')
+                                                                                      for x in paths.files_to_delete)):
             pr_target_repo = GITHUB_EASYCONFIGS_REPO
             _log.info("Only easyconfig and patch files found, target repository is assumed to be %s", pr_target_repo)
 
@@ -2268,7 +2277,7 @@ def det_pr_target_repo(paths):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None):
+def update_branch(branch_name, paths: CategorizedPaths, ecs, github_account=None, commit_msg=None):
     """
     Update specified branch in GitHub using specified files
 
@@ -2303,7 +2312,7 @@ def update_branch(branch_name, paths, ecs, github_account=None, commit_msg=None)
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_pr(pr_id, paths, ecs, commit_msg=None):
+def update_pr(pr_id, paths: CategorizedPaths, ecs, commit_msg=None):
     """
     Update specified pull request using specified files
 
