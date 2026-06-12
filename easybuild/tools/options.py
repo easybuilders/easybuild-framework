@@ -76,6 +76,7 @@ from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPA
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, MOD_SEARCH_PATH_HEADERS
+from easybuild.tools.config import DEFAULT_THEME_NAME, DEFAULT_HIGHLIGHTS_NAME
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build_option
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
@@ -555,7 +556,10 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
-            'output-theme': ("Set output theme (when using Rich output style)", None, 'store', 'default'),
+            'output-theme': ("Set output theme (when using Rich output style)", None, 'store', DEFAULT_THEME_NAME),
+            'output-highlights': (
+                "Set output highlights (when using Rich output style)", None, 'store', DEFAULT_HIGHLIGHTS_NAME
+            ),
             'parallel': ("Specify level of parallelism that should be used during build procedure, "
                          "(bypasses auto-detection of number of available cores; "
                          "actual value is determined by this value + 'max_parallel' easyconfig parameter)",

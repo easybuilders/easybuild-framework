@@ -121,7 +121,10 @@ implement support for installing particular (groups of) software packages.""",
     ],
     entry_points={
         'easybuild.rich_theme': [
-            'default = easybuild.tools.output:DEFAULT_THEME_DCT',
+            'default = easybuild.tools.output:default_theme',
+        ],
+        'easybuild.rich_highlighter': [
+            'default = easybuild.tools.output:default_highlights',
         ],
     },
     data_files=[

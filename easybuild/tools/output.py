@@ -36,8 +36,9 @@ from collections import OrderedDict
 import sys
 
 from easybuild.tools.build_log import EasyBuildError, EB_MSG_PREFIX
-from easybuild.tools.entrypoints import EntrypointRichTheme
-from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style, DEFAULT_THEME_NAME
+from easybuild.tools.entrypoints import EntrypointRichTheme, EntrypointRichHighlighter
+from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
+from easybuild.tools.config import DEFAULT_THEME_NAME, DEFAULT_HIGHLIGHTS_NAME
 
 try:
     import rich.markup
@@ -165,6 +166,22 @@ def use_rich():
     return get_output_style() == OUTPUT_STYLE_RICH
 
 
+@EntrypointRichTheme()
+def default_theme():
+    """
+    Default Rich theme, used if no custom theme is specified or available.
+    """
+    return DEFAULT_THEME_DCT
+
+
+@EntrypointRichHighlighter()
+def default_highlights():
+    """
+    Default Rich highlighter, used if no custom highlighter is specified or available.
+    """
+    return DEFAULT_HIGHLIGHTS
+
+
 def get_rich_theme():
     """
     Get Rich theme to use for rich output.
@@ -177,23 +194,20 @@ def get_rich_theme():
             pass
         res = DummyTheme()
     else:
-
         use_entrypoints = build_option('use_entrypoints', default=True)
         output_theme = build_option('output_theme', default=DEFAULT_THEME_NAME)
-        if output_theme == DEFAULT_THEME_NAME:
-            theme_dct = DEFAULT_THEME_DCT
-        else:
-            if not use_entrypoints:
-                raise EasyBuildError(
-                    "Cannot use custom Rich theme '%s' without entry points support enabled", output_theme
-                )
-            for entrypoint in EntrypointRichTheme.retrieve_entrypoints():
-                if entrypoint.name == output_theme:
-                    theme_dct = entrypoint.load()
-                    break
+
+        entrypoints = EntrypointRichTheme.get_loaded_entrypoints(name=output_theme)
+        if not entrypoints:
+            if use_entrypoints:
+                available_themes = ', '.join([_.name for _ in EntrypointRichTheme.get_loaded_entrypoints()])
+                msg = f"Unknown specified Rich theme '{output_theme}' (available: {available_themes})"
             else:
-                raise EasyBuildError("Unknown specified Rich theme '%s'", output_theme)
+                msg = f"Cannot use custom Rich theme '{output_theme}' without entry points support enabled"
+            raise EasyBuildError(msg)
+        theme_dct = entrypoints[0].wrapped()
         res = Theme(theme_dct)
+
     CACHED_THEME = res
     return res
 
@@ -205,14 +219,28 @@ def get_rich_highlighter():
     global CACHED_HIGHLIGHTER
     if CACHED_HIGHLIGHTER is not None:
         return CACHED_HIGHLIGHTER
+
     if not use_rich():
         class DummyHighlighter:
             pass
         res = DummyHighlighter()
     else:
+        use_entrypoints = build_option('use_entrypoints', default=True)
+        output_hl = build_option('output_highlights', default=DEFAULT_HIGHLIGHTS_NAME)
+
+        entrypoints = EntrypointRichHighlighter.get_loaded_entrypoints(name=output_hl)
+        if not entrypoints:
+            if use_entrypoints:
+                available_hls = ', '.join([_.name for _ in EntrypointRichHighlighter.get_loaded_entrypoints()])
+                msg = f"Unknown specified Rich highlighter '{output_hl}' (available: {available_hls})"
+            else:
+                msg = f"Cannot use custom Rich highlighter '{output_hl}' without entry points support enabled"
+            raise EasyBuildError(msg)
+        highlights_dct = entrypoints[0].wrapped()
+
         class EasybuildHighlighter(RegexHighlighter):
             """Highlighter for EasyBuild messages, to highlight ERROR, WARNING, SUCCESS and similar lines."""
-            highlights = DEFAULT_HIGHLIGHTS
+            highlights = highlights_dct
             base_style = "easybuild."
 
         class CombinedHighlighter(Highlighter):
@@ -228,6 +256,7 @@ def get_rich_highlighter():
                 self.easybuild_highlighter.highlight(text)
 
         res = CombinedHighlighter()
+
     CACHED_HIGHLIGHTER = res
     return res
 

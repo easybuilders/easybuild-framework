@@ -178,7 +178,8 @@ LOCAL_VAR_NAMING_CHECK_LOG = 'log'
 LOCAL_VAR_NAMING_CHECK_WARN = WARN
 LOCAL_VAR_NAMING_CHECKS = [LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG, LOCAL_VAR_NAMING_CHECK_WARN]
 
-DEFAULT_THEME_NAME = 'default'
+DEFAULT_THEME_NAME = 'default_theme'
+DEFAULT_HIGHLIGHTS_NAME = 'default_highlights'
 
 OUTPUT_STYLE_AUTO = 'auto'
 OUTPUT_STYLE_BASIC = 'basic'
@@ -441,6 +442,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     DEFAULT_THEME_NAME: [
         'output_theme',
+    ],
+    DEFAULT_HIGHLIGHTS_NAME: [
+        'output_highlights',
     ],
     GENERAL_CLASS: [
         'suffix_modules_path',
