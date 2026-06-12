@@ -111,7 +111,7 @@ from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, g
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
-from easybuild.tools.entrypoints import EntrypointHook, EntrypointEasyblock, EntrypointToolchain
+from easybuild.tools.entrypoints import EasybuildEntrypoint
 
 
 try:
@@ -1690,11 +1690,8 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
         if build_option('use_entrypoints', default=True):
-            for prefix, cls in [
-                ('Hook', EntrypointHook),
-                ('Easyblock', EntrypointEasyblock),
-                ('Toolchain', EntrypointToolchain),
-            ]:
+            for cls in EasybuildEntrypoint.__subclasses__():
+                prefix = str(cls.desc)
                 ept_list = cls.retrieve_entrypoints()
                 if ept_list:
                     print()
