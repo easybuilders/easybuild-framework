@@ -203,7 +203,7 @@ class EntrypointRichHighlighter(EasybuildEntrypoint):
             raise EasyBuildError("Rich highlighter entrypoint `%s` is not callable", self.wrapped)
         res = self.wrapped()
         if not isinstance(res, list):
-            raise EasyBuildError("Rich highlighter entrypoint `%s` is not a list", self.wrapped)
+            raise EasyBuildError("Rich highlighter entrypoint does not return a list, got %s", type(res))
         if any(not isinstance(item, str) for item in res):
             raise EasyBuildError("Rich highlighter entrypoint `%s` did not return a list of strings", self.wrapped)
 

@@ -37,10 +37,13 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
+import easybuild.tools.output as eboutput
+from easybuild.tools.config import update_build_option
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
-    HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain, EasybuildEntrypoint
+    HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain, EasybuildEntrypoint,
+    EntrypointRichTheme, EntrypointRichHighlighter
 )
 from easybuild.tools.filetools import write_file
 from easybuild.tools.hooks import run_hook, START, CONFIGURE_STEP
@@ -57,10 +60,24 @@ else:
 MOCK_HOOK_EP_NAME = "mock_hook"
 MOCK_EASYBLOCK_EP_NAME = "mock_easyblock"
 MOCK_TOOLCHAIN_EP_NAME = "mock_toolchain"
+MOCK_THEME_EP_NAME = "mock_theme"
+MOCK_HIGHLIGHTER_EP_NAME = "mock_highlighter"
 
 MOCK_HOOK = "hello_world_12412412"
 MOCK_EASYBLOCK = "TestEasyBlock_1212461"
 MOCK_TOOLCHAIN = "MockTc_352124671346"
+MOCK_THEME = "MockTheme_124124"
+MOCK_HIGHLIGHTER = "MockHighlighter_124124"
+
+MOCK_HIGHLIGHTER_TEXT = "TEST_TEXT"
+
+EXPECTED = {
+    EntrypointHook: MOCK_HOOK_EP_NAME,
+    EntrypointEasyblock: MOCK_EASYBLOCK_EP_NAME,
+    EntrypointToolchain: MOCK_TOOLCHAIN_EP_NAME,
+    EntrypointRichTheme: MOCK_THEME_EP_NAME,
+    EntrypointRichHighlighter: MOCK_HIGHLIGHTER_EP_NAME,
+}
 
 
 MOCK_EP_FILE = f"""
@@ -115,6 +132,21 @@ class {MOCK_TOOLCHAIN}(MockCompiler):
 
 class {MOCK_TOOLCHAIN}_invalid(MockCompiler):
     pass
+
+##########################################################################
+from easybuild.tools.entrypoints import EntrypointRichTheme, EntrypointRichHighlighter
+
+@EntrypointRichTheme()
+def {MOCK_THEME}():
+    return {{
+        'easybuild.test': 'blue',
+    }}
+
+@EntrypointRichHighlighter()
+def {MOCK_HIGHLIGHTER}():
+    return [
+        r'(?P<test>{MOCK_HIGHLIGHTER_TEXT})',  # Using `TEST` to distinguish this from other highlights
+    ]
 """
 
 
@@ -130,6 +162,12 @@ MOCK_EP_META_FILE = f"""
 [{EntrypointToolchain.group}]
 {MOCK_TOOLCHAIN_EP_NAME} = {{module}}:{MOCK_TOOLCHAIN}
 {{invalid_toolchain}}
+
+[{EntrypointRichTheme.group}]
+{MOCK_THEME_EP_NAME} = {{module}}:{MOCK_THEME}
+
+[{EntrypointRichHighlighter.group}]
+{MOCK_HIGHLIGHTER_EP_NAME} = {{module}}:{MOCK_HIGHLIGHTER}
 """
 
 FORMAT_DCT = {
@@ -288,29 +326,50 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
             pass
         decorator(MOCK)
 
+    def test_entrypoints_register_rich_theme(self):
+        """Test registering entry point rich themes with both valid and invalid theme names."""
+        decorator = EntrypointRichTheme()
+
+        with self.assertRaisesRegex(EasyBuildError, "has no module or name associated"):
+            decorator(123)
+
+        with self.assertRaisesRegex(EasyBuildError, "did not return a dict"):
+            decorator(lambda: None)
+
+        decorator(lambda: {})
+
+    def test_entrypoints_register_rich_highlighter(self):
+        """Test registering entry point rich highlighters with both valid and invalid highlighter names."""
+        decorator = EntrypointRichHighlighter()
+
+        with self.assertRaisesRegex(EasyBuildError, "has no module or name associated"):
+            decorator(123)
+
+        with self.assertRaisesRegex(EasyBuildError, "does not return a list, got"):
+            decorator(lambda: None)
+
+        with self.assertRaisesRegex(EasyBuildError, "did not return a list of strings"):
+            decorator(lambda: ['abc', 123])
+
+        decorator(lambda: ['a', 'b'])
+
     def test_entrypoints_get_group(self):
         """Test retrieving entrypoints for a specific group."""
-        expected = {
-            EntrypointHook: MOCK_HOOK_EP_NAME,
-            EntrypointEasyblock: MOCK_EASYBLOCK_EP_NAME,
-            EntrypointToolchain: MOCK_TOOLCHAIN_EP_NAME,
-        }
 
-        for ep_type in [EntrypointHook, EntrypointEasyblock, EntrypointToolchain]:
+        for ep_type in EXPECTED:
             group = ep_type.group
             epts = ep_type.retrieve_entrypoints()
             self.assertIsInstance(epts, set, f"Expected set for group {group}")
             self.assertEqual(len(epts), 0, f"Expected non-empty set for group {group}")
 
         init_config(build_options={'use_entrypoints': True})
-        for ep_type in [EntrypointHook, EntrypointEasyblock, EntrypointToolchain]:
+        for ep_type, expt in EXPECTED.items():
             group = ep_type.group
             epts = ep_type.retrieve_entrypoints()
             self.assertIsInstance(epts, set, f"Expected set for group {group}")
             self.assertGreater(len(epts), 0, f"Expected non-empty set for group {group}")
 
             loaded_names = [ep.name for ep in epts]
-            expt = expected[ep_type]
             self.assertIn(expt, loaded_names, f"Expected entry point {expt} in group {group}")
 
     def test_entrypoints_exclude_invalid(self):
@@ -383,15 +442,18 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         args = ['--show-config']
         stdout, stderr = self._run_mock_eb(args, strip=True)
 
-        for name in ['Hooks', 'Easyblocks', 'Toolchains']:
-            pattern = f"{name} from entrypoints ("
+        # for name in ['Hooks', 'Easyblocks', 'Toolchains']:
+        for ep_type in EXPECTED:
+            name = ep_type.desc
+            pattern = f"{name}s from entrypoints ("
             self.assertIn(pattern, stdout, f"Expected {name} in configuration output")
 
         args = ['--show-full-config']
         stdout, stderr = self._run_mock_eb(args, strip=True)
 
-        for name in ['Hooks', 'Easyblocks', 'Toolchains']:
-            pattern = f"{name} from entrypoints ("
+        for ep_type in EXPECTED:
+            name = ep_type.desc
+            pattern = f"{name}s from entrypoints ("
             self.assertIn(pattern, stdout, f"Expected {name} in configuration output")
 
     def test_entrypoints_register_invalid_hook(self):
@@ -476,6 +538,69 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         run_hook(CONFIGURE_STEP, {}, post_step_hook=True)
         for key, val in flags.items():
             self.assertEqual(val, key == 'post_cfg', "Should only run post-configure hooks")
+
+    def test_entrypoints_use_rich_theme(self):
+        """Test registering entry point rich themes with both valid and invalid theme names."""
+        from easybuild.tools.build_log import print_msg
+
+        update_build_option('output_style', 'rich')
+
+        def run_check(msg, theme=None, hl=None, with_ep=False):
+            reload(eboutput)
+            update_build_option('output_theme', theme or eboutput.DEFAULT_THEME_NAME)
+            update_build_option('output_highlights', hl or eboutput.DEFAULT_HIGHLIGHTS_NAME)
+            update_build_option('use_entrypoints', with_ep)
+
+            print_msg(msg)
+
+        # Test that without entry points enabled, the custom theme and highlighter are not applied to the output
+        msg = "This is a test message"
+        with self.mocked_stdout_stderr(force_tty=True) as (stdout, _):
+            run_check(msg)
+        stdout_txt = stdout.getvalue().strip()
+        self.assertTrue(stdout_txt.endswith(f"\x1b[0m{msg}"))
+
+        # Test that without entry points enabled, the custom theme and highlighter ONLY are applied
+        # The custom theme defined here should NOT be applied hece the TEST_TEXT should not be colored
+        msg = MOCK_HIGHLIGHTER_TEXT
+        with self.mocked_stdout_stderr(force_tty=True) as (stdout, _):
+            run_check(msg)
+        stdout_txt = stdout.getvalue().strip()
+        self.assertFalse(stdout_txt.endswith(f"{msg}\x1b[0m"))
+
+        # Test that specifying a theme without entry points enabled raises an error with the expected message
+        reload(eboutput)  # Clear out the cached theme/highlighter to ensure the new ones are picked up
+        exp = f'Cannot use custom Rich theme \'{MOCK_THEME}\' without entry points support enabled'
+        with self.assertRaisesRegex(EasyBuildError, exp):
+            run_check(msg, theme=MOCK_THEME)
+
+        # Test that specifying an highlighter without entry points enabled raises an error with the expected message
+        exp = f'Cannot use custom Rich highlighter \'{MOCK_HIGHLIGHTER}\' without entry points support enabled'
+        with self.assertRaisesRegex(EasyBuildError, exp):
+            run_check(msg, hl=MOCK_HIGHLIGHTER)
+
+        # Test that specifying an invalid highlighter with entry points enabled raises an error with the expected
+        # message listing the available highlighters
+        highlighter = f'{MOCK_HIGHLIGHTER}_invalid'
+        exp = rf'Unknown specified Rich highlighter.*{highlighter}.* \(available: .*\)'
+        with self.assertRaisesRegex(EasyBuildError, exp):
+            run_check(msg, hl=highlighter, with_ep=True)
+
+        # Test that specifying an invalid theme with entry points enabled raises an error with the expected message
+        # listing the available themes
+        theme = f'{MOCK_THEME}_invalid'
+        exp = rf'Unknown specified Rich theme.*{theme}.* \(available: .*\)'
+        with self.assertRaisesRegex(EasyBuildError, exp):
+            run_check(msg, theme=theme, with_ep=True)
+
+        # Test that specifying a valid highlighter with entry points enabled does not raise an error and is applied
+        # to the output
+        highlighter = MOCK_HIGHLIGHTER
+        exp = rf'Unknown specified Rich highlighter.*{highlighter}.* \(available: .*\)'
+        with self.mocked_stdout_stderr(force_tty=True) as (stdout, _):
+            run_check(msg, theme=MOCK_THEME, hl=MOCK_HIGHLIGHTER, with_ep=True)
+        stdout_txt = stdout.getvalue().strip()
+        self.assertTrue(stdout_txt.endswith(f"{msg}\x1b[0m"))
 
 
 def suite(loader=None):
