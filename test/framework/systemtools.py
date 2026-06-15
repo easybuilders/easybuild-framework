@@ -872,8 +872,12 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_cpu_arch_name_native(self):
         """Test getting CPU arch name."""
-        arch_name = get_cpu_arch_name()
+        with self.mocked_stderr():
+            arch_name = get_cpu_arch_name()
+            stderr = self.get_stderr()
         self.assertIsInstance(arch_name, str)
+        if st.HAVE_ARCHSPEC:
+            self.assertEqual(stderr, "")
 
     def test_cpu_arch_name(self):
         """Test getting CPU arch name."""
@@ -890,6 +894,17 @@ class SystemToolsTest(EnhancedTestCase):
         st.archspec_cpu_host = lambda: None
         arch_name = get_cpu_arch_name()
         self.assertEqual(arch_name, 'UNKNOWN')
+
+        # When archspec is unavailable, direct calls should warn the user.
+        st.HAVE_ARCHSPEC = False
+        try:
+            with self.mocked_stderr():
+                arch_name = get_cpu_arch_name()
+                stderr = self.get_stderr()
+            self.assertEqual(arch_name, 'UNKNOWN')
+            self.assertRegex(stderr, r"Could not detect CPU architecture.*install the 'archspec' Python package")
+        finally:
+            st.HAVE_ARCHSPEC = True
 
     def test_cpu_vendor_native(self):
         """Test getting CPU vendor."""

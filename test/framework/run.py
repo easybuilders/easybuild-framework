@@ -266,20 +266,23 @@ class RunTest(EnhancedTestCase):
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
         self.assertExists(cmd_script)
 
-        cmd = f"{cmd_script} -c 'echo pwd: $PWD; echo $FOOBAR; echo $EB_CMD_OUT_FILE; cat $EB_CMD_OUT_FILE'"
+        cmd = f"{cmd_script} -c '"
+        cmd += 'echo pwd: $PWD; echo "bash_env: $BASH_ENV"; echo $FOOBAR; echo $EB_CMD_OUT_FILE; cat $EB_CMD_OUT_FILE'
+        cmd += "'"
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        regex = re.compile("pwd: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
+        regex = re.compile("pwd: .*\nbash_env: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
         self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
 
         # check whether working directory is what's expected
-        regex = re.compile('^pwd: .*', re.M)
-        res = regex.findall(res.output)
-        self.assertEqual(len(res), 1)
-        pwd = res[0].strip()[5:]
+        matches = re.findall('^pwd: (.*)', res.output, re.M)
+        self.assertEqual(len(matches), 1)
+        pwd = matches[0]
         self.assertTrue(os.path.samefile(pwd, self.test_prefix))
 
+        # BASH_ENV is that of the current shell, not the one set in the cmd.sh
+        self.assertEqual(re.search('^bash_env: (.*)', res.output, re.M)[1], os.environ.get('BASH_ENV', ''))
         cmd = f"{cmd_script} -c 'module --version'"
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)

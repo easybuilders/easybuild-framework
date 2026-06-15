@@ -134,7 +134,8 @@ DEFAULT_CONFIG = {
     'sanity_check_commands': [[], ("format: [(name, options)] e.g. [('gzip','-h')]. "
                                    "Using a non-tuple is equivalent to (name, '-h')"), BUILD],
     'sanity_check_paths': [{}, ("List of files and directories to check "
-                                "(format: {'files':<list>, 'dirs':<list>})"), BUILD],
+                                "(format: {'files':<list>, 'dirs':<list>}). "
+                                "Architecture-specific list items are supported."), BUILD],
     'skip': [False, "Skip existing software", BUILD],
     'skip_mod_files_sanity_check': [False, "Skip the check for .mod files in a GCCcore level install", BUILD],
     'skipsteps': [[], "Skip these steps", BUILD],
@@ -169,8 +170,10 @@ DEFAULT_CONFIG = {
 
     # DEPENDENCIES easyconfig parameters
     'allow_system_deps': [[], "Allow listed system dependencies (format: (<name>, <version>))", DEPENDENCIES],
-    'builddependencies': [[], "List of build dependencies", DEPENDENCIES],
-    'dependencies': [[], "List of dependencies", DEPENDENCIES],
+    'builddependencies': [[], ("List of build dependencies. Architecture-specific versions are supported "
+                               "with 'False' to exclude the dependency"), DEPENDENCIES],
+    'dependencies': [[], ("List of dependencies. Architecture-specific versions are supported "
+                          "with 'False' to exclude the dependency"), DEPENDENCIES],
     'hiddendependencies': [[], "List of dependencies available as hidden modules", DEPENDENCIES],
     'multi_deps': [{}, "Dict of lists of dependency versions over which to iterate", DEPENDENCIES],
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],

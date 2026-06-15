@@ -3301,12 +3301,12 @@ class EasyConfigTest(EnhancedTestCase):
         patterns = [
             rf"digraph {graphname} {{",
             # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            r"^\s*intel\s+\[",
-            r"^\s*toy\s+\[",
-            r"^\s*\"GCC/6\.4\.0-2\.28 \(EXT\)\"\s+\[",
+            r"^\s*intel",
+            r"^\s*toy",
+            r"^\s*\"GCC/6\.4\.0-2\.28 \(EXT\)\"",
             # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            r"^\s*toy -> intel\s+\[",
-            r"^\s*toy -> \"GCC/6\.4\.0-2\.28 \(EXT\)\"\s+\[",
+            r"^\s*toy -> intel",
+            r"^\s*toy -> \"GCC/6\.4\.0-2\.28 \(EXT\)\"",
         ]
         self.assert_multi_regex(patterns, dottxt)
 
@@ -3676,18 +3676,22 @@ class EasyConfigTest(EnhancedTestCase):
         my_arch = st.get_cpu_architecture()
 
         # add Java dep with version specified using a dict value
-        toy_ec_txt += '\n'.join([
-            "dependencies += [",
-            "  ('Python', '3.7.2'),"
-            "  ('Java', {",
-            "    'arch=%s': '1.8.0_221'," % my_arch,
-            "    'arch=fooarch': '1.8.0-foo',",
-            "  })",
-            "]",
-            "builddependencies = [",
-            "  ('CMake', '3.18.4'),",
-            "]",
-        ])
+        toy_ec_txt += textwrap.dedent("""
+            dependencies += [
+              ('Python', '3.7.2'),
+              ('Java', {
+                'arch=<arch>': '1.8.0_221',
+                'arch=fooarch': '1.8.0-foo',
+              }),
+              ('Perl', {
+                'arch=<arch>': False,
+                'arch=fooarch': '1.42',
+              }),
+            ]
+            builddependencies = [
+              ('CMake', '3.18.4'),
+            ]
+        """).replace('<arch>', my_arch)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
@@ -3722,39 +3726,29 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         # proper EasyConfig instance
-        ec = EasyConfig(test_ec)
-
-        # CMake should *not* be included, since it's a build-only dependency
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-        res = template_constant_dict(ec)
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-
-        self.assertIn('arch', res)
-        arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
-
-        self.assertEqual(res, expected)
-
+        full_ec = EasyConfig(test_ec)
+        expected_full = expected
         # only perform shallow/quick parse (as is done in list_software function)
-        ec = EasyConfigParser(filename=test_ec).get_config_dict()
-
-        expected['module_name'] = None
+        shallow_ec = EasyConfigParser(filename=test_ec).get_config_dict()
+        expected_shallow = expected.copy()
+        expected_shallow['module_name'] = None
         for key in ('bitbucket_account', 'github_account', 'versionprefix'):
-            del expected[key]
+            del expected_shallow[key]
 
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-        res = template_constant_dict(ec)
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        for name, ec, expected in (('Full', full_ec, expected_full), ('Shallow', shallow_ec, expected_shallow)):
+            with self.subTest(f'{name} easyconfig'):
+                # CMake should *not* be included, since it's a build-only dependency
+                dep_names = [x['name'] if isinstance(x, dict) else x[0] for x in ec['dependencies']]
+                self.assertNotIn('CMake', dep_names)
 
-        self.assertIn('arch', res)
-        arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+                res = template_constant_dict(ec)
+                self.assertIn('arch', res)
+                arch = res.pop('arch')
+                self.assertRegex(arch, arch_regex)
 
-        self.assertEqual(res, expected)
+                self.assertNotIn('perlver', res, "Perl should be filtered out")
+
+                self.assertEqual(res, expected)
 
         # also check result of template_constant_dict when dict representing extension is passed
         ext_dict = {

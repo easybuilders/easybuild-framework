@@ -4872,6 +4872,32 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertFalse(regex.search(toy_app_modtxt),
                          f"Pattern '{regex.pattern}' should *not* be found in: {toy_app_modtxt}")
 
+    def test_easyconfig_instances(self):
+        """
+        Test to check how many EasyConfig instances get created when parsing a bunch of easyconfigs.
+        """
+        # main motivation for this test is a regression that got introduced with
+        # https://github.com/easybuilders/easybuild-framework/pull/4818,
+        # see also https://github.com/easybuilders/easybuild-framework/pull/5166
+        # and https://github.com/easybuilders/easybuild-framework/issues/5167
+
+        test_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+
+        with self.log_to_testlogfile() as logfile:
+            self.run_test_toy_build_with_output(ec_file=test_ec, extra_args=['-Dr'], verify=False)
+
+        # count how many times an EasyConfig instance was created,
+        # either by process_easyconfig function or by EasyConfig.copy, based on log messages
+        regex = re.compile("Creating.* EasyConfig instance .*", re.M)
+        logtxt = read_file(logfile)
+        matches = regex.findall(logtxt)
+        cnt = len(matches)
+        # we expect to find 12 EasyConfig instances being created: gzip itself + full toolchain;
+        # note: multiple EasyConfig instances are currently created for (sub)toolchains (like foss/2018a, gompi/2018a)
+        expected = 12
+        error_msg = f"{cnt} EasyConfig instances created, expected {expected}:\n" + '\n'.join(matches)
+        self.assertEqual(cnt, expected, error_msg)
+
 
 def suite(loader=None):
     """ return all the tests in this file """

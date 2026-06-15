@@ -465,7 +465,7 @@ def get_cpu_family():
     return family
 
 
-def get_cpu_arch_name():
+def get_cpu_arch_name(show_warning=True):
     """
     Determine CPU architecture name via archspec (if available).
     """
@@ -476,6 +476,10 @@ def get_cpu_arch_name():
             cpu_arch_name = str(res.name)
 
     if cpu_arch_name is None:
+        if show_warning and not HAVE_ARCHSPEC:
+            print_warning("Could not detect CPU architecture name which may affect functionality. "
+                          "Please install the 'archspec' Python package into the same Python environment as EasyBuild.",
+                          log=_log)
         cpu_arch_name = UNKNOWN
 
     return cpu_arch_name
@@ -1345,7 +1349,7 @@ def get_system_info():
         'core_count': get_avail_core_count(),
         'total_memory': get_total_memory(),
         'cpu_arch': get_cpu_architecture(),
-        'cpu_arch_name': get_cpu_arch_name(),
+        'cpu_arch_name': get_cpu_arch_name(show_warning=False),
         'cpu_model': get_cpu_model(),
         'cpu_speed': get_cpu_speed(),
         'cpu_vendor': get_cpu_vendor(),

@@ -440,13 +440,15 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         if isinstance(dep_name, str) and dep_version:
             pref = name_to_prefix.get(dep_name.lower())
             if pref:
+                # Resolve version if not already done
                 dep_version = pick_dep_version(dep_version)
-                template_values['%sver' % pref] = dep_version
-                dep_version_parts = dep_version.split('.')
-                template_values['%smajver' % pref] = dep_version_parts[0]
-                if len(dep_version_parts) > 1:
-                    template_values['%sminver' % pref] = dep_version_parts[1]
-                template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
+                if dep_version:
+                    template_values['%sver' % pref] = dep_version
+                    dep_version_parts = dep_version.split('.')
+                    template_values['%smajver' % pref] = dep_version_parts[0]
+                    if len(dep_version_parts) > 1:
+                        template_values['%sminver' % pref] = dep_version_parts[1]
+                    template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
     # step 2.1: CUDA templates in NVHPC
     if toolchain is not None and hasattr(toolchain, 'name') and toolchain.name in TEMPLATE_CUDA_VERSION_NVHPC:

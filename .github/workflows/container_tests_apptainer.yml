@@ -11,17 +11,17 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        python: [3.7]
-        apptainer: [1.0.0, 1.1.7, 1.3.6]
+        python: [3.9]
+        apptainer: [1.0.0, 1.3.6, 1.5.1]
       fail-fast: false
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # 4.2.2
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # 6.0.3
 
     - name: set up Python
-      uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
       with:
         python-version: ${{matrix.python}}
         architecture: x64
@@ -87,12 +87,12 @@ jobs:
           # create $HOME/.rpmmacros, see also https://github.com/apptainer/singularity/issues/241
           echo '%_var /var' > $HOME/.rpmmacros
           echo '%_dbpath %{_var}/lib/rpm' >> $HOME/.rpmmacros
-          # build CentOS 7 container image for bzip2 1.0.8 using EasyBuild;
+          # build CentOS 7 container image for flex 2.6.4 using EasyBuild;
           # see https://docs.easybuild.io/en/latest/Containers.html
-          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/b/bzip2/bzip2-1.0.8.eb
+          curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/f/flex/flex-2.6.4.eb
           export EASYBUILD_CONTAINERPATH=$PWD
           export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/rockylinux-8.10-amd64'
           export EASYBUILD_CONTAINER_TYPE='apptainer'
-          eb bzip2-1.0.8.eb --containerize --experimental --container-build-image
-          apptainer exec bzip2-1.0.8.sif command -v bzip2 | grep '/app/software/bzip2/1.0.8/bin/bzip2' || (echo "Path to bzip2 '$which_bzip2' is not correct" && exit 1)
-          apptainer exec bzip2-1.0.8.sif bzip2 --help
+          eb flex-2.6.4.eb --containerize --experimental --container-build-image
+          apptainer exec flex-2.6.4.sif command -v flex | grep '/app/software/flex/2.6.4/bin/flex' || (echo "Path to flex '$which_flex' is not correct" && exit 1)
+          apptainer exec flex-2.6.4.sif flex --help
