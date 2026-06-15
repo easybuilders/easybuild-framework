@@ -266,6 +266,8 @@ class OptionData:
             elif isinstance(self.default, (list, tuple)):
                 kwargs['multiple'] = True
                 kwargs['type'] = click.STRING
+        else:
+            raise ValueError(f"Unsupported type {self.type} for option {self.name}")
 
         # store_or_None implies that the option can be used as a flag with no value
         if self.action == 'store_or_None':
