@@ -78,6 +78,10 @@ MOCKED_SCONTROL = """#!/bin/bash
     echo "(scontrol args: $@)"
 """
 
+MOCKED_SACCT = """#!/bin/bash
+    echo "(sacct args: $@)"
+"""
+
 
 def mock(*args, **kwargs):
     """Function used for mocking several functions imported in parallelbuild module."""
@@ -338,7 +342,7 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
 
-        # install mocked versions of 'sbatch' and 'scontrol' commands
+        # install mocked versions of 'sbatch', 'scontrol' and 'sacct' commands
         sbatch = os.path.join(self.test_prefix, 'bin', 'sbatch')
         write_file(sbatch, MOCKED_SBATCH)
         adjust_permissions(sbatch, stat.S_IXUSR, add=True)
@@ -346,6 +350,10 @@ class ParallelBuildTest(EnhancedTestCase):
         scontrol = os.path.join(self.test_prefix, 'bin', 'scontrol')
         write_file(scontrol, MOCKED_SCONTROL)
         adjust_permissions(scontrol, stat.S_IXUSR, add=True)
+
+        sacct = os.path.join(self.test_prefix, 'bin', 'sacct')
+        write_file(sacct, MOCKED_SACCT)
+        adjust_permissions(sacct, stat.S_IXUSR, add=True)
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
