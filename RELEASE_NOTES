@@ -3,6 +3,45 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
+v5.3.0 (10 Apr 2026)
+--------------------
+
+feature release
+
+- new features:
+  - make EasyBuild plugin-able through entrypoints (#4918)
+  - add `--fetch-all` command line parameter (#5014)
+  - add support for ROCm-based toolchains (`rocm-compilers`, `rompi`, `rfbf`, `rfoss`) (#5099)
+  - add (experimental) support for installing with bwrap (#5130)
+- bug fixes:
+  - fix `check_checksums` when using templates, patch-dicts or `checksums.json` (#5021)
+  - close stdout/stderr handles in `run_shell_cmd` and test teardown (#5050)
+  - fix setting `$OMPI_MCA_rmaps_base_oversubscribe` in sanity check (#5123)
+  - switch native flag from `-march=native` to `-mcpu=native` for LLVM compilers on Arm 64-bit (aarch64) (#5139)
+  - filter out NVHPC toolchains that share name from the toolchain hierarchy (#5140)
+  - fix handling of NVHPC toolchain with hierarchical module naming scheme (#5141)
+  - be a bit more forgiving with `copy_file` (#5142)
+  - use fallback mechanism that relies on `$USER` or `$LOGNAME` when determining username via `pwd.getpwuid` fails (#5151)
+  - raise error if `'filename'` is missing in source dict (#5152, #5156)
+  - be more careful when parsing output produced by rocm-smi command (+ add tests for `get_gpu_info` function) (#5155)
+  - enhance `get_cuda_object_dump_raw` to not run `cuobjdump` on shell scripts to determine CUDA architecture (#5161)
+- enhancements:
+  - add support for using list of values in `modulename` in extensions (#4716)
+  - add `return_conflicts` option to `check_conflicts` function and enhance tests (#5000)
+  - hide output of module commands in log file by default + add `--debug-module-cmds` option to opt-in to keeping them (#5045)
+  - add script to gather git submodules (#5060)
+  - make sure that test commands used in `test_cases` step are executable (#5118)
+  - allow the use of extension specific `github_account` so `GITHUB_SOURCE` template constant can be used (#5121)
+  - add rich colors to print_msg (#5125, #5149)
+  - only make use of graphviz to generate dependency graphs instead of pygraph (#5128)
+- enhancements and fixes for test suite:
+  - remove duplication in `toy_build` tests (#5050)
+  - replace `assertTrue`/`assertFalse` with `assertRegex` in easyblock test (#5137)
+  - fix `test_github_merge_pr` by using more recent easyblocks PR (#5160)
+- code cleanup:
+  - remove deprecated 2-element list/tuple for specifying sources (#5153)
+
+
 v5.2.1 (20 Feb 2026)
 --------------------
 

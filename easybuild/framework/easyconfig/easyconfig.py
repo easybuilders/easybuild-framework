@@ -666,6 +666,7 @@ class EasyConfig:
             validate = self.validation
 
         # create a new EasyConfig instance
+        self.log.info(f"Creating new EasyConfig instance for {self.path} while copying")
         ec = EasyConfig(self.path, validate=validate, hidden=self.hidden, rawtxt=self.rawtxt)
         # take a copy of the actual config dictionary (which already contains the extra options)
         ec._config = copy.deepcopy(self._config)
@@ -2328,7 +2329,10 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     if not build_specs:
         cache_key = (path, validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
-            return _copy_ec_dicts(_easyconfigs_cache[cache_key])
+            # Note: This does NOT copy EasyConfig instances but the dict containing an instance in the 'ec' key.
+            # So modifications to the `EasyConfig` instance will be shared.
+            # TODO: Implement proper (deep)-copy
+            return [e.copy() for e in _easyconfigs_cache[cache_key]]
 
     easyconfigs = []
     for spec in blocks:
@@ -2337,6 +2341,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
 
         # create easyconfig
         try:
+            _log.info(f"Creating EasyConfig instance for {spec}")
             ec = EasyConfig(spec, build_specs=build_specs, validate=validate, hidden=hidden)
         except EasyBuildError as err:
             try:
@@ -2352,7 +2357,10 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
         easyconfigs.append(easyconfig)
 
     if cache_key is not None:
-        _easyconfigs_cache[cache_key] = _copy_ec_dicts(easyconfigs)
+        # Note: This does NOT copy EasyConfig instances but the dict containing an instance in the 'ec' key.
+        # So modifications to the `EasyConfig` instance will be shared.
+        # TODO: Implement proper (deep)-copy
+        _easyconfigs_cache[cache_key] = [e.copy() for e in easyconfigs]
 
     return easyconfigs
 
