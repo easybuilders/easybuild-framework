@@ -69,7 +69,6 @@ KNOWN_DIRPATH_OPTS = [
     'sourcepath',
     'bwrap-installpath',
     'packagepath',
-    'repositorypath',
 ]
 
 
