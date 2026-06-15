@@ -197,15 +197,18 @@ def get_rich_theme():
         use_entrypoints = build_option('use_entrypoints', default=True)
         output_theme = build_option('output_theme', default=DEFAULT_THEME_NAME)
 
-        entrypoints = EntrypointRichTheme.get_loaded_entrypoints(name=output_theme)
-        if not entrypoints:
-            if use_entrypoints:
-                available_themes = ', '.join([_.name for _ in EntrypointRichTheme.get_loaded_entrypoints()])
-                msg = f"Unknown specified Rich theme '{output_theme}' (available: {available_themes})"
-            else:
-                msg = f"Cannot use custom Rich theme '{output_theme}' without entry points support enabled"
-            raise EasyBuildError(msg)
-        theme_dct = entrypoints[0].wrapped()
+        if output_theme == DEFAULT_THEME_NAME:
+            theme_dct = default_theme()
+        else:
+            entrypoints = EntrypointRichTheme.get_loaded_entrypoints(name=output_theme)
+            if not entrypoints:
+                if use_entrypoints:
+                    available_themes = ', '.join([_.name for _ in EntrypointRichTheme.get_loaded_entrypoints()])
+                    msg = f"Unknown specified Rich theme '{output_theme}' (available: {available_themes})"
+                else:
+                    msg = f"Cannot use custom Rich theme '{output_theme}' without entry points support enabled"
+                raise EasyBuildError(msg)
+            theme_dct = entrypoints[0].wrapped()
         res = Theme(theme_dct)
 
     CACHED_THEME = res
@@ -228,15 +231,19 @@ def get_rich_highlighter():
         use_entrypoints = build_option('use_entrypoints', default=True)
         output_hl = build_option('output_highlights', default=DEFAULT_HIGHLIGHTS_NAME)
 
-        entrypoints = EntrypointRichHighlighter.get_loaded_entrypoints(name=output_hl)
-        if not entrypoints:
-            if use_entrypoints:
-                available_hls = ', '.join([_.name for _ in EntrypointRichHighlighter.get_loaded_entrypoints()])
-                msg = f"Unknown specified Rich highlighter '{output_hl}' (available: {available_hls})"
-            else:
-                msg = f"Cannot use custom Rich highlighter '{output_hl}' without entry points support enabled"
-            raise EasyBuildError(msg)
-        highlights_dct = entrypoints[0].wrapped()
+        if output_hl == DEFAULT_HIGHLIGHTS_NAME:
+            highlights_dct = default_highlights()
+        else:
+            entrypoints = EntrypointRichHighlighter.get_loaded_entrypoints(name=output_hl)
+            if not entrypoints:
+                if use_entrypoints:
+                    available_hls = ', '.join([_.name for _ in EntrypointRichHighlighter.get_loaded_entrypoints()])
+                    msg = f"Unknown specified Rich highlighter '{output_hl}' (available: {available_hls})"
+                else:
+                    msg = f"Cannot use custom Rich highlighter '{output_hl}' without entry points support enabled"
+                    msg += f" {EntrypointRichHighlighter.get_loaded_entrypoints()}"
+                raise EasyBuildError(msg)
+            highlights_dct = entrypoints[0].wrapped()
 
         class EasybuildHighlighter(RegexHighlighter):
             """Highlighter for EasyBuild messages, to highlight ERROR, WARNING, SUCCESS and similar lines."""

@@ -207,6 +207,7 @@ class EntrypointRichHighlighter(EasybuildEntrypoint):
         if any(not isinstance(item, str) for item in res):
             raise EasyBuildError("Rich highlighter entrypoint `%s` did not return a list of strings", self.wrapped)
 
+
 class EntrypointHook(EasybuildEntrypoint):
     """Class to represent a hook entrypoint."""
     group = 'easybuild.hooks'

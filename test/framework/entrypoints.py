@@ -546,7 +546,8 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         update_build_option('output_style', 'rich')
 
         def run_check(msg, theme=None, hl=None, with_ep=False):
-            reload(eboutput)
+            eboutput.CACHED_THEME = None
+            eboutput.CACHED_HIGHLIGHTER = None
             update_build_option('output_theme', theme or eboutput.DEFAULT_THEME_NAME)
             update_build_option('output_highlights', hl or eboutput.DEFAULT_HIGHLIGHTS_NAME)
             update_build_option('use_entrypoints', with_ep)
@@ -569,7 +570,6 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         self.assertFalse(stdout_txt.endswith(f"{msg}\x1b[0m"))
 
         # Test that specifying a theme without entry points enabled raises an error with the expected message
-        reload(eboutput)  # Clear out the cached theme/highlighter to ensure the new ones are picked up
         exp = f'Cannot use custom Rich theme \'{MOCK_THEME}\' without entry points support enabled'
         with self.assertRaisesRegex(EasyBuildError, exp):
             run_check(msg, theme=MOCK_THEME)
