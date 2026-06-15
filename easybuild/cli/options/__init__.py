@@ -67,6 +67,9 @@ KNOWN_DIRPATH_OPTS = [
     'containerpath',
     'installpath',
     'sourcepath',
+    'bwrap-installpath',
+    'packagepath',
+    'repositorypath',
 ]
 
 
@@ -88,6 +91,13 @@ class DelimitedPathList(click.Path):
     name = 'pathlist'
 
     def __init__(self, *args, delimiter=',', **kwargs):
+        """
+        Click parameter type representing a list of paths delimited by a specified delimiter.
+        Inherits from click.Path and all its initialization parameters.
+
+        :param delimiter: Delimiter to split the string on, default is comma.
+        :param resolve_path: (inherited) If True, resolve the paths to their absolute form after splitting.
+        """
         self.resolve_full = kwargs.setdefault('resolve_path', False)
         super().__init__(*args, **kwargs)
         self.delimiter = delimiter
@@ -95,6 +105,7 @@ class DelimitedPathList(click.Path):
         self.name = f'[{name}[{self.delimiter}{name}]]'
 
     def convert(self, value, param, ctx):
+        """Convert the input value to a list of strings based on the specified delimiter."""
         if isinstance(value, str):
             res = value.split(self.delimiter)
         elif isinstance(value, (list, tuple)):
@@ -108,6 +119,7 @@ class DelimitedPathList(click.Path):
         return res
 
     def shell_complete(self, ctx, param, incomplete):
+        """Provide shell completion for the last segment of the delimited paths."""
         others, last = ([None] + incomplete.rsplit(self.delimiter, 1))[-2:]
         dir_path, prefix = os.path.split(last)
         dir_path = dir_path or '.'
@@ -138,11 +150,18 @@ class DelimitedPathList(click.Path):
 class DelimitedString(click.ParamType):
     """Custom Click parameter type for delimited strings."""
     def __init__(self, *args, delimiter=',', **kwargs):
+        """
+        Click parameter type representing a list of strings delimited by a specified delimiter.
+        Inherits from click.ParamType and all its initialization parameters.
+
+        :param delimiter: Delimiter to split the string on, default is comma.
+        """
         super().__init__(*args, **kwargs)
         self.delimiter = delimiter
         self.name = f'[STR[{self.delimiter}STR]]'
 
     def convert(self, value, param, ctx):
+        """Convert the input value to a list of strings based on the specified delimiter."""
         if isinstance(value, str):
             res = value.split(self.delimiter)
         elif isinstance(value, (list, tuple)):
@@ -154,6 +173,7 @@ class DelimitedString(click.ParamType):
         return res
 
     def shell_complete(self, ctx, param, incomplete):
+        """Provide shell completion for the last segment of the delimited string."""
         last = incomplete.rsplit(self.delimiter, 1)[-1]
         return super().shell_complete(ctx, param, last)
 
@@ -186,6 +206,7 @@ class OptionData:
     lst: List = None
 
     def __post_init__(self):
+        """Perform validation not covered by type hints."""
         if self.short is not None and not isinstance(self.short, str):
             raise TypeError(f"Short option must be a string, got {type(self.short)}")
         if self.meta is not None and not isinstance(self.meta, dict):
