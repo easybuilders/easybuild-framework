@@ -67,11 +67,8 @@ class Slurm(JobBackend):
 
         super().__init__(*args, **kwargs)
         # Interval between polls for status of jobs (in seconds), ie between each sacct call
+        # Default value set in tools/options.py is 30s
         self.job_polling_interval = build_option('job_polling_interval')
-        # Set default explicitly. Default value defined in tools/options.py is 30s does not seem to be used
-        if self.job_polling_interval is None:
-            self.job_polling_interval = 30
-        # Sanity check: Do not allow value too low not to overload Slurm
         if self.job_polling_interval < 1:
             raise EasyBuildError("Polling interval for Slurm backend cannot be less than 1s: %s",
                                  self.job_polling_interval)
