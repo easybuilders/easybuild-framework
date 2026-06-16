@@ -764,6 +764,8 @@ class DocsTest(EnhancedTestCase):
         eb_overview = gen_easyblocks_overview_rst(gen_easyblocks_pkg, 'easyconfigs', common_params, doc_functions)
         ebdoc = '\n'.join(eb_overview)
 
+        eula_info = r"Determines whether to check if a EULA for the code is required to be accepted\."
+
         # extensive check for ConfigureMake easyblock
         check_configuremake = '\n'.join([
             ".. _ConfigureMake:",
@@ -771,20 +773,21 @@ class DocsTest(EnhancedTestCase):
             "``ConfigureMake``",
             "=================",
             '',
-            "(derives from EasyBlock)",
+            r"\(derives from EasyBlock\)",
             '',
             "Dummy support for building and installing applications with configure/make/make install.",
             '',
             "Extra easyconfig parameters specific to ``ConfigureMake`` easyblock",
             "-------------------------------------------------------------------",
             '',
-            "====================    ============    =============",
-            "easyconfig parameter    description     default value",
-            "====================    ============    =============",
-            '``test_123``            Test 1, 2, 3    ``""``',
-            "``test_bool``           Just a test     ``False``",
-            "``test_none``           Another test    ``None``",
-            "====================    ============    =============",
+            "=+ +=+ +=+",
+            "easyconfig parameter +description +default value",
+            "=+ +=+ +=+",
+            f"``requires_eula`` +{eula_info} +``None``",
+            '``test_123`` +Test 1, 2, 3 +``""``',
+            "``test_bool`` +Just a test +``False``",
+            "``test_none`` +Another test +``None``",
+            "=+ +=+ +=+",
             '',
             "Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             "--------------------------------------------------------------------",
@@ -792,13 +795,13 @@ class DocsTest(EnhancedTestCase):
             "====================    ================================================================",
             "easyconfig parameter    description",
             "====================    ================================================================",
-            "configopts              Extra options passed to configure (default already has --prefix)",
-            "buildopts               Extra options passed to make step (default already has -j X)",
+            r"configopts              Extra options passed to configure \(default already has --prefix\)",
+            r"buildopts               Extra options passed to make step \(default already has -j X\)",
             "installopts             Extra options for installation",
             "====================    ================================================================",
         ])
 
-        self.assertIn(check_configuremake, ebdoc)
+        self.assertRegex(ebdoc, check_configuremake)
 
         for name in names:
             self.assertIn(name, ebdoc)
@@ -817,28 +820,29 @@ class DocsTest(EnhancedTestCase):
         check_configuremake = '\n'.join([
             "## ``ConfigureMake``",
             '',
-            "(derives from ``EasyBlock``)",
+            r"\(derives from ``EasyBlock``\)",
             '',
             "Dummy support for building and installing applications with configure/make/make install.",
             '',
             "### Extra easyconfig parameters specific to ``ConfigureMake`` easyblock",
             '',
-            "easyconfig parameter|description |default value",
+            "easyconfig parameter|description +|default value",
             "--------------------|------------|-------------",
-            '``test_123``        |Test 1, 2, 3|``""``',
-            "``test_bool``       |Just a test |``False``",
-            "``test_none``       |Another test|``None``",
+            f'``requires_eula``   |{eula_info}|``None``',
+            '``test_123``        |Test 1, 2, 3 +|``""``',
+            "``test_bool``       |Just a test +|``False``",
+            "``test_none``       |Another test +|``None``",
             '',
             "### Commonly used easyconfig parameters with ``ConfigureMake`` easyblock",
             '',
             "easyconfig parameter|description",
             "--------------------|----------------------------------------------------------------",
-            "configopts          |Extra options passed to configure (default already has --prefix)",
-            "buildopts           |Extra options passed to make step (default already has -j X)",
+            r"configopts          |Extra options passed to configure \(default already has --prefix\)",
+            r"buildopts           |Extra options passed to make step \(default already has -j X\)",
             "installopts         |Extra options for installation",
         ])
 
-        self.assertIn(check_configuremake, ebdoc)
+        self.assertRegex(ebdoc, check_configuremake)
 
         for name in names:
             self.assertIn(name, ebdoc)

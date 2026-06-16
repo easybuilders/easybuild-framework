@@ -176,9 +176,7 @@ class EasyBlock:
         extra_vars = {
             'requires_eula': [
                 None,
-                "Determines whether to check if a EULA for the code is required to be acceppted. Can be one of: "
-                "True: Enable check with default name/message, False: disable check, 1/2-list/tuple: "
-                "Enable check with custom name/message. List/tuple longer than 2 while be truncated and give a warning",
+                "Determines whether to check if a EULA for the code is required to be accepted.",
                 CUSTOM
             ],
         }
