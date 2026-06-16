@@ -79,7 +79,7 @@ MOCKED_SCONTROL = """#!/bin/bash
 """
 
 MOCKED_SACCT = """#!/bin/bash
-    echo "(sacct args: $@)"
+    echo "(sacct args: $@)" >&2
 """
 
 
