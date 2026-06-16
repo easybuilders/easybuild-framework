@@ -1660,14 +1660,14 @@ class EasyBlockTest(EnhancedTestCase):
             "]",
         ]
 
-        def run_check_fetch(extra = ''):
+        def run_check_fetch(extra=''):
             """Convenience method to run the check for a given EC file"""
             self.contents = '\n'.join(base + [extra])
             self.writeEC()
             eb = EasyBlock(EasyConfig(self.eb_file))
             eb.fetch_step()
 
-        def run_check_full(extra = '', accept_eula = False, exp_stdout = None, exp_stderr = None):
+        def run_check_full(extra='', accept_eula=False, exp_stdout=None, exp_stderr=None):
             """Convenience method to run the full process for a given EC file"""
             self.contents = '\n'.join(base + [extra])
             self.writeEC()
@@ -1680,7 +1680,7 @@ class EasyBlockTest(EnhancedTestCase):
             ]
 
             if accept_eula:
-                args.insert(0, f"--accept-eula-for=.*")
+                args.insert(0, "--accept-eula-for=.*")
 
             with self.mocked_stdout_stderr() as (stdout, stderr):
                 self.eb_main(args, raise_error=False, verbose=True, do_build=True)
@@ -1701,21 +1701,21 @@ class EasyBlockTest(EnhancedTestCase):
         # Test that `requires_eula` set to True raises an error (when EULA is not accepted)
         exp = rf"The End User License Agreement \(EULA\) for {name} is currently not accepted!"
         with self.assertRaisesRegex(EasyBuildError, exp):
-             run_check_fetch('requires_eula = True')
+            run_check_fetch('requires_eula = True')
 
         # Test that `requires_eula` with a custom name works as intended
         exp = rf"The End User License Agreement \(EULA\) for {custom_name} is currently not accepted!"
         with self.assertRaisesRegex(EasyBuildError, exp):
-             run_check_fetch(f'requires_eula = ["{custom_name}"]')
+            run_check_fetch(f'requires_eula = ["{custom_name}"]')
 
         # Test that `requires_eula` with a custom message_info works as intended
         with self.assertRaisesRegex(EasyBuildError, custom_info):
-             run_check_fetch(f'requires_eula = ["{custom_name}", "{custom_info}"]')
+            run_check_fetch(f'requires_eula = ["{custom_name}", "{custom_info}"]')
 
         # Test that `requires_eula` with a custom message_info ONLY works as intended
         exp = rf"The End User License Agreement \(EULA\) for {name} is currently not accepted!"
         with self.assertRaisesRegex(EasyBuildError, f'{exp}.*\n.*{custom_info}'):
-             run_check_fetch(f'requires_eula = [None, "{custom_info}"]')
+            run_check_fetch(f'requires_eula = [None, "{custom_info}"]')
 
         # Check a full run with no EULA check
         run_check_full()
