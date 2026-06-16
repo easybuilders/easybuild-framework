@@ -89,10 +89,8 @@ MOCKED_SCONTROL = """#!/bin/bash
 # 4|COMPLETED|00:01:00"
 # ```
 MOCKED_SACCT = """#!/bin/bash
-    # We write the actual command line parameters to stderr
-    echo "(sacct args: $@)" >&2
     # For each job ID, we write to stdout a line showing the job as completed.
-    for JOBID in $(echo "$*" | sed 's/^.*--jobs=\\([^ ]*\\) .*$/\1/;s/,/ /g') ; do
+    for JOBID in $(echo "$*" | sed 's/^.*--jobs=\\([^ ]*\\) .*$/\\1/;s/,/ /g') ; do
        echo "${JOBID}|COMPLETED|00:01:00"
     done
 """
