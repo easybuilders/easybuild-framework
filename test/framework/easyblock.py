@@ -1640,6 +1640,93 @@ class EasyBlockTest(EnhancedTestCase):
         pattern = r">> running shell command:\n\s+bar.sh(\n\s+\[.*\]){3}\n\s+>> command completed: exit 0"
         self.assertRegex(stdout, re.compile(pattern, re.M))
 
+    def test_fetch_step_eula(self):
+        """Test that the `requires_eula` extra option is properly handled."""
+        name = "toy"
+        custom_name = "abc123"
+        custom_info = "Please contact XXX_YYY to get access to this software."
+
+        base = [
+            "easyblock = 'ConfigureMake'",
+            f"name = '{name}'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "exts_list = [",
+            "    ('bar', '0.0', {",
+            "        'source_tmpl': SOURCE_TAR_GZ,",
+            "    }),",
+            "]",
+        ]
+
+        def run_check_fetch(extra = ''):
+            """Convenience method to run the check for a given EC file"""
+            self.contents = '\n'.join(base + [extra])
+            self.writeEC()
+            eb = EasyBlock(EasyConfig(self.eb_file))
+            eb.fetch_step()
+
+        def run_check_full(extra = '', accept_eula = False, exp_stdout = None, exp_stderr = None):
+            """Convenience method to run the full process for a given EC file"""
+            self.contents = '\n'.join(base + [extra])
+            self.writeEC()
+
+            args = [
+                '--rebuild',
+                # Required since here we are using a mocked ConfigureMake without a configure_step defined
+                '--stop', 'fetch',
+                self.eb_file,
+            ]
+
+            if accept_eula:
+                args.insert(0, f"--accept-eula-for=.*")
+
+            with self.mocked_stdout_stderr() as (stdout, stderr):
+                self.eb_main(args, raise_error=False, verbose=True, do_build=True)
+
+            if exp_stdout is not None:
+                self.assertIn(exp_stdout, stdout.getvalue())
+            if exp_stderr is not None:
+                self.assertIn(exp_stderr, stderr.getvalue())
+
+        # Test that `requires_eula` does not cause issues when set to False
+        run_check_fetch('requires_eula = False')
+
+        # Test that passing a non-supported value for `requires_eula` raises an error
+        exp = r"Invalid value for 'requires_eula' easyconfig parameter: expected bool or list/tuple, got int"
+        with self.assertRaisesRegex(EasyBuildError, exp):
+            run_check_fetch('requires_eula = 123')
+
+        # Test that `requires_eula` set to True raises an error (when EULA is not accepted)
+        exp = rf"The End User License Agreement \(EULA\) for {name} is currently not accepted!"
+        with self.assertRaisesRegex(EasyBuildError, exp):
+             run_check_fetch('requires_eula = True')
+
+        # Test that `requires_eula` with a custom name works as intended
+        exp = rf"The End User License Agreement \(EULA\) for {custom_name} is currently not accepted!"
+        with self.assertRaisesRegex(EasyBuildError, exp):
+             run_check_fetch(f'requires_eula = ["{custom_name}"]')
+
+        # Test that `requires_eula` with a custom message_info works as intended
+        with self.assertRaisesRegex(EasyBuildError, custom_info):
+             run_check_fetch(f'requires_eula = ["{custom_name}", "{custom_info}"]')
+
+        # Test that `requires_eula` with a custom message_info ONLY works as intended
+        exp = rf"The End User License Agreement \(EULA\) for {name} is currently not accepted!"
+        with self.assertRaisesRegex(EasyBuildError, f'{exp}.*\n.*{custom_info}'):
+             run_check_fetch(f'requires_eula = [None, "{custom_info}"]')
+
+        # Check a full run with no EULA check
+        run_check_full()
+
+        # Check a full run with EULA check, but no acceptance
+        exp = f'The End User License Agreement (EULA) for {name} is currently not accepted!'
+        run_check_full('requires_eula = True', exp_stdout=exp)
+
+        # Check a full run with EULA check, and acceptance via command line
+        run_check_full('requires_eula = True', accept_eula=True)
+
     def test_make_module_step(self):
         """Test the make_module_step"""
 
