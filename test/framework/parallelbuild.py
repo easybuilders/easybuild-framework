@@ -369,6 +369,8 @@ class ParallelBuildTest(EnhancedTestCase):
             'job_cores': 3,
             'job_max_walltime': 5,
             'force': True,
+            'job_polling_interval': 30,
+            'job_max_jobs': 100,
         }
         init_config(args=['--job-backend=Slurm'], build_options=build_options)
 
