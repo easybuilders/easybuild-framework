@@ -401,10 +401,10 @@ class ParallelBuildTest(EnhancedTestCase):
 
         expected = {
             'dependency': 'afterok:%s' % jobs[0].jobid,
-            'hold': True,
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
-            'ntasks': 3,
+            'ntasks': 1,
+            'cpus-per-task': 3,
             'output': 'gzip-1.5-foss-2018a-%j.out',
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
