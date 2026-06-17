@@ -357,6 +357,7 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
         except OSError as err:
             raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
+
 def hardlink(source_path, link_path):
     """
     Create a hard link at the specified path to the given path.
@@ -376,6 +377,7 @@ def hardlink(source_path, link_path):
             _log.info(f"Linked {source_path} to {link_path}")
         except OSError as err:
             raise EasyBuildError(f"Linking {source_path} to {link_path} failed: {err}")
+
 
 def remove_file(path):
     """Remove file at specified path."""
