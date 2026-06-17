@@ -357,6 +357,25 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
         except OSError as err:
             raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
+def hardlink(source_path, link_path):
+    """
+    Create a hard link at the specified path to the given path.
+
+    :param source_path: source file path
+    :param link_path: hard link file path
+    """
+    if os.path.exists(link_path):
+        if not os.path.samefile(source_path, link_path):
+            raise EasyBuildError(
+                f"Trying to hardlink {source_path} to {link_path}, but the link already exists and is different."
+            )
+        _log.info(f"Skipping hard linking {source_path} to {link_path}, link already exists")
+    else:
+        try:
+            os.link(source_path, link_path)
+            _log.info(f"Linked {source_path} to {link_path}")
+        except OSError as err:
+            raise EasyBuildError(f"Linking {source_path} to {link_path} failed: {err}")
 
 def remove_file(path):
     """Remove file at specified path."""

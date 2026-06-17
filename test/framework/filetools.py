@@ -924,6 +924,24 @@ class FileToolsTest(EnhancedTestCase):
         self.assertFalse(os.path.islink(link))
         self.assertNotExists(link)
 
+    def test_remove_hardlinks(self):
+        """Test remove hardlinks"""
+
+        # creating test file
+        fp = os.path.join(self.test_prefix, 'test.txt')
+        txt = "test_my_link_file"
+        ft.write_file(fp, txt)
+
+        # creating the link
+        link = os.path.join(self.test_prefix, 'test.link')
+        ft.hardlink(fp, link)
+
+        # Attempting to remove a valid symlink
+        ft.remove_file(link)
+        self.assertFalse(os.path.islink(link))
+        self.assertNotExists(link)
+        self.assertExists(fp)
+
     def test_read_write_file(self):
         """Test reading/writing files."""
 
