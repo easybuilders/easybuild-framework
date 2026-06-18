@@ -29,6 +29,7 @@ Unit tests for framework/easyconfig/tweak.py
 """
 import os
 import sys
+from test.framework import TEST_ECS_DIR, TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -74,12 +75,11 @@ class TweakTest(EnhancedTestCase):
 
     def test_find_matching_easyconfigs(self):
         """Test find_matching_easyconfigs function."""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         for (name, installver) in [('GCC', '4.8.2'), ('gzip', '1.5-foss-2018a')]:
-            ecs = find_matching_easyconfigs(name, installver, [test_easyconfigs_path])
+            ecs = find_matching_easyconfigs(name, installver, [TEST_ECS_DIR])
             self.assertTrue(len(ecs) == 1 and ecs[0].endswith('/%s-%s.eb' % (name, installver)))
 
-        ecs = find_matching_easyconfigs('GCC', '*', [test_easyconfigs_path])
+        ecs = find_matching_easyconfigs('GCC', '*', [TEST_ECS_DIR])
         gccvers = ['10.2.0', '12.3.0', '4.6.3', '4.6.4', '4.8.2', '4.8.3', '4.9.2', '4.9.3-2.25',
                    '4.9.3-2.26', '6.4.0-2.28', '7.3.0-2.30']
         self.assertEqual(len(ecs), len(gccvers))
@@ -92,14 +92,13 @@ class TweakTest(EnhancedTestCase):
         """Test obtain_ec_for function."""
         init_config(build_options={'silent': True})
 
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         # find existing easyconfigs
         specs = {
             'name': 'GCC',
             'version': '6.4.0',
             'versionsuffix': '-2.28',
         }
-        (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
+        (generated, ec_file) = obtain_ec_for(specs, [TEST_ECS_DIR])
         self.assertFalse(generated)
         self.assertEqual(os.path.basename(ec_file), 'GCC-6.4.0-2.28.eb')
 
@@ -110,7 +109,7 @@ class TweakTest(EnhancedTestCase):
             'toolchain_version': '2018a',
             'versionsuffix': '-OpenBLAS-0.2.20',
         }
-        (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
+        (generated, ec_file) = obtain_ec_for(specs, [TEST_ECS_DIR])
         self.assertFalse(generated)
         self.assertEqual(os.path.basename(ec_file), 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb')
 
@@ -118,7 +117,7 @@ class TweakTest(EnhancedTestCase):
             'name': 'ifort',
             'versionsuffix': '-GCC-4.9.3-2.25',
         }
-        (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
+        (generated, ec_file) = obtain_ec_for(specs, [TEST_ECS_DIR])
         self.assertFalse(generated)
         self.assertEqual(os.path.basename(ec_file), 'ifort-2016.1.150-GCC-4.9.3-2.25.eb')
 
@@ -126,7 +125,7 @@ class TweakTest(EnhancedTestCase):
         specs = {
             'name': 'GCC',
         }
-        (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
+        (generated, ec_file) = obtain_ec_for(specs, [TEST_ECS_DIR])
         self.assertFalse(generated)
         self.assertEqual(os.path.basename(ec_file), 'GCC-12.3.0.eb')
 
@@ -136,48 +135,45 @@ class TweakTest(EnhancedTestCase):
             'name': 'GCC',
             'version': '4.9.0',
         }
-        (generated, ec_file) = obtain_ec_for(specs, [test_easyconfigs_path])
+        (generated, ec_file) = obtain_ec_for(specs, [TEST_ECS_DIR])
         self.assertTrue(generated)
         self.assertEqual(os.path.basename(ec_file), 'GCC-4.9.0.eb')
 
     def test_tweak_one_version(self):
         """Test tweak_one function"""
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs_path, 't', 'toy', 'toy-0.0.eb')
 
         # test tweaking of software version (--try-software-version)
         tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-tweaked.eb')
-        tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        tweak_one(TOY_EC, tweaked_toy_ec, {'version': '1.2.3'})
 
-        toy_ec_parsed = EasyConfigParser(toy_ec).get_config_dict()
+        TOY_EC_parsed = EasyConfigParser(TOY_EC).get_config_dict()
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
 
         # checksums should be reset to empty list, only version should be changed, nothing else
         self.assertEqual(tweaked_toy_ec_parsed['checksums'], [])
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
-        for key in [k for k in toy_ec_parsed.keys() if k not in ['checksums', 'version']]:
-            val = toy_ec_parsed[key]
+        for key in [k for k in TOY_EC_parsed.keys() if k not in ['checksums', 'version']]:
+            val = TOY_EC_parsed[key]
             self.assertIn(key, tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
             tweaked_val = tweaked_toy_ec_parsed.get(key)
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))
 
         # check behaviour if target file already exists
         error_pattern = "File exists, not overwriting it without --force"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        self.assertErrorRegex(EasyBuildError, error_pattern, tweak_one, TOY_EC, tweaked_toy_ec, {'version': '1.2.3'})
 
         # existing file does get overwritten when --force is used
         init_config(build_options={'force': True, 'silent': True})
         write_file(tweaked_toy_ec, '')
-        tweak_one(toy_ec, tweaked_toy_ec, {'version': '1.2.3'})
+        tweak_one(TOY_EC, tweaked_toy_ec, {'version': '1.2.3'})
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
 
     def test_check_capability_mapping(self):
         """Test comparing the functionality of two toolchains"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
+            'robot_path': str(TEST_ECS_DIR),
         })
         get_toolchain_hierarchy.clear()
         foss_hierarchy = get_toolchain_hierarchy({'name': 'foss', 'version': '2018a'}, incl_capabilities=True)
@@ -206,9 +202,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_match_minimum_tc_specs(self):
         """Test matching a toolchain to lowest possible in a hierarchy"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'robot_path': test_easyconfigs,
+            'robot_path': str(TEST_ECS_DIR),
             'silent': True,
             'valid_module_classes': module_classes(),
         })
@@ -244,10 +239,9 @@ class TweakTest(EnhancedTestCase):
 
     def test_dep_tree_of_toolchain(self):
         """Test getting list of dependencies of a toolchain (as EasyConfig objects)"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': test_easyconfigs,
+            'robot_path': str(TEST_ECS_DIR),
             'check_osdeps': False,
         })
         toolchain_spec = {'name': 'foss', 'version': '2018a'}
@@ -267,9 +261,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_map_toolchain_hierarchies(self):
         """Test mapping between two toolchain hierarchies"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'robot_path': test_easyconfigs,
+            'robot_path': str(TEST_ECS_DIR),
             'silent': True,
             'valid_module_classes': module_classes(),
         })
@@ -311,16 +304,15 @@ class TweakTest(EnhancedTestCase):
 
     def test_get_matching_easyconfig_candidates(self):
         """Test searching for easyconfig candidates based on a stub and toolchain"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
         })
         toolchain = {'name': 'GCC', 'version': '4.9.3-2.26'}
         paths, toolchain_suff = get_matching_easyconfig_candidates('gzip-', toolchain)
         expected_toolchain_suff = '-GCC-4.9.3-2.26'
         self.assertEqual(toolchain_suff, expected_toolchain_suff)
-        expected_paths = [os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4' + expected_toolchain_suff + '.eb')]
+        expected_paths = [os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4' + expected_toolchain_suff + '.eb')]
         self.assertEqual(paths, expected_paths)
 
         paths, toolchain_stub = get_matching_easyconfig_candidates('nosuchmatch', toolchain)
@@ -329,9 +321,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_map_common_versionsuffixes(self):
         """Test mapping between two toolchain hierarchies"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
             'valid_module_classes': module_classes(),
         })
@@ -355,9 +346,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_find_potential_version_mappings(self):
         """Test ability to find potential version mappings of a dependency for a given toolchain mapping"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         init_config(build_options={
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
             'valid_module_classes': module_classes(),
         })
@@ -367,7 +357,7 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         # The below mapping includes a binutils mapping (2.26 to 2.25)
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
-        ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         parsed_ec = process_easyconfig(ec_spec)[0]
         gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip'][0]
         self.assertEqual(gzip_dep['full_mod_name'], 'gzip/1.4-GCC-4.9.3-2.26')
@@ -376,7 +366,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(len(potential_versions), 1)
         # Should see version 1.6 of gzip with iccifort toolchain
         expected = {
-            'path': os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
+            'path': os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
             'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'version': '1.6',
             'versionsuffix': '',
@@ -408,7 +398,7 @@ class TweakTest(EnhancedTestCase):
         potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)
         self.assertEqual(len(potential_versions), 1)
         expected = {
-            'path': os.path.join(test_easyconfigs, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
+            'path': os.path.join(TEST_ECS_DIR, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
             'toolchain': {'version': '6.4.0-2.28', 'name': 'GCC'},
             'version': '0.2.20',
             'versionsuffix': '',
@@ -417,9 +407,8 @@ class TweakTest(EnhancedTestCase):
 
     def test_map_easyconfig_to_target_tc_hierarchy(self):
         """Test mapping of easyconfig to target hierarchy"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
             'valid_module_classes': module_classes(),
         }
@@ -430,7 +419,7 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         # The below mapping includes a binutils mapping (2.26 to 2.25)
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
-        ec_spec = os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
         tweaked_dict = tweaked_ec['ec'].asdict()
@@ -497,7 +486,7 @@ class TweakTest(EnhancedTestCase):
 
         # Check that if we update a software version, it also updates the version if the software appears in an
         # extension list (like for a PythonBundle)
-        ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         # Create the trivial toolchain mapping
         toolchain = {'name': 'gompi', 'version': '2018a'}
         tc_mapping = map_toolchain_hierarchies(toolchain, toolchain, self.modtool)
@@ -523,20 +512,19 @@ class TweakTest(EnhancedTestCase):
 
     def test_list_deps_versionsuffixes(self):
         """Test listing of dependencies' version suffixes"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
 
-        ec_spec = os.path.join(test_easyconfigs, 'g', 'golf', 'golf-2018a.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 'g', 'golf', 'golf-2018a.eb')
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-serial'])
-        ec_spec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
         self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
-        ec_spec = os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_spec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
 
 
