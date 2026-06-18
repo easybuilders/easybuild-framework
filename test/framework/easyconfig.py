@@ -1328,7 +1328,6 @@ class EasyConfigTest(EnhancedTestCase):
         gompi_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a.eb'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
-
         ec = EasyConfig(test_ec)
         self.assertEqual(ec['sanity_check_commands'], ['mpirun -n 1 toy'])
 
