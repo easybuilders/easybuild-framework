@@ -3569,7 +3569,7 @@ class EasyConfigTest(EnhancedTestCase):
         # Unmodified files get excluded
         modified_file = expected
         write_file(modified_file, "")
-        res = copy_easyconfigs(ecs_to_copy, target_dir)
+        res = copy_easyconfigs(ecs_to_copy, target_dir, ignore_unchanged_files=True)
         self.assertEqual(len(res['ecs']), 1)
         self.assertEqual(res['new'], [False])
         self.assertEqual(len(res['paths_in_repo']), 1)

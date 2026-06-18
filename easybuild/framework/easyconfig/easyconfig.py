@@ -49,7 +49,7 @@ import os
 import re
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Optional
+from typing import List, Optional
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -2659,7 +2659,7 @@ def clean_up_easyconfigs(paths):
         write_file(path, ectxt, forced=True)
 
 
-def det_file_info(paths, target_dir):
+def det_file_info(paths: List[str], target_dir: str, ignore_unchanged_files: bool = False):
     """
     Determine useful information on easyconfig files relative to a target directory,
     before any actual operation (e.g. copying) is performed
@@ -2688,7 +2688,7 @@ def det_file_info(paths, target_dir):
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
 
             new_file = not os.path.exists(target_path)
-            if not new_file and filecmp.cmp(path, target_path):
+            if ignore_unchanged_files and not new_file and filecmp.cmp(path, target_path):
                 continue  # Ignore unchanged files
 
             file_info['paths'].append(path)
@@ -2706,7 +2706,7 @@ def det_file_info(paths, target_dir):
     return file_info
 
 
-def copy_easyconfigs(paths, target_dir):
+def copy_easyconfigs(paths: List[str], target_dir: str, ignore_unchanged_files: bool = False):
     """
     Copy easyconfig files to specified directory, in the 'right' location and using the filename expected by robot.
 
@@ -2714,7 +2714,7 @@ def copy_easyconfigs(paths, target_dir):
     :param target_dir: target directory
     :return: dict with useful information on copied easyconfig files (corresponding EasyConfig instances, paths, status)
     """
-    file_info = det_file_info(paths, target_dir)
+    file_info = det_file_info(paths, target_dir, ignore_unchanged_files)
 
     for path, target_path in zip(file_info['paths'], file_info['paths_in_repo']):
         copy_file(path, target_path, force_in_dry_run=True)
@@ -2738,6 +2738,7 @@ def copy_patch_files(patch_specs, target_dir):
     for patch_path, soft_name in patch_specs:
         target_path = det_location_for(patch_path, target_dir, soft_name, os.path.basename(patch_path))
         if os.path.exists(target_path) and filecmp.cmp(patch_path, target_path):
+            _log.debug(f"Skipping copy for file {patch_path}, identical file already exists at {target_path}")
             continue  # Skip copy and entry if not modified
         copy_file(patch_path, target_path, force_in_dry_run=True)
         patched_files['paths_in_repo'].append(target_path)

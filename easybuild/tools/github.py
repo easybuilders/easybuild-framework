@@ -1172,7 +1172,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
         abs_paths = [os.path.realpath(os.path.abspath(path)) for path in ec_paths]
         dep_paths = [ec['spec'] for ec in ecs if os.path.realpath(ec['spec']) not in abs_paths]
         _log.info("Paths to easyconfigs for missing dependencies: %s", dep_paths)
-        all_dep_info = copy_easyconfigs(dep_paths, target_dir)
+        all_dep_info = copy_easyconfigs(dep_paths, target_dir, ignore_unchanged_files=True)
 
         # only consider new easyconfig files for dependencies (not updated ones)
         for idx in range(len(all_dep_info['ecs'])):
@@ -1890,7 +1890,7 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
     pr_files = [p for p in fetch_easyconfigs_from_pr(pr) if p.endswith('.eb')]
 
-    file_info = det_file_info(pr_files, download_repo_path)
+    file_info = det_file_info(pr_files, download_repo_path, ignore_unchanged_files=True)
 
     pr_target_account = build_option('pr_target_account')
     github_user = build_option('github_user')
@@ -2084,7 +2084,7 @@ def new_pr_from_branch(branch_name, title=None, descr=None, pr_target_repo=None,
         # path to easyconfig files is expected to be absolute in det_file_info
         ec_paths = [os.path.join(git_working_dir, pr_target_repo, x) for x in ec_paths]
 
-        file_info = det_file_info(ec_paths, target_dir)
+        file_info = det_file_info(ec_paths, target_dir, ignore_unchanged_files=True)
 
     labels = det_pr_labels(file_info, pr_target_repo)
 
@@ -2953,7 +2953,7 @@ def sync_branch_with_develop(branch_name):
 
 # copy functions for --new-pr
 COPY_FUNCTIONS = {
-    GITHUB_EASYCONFIGS_REPO: copy_easyconfigs,
+    GITHUB_EASYCONFIGS_REPO: functools.partial(copy_easyconfigs, ignore_unchanged_files=True),
     GITHUB_EASYBLOCKS_REPO: copy_easyblocks,
     GITHUB_FRAMEWORK_REPO: copy_framework_files,
 }
