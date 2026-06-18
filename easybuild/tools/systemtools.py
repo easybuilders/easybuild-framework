@@ -780,7 +780,7 @@ def get_gpu_info(environment=None):
 
             # example of expected output for 'rocm-smi --showproductname --csv':
             # device,Card Series,Card Model,Card Vendor,Card SKU,Subsystem ID,Device Rev,Node ID,GUID,GFX Version
-            # card0,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,8,13025,gfx90a  # noqa (ignore long line)
+            # card0,AMD Instinct MI250X/MI250,0x740c,Advanced Micro Devices Inc. [AMD/ATI],D65209,0x0b0c,0x01,8,13025,gfx90a  # noqa pylint:disable=line-too-long
             cmd = "rocm-smi --showproductname --csv"
             _log.debug("Trying to determine AMD GPU info on Linux via cmd '%s'", cmd)
             res = run_shell_cmd(cmd, fail_on_error=False, in_dry_run=True, hidden=True, with_hooks=False,
