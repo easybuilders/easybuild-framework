@@ -34,6 +34,7 @@ import shutil
 import sys
 import tempfile
 from importlib import reload
+from test.framework import TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -264,8 +265,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(os.path.join(TEST_ECS_DIR), os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -498,9 +498,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
-        copy_dir(test_ecs_path, tmp_ecs_dir)
+        copy_dir(os.path.join(TEST_ECS_DIR), tmp_ecs_dir)
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]

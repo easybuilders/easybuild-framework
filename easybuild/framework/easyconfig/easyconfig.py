@@ -2327,7 +2327,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
     if not build_specs:
-        cache_key = (path, validate, hidden, parse_only)
+        cache_key = (str(path), validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             # Note: This does NOT copy EasyConfig instances but the dict containing an instance in the 'ec' key.
             # So modifications to the `EasyConfig` instance will be shared.
