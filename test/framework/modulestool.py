@@ -41,6 +41,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod
+from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import init_config
 
 
@@ -164,7 +165,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['PATH'] = join_path_var(new_paths)
 
             # make sure $MODULEPATH contains path that provides some modules
-            os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+            os.environ['MODULEPATH'] = os.path.abspath(TEST_MODULES_DIR)
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
             fake_path = os.path.join(self.test_installpath, 'lmod')

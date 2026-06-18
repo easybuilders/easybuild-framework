@@ -38,7 +38,7 @@ import textwrap
 from inspect import cleandoc
 from itertools import product
 from unittest import TextTestRunner
-from test.framework import TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
+from test.framework import TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 import easybuild.tools.modules as modules
