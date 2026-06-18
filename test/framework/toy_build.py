@@ -43,9 +43,9 @@ import filecmp
 from importlib import reload
 from unittest import TextTestRunner
 
-from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
 from test.framework.package import mock_fpm
+from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
