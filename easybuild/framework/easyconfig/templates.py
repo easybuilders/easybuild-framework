@@ -170,7 +170,7 @@ TEMPLATE_CONSTANTS = {
     'SOURCEFORGE_SOURCE': ('https://download.sourceforge.net/%(namelower)s',
                            'sourceforge.net source url'),
     'XORG_APP_SOURCE': ('https://xorg.freedesktop.org/archive/individual/app/',
-                         'xorg app source url'),
+                        'xorg app source url'),
     'XORG_DATA_SOURCE': ('https://xorg.freedesktop.org/archive/individual/data/',
                          'xorg data source url'),
     'XORG_LIB_SOURCE': ('https://xorg.freedesktop.org/archive/individual/lib/',
