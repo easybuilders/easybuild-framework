@@ -67,7 +67,7 @@ from easybuild.tools.build_log import dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, escape_for_rich, print_error
-from easybuild.tools.utilities import trace_msg
+from easybuild.tools.utilities import capitalize_first_letter, trace_msg
 
 
 _log = fancylogger.getLogger('run', fname=False)
@@ -455,16 +455,16 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     cmd_str = to_cmd_str(cmd)
     cmd_name = cmd_str.split(' ', 1)[0]
     cmd_type_msg = ('interactive ' if interactive else '') + ('shell command' if use_bash else 'command')
-    short_cmd_msg = f"'{cmd_name} ...' {cmd_type_msg}"  # E.g. "'gcc ...' shell command"
+    short_cmd_msg = f"{cmd_type_msg} '{cmd_name} ...'"  # E.g. "shell command 'gcc ...'"
 
     thread_id = None
     if asynchronous:
         thread_id = get_thread_id()
-        _log.info(f"Initiating running of shell command '{short_cmd_msg}' via thread with ID {thread_id}")
+        _log.info(f"Initiating running of {short_cmd_msg} via thread with ID {thread_id}")
 
     # auto-enable streaming of command output under --logtostdout/-l, unless it was disabled explicitely
     if stream_output is None and build_option('logtostdout'):
-        _log.info(f"Auto-enabling streaming output of '{short_cmd_msg}' command because logging to stdout is enabled")
+        _log.info(f"Auto-enabling streaming output of {short_cmd_msg} because logging to stdout is enabled")
         stream_output = True
 
     # temporary output file(s) for command output, along with helper scripts
@@ -526,7 +526,7 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
     stderr_handle = subprocess.PIPE if split_stderr else subprocess.STDOUT
     stdin_handle = subprocess.PIPE if stdin or qa_patterns else subprocess.DEVNULL
 
-    log_msg = f"Running {short_cmd_msg} in {work_dir}:\n\t{cmd_str}"
+    log_msg = f"Running {cmd_type_msg} in {work_dir}:\n\t{cmd_str}"
     if thread_id:
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
@@ -638,19 +638,19 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
 
     # log command output (unless command was successful and log_output_on_success is disabled)
     if split_stderr:
-        log_msg = f"Output of {short_cmd_msg} (stdout only):\n{res.output}\n\n"
-        log_msg += f"Warnings and errors of {short_cmd_msg} (stderr only):\n{res.stderr}"
+        log_msg = f"Output (stdout only):\n{res.output}\n\n"
+        log_msg += f"Warnings and errors (stderr only):\n{res.stderr}"
     else:
-        log_msg = f"Output of {short_cmd_msg} (stdout + stderr):\n{res.output}"
+        log_msg = f"Output (stdout + stderr):\n{res.output}"
 
-    cmd_type_msg = cmd_type_msg[:1].upper() + cmd_type_msg[1:]  # capitalize first letter
+    cmd_status_msg = capitalize_first_letter(short_cmd_msg if stream_output or qa_patterns else cmd_type_msg)
     if res.exit_code == EasyBuildExit.SUCCESS:
-        _log.info(f"{short_cmd_msg} completed successfully")
+        msg = f"{cmd_status_msg} completed successfully"
         if log_output_on_success:
-            _log.info(log_msg)
+            msg += f'\n{log_msg}'
+        _log.info(msg)
     else:
-        _log.warning(f"{short_cmd_msg} FAILED (exit code {res.exit_code})")
-        _log.info(log_msg)
+        _log.warning(f"{cmd_status_msg} FAILED (exit code {res.exit_code})\n{log_msg}")
         if fail_on_error:
             raise_run_shell_cmd_error(res)
 
@@ -660,13 +660,14 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         os.getcwd()
     except FileNotFoundError:
         _log.warning(
-            f"{short_cmd_msg} completed successfully but left the system in an unknown working directory. "
+            f"{capitalize_first_letter(cmd_type_msg)} completed successfully "
+            "but left the system in an unknown working directory. "
             f"Changing back to initial working directory: {initial_work_dir}"
         )
         try:
             os.chdir(initial_work_dir)
         except OSError as err:
-            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing {short_cmd_msg}: {err}")
+            raise EasyBuildError(f"Failed to return to {initial_work_dir} after executing {cmd_type_msg}: {err}")
 
     if not hidden:
         time_since_start = time_str_since(start_time)

@@ -40,6 +40,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+import unittest.mock
 from inspect import cleandoc
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -59,6 +60,7 @@ from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, 
 from easybuild.tools.filetools import remove_dir, remove_file, symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
 from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
+from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL
 from easybuild.tools.run import RunShellCmdError
 from easybuild.tools.version import get_git_revision, this_is_easybuild
 
@@ -1269,6 +1271,55 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg.iterating, False)
         self.assertEqual(eb.cfg['configopts'], ["--opt1 --anotheropt", "--opt2", "--opt3 --optbis"])
 
+    def test_fetch_step(self):
+        """Test fetching sources."""
+        init_config([f'--sourcepath={self.test_prefix}'])
+        url = 'https://dummy-url-for-testing'
+        source_fn = 'mysource.tar.gz'
+        patch_fn = 'my_fix.patch'
+        self.contents = textwrap.dedent(f"""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            source_urls = ['{url}']
+            sources = ['{source_fn}']
+            patches = ['{patch_fn}']
+        """)
+        expected_path_src = os.path.join(self.test_prefix, 'u', 'Uniq_1', source_fn)
+        expected_path_patch = os.path.join(self.test_prefix, 'u', 'Uniq_1', patch_fn)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        def create_file(_filename, _url, path, *_args, **_kwargs):
+            write_file(path, 'content')
+            return True
+        mocked_pg = unittest.mock.MagicMock()
+        with unittest.mock.patch('easybuild.framework.easyblock.download_file',
+                                 side_effect=create_file) as mocked_download, \
+             unittest.mock.patch.dict('easybuild.tools.output.PROGRESS_BAR_TYPES',
+                                      {PROGRESS_BAR_DOWNLOAD_ALL: lambda *_args, **_kwargs: mocked_pg}):
+            eb.fetch_step()
+            call = unittest.mock.call
+            self.assertEqual(mocked_download.call_args_list, [
+                call(source_fn, f'{url}/{source_fn}', expected_path_src),
+                call(patch_fn, f'{url}/{patch_fn}', expected_path_patch),
+            ])
+            mocked_pg.add_task.assert_called_once()
+            task = mocked_pg.add_task.return_value
+            self.assertEqual(mocked_pg.update.call_args_list, [
+                call(task, total=2),
+                call(task, description=source_fn),
+                call(task, advance=1),
+                call(task, description=patch_fn),
+                call(task, advance=1),
+                call(task, visible=False),
+            ])
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path_src))
+        self.assertTrue(os.path.samefile(eb.patches[0]['path'], expected_path_patch))
+
     def test_test_cases_step(self):
         """Test test_cases_step"""
         self.contents = '\n'.join([
@@ -1573,10 +1624,10 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True)
             stdout = self.get_stdout()
         logtxt = read_file(eb.logfile)
-        regexs = [r'Running .* shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
+        regexs = [r'Running shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
         self.assert_multi_regex(regexs, logtxt)
         # modulename: False skips the check
-        self.assertNotRegex(logtxt, r"Running .* shell command in .*:\n\sif \[ (False|ext4)")
+        self.assertNotRegex(logtxt, r"Running shell command .* in .*:\n\sif \[ (False|ext4)")
 
         patterns = [
             r"^== skipping extension EXT-2",

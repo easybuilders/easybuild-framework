@@ -45,7 +45,7 @@ from socket import gethostname
 # recent setuptools versions will *TRANSFORM* something like 'X.Y.Zdev' into 'X.Y.Z.dev0', with a warning like
 #   UserWarning: Normalizing '2.4.0dev' to '2.4.0.dev0'
 # This causes problems further up the dependency chain...
-VERSION = LooseVersion('5.3.1.dev0')
+VERSION = LooseVersion('5.3.2.dev0')
 UNKNOWN = 'UNKNOWN'
 UNKNOWN_EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'
 
@@ -64,7 +64,7 @@ def get_git_revision():
     try:
         path = os.path.dirname(__file__)
         gitrepo = Git(path)
-        res = gitrepo.rev_list('HEAD').splitlines()[0]
+        res = gitrepo.rev_list('-n', '1', 'HEAD').splitlines()[0]
         # 'encode' may be required to make sure a regular string is returned rather than a unicode string
         # (only needed in Python 2; in Python 3, regular strings are already unicode)
         if not isinstance(res, str):

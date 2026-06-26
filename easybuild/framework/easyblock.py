@@ -144,14 +144,13 @@ _log = fancylogger.getLogger('easyblock')
 def _obtain_file_update_progress_bar_on_return(func):
     """Decorator for obtain_file() to update the progress bar upon return"""
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        result = func(*args, **kwargs)
-        filename = args[1]
-
-        # We don't account for the checksums file in the progress bar
-        if filename != CHECKSUMS_JSON:
-            update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
-
+    def wrapper(self, filename, *args, **kwargs):
+        try:
+            result = func(self, filename, *args, **kwargs)
+        finally:
+            # We don't account for the checksums file in the progress bar
+            if filename != CHECKSUMS_JSON:
+                update_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
         return result
     return wrapper
 
@@ -862,7 +861,6 @@ class EasyBlock:
 
         return exts_sources
 
-    @_obtain_file_update_progress_bar_on_return
     def obtain_file(self, filename, **kwargs):
         """
         Locate file with given name.

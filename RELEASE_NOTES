@@ -3,6 +3,28 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
+v5.3.1 (19 Jun 2026)
+--------------------
+
+update/bugfix release
+
+- bug fixes:
+  - don't call `render` when using `--dep-graph` to create `.dot` file (#5171)
+  - fix duplicate counting of download progress in `obtain_file` (#5174)
+  - enhance `cmd.sh` so it works in non-interactive mode, like when passing `-c` to run a command (#5187)
+- enhancements:
+  - document where architecture dicts are allowed in easyconfig parameters & fix version templates for removed dependencies (#5150)
+  - add support for `--include-job-backends` and `--avail-job-backends` (#5178)
+  - warn when using `get_cpu_arch_name` when `archspec` is not installed (#5193)
+  - remove repetition of shell command in log (#5195)
+  - add `get_ptrace_scope` function to `systemtools` to determine value for `ptrace_scope` (#5199)
+- enhancements and fixes for test suite:
+  - add test to check how many `EasyConfig` instances are created when parsing a bunch of easyconfigs (#5168)
+  - fix copy-paste error in `test_toy_cuda_sanity_check` and simplify (#5183)
+  - use flex instead of bzip2 for end-to-end tests in CI (+ update CI workflows) (#5196)
+  - fix `test_github_merge_pr` by using more recent easyconfig PR (#5197)
+
+
 v5.3.0 (10 Apr 2026)
 --------------------
 
@@ -255,7 +277,7 @@ v5.0.0 (18 March 2025)
 
 major release (includes breaking changes)
 
-- remove support for Python 2.7 and 3.5 (#4229, #4270, #4306, #4473, #4477, #4476, #4478, #4524, #4607, #4756, #4810, #4811) 
+- remove support for Python 2.7 and 3.5 (#4229, #4270, #4306, #4473, #4477, #4476, #4478, #4524, #4607, #4756, #4810, #4811)
   - also run unit test suite with Python 3.12 + 3.13 (#4484, #4674)
 - changed defaults in EasyBuild configuration:
   - enable --trace by default (#4250, #4310, #4311, #4491)

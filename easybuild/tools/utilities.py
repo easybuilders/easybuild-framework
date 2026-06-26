@@ -125,6 +125,13 @@ def remove_unwanted_chars(inputstring):
     return ''.join(c for c in inputstring if c in (ascii_letters + digits + '_'))
 
 
+def capitalize_first_letter(string: str) -> str:
+    """Capitalize the first letter of the given string."""
+    if not string:
+        return string
+    return string[0].upper() + string[1:]
+
+
 def import_available_modules(namespace):
     """
     Import all available module in the specified namespace.

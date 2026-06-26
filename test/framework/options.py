@@ -5786,7 +5786,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_debug_module_cmds(self):
         """Test use of --debug-module-cmds."""
         patterns = [
-            "Output of ",
+            r"Output \(stdout only\):",
             r"os\.env.*EBROOTGCC.*=",
             r"os\.env.*PATH.*=",
         ]
