@@ -126,21 +126,25 @@ def prepare_bwrap(bwrap_installpath):
     for mod in sorted(get_bwrap_info('modules_to_install')):
         installdir = os.path.join(os.path.realpath(installpath_software), mod)
         bwrap_installdir = os.path.join(bwrap_installpath_software, mod)
+        mkdir(bwrap_installdir, parents=True)
+
+        moddir = mod.split('/')[0]
+        bwrap_moduledir = os.path.join(bwrap_installpath_modules, sufmodpath, moddir)
+        mkdir(bwrap_moduledir, parents=True)
+        moduledir = os.path.join(os.path.realpath(installpath_modules), sufmodpath, moddir)
+
         use_overlayfs = False
         try:
             mkdir(installdir, parents=True)
+            mkdir(moduledir, parents=True)
         except EasyBuildError:
             # if we can't create the external installation directory, try to use overlayfs
             use_overlayfs = True
-        mkdir(bwrap_installdir, parents=True)
-        moddir = mod.split('/')[0]
-        moduledir = os.path.join(os.path.realpath(installpath_modules), sufmodpath, moddir)
-        bwrap_moduledir = os.path.join(bwrap_installpath_modules, sufmodpath, moddir)
-        mkdir(moduledir, parents=True)
-        mkdir(bwrap_moduledir, parents=True)
+
         # copy module files from moduledir to bwrap_moduledir to ensure all installed modules are available
         # required for building multiple unrelated easyconfigs (e.g. easystacks)
         copy_dir(moduledir, bwrap_moduledir, dirs_exist_ok=True)
+
         if use_overlayfs:
             bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', mod)
             mkdir(bwrap_workdir, parents=True)
