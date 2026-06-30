@@ -153,6 +153,9 @@ def prepare_bwrap(bwrap_installpath):
             while not os.path.exists(installdir):
                 installdir = os.path.dirname(installdir)
                 bwrap_installdir = os.path.dirname(bwrap_installdir)
+            while not os.path.exists(moduledir):
+                moduledir = os.path.dirname(moduledir)
+                bwrap_moduledir = os.path.dirname(bwrap_moduledir)
             bwrap_opts.update({
                 f'--overlay-src {installdir} --overlay {bwrap_installdir} {bwrap_workdir} {installdir}',
                 f'--overlay-src {moduledir} --overlay {bwrap_moduledir} {bwrap_workdir} {moduledir}',
