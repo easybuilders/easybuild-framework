@@ -143,7 +143,8 @@ def prepare_bwrap(bwrap_installpath):
 
         # copy module files from moduledir to bwrap_moduledir to ensure all installed modules are available
         # required for building multiple unrelated easyconfigs (e.g. easystacks)
-        copy_dir(moduledir, bwrap_moduledir, dirs_exist_ok=True)
+        if os.path.exists(moduledir):
+            copy_dir(moduledir, bwrap_moduledir, dirs_exist_ok=True)
 
         if use_overlayfs:
             bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', mod)
