@@ -197,6 +197,9 @@ jobs:
           bash -l <<EOF
             source /tmp/eb_env
 
+            # remove previously created install directories
+            rm -r $HOME/.local/easybuild/{software,modules}/*
+
             # make sure that --prefix also determines default value for bwrap-installpath
             eb --show-config --prefix /tmp | grep "bwrap-installpath [ ]* \(C\) = /tmp/bwrap"
 
@@ -218,7 +221,7 @@ jobs:
             source /tmp/eb_env
 
             # remove previously created install directories
-            rm -r $HOME/.local/easybuild/software/* /tmp/bwrap-installpath
+            rm -r $HOME/.local/easybuild/{software,modules}/* /tmp/bwrap-installpath
 
             # make install directory read-only to force using overlay
             chmod -w $HOME/.local/easybuild/software
