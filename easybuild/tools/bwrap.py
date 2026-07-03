@@ -122,6 +122,8 @@ def prepare_bwrap(bwrap_installpath):
 
     mkdir(bwrap_installpath_modules, parents=True)
 
+    bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
+
     try:
         mkdir(installpath_modules, parents=True)
         # copy installpath_modules to bwrap_installpath_moduleto ensure all installed modules are available
@@ -134,7 +136,6 @@ def prepare_bwrap(bwrap_installpath):
         })
     except EasyBuildError:
         # if we can't create the external modules directory, try to use overlayfs
-        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
         mkdir(bwrap_workdir, parents=True)
         bwrap_opts.update({
             f'--overlay-src {installpath_modules} --overlay {bwrap_installpath_modules} {bwrap_workdir} '
