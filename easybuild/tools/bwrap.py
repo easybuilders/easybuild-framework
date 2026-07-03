@@ -137,8 +137,7 @@ def prepare_bwrap(bwrap_installpath):
         mkdir(bwrap_workdir, parents=True)
         bwrap_cmd.extend([
             '--overlay-src', installpath_modules,
-            '--overlay', bwrap_installpath_modules,
-            bwrap_workdir, installpath_modules])
+            '--overlay', bwrap_installpath_modules, bwrap_workdir, installpath_modules])
 
     # store bwrap options in a set to avoid duplicate binds
     bwrap_opts = set()
@@ -164,8 +163,7 @@ def prepare_bwrap(bwrap_installpath):
             mkdir(bwrap_workdir, parents=True)
             bwrap_opts.add((
                 '--overlay-src', installdir,
-                '--overlay', bwrap_installdir,
-                bwrap_workdir, installdir))
+                '--overlay', bwrap_installdir, bwrap_workdir, installdir))
         else:
             bwrap_opts.add((
                 '--bind', bwrap_installdir, installdir))
