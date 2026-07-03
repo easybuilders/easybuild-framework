@@ -877,13 +877,14 @@ class ModulesTool:
             self.set_mod_paths()
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
-            # determine module path for EasyBuild install path to be included in $MODULEPATH
-            eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
+            if not build_option('bwrap'):
+                # determine module path for EasyBuild install path to be included in $MODULEPATH
+                eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
 
-            # make sure EasyBuild module path is in 1st place
-            mkdir(eb_modpath, parents=True)
-            self.prepend_module_path(eb_modpath)
-            self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
+                # make sure EasyBuild module path is in 1st place
+                mkdir(eb_modpath, parents=True)
+                self.prepend_module_path(eb_modpath)
+                self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
         curr_mod_paths = curr_module_paths()
