@@ -35,7 +35,7 @@ import os
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, install_path, ConfigurationVariables
+from easybuild.tools.config import install_path, ConfigurationVariables
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.utilities import trace_msg
 
@@ -104,10 +104,10 @@ def prepare_bwrap(bwrap_installpath):
 
     set_bwrap_info('bwrap_installpath', bwrap_installpath)
 
-    installpath_software = install_path(typ='software')
+    installpath_software = os.path.realpath(install_path(typ='software'))
     set_bwrap_info('installpath_software', installpath_software)
 
-    installpath_modules = install_path(typ='modules')
+    installpath_modules = os.path.realpath(install_path(typ='modules'))
     set_bwrap_info('installpath_modules', installpath_modules)
 
     variables = ConfigurationVariables()
@@ -116,11 +116,30 @@ def prepare_bwrap(bwrap_installpath):
     set_bwrap_info('bwrap_installpath_software', bwrap_installpath_software)
     set_bwrap_info('bwrap_installpath_modules', bwrap_installpath_modules)
 
-    sufmodpath = build_option('suffix_modules_path')
-
     bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
-    # use a set to eliminate duplicate binds
+    # store bwrap options in a set to avoid duplicate binds
     bwrap_opts = set()
+
+    mkdir(bwrap_installpath_modules, parents=True)
+
+    try:
+        mkdir(installpath_modules, parents=True)
+        # copy installpath_modules to bwrap_installpath_moduleto ensure all installed modules are available
+        # required for building multiple unrelated easyconfigs (e.g. easystacks)
+        if os.path.exists(installpath_modules):
+            copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
+        # bind mount the modules installpath
+        bwrap_opts.update({
+            f'--bind {bwrap_installpath_modules} {installpath_modules}',
+        })
+    except EasyBuildError:
+        # if we can't create the external modules directory, try to use overlayfs
+        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
+        mkdir(bwrap_workdir, parents=True)
+        bwrap_opts.update({
+            f'--overlay-src {installpath_modules} --overlay {bwrap_installpath_modules} {bwrap_workdir} '
+            f'{installpath_modules}',
+        })
 
     # bind mount all software directories
     for mod in sorted(get_bwrap_info('modules_to_install')):
@@ -128,42 +147,24 @@ def prepare_bwrap(bwrap_installpath):
         bwrap_installdir = os.path.join(bwrap_installpath_software, mod)
         mkdir(bwrap_installdir, parents=True)
 
-        moddir = mod.split('/')[0]
-        bwrap_moduledir = os.path.join(bwrap_installpath_modules, sufmodpath, moddir)
-        mkdir(bwrap_moduledir, parents=True)
-        moduledir = os.path.join(os.path.realpath(installpath_modules), sufmodpath, moddir)
-
         use_overlayfs = False
         try:
             mkdir(installdir, parents=True)
-            mkdir(moduledir, parents=True)
         except EasyBuildError:
             # if we can't create the external installation directory, try to use overlayfs
             use_overlayfs = True
 
-        # copy module files from moduledir to bwrap_moduledir to ensure all installed modules are available
-        # required for building multiple unrelated easyconfigs (e.g. easystacks)
-        if os.path.exists(moduledir):
-            copy_dir(moduledir, bwrap_moduledir, dirs_exist_ok=True)
-
         if use_overlayfs:
-            bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', mod)
-            mkdir(bwrap_workdir, parents=True)
             # go up the tree until we find a directory that exists
             while not os.path.exists(installdir):
                 installdir = os.path.dirname(installdir)
                 bwrap_installdir = os.path.dirname(bwrap_installdir)
-            while not os.path.exists(moduledir):
-                moduledir = os.path.dirname(moduledir)
-                bwrap_moduledir = os.path.dirname(bwrap_moduledir)
             bwrap_opts.update({
                 f'--overlay-src {installdir} --overlay {bwrap_installdir} {bwrap_workdir} {installdir}',
-                f'--overlay-src {moduledir} --overlay {bwrap_moduledir} {bwrap_workdir} {moduledir}',
             })
         else:
             bwrap_opts.update({
                 f'--bind {bwrap_installdir} {installdir}',
-                f'--bind {bwrap_moduledir} {moduledir}',
             })
 
     for x in bwrap_opts:
