@@ -117,8 +117,6 @@ def prepare_bwrap(bwrap_installpath):
     set_bwrap_info('bwrap_installpath_modules', bwrap_installpath_modules)
 
     bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
-    # store bwrap options in a set to avoid duplicate binds
-    bwrap_opts = set()
 
     mkdir(bwrap_installpath_modules, parents=True)
 
@@ -131,16 +129,21 @@ def prepare_bwrap(bwrap_installpath):
         if os.path.exists(installpath_modules):
             copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
         # bind mount the modules installpath
-        bwrap_opts.update({
-            f'--bind {bwrap_installpath_modules} {installpath_modules}',
-        })
+        bwrap_cmd.extend([
+            '--bind', bwrap_installpath_modules, installpath_modules,
+        ])
+
     except EasyBuildError:
         # if we can't create the external modules directory, try to use overlayfs
         mkdir(bwrap_workdir, parents=True)
-        bwrap_opts.update({
-            f'--overlay-src {installpath_modules} --overlay {bwrap_installpath_modules} {bwrap_workdir} '
-            f'{installpath_modules}',
-        })
+        bwrap_cmd.extend([
+            '--overlay-src', installpath_modules,
+            '--overlay', bwrap_installpath_modules,
+            bwrap_workdir, installpath_modules,
+        ])
+
+    # store bwrap options in a set to avoid duplicate binds
+    bwrap_opts = set()
 
     # bind mount all software directories
     for mod in sorted(get_bwrap_info('modules_to_install')):
@@ -161,16 +164,18 @@ def prepare_bwrap(bwrap_installpath):
                 installdir = os.path.dirname(installdir)
                 bwrap_installdir = os.path.dirname(bwrap_installdir)
             mkdir(bwrap_workdir, parents=True)
-            bwrap_opts.update({
-                f'--overlay-src {installdir} --overlay {bwrap_installdir} {bwrap_workdir} {installdir}',
-            })
+            bwrap_opts.add((
+                '--overlay-src', installdir,
+                '--overlay', bwrap_installdir,
+                bwrap_workdir, installdir
+            ))
         else:
-            bwrap_opts.update({
-                f'--bind {bwrap_installdir} {installdir}',
-            })
+            bwrap_opts.add((
+                '--bind', bwrap_installdir, installdir,
+            ))
 
     for x in bwrap_opts:
-        bwrap_cmd.extend(x.split())
+        bwrap_cmd.extend(x)
 
     set_bwrap_info('bwrap_cmd', bwrap_cmd)
     bwrap_cmd_str = ' '.join(bwrap_cmd)
