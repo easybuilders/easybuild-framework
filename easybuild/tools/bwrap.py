@@ -130,8 +130,7 @@ def prepare_bwrap(bwrap_installpath):
             copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
         # bind mount the modules installpath
         bwrap_cmd.extend([
-            '--bind', bwrap_installpath_modules, installpath_modules,
-        ])
+            '--bind', bwrap_installpath_modules, installpath_modules])
 
     except EasyBuildError:
         # if we can't create the external modules directory, try to use overlayfs
@@ -139,8 +138,7 @@ def prepare_bwrap(bwrap_installpath):
         bwrap_cmd.extend([
             '--overlay-src', installpath_modules,
             '--overlay', bwrap_installpath_modules,
-            bwrap_workdir, installpath_modules,
-        ])
+            bwrap_workdir, installpath_modules])
 
     # store bwrap options in a set to avoid duplicate binds
     bwrap_opts = set()
@@ -167,12 +165,10 @@ def prepare_bwrap(bwrap_installpath):
             bwrap_opts.add((
                 '--overlay-src', installdir,
                 '--overlay', bwrap_installdir,
-                bwrap_workdir, installdir
-            ))
+                bwrap_workdir, installdir))
         else:
             bwrap_opts.add((
-                '--bind', bwrap_installdir, installdir,
-            ))
+                '--bind', bwrap_installdir, installdir))
 
     for x in bwrap_opts:
         bwrap_cmd.extend(x)
