@@ -201,7 +201,7 @@ jobs:
             rm -r $HOME/.local/easybuild/{software,modules}/* /tmp/bwrap-installpath
 
             # make install directory read-only to force using overlay
-            chmod -w $HOME/.local/easybuild/software
+            chmod -w $HOME/.local/easybuild/{software,modules}
 
             # test installation of UnZip + bzip2 dependency
             eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
