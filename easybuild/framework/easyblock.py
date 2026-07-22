@@ -1460,7 +1460,7 @@ class EasyBlock:
 
         # include load/unload statements for dependencies
         deps = []
-        self.log.debug("List of deps considered to load in generated module: %s", self.toolchain.dependencies)
+        self.log.debug("List of deps considered to load in generated module: %s", self.cfg.dependencies())
         for dep in self.cfg.dependencies():
             if dep['build_only']:
                 self.log.debug("Skipping build dependency %s", dep)
