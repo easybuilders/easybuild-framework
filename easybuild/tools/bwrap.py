@@ -124,7 +124,7 @@ def prepare_bwrap(bwrap_installpath):
 
     try:
         mkdir(installpath_modules, parents=True)
-        # copy installpath_modules to bwrap_installpath_moduleto ensure all installed modules are available
+        # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available
         # required for building multiple unrelated easyconfigs (e.g. easystacks)
         if os.path.exists(installpath_modules):
             copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
