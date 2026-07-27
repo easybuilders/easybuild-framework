@@ -877,6 +877,8 @@ class ModulesTool:
             self.set_mod_paths()
             self.log.debug("self.mod_paths set based on $MODULEPATH: %s" % self.mod_paths)
 
+            # avoid creating the module path when in --bwrap mode (before actually running with bwrap),
+            # in case the user does not have the necessary write permissions
             if not build_option('bwrap'):
                 # determine module path for EasyBuild install path to be included in $MODULEPATH
                 eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
