@@ -17,14 +17,14 @@
 #
 # EasyBuild is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
 # the GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with EasyBuild. If not, see <http://www.gnu.org/licenses/>.
 #
 """
-Script to split a build log into steps, with and without debug output
+Script to split an EasyBuild build log into steps, with and without debug output
 
 Authors:
 
@@ -32,12 +32,10 @@ Authors:
 """
 
 import argparse
-import re
 import bz2
+import re
 from pathlib import Path
-from collections import defaultdict
-# Making this compatible with Python 3.6+
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
 
 # regex for start of log event
@@ -58,20 +56,11 @@ def safe_name(s: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "_", s).strip("_")[:120]
 
 
-def parse_lines(lines) -> List[Dict]:
-    events = []
-
+def parse_events(lines):
     current_event = None
 
     step_counter = 0
     current_step_id = "0000_init"
-
-    def flush() -> None:
-        nonlocal current_event
-
-        if current_event is not None:
-            events.append(current_event)
-            current_event = None
 
     for line in lines:
         line = line.rstrip("\n")
@@ -79,14 +68,15 @@ def parse_lines(lines) -> List[Dict]:
         log_start = LOG_START_RE.match(line)
 
         if log_start:
+            if current_event is not None:
+                yield current_event
+
             step_match = STEP_RE.search(line)
 
             if step_match:
                 step_counter += 1
                 step_name = safe_name(step_match.group("step"))
                 current_step_id = f"{step_counter:04d}_{step_name}"
-
-            flush()
 
             current_event = {
                 "raw": [line],
@@ -104,74 +94,133 @@ def parse_lines(lines) -> List[Dict]:
                 "step": current_step_id,
             }
 
-    flush()
+    if current_event is not None:
+        yield current_event
 
-    return events
+
+def open_output(path: Path):
+    return bz2.open(
+        str(path) + ".bz2",
+        "wt",
+        encoding="utf-8",
+    )
 
 
-def write_outputs(
-    events: List[Dict],
+def write_event(
+    event,
+    full_file,
+    clean_file,
+    step_files: Dict[str, object],
+    step_clean_files: Dict[str, object],
+    step_dir: Path,
+) -> None:
+    text = "\n".join(event["raw"]) + "\n"
+    step = event["step"]
+
+    # Full output
+    full_file.write(text)
+
+    # No-debug full output
+    if event["level"] != "DEBUG":
+        clean_file.write(text)
+
+    # Step output containing debug
+    if step not in step_files:
+        step_files[step] = open_output(
+            step_dir / f"{step}_step_with_debug.log"
+        )
+
+    step_files[step].write(text)
+
+    # Step output without debug
+    if event["level"] != "DEBUG":
+        if step not in step_clean_files:
+            step_clean_files[step] = open_output(
+                step_dir / f"{step}_step.log"
+            )
+
+        step_clean_files[step].write(text)
+
+
+def process_log(
+    lines,
     outdir: Path,
     include_debug: bool = False,
 ) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
-    full = []
-    clean = []
-
-    steps_with_debug = defaultdict(list)
-    steps_no_debug = defaultdict(list)
-
-    for event in events:
-        text = "\n".join(event["raw"])
-
-        full.append(text)
-        steps_with_debug[event["step"]].append(text)
-
-        if event["level"] != "DEBUG":
-            clean.append(text)
-            steps_no_debug[event["step"]].append(text)
-
-    full_no_debug_file = outdir / "full.log"
-    full_no_debug_file.write_text(
-        "\n".join(clean) + "\n",
-        encoding="utf-8",
-    )
-
-    if include_debug:
-        full_file = outdir / "full_with_debug.log"
-        full_file.write_text(
-            "\n".join(full) + "\n",
-            encoding="utf-8",
-        )
-
-        # Don't keep a debug file around if there is no debug output
-        if full_file.read_bytes() == full_no_debug_file.read_bytes():
-            full_file.unlink()
-
     step_dir = outdir / "steps"
     step_dir.mkdir(exist_ok=True)
 
-    steps = steps_with_debug.keys() | steps_no_debug.keys()
+    # Always create the no-debug full output.
+    clean_file = open_output(outdir / "full.log")
 
-    for step in sorted(steps):
-        no_debug_file = step_dir / f"{step}_step.log"
+    # Only create the full debug output when requested.
+    full_file = None
 
-        no_debug_file.write_text(
-            "\n".join(steps_no_debug.get(step, [])) + "\n",
-            encoding="utf-8",
+    if include_debug:
+        full_file = open_output(outdir / "full_with_debug.log")
+
+    step_files: Dict[str, object] = {}
+    step_clean_files: Dict[str, object] = {}
+
+    try:
+        for event in parse_events(lines):
+            if include_debug:
+                write_event(
+                    event,
+                    full_file,
+                    clean_file,
+                    step_files,
+                    step_clean_files,
+                    step_dir,
+                )
+            else:
+                text = "\n".join(event["raw"]) + "\n"
+                step = event["step"]
+
+                if event["level"] != "DEBUG":
+                    clean_file.write(text)
+
+                    if step not in step_clean_files:
+                        step_clean_files[step] = open_output(
+                            step_dir / f"{step}_step.log"
+                        )
+
+                    step_clean_files[step].write(text)
+
+    finally:
+        clean_file.close()
+
+        if full_file is not None:
+            full_file.close()
+
+        for file in step_files.values():
+            file.close()
+
+        for file in step_clean_files.values():
+            file.close()
+
+
+def remove_identical_debug_files(outdir: Path) -> None:
+    full_debug = outdir / "full_with_debug.log.bz2"
+    full_clean = outdir / "full.log.bz2"
+
+    if full_debug.exists() and full_clean.exists():
+        if full_debug.read_bytes() == full_clean.read_bytes():
+            full_debug.unlink()
+
+    step_dir = outdir / "steps"
+
+    for clean_file in step_dir.glob("*_step.log.bz2"):
+        debug_file = step_dir / (
+            clean_file.name[:-len("_step.log.bz2")]
+            + "_step_with_debug.log.bz2"
         )
 
-        if include_debug:
-            with_debug_file = step_dir / f"{step}_step_with_debug.log"
-
-            with_debug_file.write_text(
-                "\n".join(steps_with_debug.get(step, [])) + "\n",
-                encoding="utf-8",
-            )
-
-            if with_debug_file.read_bytes() == no_debug_file.read_bytes():
-                with_debug_file.unlink()
+        if debug_file.exists():
+            if debug_file.read_bytes() == clean_file.read_bytes():
+                debug_file.unlink()
 
 
 def get_log_name(path: Path) -> str:
@@ -198,23 +247,21 @@ def main(
 
     output_root = Path(output_dir) if output_dir else Path.cwd()
 
-    # Clean the name by stripping .bz2 and .log extensions
     name = get_log_name(path)
-
     outdir = output_root / f"{name}_parsed"
 
-    # Choose the correct open function dynamically
     open_func = bz2.open if path.suffix.lower() == ".bz2" else open
 
     with open_func(
-        path,
+        str(path),
         "rt",
         encoding="utf-8",
         errors="replace",
     ) as file:
-        events = parse_lines(file)
+        process_log(file, outdir, include_debug=include_debug)
 
-    write_outputs(events, outdir, include_debug=include_debug)
+    if include_debug:
+        remove_identical_debug_files(outdir)
 
     print(f"Output written to: {outdir}")
 
@@ -248,4 +295,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.file, args.output_dir, args.with_debug)
+    main(
+        args.file,
+        args.output_dir,
+        args.with_debug,
+    )
