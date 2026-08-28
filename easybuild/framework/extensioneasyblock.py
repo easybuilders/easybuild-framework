@@ -65,6 +65,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             _log.nosupport("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
 
         extra_vars.update({
+            'load_name': [None, "Name used to load/import this software package, defaults to its name.", CUSTOM],
             'options': [{}, "Dictionary with extension options.", CUSTOM],
         })
         return EasyBlock.extra_options(extra_vars)
@@ -92,6 +93,19 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         else:
             EasyBlock.__init__(self, *args, **kwargs)
             self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
+
+            # Propagate top-level 'load_name' to options
+            load_name = self.cfg.get('load_name')
+            if load_name is not None:
+                if 'load_name' in self.options:
+                    raise EasyBuildError("Both 'load_name' easyconfig parameter and 'load_name' in 'options' "
+                                         f"are specified for {self.name}; use the 'load_name' parameter "
+                                         "without specifying it in 'options'")
+                if 'modulename' in self.options:
+                    raise EasyBuildError("Both 'load_name' easyconfig parameter and deprecated 'modulename' "
+                                         f"in 'options' are specified for {self.name}; "
+                                         "use the 'load_name' parameter without 'options'")
+                self.options['load_name'] = load_name
 
         self.ext_dir = None  # dir where extension source was unpacked
 
