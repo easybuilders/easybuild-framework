@@ -52,6 +52,7 @@ from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance, BUI
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
+from easybuild.framework.extension import construct_exts_filter_cmds, get_load_names
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_log import EasyBuildError
@@ -1688,8 +1689,8 @@ class EasyBlockTest(EnhancedTestCase):
             exts_list = [
                 "ext1",
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
-                ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
-                ("ext4", "0.2", {"source_tmpl": "dummy.tgz", "modulename": False}),
+                ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "load_name": "real_ext"}),
+                ("ext4", "0.2", {"source_tmpl": "dummy.tgz", "load_name": False}),
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
@@ -1711,7 +1712,7 @@ class EasyBlockTest(EnhancedTestCase):
         logtxt = read_file(eb.logfile)
         regexs = [r'Running shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
         self.assert_multi_regex(regexs, logtxt)
-        # modulename: False skips the check
+        # load_name: False skips the check
         self.assertNotRegex(logtxt, r"Running shell command .* in .*:\n\sif \[ (False|ext4)")
 
         patterns = [
@@ -1734,6 +1735,83 @@ class EasyBlockTest(EnhancedTestCase):
         # cleanup
         eb.close_log()
         os.remove(eb.logfile)
+
+    def test_skip_extensions_step_deprecated_modulename(self):
+        """Test the skip_extensions_step with deprecated 'modulename' in options, which should still work."""
+        self.contents = cleandoc("""
+            easyblock = "ConfigureMake"
+            name = "pi"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+                ("ext1", "1.0", {"source_tmpl": "dummy.tgz", "modulename": "real_ext"}),
+            ]
+            exts_filter = ("if [ %(ext_name)s == 'real_ext' ]; then exit 0; else exit 1; fi", "")
+            exts_defaultclass = "DummyExtension"
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.builddir = config.build_path()
+        eb.installdir = config.install_path()
+        eb.skip = True
+
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            eb.extensions_step(fetch=True)
+            stdout = self.get_stdout()
+        # extension is skipped, based on deprecated 'modulename' value
+        self.assert_multi_regex([r"^== skipping extension ext1"], stdout)
+        self.assertEqual(eb.ext_instances, [])
+
+        # cleanup
+        eb.close_log()
+        os.remove(eb.logfile)
+
+    def test_extension_easyblock_load_name(self):
+        """Test the native 'load_name' easyconfig parameter for easyblocks derived from ExtensionEasyBlock."""
+        test_ec_base = cleandoc("""
+            easyblock = 'DummyExtension'
+            name = "pi"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+        """)
+
+        # note: use a separate easyconfig file for each test case,
+        # since process_easyconfig caches parsed easyconfigs per file path
+
+        # native 'load_name' easyconfig parameter
+        ec_fn = os.path.join(self.test_prefix, 'test_load_name_1.eb')
+        write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'")
+        eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+        self.assertEqual(eb.options['load_name'], 'real_pi')
+        self.assertEqual(get_load_names(eb, eb.log), ['real_pi'])
+        self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
+        eb.close_log()
+        os.remove(eb.logfile)
+
+        # 'load_name' in 'options' is still supported as well
+        ec_fn = os.path.join(self.test_prefix, 'test_load_name_2.eb')
+        write_file(ec_fn, test_ec_base + "\noptions = {'load_name': 'real_pi'}")
+        eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+        self.assertEqual(eb.options['load_name'], 'real_pi')
+        self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
+        eb.close_log()
+        os.remove(eb.logfile)
+
+        # specifying 'load_name' both as easyconfig parameter and in 'options' is not allowed
+        ec_fn = os.path.join(self.test_prefix, 'test_load_name_3.eb')
+        write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'load_name': 'other_pi'}")
+        error_msg = "Both 'load_name' easyconfig parameter and 'load_name' in 'options' are specified for pi"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
+
+        # specifying 'load_name' as easyconfig parameter and deprecated 'modulename' in 'options' is not allowed
+        ec_fn = os.path.join(self.test_prefix, 'test_load_name_4.eb')
+        write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'modulename': 'other_pi'}")
+        error_msg = "Both 'load_name' easyconfig parameter and deprecated 'modulename' in 'options' are specified"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
 
     def test_extension_fake_modules(self):
         """

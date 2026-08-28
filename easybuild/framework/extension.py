@@ -37,7 +37,11 @@ Authors:
 """
 import copy
 import os
+from collections import namedtuple
+from logging import Logger
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
@@ -46,40 +50,64 @@ from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import trace_msg
 
+_log = fancylogger.getLogger('extension', fname=False)
 
-def get_modulenames(ext, use_name_for_false):
-    """Return a list of modulenames for the extension
-    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :param use_name_for_false: Whether to return a list with the name or an empty list when the modulename is False
-    """
-    if not isinstance(ext, dict):
-        ext = {'name': ext.name, 'options': ext.options}
 
+def get_load_names(ext: 'Extension', log: Logger) -> List[str]:
+    """Return a list of load names for the extension"""
     try:
-        modulenames = ext['options']['modulename']
+        load_names = ext.options['modulename']
+        if 'load_name' in ext.options:
+            raise EasyBuildError("Both 'load_name' and deprecated 'modulename' are specified in options "
+                                 f"for extension {ext.name}")
+        log.deprecated(f"Use of deprecated 'modulename' in options for extension {ext.name}, "
+                       "use 'load_name' instead", '6.0')
     except KeyError:
-        modulenames = [ext['name']]
+        try:
+            load_names = ext.options['load_name']
+        except KeyError:
+            load_names = [ext.name]
+    if isinstance(load_names, list):
+        if not load_names:
+            raise EasyBuildError(f"Empty load_name list for {ext.name} is not supported."
+                                 "Use `False` to skip checking for module existence!")
+    elif load_names is False:
+        return []
+    elif not isinstance(load_names, str):
+        raise EasyBuildError(f"Invalid type for load_name of {ext.name}. "
+                             f"Expected False, str, or list, but got {type(load_names).__name__}: {load_names}")
     else:
-        if isinstance(modulenames, list):
-            if not modulenames:
-                raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
-                                     "Use `False` to skip checking for module existence!")
-        elif modulenames is False:
-            return [ext['name']] if use_name_for_false else []
-        elif not isinstance(modulenames, str):
-            raise EasyBuildError(f"Invalid type for modulename of {ext['name']}. "
-                                 f"Expected False, str, or list, but got {type(modulenames).__name__}: {modulenames}")
-        else:
-            modulenames = [modulenames]
-    return modulenames
+        load_names = [load_names]
+    return load_names
 
 
-def construct_exts_filter_cmds(exts_filter, ext):
+def _dict_to_ExtensionLike(ext: Dict[str, Any]):
+    ExtensionLike = namedtuple('ExtensionLike', ('name', 'version', 'options', 'src'))
+    return ExtensionLike(ext['name'], ext.get('version'), ext.get('options', {}), ext.get('src'))
+
+
+def get_modulenames(ext: Union['Extension', Dict[str, Any]], use_name_for_false: bool):
+    """[DEPRECATED] Return a list of load names for the extension, see get_load_names()
+    :param ext: Instance of Extension or dictionary with 'name' and optionally 'options', 'version', 'src' keys
+    :param use_name_for_false: Whether to return a list with the name or an empty list when the load_name is False
+    """
+    _log.deprecated("get_modulenames() is deprecated, use get_load_names() instead", '6.0')
+    if isinstance(ext, dict):
+        _log.deprecated("Extension instance should be passed to get_modulenames instead of dict", '6.0')
+        ext = _dict_to_ExtensionLike(ext)
+    result = get_load_names(ext, _log)
+    if not result and use_name_for_false:
+        result = ext.name
+    return result
+
+
+def construct_exts_filter_cmds(exts_filter: Union[str, Tuple[str, str]], ext: Union['Extension', Dict[str, Any]],
+                               log: Logger = _log) -> List[Tuple[str, Optional[str]]]:
     """
     Resolve the exts_filter tuple by replacing the template values using the extension
     :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
-    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :return: (cmd, input) as a tuple of strings for each modulename. Might be empty if no filtering is intented
+    :param ext: Instance of Extension or (DEPRECATED): dictionary with 'name' and opt. 'options', 'version', 'src' keys
+    :return: (cmd, input) as a tuple of strings for each load name. Might be empty if no filtering is intented
     """
 
     if isinstance(exts_filter, str) or len(exts_filter) != 2:
@@ -87,23 +115,24 @@ def construct_exts_filter_cmds(exts_filter, ext):
 
     cmd, cmdinput = exts_filter
 
-    if not isinstance(ext, dict):
-        ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
+    if isinstance(ext, dict):
+        log.deprecated("Extension instance should be passed to construct_exts_filter_cmds instead of dict", '6.0')
+        ext = _dict_to_ExtensionLike(ext)
 
-    modulenames = get_modulenames(ext, use_name_for_false=False)
+    load_names = get_load_names(ext, log)
 
     result = []
-    for modulename in modulenames:
-        tmpldict = {
-            'ext_name': modulename,
-            'ext_version': ext.get('version'),
-            'src': ext.get('src'),
+    for load_name in load_names:
+        tmpl_dict = {
+            'ext_name': load_name,
+            'ext_version': ext.version,
+            'src': ext.src,
         }
         try:
-            result.append((cmd % tmpldict,
-                           cmdinput % tmpldict if cmdinput else None))
+            result.append((cmd % tmpl_dict,
+                           cmdinput % tmpl_dict if cmdinput else None))
         except KeyError as err:
-            raise EasyBuildError(f"KeyError occurred on completing extension filter template: {err}")
+            raise EasyBuildError(f"KeyError occurred on completing extension filter template '{exts_filter}': {err}")
     return result
 
 
@@ -342,13 +371,12 @@ class Extension:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return res
 
-        exts_filer_cmds = construct_exts_filter_cmds(exts_filter, self)
-        # allow skipping of sanity check by setting module name to False
-        if not exts_filer_cmds:
-            self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
+        exts_filter_cmds = construct_exts_filter_cmds(exts_filter, self)
+        if not exts_filter_cmds:
+            self.log.info("load_name set to False for '%s' extension, so skipping sanity check", self.name)
         else:
             fail_msgs = []
-            for cmd, stdin in exts_filer_cmds:
+            for cmd, stdin in exts_filter_cmds:
                 cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin, hidden=True)
 
                 msg = f"Extension sanity check command '{cmd}': "

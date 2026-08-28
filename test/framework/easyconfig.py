@@ -4805,23 +4805,41 @@ class EasyConfigTest(EnhancedTestCase):
              {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'dummy': 'value'}},
              ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
              ),
-            # modulename overwrites name
+            # load_name overwrites name
             (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
-             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'modulename': 'baz'}},
+             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'load_name': 'baz'}},
              ('baz-42-bar.tgz', '>baz-42-bar.tgz'),
              ),
         ]
         for exts_filter, ext, expected_value in test_cases:
-            value = construct_exts_filter_cmds(exts_filter, ext)
-            self.assertEqual(value, [expected_value])
-            value = construct_exts_filter_cmds(exts_filter, TestExtension(ext))
-            self.assertEqual(value, [expected_value])
+            with self.subTest(exts_filter=exts_filter, ext=ext):
+                with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+                    value = construct_exts_filter_cmds(exts_filter, ext)
+                self.assertEqual(value, [expected_value])
+                value = construct_exts_filter_cmds(exts_filter, TestExtension(ext))
+                self.assertEqual(value, [expected_value])
 
         exts_filter = ('run %(ext_name)s', None)
-        value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': False}})
+        value = construct_exts_filter_cmds(exts_filter,
+                                           TestExtension({'name': 'foo', 'options': {'load_name': False}}))
         self.assertEqual(value, [])
-        value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': ['name', 'alt']}})
+        value = construct_exts_filter_cmds(exts_filter,
+                                           TestExtension({'name': 'foo', 'options': {'load_name': ['name', 'alt']}}))
         self.assertEqual(value, [('run name', None), ('run alt', None)])
+
+        # deprecated 'modulename' in options is still supported (and replaced by 'load_name')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': 'baz'}})
+            self.assertEqual(value, [('run baz', None)])
+            value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': False}})
+            self.assertEqual(value, [])
+            value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': ['a', 'b']}})
+            self.assertEqual(value, [('run a', None), ('run b', None)])
+
+        # specifying both 'load_name' and deprecated 'modulename' in options is not allowed
+        error_msg = "Both 'load_name' and deprecated 'modulename' are specified in options for extension foo"
+        self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds, exts_filter,
+                              TestExtension({'name': 'foo', 'options': {'load_name': 'a', 'modulename': 'b'}}))
 
     def test_cuda_compute_capabilities(self):
         """Tests that the cuda_compute_capabilities templates are correct"""
