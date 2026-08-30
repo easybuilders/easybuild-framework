@@ -24,7 +24,7 @@ toolchain = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
 sources = ['%(name)s-%(version)s.tar.gz']
 
 # download location for source files
-source_urls = [GNU_SOURCE]
+source_urls = GNU_FTP_URLS
 
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {
