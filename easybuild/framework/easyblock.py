@@ -72,7 +72,7 @@ from textwrap import indent
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
-from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
+from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR, CUSTOM
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
@@ -173,7 +173,16 @@ class EasyBlock:
         if not isinstance(extra, dict):
             _log.nosupport("Found 'extra' value of type '%s' in extra_options, should be 'dict'" % type(extra), '2.0')
 
-        return extra
+        extra_vars = {
+            'requires_eula': [
+                None,
+                "Determines whether to check if a EULA for the code is required to be accepted.",
+                CUSTOM
+            ],
+        }
+        extra_vars.update(extra or {})
+
+        return extra_vars
 
     @staticmethod
     def src_parameter_names():
@@ -2863,6 +2872,32 @@ class EasyBlock:
             elif LooseVersion(easybuild_version) > VERSION:
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
+
+        # Run EULA check if requested through `requires_eula`
+        check_eula = False
+        check_args = [None, None]
+        requires_eula = self.cfg['requires_eula']
+        if isinstance(requires_eula, (bool)):
+            check_eula = requires_eula
+        elif isinstance(requires_eula, (list, tuple)):
+            check_eula = True
+            if len(requires_eula) > 2:
+                self.log.warning(
+                    "Too many arguments provided for 'requires_eula' (expected at most 2), ignoring extra ones"
+                )
+            for idx, arg in enumerate(requires_eula[:2]):
+                check_args[idx] = arg
+        elif requires_eula is not None:
+            raise EasyBuildError(
+                "Invalid value for 'requires_eula' easyconfig parameter: expected bool or list/tuple, got %s",
+                type(requires_eula).__name__,
+            )
+        if check_eula:
+            self.log.info(
+                "Checking EULA acceptance for %s per 'requires_eula' easyconfig parameter: `%s`",
+                self.name, requires_eula,
+            )
+            self.check_accepted_eula(*check_args)
 
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
