@@ -35,6 +35,9 @@ from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
+# At GCCcore level we do not allow OpenMP
+GCCCORE_BANNED_LIBRARIES = ['libgomp.so']
+
 
 class GCCcore(Gcc):
     """Compiler-only toolchain, including only GCC and binutils."""
@@ -45,6 +48,15 @@ class GCCcore(Gcc):
     # GCCcore is only guaranteed to be present in recent toolchains
     # for old versions of some toolchains (GCC, intel) it is not part of the hierarchy and hence optional
     OPTIONAL = True
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which are
+        not allowed to be linked in any installed binary/library.
+        """
+        banned_libs = super().banned_linked_shared_libs()
+
+        return banned_libs + GCCCORE_BANNED_LIBRARIES
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
