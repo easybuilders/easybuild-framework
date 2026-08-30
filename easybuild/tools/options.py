@@ -76,6 +76,7 @@ from easybuild.tools.config import DEFAULT_PR_TARGET_ACCOUNT, DEFAULT_FILTER_RPA
 from easybuild.tools.config import EBROOT_ENV_VAR_ACTIONS, ERROR, FORCE_DOWNLOAD_CHOICES, GENERAL_CLASS, IGNORE
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, LOADED_MODULES_ACTIONS
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN, LOCAL_VAR_NAMING_CHECKS, MOD_SEARCH_PATH_HEADERS
+from easybuild.tools.config import DEFAULT_THEME_NAME, DEFAULT_HIGHLIGHTS_NAME
 from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build_option
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
@@ -111,7 +112,7 @@ from easybuild.tools.systemtools import DARWIN, UNKNOWN, check_python_version, g
 from easybuild.tools.systemtools import get_cpu_features, get_gpu_info, get_os_type, get_system_info
 from easybuild.tools.utilities import flatten
 from easybuild.tools.version import this_is_easybuild
-from easybuild.tools.entrypoints import EntrypointHook, EntrypointEasyblock, EntrypointToolchain
+from easybuild.tools.entrypoints import EasybuildEntrypoint
 
 
 try:
@@ -556,6 +557,10 @@ class EasyBuildOptions(GeneralOption):
             'output-style': ("Control output style; auto implies using Rich if available to produce rich output, "
                              "with fallback to basic colored output",
                              'choice', 'store', OUTPUT_STYLE_AUTO, OUTPUT_STYLES),
+            'output-theme': ("Set output theme (when using Rich output style)", None, 'store', DEFAULT_THEME_NAME),
+            'output-highlights': (
+                "Set output highlights (when using Rich output style)", None, 'store', DEFAULT_HIGHLIGHTS_NAME
+            ),
             'parallel': ("Specify level of parallelism that should be used during build procedure, "
                          "(bypasses auto-detection of number of available cores; "
                          "actual value is determined by this value + 'max_parallel' easyconfig parameter)",
@@ -1697,11 +1702,8 @@ class EasyBuildOptions(GeneralOption):
         pretty_print_opts(opts_dict)
 
         if build_option('use_entrypoints', default=True):
-            for prefix, cls in [
-                ('Hook', EntrypointHook),
-                ('Easyblock', EntrypointEasyblock),
-                ('Toolchain', EntrypointToolchain),
-            ]:
+            for cls in EasybuildEntrypoint.__subclasses__():
+                prefix = str(cls.desc)
                 ept_list = cls.retrieve_entrypoints()
                 if ept_list:
                     print()

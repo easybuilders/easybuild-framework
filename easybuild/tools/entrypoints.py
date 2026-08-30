@@ -59,6 +59,7 @@ class EasybuildEntrypoint:
     group = None
     expected_type = None
     registered = {}
+    desc = None
 
     def __init__(self):
         if self.group is None:
@@ -139,7 +140,7 @@ class EasybuildEntrypoint:
 
     @classmethod
     def load_entrypoints(cls):
-        """Load all the entrypoints in this group. This is needed for the modules contining the entrypoints to be
+        """Load all the entrypoints in this group. This is needed for the modules containing the entrypoints to be
         actually imported in order to process the function decorators that will register them in the
         `registered` dict."""
         for ep in cls.retrieve_entrypoints():
@@ -177,9 +178,40 @@ class EasybuildEntrypoint:
             raise EasyBuildError("Entrypoint `%s` has no module or name associated", self.wrapped)
 
 
+class EntrypointRichTheme(EasybuildEntrypoint):
+    """Class to represent a rich theme entrypoint."""
+    group = 'easybuild.rich_theme'
+    desc = "Rich theme"
+
+    def validate(self):
+        super().validate()
+        if not callable(self.wrapped):
+            raise EasyBuildError("Rich theme entrypoint `%s` is not callable", self.wrapped)
+        res = self.wrapped()
+        if not isinstance(res, dict):
+            raise EasyBuildError("Rich theme entrypoint `%s` did not return a dict", self.wrapped)
+
+
+class EntrypointRichHighlighter(EasybuildEntrypoint):
+    """Class to represent a rich highlighter entrypoint."""
+    group = 'easybuild.rich_highlighter'
+    desc = "Rich highlighter"
+
+    def validate(self):
+        super().validate()
+        if not callable(self.wrapped):
+            raise EasyBuildError("Rich highlighter entrypoint `%s` is not callable", self.wrapped)
+        res = self.wrapped()
+        if not isinstance(res, list):
+            raise EasyBuildError("Rich highlighter entrypoint does not return a list, got %s", type(res))
+        if any(not isinstance(item, str) for item in res):
+            raise EasyBuildError("Rich highlighter entrypoint `%s` did not return a list of strings", self.wrapped)
+
+
 class EntrypointHook(EasybuildEntrypoint):
     """Class to represent a hook entrypoint."""
     group = 'easybuild.hooks'
+    desc = "Hook"
 
     def __init__(self, step, pre_step=False, post_step=False, priority=0):
         """Initialize the EntrypointHook."""
@@ -214,6 +246,7 @@ class EntrypointHook(EasybuildEntrypoint):
 class EntrypointEasyblock(EasybuildEntrypoint):
     """Class to represent an easyblock entrypoint."""
     group = 'easybuild.easyblock'
+    desc = "Easyblock"
 
     def __init__(self):
         super().__init__()
@@ -225,6 +258,7 @@ class EntrypointEasyblock(EasybuildEntrypoint):
 class EntrypointToolchain(EasybuildEntrypoint):
     """Class to represent a toolchain entrypoint."""
     group = 'easybuild.toolchain'
+    desc = "Toolchain"
 
     def __init__(self, prepend=False):
         super().__init__()
