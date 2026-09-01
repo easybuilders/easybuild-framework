@@ -60,3 +60,48 @@ jobs:
         shell: bash
         run: |
           sudo -u easybuild bash -l -c "source /tmp/eb_env; eb flex-2.6.4.eb --trace --robot"
+
+      - name: Ensure `python3 -m venv` can be used
+        if: startsWith(matrix.container, 'ubuntu')
+        shell: bash
+        run: |
+          apt update && apt install -y python3-venv
+
+      - name: Create a virtual environment and install EasyBuild with the click cli extra
+        shell: bash
+        run: |
+          export VENVDIR=/home/easybuild/venv
+          python3 -m venv $VENVDIR
+          source $VENVDIR/bin/activate
+          pip install --upgrade pip
+          pip install .[eb_click]
+          pip install $HOME/easybuild-easyblocks-develop
+          pip install $HOME/easybuild-easyconfigs-develop
+          chown -R easybuild $VENVDIR
+
+      - name: Run commands to check test environment using the click cli
+        shell: bash
+        run: |
+          export VENVDIR=/home/easybuild/venv
+          cmds=(
+            "whoami"
+            "pwd"
+            "env | sort"
+            "eb --help"
+            "eb --version"
+            "eb --help | grep '─ Options ─'"
+            "eb --show-system-info"
+            "eb --check-eb-deps"
+            "eb --show-config"
+            "eb -x bzip2-1.0.8.eb"
+          )
+          for cmd in "${cmds[@]}"; do
+              echo ">>> $cmd"
+              sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; $cmd"
+          done
+
+      - name: End-to-end test of installing flex with EasyBuild using the click cli
+        shell: bash
+        run: |
+          export VENVDIR=/home/easybuild/venv
+          sudo -u easybuild bash -l -c "export EB_CLI_CLICK=1; source $VENVDIR/bin/activate; eb flex-2.6.4.eb --rebuild --trace --robot"
