@@ -647,6 +647,10 @@ class EasyBuildOptions(GeneralOption):
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
                                    None, "store_true", False,),
+            'breakpoints': (
+                "Drop into an interactive shell on the specified steps (use same names as for hooks comma separated)",
+                'strlist', 'store', None
+            ),
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'bwrap-installpath': ("Bubblewrap install path for software and modules", None, 'store',
                                   mk_full_default_path('bwrap_installpath')),
