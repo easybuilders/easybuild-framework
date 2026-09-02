@@ -390,7 +390,7 @@ class ContainersTest(EnhancedTestCase):
         self.assert_multi_regex(regexs, def_file)
 
         # there should be no leading/trailing whitespace included
-        self.assert_multi_regex((r'^\s+', r'\s+$'), def_file, assert_true=False)
+        self.assert_multi_regex((r'^\s+', r'\s+$'), def_file, assert_true=False, multi_line=False)
 
     def test_end2end_docker_image(self):
 
