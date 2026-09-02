@@ -3073,6 +3073,18 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = pre_cmd_args_ld + ["'-rpath=%s'" % new_lib64] + post_cmd_args_ld
         self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
 
+        # arguments containing single quotes must be preserved as-is
+        cmd = script + ''' gcc '' '%s' '-DFOO="'\\''"' -c foo.c''' % rpath_inc
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(cmd)
+        self.assertEqual(res.exit_code, 0)
+        cmd_args = [
+            '''\'-DFOO="'\\''"\'''',
+            "'-c'",
+            "'foo.c'",
+        ]
+        self.assertEqual(res.output.strip(), "CMD_ARGS=(%s)" % ' '.join(cmd_args))
+
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
 

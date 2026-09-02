@@ -197,8 +197,10 @@ if add_rpath_args:
     # add -rpath flags in front
     cmd_args = cmd_args_rpath + cmd_args
 
-# wrap all arguments into single quotes to avoid further bash expansion
-cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
+# wrap all arguments into single quotes to avoid further bash expansion.
+# a literal single quote must be escaped as '\'', since doubling it up ('')
+# just cancels out and drops the quote character entirely
+cmd_args = ["'%s'" % a.replace("'", "'\\''") for a in cmd_args]
 
 # output: statement to define $CMD_ARGS
 print("CMD_ARGS=(%s)" % ' '.join(cmd_args))
