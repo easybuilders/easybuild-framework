@@ -43,6 +43,7 @@ from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMP
 from easybuild.framework.easyconfig.templates import DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS, TEMPLATE_CONSTANTS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
+from easybuild.tools.deprecated_dict import make_deprecated_dict_class
 from easybuild.tools.systemtools import get_shared_lib_ext
 
 
@@ -103,40 +104,11 @@ def handle_deprecated_constants(method):
     return wrapper
 
 
-class DeprecatedDict(dict):
-    """Custom dictionary that handles deprecated easyconfig template constants gracefully"""
-
-    def __init__(self, *args, **kwargs):
-        self.clear()
-        self.update(*args, **kwargs)
-
-    @handle_deprecated_constants
-    def __contains__(self, key):
-        return super().__contains__(key)
-
-    @handle_deprecated_constants
-    def __delitem__(self, key):
-        return super().__delitem__(key)
-
-    @handle_deprecated_constants
-    def __getitem__(self, key):
-        return super().__getitem__(key)
-
-    @handle_deprecated_constants
-    def __setitem__(self, key, value):
-        return super().__setitem__(key, value)
-
-    def update(self, *args, **kwargs):
-        if args:
-            if isinstance(args[0], dict):
-                for key, value in args[0].items():
-                    self[key] = value
-            else:
-                for key, value in args[0]:
-                    self[key] = value
-
-        for key, value in kwargs.items():
-            self[key] = value
+DeprecatedDict = make_deprecated_dict_class(
+    deprecated_keys=DEPRECATED_EASYCONFIG_TEMPLATE_CONSTANTS,
+    alternative_keys=ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS,
+    key_description="Easyconfig template constant"
+)
 
 
 class EasyConfigFormatConfigObj(EasyConfigFormat):

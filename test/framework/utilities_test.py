@@ -40,6 +40,8 @@ import easybuild.tools.utilities as tu
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.deprecated_dict import make_deprecated_dict_class
+from easybuild.tools.filetools import read_file
 
 
 class UtilitiesTest(EnhancedTestCase):
@@ -228,6 +230,90 @@ class UtilitiesTest(EnhancedTestCase):
         base = "potato"
         error_pattern = "given base cannot be extended"
         self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
+
+    def test_deprecated_dict(self):
+        """Test the DeprecatedDict class"""
+        deprecated_keys = {
+            'old_key': ('new_key', '999.0'),
+        }
+        alternative_keys = {
+            'alt_key': 'new_key2',
+        }
+        DeprecatedDict = make_deprecated_dict_class(deprecated_keys, alternative_keys, key_description="Test Key")
+
+        deprecated_dict = DeprecatedDict({'new_key': 'value1', 'new_key2': 'value2'})
+        self.assertEqual(deprecated_dict['new_key'], 'value1')
+        self.assertEqual(deprecated_dict['new_key2'], 'value2')
+        self.assertEqual(deprecated_dict['alt_key'], 'value2')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            self.assertEqual(deprecated_dict['old_key'], 'value1')
+
+        deprecated_dict = DeprecatedDict()
+        # Test setting and getting with new key
+        deprecated_dict['new_key'] = 'value1'
+        self.assertEqual(deprecated_dict['new_key'], 'value1')
+        deprecated_dict['new_key2'] = 'value2'
+        self.assertEqual(deprecated_dict['new_key2'], 'value2')
+
+        # Test setting with old key (deprecated) and verify it maps to new key
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            deprecated_dict['old_key'] = 'value3'
+            # Both old_key and new_key should refer to the same value
+            self.assertEqual(deprecated_dict['old_key'], 'value3')
+        self.assertEqual(deprecated_dict['new_key'], 'value3')
+
+        # Test setting and getting with alternative key
+        deprecated_dict['alt_key'] = 'value4'
+        self.assertEqual(deprecated_dict['alt_key'], 'value4')
+        self.assertEqual(deprecated_dict['new_key2'], 'value4')
+        self.assertEqual(deprecated_dict['new_key'], 'value3')
+        deprecated_dict['new_key2'] = 'value5'
+        self.assertEqual(deprecated_dict['alt_key'], 'value5')
+
+        # Test __contains__ with all key types
+        self.assertIn('new_key', deprecated_dict)
+        self.assertIn('new_key2', deprecated_dict)
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            self.assertIn('old_key', deprecated_dict)
+        self.assertIn('alt_key', deprecated_dict)
+
+        # Test __delitem__ with alternative key
+        del deprecated_dict['alt_key']
+        self.assertNotIn('new_key2', deprecated_dict)
+
+        # Test __delitem__ with deprecated key
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            deprecated_dict['new_key'] = 'test_value'
+            del deprecated_dict['old_key']
+            self.assertNotIn('new_key', deprecated_dict)
+            self.assertNotIn('old_key', deprecated_dict)
+
+        # Test update method with dict
+        deprecated_dict.update({'new_key': 'updated_value'})
+        self.assertEqual(deprecated_dict['new_key'], 'updated_value')
+
+        # Test update method with iterable
+        deprecated_dict.update([('new_key', 'iterable_value')])
+        self.assertEqual(deprecated_dict['new_key'], 'iterable_value')
+
+        # Test update method with kwargs
+        deprecated_dict.update(new_key='kwargs_value')
+        self.assertEqual(deprecated_dict['new_key'], 'kwargs_value')
+
+        # Test update with old_key via dict
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            deprecated_dict.update({'old_key': 'deprecated_update'})
+            self.assertEqual(deprecated_dict['new_key'], 'deprecated_update')
+
+        # Test update with alternative key
+        deprecated_dict.update({'alt_key': 'alt_update'})
+        self.assertEqual(deprecated_dict['new_key2'], 'alt_update')
+
+        # Test that deprecation message is logged
+        with self.temporarily_allow_deprecated_behaviour(), self.log_to_testlogfile(), self.mocked_stderr():
+            _ = deprecated_dict['old_key']
+        logfile_content = read_file(self.logfile)
+        self.assertIn("Test Key 'old_key' is deprecated, use 'new_key' instead", logfile_content)
 
 
 def suite(loader=None):
