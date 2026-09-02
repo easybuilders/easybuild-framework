@@ -451,15 +451,16 @@ class EnhancedTestCase(TestCase):
                 sys.stdout.write(line)
 
     def assert_multi_regex(self, regexs: List[Union[str, re.Pattern]], txt: str,
-                           assert_match=True, flags: re.RegexFlag = re.M) -> None:
-        """Assert that all given regexs do or don't match in the text.
-
-        :param assert_match: When false check for ABSENCE of all regexs
-        :flags:              Regex flags. By default regexes are MULTI_LINE, i.e. ^/$ match line beginning/end.
-        This can be changed using ``
+                           assert_match: bool = True, multi_line: bool = True) -> None:
+        """Helper function to assert presence/absence of list of regex patterns in a text
+        param: regexs: list of regex patterns to check for
+        param: txt: text to check for regex patterns
+        param: assert_match: Whether all regex patterns should match or not match
+        param: multi_line: if False, match ^/$ only at the beginning/end of the whole string
         """
         for regex in regexs:
-            regex = re.compile(regex, flags)
+            if multi_line:
+                regex = re.compile(regex, re.M)
             if assert_match:
                 self.assertRegex(txt, regex)
             else:
