@@ -249,11 +249,20 @@ class UtilitiesTest(EnhancedTestCase):
             self.assertEqual(deprecated_dict['old_key'], 'value1')
 
         deprecated_dict = DeprecatedDict()
-        # Test setting and getting with new key
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            with self.assertRaises(KeyError):
+                _ = deprecated_dict['old_key']
+            self.assertEqual(deprecated_dict.get('old_key'), None)
+
+        # Test setting with new key and get with new and old key
         deprecated_dict['new_key'] = 'value1'
         self.assertEqual(deprecated_dict['new_key'], 'value1')
         deprecated_dict['new_key2'] = 'value2'
         self.assertEqual(deprecated_dict['new_key2'], 'value2')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            # Both old_key and new_key should refer to the same value
+            self.assertEqual(deprecated_dict['old_key'], 'value1')
+            self.assertEqual(deprecated_dict.get('old_key'), 'value1')
 
         # Test setting with old key (deprecated) and verify it maps to new key
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
@@ -261,14 +270,25 @@ class UtilitiesTest(EnhancedTestCase):
             # Both old_key and new_key should refer to the same value
             self.assertEqual(deprecated_dict['old_key'], 'value3')
         self.assertEqual(deprecated_dict['new_key'], 'value3')
+        self.assertEqual(deprecated_dict.get('new_key'), 'value3')
+
+        # Test setting with old key (deprecated) and verify it maps to new key
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            deprecated_dict['old_key'] = 'value3'
+            # Both old_key and new_key should refer to the same value
+            self.assertEqual(deprecated_dict['old_key'], 'value3')
+        self.assertEqual(deprecated_dict['new_key'], 'value3')
+        self.assertEqual(deprecated_dict.get('new_key'), 'value3')
 
         # Test setting and getting with alternative key
         deprecated_dict['alt_key'] = 'value4'
         self.assertEqual(deprecated_dict['alt_key'], 'value4')
         self.assertEqual(deprecated_dict['new_key2'], 'value4')
+        self.assertEqual(deprecated_dict.get('new_key2'), 'value4')
         self.assertEqual(deprecated_dict['new_key'], 'value3')
         deprecated_dict['new_key2'] = 'value5'
         self.assertEqual(deprecated_dict['alt_key'], 'value5')
+        self.assertEqual(deprecated_dict.get('alt_key'), 'value5')
 
         # Test __contains__ with all key types
         self.assertIn('new_key', deprecated_dict)
