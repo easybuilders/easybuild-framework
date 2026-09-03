@@ -39,34 +39,38 @@ import copy
 import os
 from collections import namedtuple
 from logging import Logger
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
+from easybuild.tools.deprecated_dict import make_deprecated_dict_class
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import trace_msg
 
 _log = fancylogger.getLogger('extension', fname=False)
 
+ExtensionOptionsDict: Type[dict] = make_deprecated_dict_class(
+    deprecated_keys={
+        'modulename': ('load_name', '6.0'),
+        'parallel': ('max_parallel', '6.0')},
+    key_description="Extension option key"
+)
 
-def get_load_names(ext: 'Extension', log: Logger) -> List[str]:
+
+def get_load_names(ext: 'Extension') -> List[str]:
     """Return a list of load names for the extension"""
-    try:
-        load_names = ext.options['modulename']
-        if 'load_name' in ext.options:
-            raise EasyBuildError("Both 'load_name' and deprecated 'modulename' are specified in options "
-                                 f"for extension {ext.name}")
-        log.deprecated(f"Use of deprecated 'modulename' in options for extension {ext.name}, "
-                       "use 'load_name' instead", '6.0')
-    except KeyError:
-        try:
-            load_names = ext.options['load_name']
-        except KeyError:
-            load_names = [ext.name]
+    options = ext.options
+    if not isinstance(options, ExtensionOptionsDict):
+        if 'load_name' in options and 'modulename' in options:
+            raise EasyBuildError("Both 'load_name' and deprecated 'modulename' "
+                                 f"are specified for extension {ext.name}")
+        options = ExtensionOptionsDict(options)  # Handles the deprecated 'modulename' key
+
+    load_names = options.get('load_name', [ext.name])
     if isinstance(load_names, list):
         if not load_names:
             raise EasyBuildError(f"Empty load_name list for {ext.name} is not supported."
@@ -95,7 +99,7 @@ def get_modulenames(ext: Union['Extension', Dict[str, Any]], use_name_for_false:
     if isinstance(ext, dict):
         _log.deprecated("Extension instance should be passed to get_modulenames instead of dict", '6.0')
         ext = _dict_to_ExtensionLike(ext)
-    result = get_load_names(ext, _log)
+    result = get_load_names(ext)
     if not result and use_name_for_false:
         result = ext.name
     return result
@@ -119,7 +123,7 @@ def construct_exts_filter_cmds(exts_filter: Union[str, Tuple[str, str]], ext: Un
         log.deprecated("Extension instance should be passed to construct_exts_filter_cmds instead of dict", '6.0')
         ext = _dict_to_ExtensionLike(ext)
 
-    load_names = get_load_names(ext, log)
+    load_names = get_load_names(ext)
 
     result = []
     for load_name in load_names:
@@ -198,11 +202,6 @@ class Extension:
         self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
                                         self.cfg.template_values,
                                         expect_resolved=False)
-        if 'parallel' in self.options:
-            # Replace value and issue better warning for easyconfig parameters,
-            # as opposed to warnings meant for easyblocks
-            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
-            self.options['max_parallel'] = self.options.pop('parallel')
 
         if extra_params:
             self.cfg.extend_params(extra_params, overwrite=False)
@@ -245,6 +244,20 @@ class Extension:
         Shortcut the get the extension version.
         """
         return self.ext.get('version', None)
+
+    @property
+    def options(self) -> Dict[str, Any]:
+        """Dictionary with options for this extension."""
+        return self._options
+
+    @options.setter
+    def options(self, value: Dict[str, Any]):
+        if not isinstance(value, dict):
+            raise EasyBuildError(f"Extension options should be a dict, got {type(value).__name__}")
+        if 'load_name' in value and 'modulename' in value:
+            raise EasyBuildError("Both 'load_name' and deprecated 'modulename' are specified "
+                                 f"for extension {self.name}")
+        self._options = ExtensionOptionsDict(value)
 
     def prerun(self):
         """

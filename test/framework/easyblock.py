@@ -1766,7 +1766,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_extension_easyblock_load_name(self):
         """Test the native 'load_name' easyconfig parameter for easyblocks derived from ExtensionEasyBlock."""
@@ -1787,10 +1786,9 @@ class EasyBlockTest(EnhancedTestCase):
         write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'")
         eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
         self.assertEqual(eb.options['load_name'], 'real_pi')
-        self.assertEqual(get_load_names(eb, eb.log), ['real_pi'])
+        self.assertEqual(get_load_names(eb), ['real_pi'])
         self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
         eb.close_log()
-        os.remove(eb.logfile)
 
         # 'load_name' in 'options' is still supported as well
         ec_fn = os.path.join(self.test_prefix, 'test_load_name_2.eb')
@@ -1799,18 +1797,75 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.options['load_name'], 'real_pi')
         self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
         eb.close_log()
-        os.remove(eb.logfile)
 
         # specifying 'load_name' both as easyconfig parameter and in 'options' is not allowed
         ec_fn = os.path.join(self.test_prefix, 'test_load_name_3.eb')
         write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'load_name': 'other_pi'}")
-        error_msg = "Both 'load_name' easyconfig parameter and 'load_name' in 'options' are specified for pi"
+        error_msg = "'load_name' easyconfig parameter and 'load_name' in 'options' are both specified for pi"
+        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
+
+    def test_extension_options_deprecated_modulename_access(self):
+        """Test transparent handling of deprecated access to 'modulename' in extension options."""
+        test_ec_base = cleandoc("""
+            easyblock = 'DummyExtension'
+            name = "pi"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+        """)
+
+        # note: use a separate easyconfig file for each test case,
+        # since process_easyconfig caches parsed easyconfigs per file path
+
+        # legacy access via deprecated 'modulename' transparently resolves to 'load_name' value
+        ec_fn = os.path.join(self.test_prefix, 'test_depr_modulename_1.eb')
+        write_file(ec_fn, test_ec_base + "\noptions = {'load_name': 'real_pi'}")
+        eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+        self.assertEqual(eb.options['load_name'], 'real_pi')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            # reading via deprecated 'modulename' should return the 'load_name' value, with a deprecation warning
+            self.assertEqual(eb.options['modulename'], 'real_pi')
+            self.assertEqual(eb.options.get('modulename'), 'real_pi')
+            self.assertTrue('modulename' in eb.options)
+            self.assertIn("'modulename' is deprecated", self.get_stderr())
+        self.assertEqual(get_load_names(eb), ['real_pi'])
+        eb.close_log()
+
+        # easyconfig with deprecated 'modulename' in options is still supported
+        # (it is transparently normalized to 'load_name')
+        ec_fn = os.path.join(self.test_prefix, 'test_depr_modulename_2.eb')
+        write_file(ec_fn, test_ec_base + "\noptions = {'modulename': 'other_pi'}")
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+            self.assertIn("'modulename' is deprecated", self.get_stderr())
+        self.assertEqual(eb.options['load_name'], 'other_pi')
+        self.assertEqual(get_load_names(eb), ['other_pi'])
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            self.assertEqual(eb.options['modulename'], 'other_pi')
+
+        # assigning a whole dictionary that uses the deprecated 'modulename' key is detected as well
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            eb.options = {'modulename': 'renamed_pi'}
+            self.assertIn("'modulename' is deprecated", self.get_stderr())
+        self.assertEqual(eb.options['load_name'], 'renamed_pi')
+        self.assertEqual(eb.options.get('load_name'), 'renamed_pi')
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            self.assertEqual(eb.options['modulename'], 'renamed_pi')
+            # writing to the deprecated 'modulename' key stores the value under 'load_name'
+            eb.options['modulename'] = 'renamed_again'
+        self.assertEqual(eb.options['load_name'], 'renamed_again')
+        eb.close_log()
+
+        # specifying both 'load_name' and deprecated 'modulename' in options is not allowed
+        ec_fn = os.path.join(self.test_prefix, 'test_depr_modulename_4.eb')
+        write_file(ec_fn, test_ec_base + "\noptions = {'load_name': 'a', 'modulename': 'b'}")
+        error_msg = "Both 'load_name' and deprecated 'modulename' are specified for extension pi"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
 
         # specifying 'load_name' as easyconfig parameter and deprecated 'modulename' in 'options' is not allowed
-        ec_fn = os.path.join(self.test_prefix, 'test_load_name_4.eb')
         write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'modulename': 'other_pi'}")
-        error_msg = "Both 'load_name' easyconfig parameter and deprecated 'modulename' in 'options' are specified"
+        error_msg = "Both 'load_name' and deprecated 'modulename' are specified for extension pi"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
 
     def test_extension_fake_modules(self):
@@ -1852,6 +1907,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         pattern = r">> running shell command:\n\s+bar.sh(\n\s+\[.*\]){3}\n\s+>> command completed: exit 0"
         self.assertRegex(stdout, re.compile(pattern, re.M))
+        eb.close_log()
 
     def test_make_module_step(self):
         """Test the make_module_step"""
