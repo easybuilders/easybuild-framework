@@ -93,6 +93,10 @@ def make_deprecated_dict_class(deprecated_keys: Optional[Dict[str, Tuple[str, st
         def __setitem__(self, key, value):
             return super().__setitem__(key, value)
 
+        @handle_deprecated_keys
+        def get(self, key, default=None):
+            return super().get(key, default)
+
         def update(self, *args, **kwargs):
             if args:
                 if len(args) > 1:
