@@ -4836,8 +4836,8 @@ class EasyConfigTest(EnhancedTestCase):
             value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': ['a', 'b']}})
             self.assertEqual(value, [('run a', None), ('run b', None)])
 
-        # specifying both 'load_name' and deprecated 'modulename' in options is not allowed
-        error_msg = "Both 'load_name' and deprecated 'modulename' are specified in options for extension foo"
+        # specifying 'load_name' and 'modulename' in options is not allowed
+        error_msg = "Both 'load_name' and deprecated 'modulename' are specified for extension"
         self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds, exts_filter,
                               TestExtension({'name': 'foo', 'options': {'load_name': 'a', 'modulename': 'b'}}))
 

@@ -92,20 +92,18 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.unpack_options = None
         else:
             EasyBlock.__init__(self, *args, **kwargs)
-            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
 
-            # Propagate top-level 'load_name' to options
+            # Propagate top-level 'load_name' and deprecated 'modulename' to options
+            # Check for conflicts and remapping is done inside the 'self.options'  setter
+            options = copy.deepcopy(self.cfg.get('options', {}))
             load_name = self.cfg.get('load_name')
             if load_name is not None:
-                if 'load_name' in self.options:
-                    raise EasyBuildError("Both 'load_name' easyconfig parameter and 'load_name' in 'options' "
-                                         f"are specified for {self.name}; use the 'load_name' parameter "
+                if 'load_name' in options:
+                    raise EasyBuildError(f"'load_name' easyconfig parameter and 'load_name' in 'options' are both "
+                                         f"specified for {self.name}; use the 'load_name' parameter "
                                          "without specifying it in 'options'")
-                if 'modulename' in self.options:
-                    raise EasyBuildError("Both 'load_name' easyconfig parameter and deprecated 'modulename' "
-                                         f"in 'options' are specified for {self.name}; "
-                                         "use the 'load_name' parameter without 'options'")
-                self.options['load_name'] = load_name
+                options['load_name'] = load_name
+            self.options = options
 
         self.ext_dir = None  # dir where extension source was unpacked
 
