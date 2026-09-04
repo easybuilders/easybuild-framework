@@ -44,11 +44,12 @@ import sys
 import tempfile
 import time
 import urllib.error
+from collections.abc import MutableMapping
 from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.client import HTTPException
 from string import ascii_letters
-from typing import List, NamedTuple
+from typing import ClassVar, List, Tuple
 from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
@@ -91,25 +92,99 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
-class CategorizedPaths(NamedTuple):
-    easyconfigs: List[str]
+class CategorizedPaths(MutableMapping):  # Todo: use NamedTuple or dataclass instead
+    """Named tuple for categorized paths, to avoid using a dictionary with string keys."""
     easyconfigs: List[str]
     files_to_delete: List[str]
     patch_files: List[str]
     py_files: List[str]
+
+    _others: dict  # Other keys than the above for backwards compatibility
+    _fields: ClassVar[Tuple[str, ...]]
+
+    def __init__(self, easyconfigs: List[str], files_to_delete: List[str],
+                 patch_files: List[str], py_files: List[str]):
+        self.easyconfigs = easyconfigs
+        self.files_to_delete = files_to_delete
+        self.patch_files = patch_files
+        self.py_files = py_files
+        self._others = {}
+
+    def __getitem__(self, key):
+        _log.deprecated("Accessing CategorizedPaths via index is deprecated, use named attributes instead", '6.0')
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            return self._others[key]
+
+    def __setitem__(self, key, value):
+        _log.deprecated("Accessing CategorizedPaths via index is deprecated, use named attributes instead", '6.0')
+        if key in self._fields:
+            setattr(self, key, value)
+        else:
+            self._others[key] = value
+
+    def __delitem__(self, key):
+        _log.deprecated("Accessing CategorizedPaths via index is deprecated, use named attributes instead", '6.0')
+        if key in self._fields:
+            raise KeyError(f"Cannot delete field '{key}' from CategorizedPaths")
+        else:
+            del self._others[key]
+
+    def __contains__(self, key):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return key in self._fields or key in self._others
+
+    def __len__(self):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return len(self._fields) + len(self._others)
+
+    def __iter__(self):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return itertools.chain(self._fields, self._others)
+
+    def __eq__(self, other):
+        if isinstance(other, CategorizedPaths):
+            return self._asdict() == other._asdict()
+        return self._asdict() == other
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return repr(self._asdict())
+
+    def _asdict(self):
+        """Internal helper to return all items without the deprecation warning."""
+        return dict(itertools.chain([(key, getattr(self, key)) for key in self._fields], self._others.items()))
+
+    def keys(self):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return itertools.chain(self._fields, self._others)
+
+    def values(self):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return self._asdict().values()
+
+    def items(self):
+        _log.deprecated("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead", '6.0')
+        return self._asdict().items()
+
+
+CategorizedPaths._fields = tuple(name for name in CategorizedPaths.__annotations__ if not name.startswith('_'))
 
 
 GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_BRANCH_MAIN = 'main'
 GITHUB_BRANCH_MASTER = 'master'
-GITHUB_DIR_TYPE = u'dir'
+GITHUB_DIR_TYPE = 'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_DEVELOP_BRANCH = 'develop'
-GITHUB_FILE_TYPE = u'file'
+GITHUB_FILE_TYPE = 'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
 GITHUB_PR_ORDER_CREATED = 'created'
