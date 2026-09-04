@@ -53,7 +53,7 @@ class StyleTest(EnhancedTestCase):
             return
 
         # all available easyconfig files
-        specs = glob.glob('%s/*.eb' % TEST_ECS_DIR)
+        specs = glob.glob(f'{TEST_ECS_DIR}/*.eb')
         specs = sorted(specs)
 
         result = check_easyconfigs_style(specs)
