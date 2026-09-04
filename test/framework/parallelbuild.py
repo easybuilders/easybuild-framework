@@ -31,7 +31,7 @@ import os
 import re
 import stat
 import sys
-from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
+from test.framework import TEST_DIR, TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, REPO_ROOT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 

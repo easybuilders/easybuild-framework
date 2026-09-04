@@ -47,7 +47,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
-from test.framework import TEST_MODULES_DIR, TEST_ECS_DIR
+from test.framework import TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
@@ -803,7 +803,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = EasyConfig(test_ec)
