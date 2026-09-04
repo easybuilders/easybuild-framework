@@ -468,7 +468,7 @@ class ToyBuildTest(EnhancedTestCase):
         """Perform a toy build (format v2)."""
         # set $MODULEPATH such that modules for specified dependencies are found
         modulepath = os.environ.get('MODULEPATH')
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
 
         args = [
             os.path.join(TEST_DIR, 'easyconfigs', 'v2.0', 'toy.eb'),
@@ -901,7 +901,7 @@ class ToyBuildTest(EnhancedTestCase):
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
         args = [
-            os.path.join(TOY_EC),
+            TOY_EC,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -1182,7 +1182,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-system toolchain."""
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
@@ -1217,7 +1217,7 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with extensions, and filtered build dependency."""
         # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
 
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         toy_ec_txt = read_file(toy_ec)
@@ -1770,7 +1770,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
 
         # only consider provided test modules
-        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
+        self.reset_modulepath([TEST_MODULES_DIR])
 
         # sanity check fails without --force if software is not installed yet
         common_args = [
