@@ -141,6 +141,29 @@ class TestCase(OrigTestCase):
         self.orig_sys_stderr = sys.stderr
         self.stdout_std_err_buffers = []
 
+    def convert_exception_to_str(self, err):
+        """Convert an Exception instance to a string."""
+        fancylogger.getLogger().deprecated('convert_exception_to_str is deprecated, use `str(err)` directly instead',
+                                           '6.0')
+        msg = err
+        if hasattr(err, 'msg'):
+            msg = err.msg
+        elif hasattr(err, 'message'):
+            msg = err.message
+            if not msg:
+                # rely on str(msg) in case err.message is empty
+                msg = err
+        elif hasattr(err, 'args'):  # KeyError in Python 2.4 only provides message via 'args' attribute
+            msg = err.args[0]
+        else:
+            msg = err
+        try:
+            res = str(msg)
+        except UnicodeEncodeError:
+            res = msg.encode('utf8', 'replace')
+
+        return res
+
     def assertErrorRegex(self, *args, **kwargs):
         fancylogger.getLogger().deprecated('assertErrorRegex is deprecated, use assertRaisesRegex instead', '6.0')
         return self.assertRaisesRegex(*args, **kwargs)
