@@ -126,10 +126,8 @@ class EasyBuildLibTest(TestCase):
 
         self.configure()
 
-        test_mods_path = os.path.join(TEST_MODULES_DIR)
-
         modtool = modules_tool()
-        modtool.use(test_mods_path)
+        modtool.use(TEST_MODULES_DIR)
         self.assertIn('GCC/6.4.0-2.28', modtool.available())
         modtool.load(['GCC/6.4.0-2.28'])
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
