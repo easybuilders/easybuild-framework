@@ -467,6 +467,7 @@ BUILD_OPTIONS_OTHER = {
         'external_modules_metadata',
         'extra_ec_paths',
         'mod_depends_on',  # deprecated
+        'original_modules_tool',
         'robot_path',
         'valid_module_classes',
         'valid_stops',
