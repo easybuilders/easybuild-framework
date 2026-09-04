@@ -90,6 +90,8 @@ def build_easyconfig_variables_dict():
 
 def handle_deprecated_constants(method):
     """Decorator to handle deprecated easyconfig template constants"""
+    _log.deprecated("handle_deprecated_constants decorator is deprecated, use DeprecatedDict instead", '6.0')
+
     def wrapper(self, key, *args, **kwargs):
         """Check whether any deprecated constants are used"""
         alternative = ALTERNATIVE_EASYCONFIG_TEMPLATE_CONSTANTS
