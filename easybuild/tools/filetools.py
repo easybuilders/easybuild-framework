@@ -3110,7 +3110,18 @@ def install_fake_vsc():
 def get_easyblock_class_name(path):
     """Make sure file is an easyblock and get easyblock class name"""
     fn = os.path.basename(path).split('.')[0]
-    mod = load_source(fn, path)
+    try:
+        mod = load_source(fn, path)
+    except SyntaxError as err:
+        raise EasyBuildError(
+            "Failed to load easyblock file '%s': %s (line %d)",
+            os.path.basename(path), err.msg, err.lineno,
+        )
+    except ImportError as err:
+        raise EasyBuildError(
+            "Failed to load easyblock file '%s': %s",
+            os.path.basename(path), err,
+        )
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:
