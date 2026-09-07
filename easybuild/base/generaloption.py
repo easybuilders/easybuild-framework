@@ -1166,7 +1166,7 @@ class GeneralOption:
                     extra_help.append("default: %s" % default)
 
                 # for boolean options enabled by default, mention that they can be disabled using --disable-*
-                if default is True:
+                if default is True or key == 'robot':
                     extra_help.append("disable with --disable-%s" % key)
 
             if len(extra_help) > 0:
