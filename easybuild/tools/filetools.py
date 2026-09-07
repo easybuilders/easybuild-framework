@@ -3113,15 +3113,9 @@ def get_easyblock_class_name(path):
     try:
         mod = load_source(fn, path)
     except SyntaxError as err:
-        raise EasyBuildError(
-            "Failed to load easyblock file '%s': %s (line %d)",
-            os.path.basename(path), err.msg, err.lineno,
-        )
+        raise EasyBuildError("Failed to load easyblock file '%s': %s (line %d)", path, err.msg, err.lineno)
     except ImportError as err:
-        raise EasyBuildError(
-            "Failed to load easyblock file '%s': %s",
-            os.path.basename(path), err,
-        )
+        raise EasyBuildError("Failed to load easyblock file '%s': %s", path, err)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:

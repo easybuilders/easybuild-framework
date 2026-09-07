@@ -3632,17 +3632,17 @@ class FileToolsTest(EnhancedTestCase):
 
         # test with syntax error in easyblock file
         ft.write_file(bad_py, "def foo(:\n    pass\n")
-        err = r"^Failed to load easyblock file 'bad_easyblock\.py': .* \(line 1\)$"
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 1\)$"
         self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
 
         # test with import error in easyblock file
         ft.write_file(bad_py, "import non_existent_module_xyz\n")
-        err = r"^Failed to load easyblock file 'bad_easyblock\.py': No module named 'non_existent_module_xyz'$"
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': No module named 'non_existent_module_xyz'$"
         self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
 
         # Both
         ft.write_file(bad_py, "def foo(:\n    pass\n", append=True)
-        err = r"^Failed to load easyblock file 'bad_easyblock\.py': .* \(line 2\)$"
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 2\)$"
         self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
 
     def test_copy_easyblocks(self):
