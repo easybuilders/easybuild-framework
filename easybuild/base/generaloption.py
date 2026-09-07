@@ -1165,7 +1165,8 @@ class GeneralOption:
                 else:
                     extra_help.append("default: %s" % default)
 
-                # for boolean options enabled by default, mention that they can be disabled using --disable-*
+                # for boolean options enabled by default and for the --robot option,
+                # mention that they can be disabled using --disable-*
                 if default is True or key == 'robot':
                     extra_help.append("disable with --disable-%s" % key)
 
