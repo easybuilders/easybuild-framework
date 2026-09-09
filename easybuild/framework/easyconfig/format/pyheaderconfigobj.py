@@ -130,13 +130,13 @@ class DeprecatedDict(dict):
         if args:
             if isinstance(args[0], dict):
                 for key, value in args[0].items():
-                    self.__setitem__(key, value)
+                    self[key] = value
             else:
                 for key, value in args[0]:
-                    self.__setitem__(key, value)
+                    self[key] = value
 
         for key, value in kwargs.items():
-            self.__setitem__(key, value)
+            self[key] = value
 
 
 class EasyConfigFormatConfigObj(EasyConfigFormat):

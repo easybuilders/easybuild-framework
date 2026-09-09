@@ -429,9 +429,9 @@ class Toolchain:
         for v in var_names:
             res.append("%s=%s" % (v, self.variables[v]))
             if verbose:
-                res.append("# type %s" % (type(self.variables[v])))
-                res.append("# %s" % (self.variables[v].show_el()))
-                res.append("# repr %s" % (repr(self.variables[v])))
+                res.append("# type %s" % type(self.variables[v]))
+                res.append("# %s" % self.variables[v].show_el())
+                res.append("# repr %s" % repr(self.variables[v]))
 
         if offset is None:
             offset = ''
