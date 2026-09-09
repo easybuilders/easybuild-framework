@@ -359,6 +359,11 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
 
     if os.path.exists(symlink_path):
         abs_source_path = os.path.abspath(source_path)
+        if not os.path.islink(symlink_path):
+            raise EasyBuildError("Trying to symlink %s to %s, but there already is a %s at %s.",
+                                 source_path, symlink_path, "file" if os.path.isfile(symlink_path) else "folder",
+                                 symlink_path)
+
         symlink_target_path = os.path.abspath(os.readlink(symlink_path))
         if abs_source_path != symlink_target_path:
             raise EasyBuildError("Trying to symlink %s to %s, but the symlink already exists and points to %s.",

@@ -945,6 +945,12 @@ class FileToolsTest(EnhancedTestCase):
                               (test_file2, link, test_file),
                               ft.symlink, test_file2, link)
 
+        # Test when symlink is an existing file
+        self.assertErrorRegex(EasyBuildError,
+                              "Trying to symlink %s to %s, but there already is a file at %s." %
+                              (test_file2, test_file, test_file),
+                              ft.symlink, test_file2, test_file)
+
         # test resolve_path
         self.assertEqual(test_dir, ft.resolve_path(link_dir))
         self.assertEqual(os.path.join(os.path.realpath(self.test_prefix), 'test', 'test.txt'), ft.resolve_path(link))
