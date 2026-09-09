@@ -478,17 +478,23 @@ class FileToolsTest(EnhancedTestCase):
     def test_normalize_path(self):
         """Test normalize_path"""
         self.assertEqual(ft.normalize_path(''), '')
-        self.assertEqual(ft.normalize_path('/'), '/')
-        self.assertEqual(ft.normalize_path('//'), '//')
-        self.assertEqual(ft.normalize_path('///'), '/')
-        self.assertEqual(ft.normalize_path('/foo/bar/baz'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('foo//bar/././baz/'), 'foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//foo//bar/././baz/'), '//foo/bar/baz')
-        self.assertEqual(ft.normalize_path('///foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('////foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
+        test_cases = [
+            ('/', '/'),
+            ('//', '//'),
+            ('///', '/'),
+            ('/foo/bar/baz', '/foo/bar/baz'),
+            ('/foo//bar/././baz/', '/foo/bar/baz'),
+            ('foo//bar/././baz/', 'foo/bar/baz'),
+            ('//foo//bar/././baz/', '//foo/bar/baz'),
+            ('///foo//bar/././baz/', '/foo/bar/baz'),
+            ('////foo//bar/././baz/', '/foo/bar/baz'),
+            ('/././foo//bar/././baz/', '/foo/bar/baz'),
+            ('//././foo//bar/././baz/', '//foo/bar/baz'),
+        ]
+        for in_path, expected in test_cases:
+            with self.subTest(in_path=in_path):
+                self.assertEqual(ft.normalize_path(in_path), expected)
+                self.assertEqual(ft.normalize_path(Path(in_path)), expected)
 
     def test_is_parent_path(self):
         """Test is_parent_path"""
@@ -3746,7 +3752,7 @@ class FileToolsTest(EnhancedTestCase):
         # (it's straight in the easybuild-framework directory)
         setup_py = 'setup.py'
         if os.path.exists(os.path.join(topdir, setup_py)):
-            test_files.append(os.path.join(setup_py))
+            test_files.append(setup_py)
             expected_entries.append(setup_py)
             expected_new.append(True)
 

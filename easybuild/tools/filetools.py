@@ -635,11 +635,14 @@ def det_common_path_prefix(paths):
         return None
 
 
-def normalize_path(path):
+def normalize_path(path: PathOrStr) -> str:
     """Normalize path removing empty and dot components.
 
     Similar to os.path.normpath but does not resolve '..' which may return a wrong path when symlinks are used
     """
+    if isinstance(path, Path):
+        # Path instances are already normalized
+        return str(path)
     # In POSIX 3 or more leading slashes are equivalent to 1
     if path.startswith(os.path.sep):
         if path.startswith(os.path.sep * 2) and not path.startswith(os.path.sep * 3):
