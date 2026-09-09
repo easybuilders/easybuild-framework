@@ -197,5 +197,6 @@ if add_rpath_args:
     # add -rpath flags in front
     cmd_args = cmd_args_rpath + cmd_args
 
-
+# print string value that specifies command arguments to use for actual compiler/linker call;
+# use null character (\0) as separator, so we can do a clean split again (in RPATH wrapper shell script)
 print('\0'.join(cmd_args), end='')

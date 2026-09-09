@@ -46,19 +46,27 @@ function log {
 TOPDIR=$(dirname "$0")
 # command name
 CMD=$(basename "$0")
+# $TOPDIR is not used in this template script, but Toolchain.prepare_rpath_wrappers assumes it is set
+# so it can be used as an anchor to determine the path to the rpath_args.py script
+TOPDIR=$(dirname "$0")
 
 log "found CMD: $CMD | original command: %(orig_cmd)s | orig args: $*)"
 
 PYTHON_EXE='%(python)s'
 RPATH_ARGS_PY=%(rpath_args_py)s
 
-# rpath_args.py script spits out statement that defines $CMD_ARGS
+# rpath_args.py script spits out NULL-separated arguments to be passed to the wrapped command;
 # options for 'python' command (see https://docs.python.org/3/using/cmdline.html#miscellaneous-options)
 # * -I: isolated mode: ignore all $PYTHON* environment variables (like $PYTHONPATH) and user site-packages directory
 # * -O: run Python in optimized mode (remove asserts, ignore stuff under __debug__ guard);
 # * -S: disable the import of the module site and the site-dependent manipulations of sys.path that it entails;
-log "$PYTHON_EXE -I -O -S %(rpath_args_py)s '$CMD' '%(rpath_filter)s' '%(rpath_include)s' $*"
-readarray -d '' -t CMD_ARGS < <( "$PYTHON_EXE" -I -O -S "$RPATH_ARGS_PY" "$CMD" '%(rpath_filter)s' '%(rpath_include)s' "$@" )
+PYTHON_OPTIONS="-I -O -S"
+log "$PYTHON_EXE ${PYTHON_OPTIONS} $RPATH_ARGS_PY '$CMD' '%(rpath_filter)s' '%(rpath_include)s' $*"
+# use readarray to process output obtained from rpath_args.py script,
+# store resulting array in $CMD_ARGS;
+# -d '' specifies that splitting should be done by null character ('\0' in rpath_args.py),
+# -t specifies that delimiters themselves must be removed
+readarray -d '' -t CMD_ARGS < <( "$PYTHON_EXE" ${PYTHON_OPTIONS} "$RPATH_ARGS_PY" "$CMD" '%(rpath_filter)s' '%(rpath_include)s' "$@" )
 
 # exclude location of this wrapper from $PATH to avoid other potential wrappers calling this wrapper
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "^%(wrapper_dir)s$" | tr '\n' ':')
