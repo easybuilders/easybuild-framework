@@ -201,8 +201,6 @@ class Extension:
         self.sanity_check_module_loaded = False
         self.fake_mod_data = None
 
-        self.async_cmd_task = None
-
     @property
     def name(self):
         """
@@ -256,19 +254,20 @@ class Extension:
         """
         raise NotImplementedError
 
-    def async_cmd_check(self):
+    def async_cmd_check(self) -> Optional[RunShellCmdResult]:
         """
         Check progress of installation command that was started asynchronously.
         :return: True if command completed, False otherwise
         """
+        if self.async_cmd_task is None:
+            raise EasyBuildError(f"async_cmd_check was called, but no asynchronous command running for {self.name}")
+
         if not self.async_cmd_task.done():
-            return False
+            return None
+
         res: RunShellCmdResult = self.async_cmd_task.result()
-        self.log.debug(f"Asynchronous command for {self.name} finished with exit code {res.exit_code}")
-        self.async_cmd_output = res.output
-        if res.stderr:
-            self.async_cmd_output += res.stderr
-        return True
+        self.log.info(f"Asynchronous command for {self.name} finished with exit code {res.exit_code}")
+        return res
 
     def postrun(self):
         """
