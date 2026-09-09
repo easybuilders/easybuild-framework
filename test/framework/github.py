@@ -186,10 +186,19 @@ class GithubTest(EnhancedTestCase):
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
             # Converting to dict triggers deprecation warning
             self.assertEqual(dict(paths2), path_dict)
-        # Direct comparison to dict does not
+        # Direct comparison to dict does not trigger deprecation warning
         self.assertEqual(paths2, path_dict)
         self.assertEqual(path_dict, paths2)
         self.assertEqual(repr(paths2), repr(path_dict))
+
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), path_dict)
+        path_dict["unrelated"] = "Anything"
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), path_dict)
+        # Not all key
+        path_dict = {'easyconfigs': ['foo.eb'], 'files_to_delete': ['bar.txt']}
+        expected = dict(path_dict)
+        expected.update({'patch_files': [], 'py_files': []})
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), expected)
 
     def test_det_pr_title(self):
         """Test det_pr_title function"""
