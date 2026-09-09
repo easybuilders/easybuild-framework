@@ -190,6 +190,9 @@ DEFAULT_CONFIG = {
     'license_server_port': [None, 'Port for license server', LICENSE],
 
     # EXTENSIONS easyconfig parameters
+    'extension_name': [None, "Name to add to the list of extensions in the module file (as if in exts_list); "
+                             "can also be used as an option for an extension in exts_list, "
+                             "in which case it is used in the module file instead of the extension name", EXTENSIONS],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
     'exts_defaultclass': [None, "Name of default easyblock for extensions", EXTENSIONS],
     'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],

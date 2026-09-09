@@ -482,6 +482,7 @@ class EasyConfigTest(EnhancedTestCase):
                ("ext2", "2.0", {
                    "source_urls": [("http://example.com", "suffix")],
                    "patches": [("toy-0.0.eb", ".")], # dummy patch to avoid download fail
+                   "extension_name": "ext2-renamed",
                    "checksums": [
                        # SHA256 checksum for source (gzip-1.4.eb)
                        "6a5abcab719cefa95dca4af0db0d2a9d205d68f775a33b452ec0f2b75b6a3a45",
@@ -496,6 +497,7 @@ class EasyConfigTest(EnhancedTestCase):
                ("ext-%(name)s", "%(version)s"),
                ("ext-%(namelower)s", "%(version_major)s.0"),
             ]
+            extension_name = "ext-extra"
         """)
         self.prep()
         ec = EasyConfig(self.eb_file)
@@ -516,6 +518,7 @@ class EasyConfigTest(EnhancedTestCase):
                           {'toy-0.%(version_minor)s.eb':
                            '177b34bcdfa1abde96f30354848a01894ebc9c24913bc5145306cd30f78fc8ad'}],
             'patches': [('toy-0.0.eb', '.')],
+            'extension_name': 'ext2-renamed',
             'source_tmpl': 'gzip-1.4.eb',
             'source_urls': [('http://example.com', 'suffix')],
         })
@@ -527,9 +530,9 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             modfile = os.path.join(eb.make_module_step(), 'PI', '3.14' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        # verify that templates used for extensions are resolved as they should
-        regex = re.compile('EBEXTSLISTPI.*"ext1-1.0,ext2-2.0,ext-PI-3.14,ext-pi-3.0')
-        self.assertTrue(regex.search(modtxt), "Pattern '%s' found in: %s" % (regex.pattern, modtxt))
+        # verify that templates used for extensions are resolved as they should,
+        # and that 'extension_name' option & easyconfig parameter are honored
+        self.assertRegex(modtxt, 'EBEXTSLISTPI.*"ext1-1.0,ext2-renamed-2.0,ext-PI-3.14,ext-pi-3.0,ext-extra-3.14"')
 
     def test_extensions_default_class(self):
         """Test that exts_defaultclass doesn't need to be specified if explicit one is present."""

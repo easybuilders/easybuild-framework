@@ -695,13 +695,17 @@ class EasyBlock:
                         'github_account': ext_options.get('github_account', orig_github_account),
                         # if a particular easyblock is specified, make sure it's used
                         # (this is picked up by init_ext_instances)
-                        'easyblock': ext_options.get('easyblock', None),
+                        'easyblock': ext_options.get('easyblock'),
                     }
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
                     template_values = copy.deepcopy(self.cfg.template_values)
                     template_values.update(template_constant_dict(ext_src))
+
+                    # Resolve this here where we have the template values available
+                    if 'extension_name' in ext_options:
+                        ext_options['extension_name'] = resolve_template(ext_options['extension_name'], template_values)
 
                     source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
                     checksums = resolve_template(ext_options.get('checksums', []), template_values)
@@ -862,8 +866,7 @@ class EasyBlock:
                     exts_sources.append(ext_src)
 
             elif isinstance(ext, str):
-                exts_sources.append({'name': ext})
-
+                exts_sources.append({'name': resolve_template(ext, self.cfg.template_values)})
             else:
                 raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
 
@@ -1679,8 +1682,8 @@ class EasyBlock:
         """
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
-        # add extra stuff for extensions (if any)
-        if self.cfg.get_ref('exts_list'):
+        # add extra stuff for extensions (if any), or if the 'extension_name' easyconfig parameter is used
+        if self.cfg.get_ref('exts_list') or self.cfg.get('extension_name'):
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
@@ -2003,23 +2006,35 @@ class EasyBlock:
         Each entry should be a (name, version) tuple or just (name, ) if no version exists.
         Custom EasyBlocks may override this to add extensions that cannot be found automatically.
 
+        An 'extension_name' option for an extension in exts_list replaces its name.
+        The 'extension_name' easyconfig parameter, if set, is added as an extra extension.
+
         :param formatted: boolean indicating whether the extension name should be formatted. If True, format using
                           the function defined by the exts_formatter parameter.
         """
-        # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
-        # As name can be a templated value we must resolve templates
         if hasattr(self, '_make_extension_list'):
             self.log.nosupport("self._make_extension_list is replaced by self.make_extension_list", '5.0')
         if type(self).make_extension_string != EasyBlock.make_extension_string:
             self.log.nosupport("self.make_extension_string should not be overridden", '5.0')
 
+        if self.cfg.get_ref('exts_list') and not self.exts:
+            self.exts = self.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+
         exts_list = []
-        for ext in self.cfg.get_ref('exts_list'):
-            if isinstance(ext, str):
-                exts_list.append((resolve_template(ext, self.cfg.template_values), ))
+        for ext in self.exts:
+            ext_name = ext.get('options', {}).get('extension_name') or ext['name']
+            ext_version = ext.get('version')
+            if ext_version is not None:
+                exts_list.append((ext_name, ext_version))
             else:
-                exts_list.append((resolve_template(ext[0], self.cfg.template_values),
-                                  resolve_template(ext[1], self.cfg.template_values)))
+                exts_list.append((ext_name,))
+
+        # 'extension_name' easyconfig parameter (if set) is added as an extra extension, as if in exts_list
+        extension_name = self.cfg.get('extension_name')
+        if extension_name and extension_name not in [ext[0] for ext in exts_list]:
+            self.log.debug(f"Adding '{extension_name}' to list of extensions, "
+                           f"as specified via the 'extension_name' easyconfig parameter")
+            exts_list.append((extension_name, self.version))
 
         if formatted:
             formatter = self.cfg.get('exts_formatter')
