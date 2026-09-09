@@ -113,6 +113,14 @@ class CategorizedPaths(MutableMapping):
         self.py_files = py_files
         self._others = {}
 
+    @classmethod
+    def _from_dict(cls, data: dict) -> "CategorizedPaths":
+        """Create a CategorizedPaths instance from a dictionary."""
+        known_values = {field: data.get(field, []) for field in CategorizedPaths._fields}
+        obj = CategorizedPaths(**known_values)
+        obj._others = {key: value for key, value in data.items() if key not in CategorizedPaths._fields}
+        return obj
+
     def __getitem__(self, key):
         _log.deprecated("Accessing CategorizedPaths via index is deprecated, use named attributes instead", '6.0')
         try:
@@ -2009,6 +2017,11 @@ def new_branch_github(paths: CategorizedPaths, ecs, commit_msg=None):
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
+    if isinstance(paths, dict):
+        _log.deprecated("`paths` argument to new_branch_github should be a CategorizedPaths instance "
+                        "instead of a dict", '6.0')
+        paths = CategorizedPaths._from_dict(paths)
+
     branch_name = build_option('pr_branch_name')
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
@@ -2252,6 +2265,10 @@ def new_pr(paths: CategorizedPaths, ecs, title=None, descr=None, commit_msg=None
     :param commit_msg: commit message to use
     """
 
+    if isinstance(paths, dict):
+        _log.deprecated("`paths` argument to new_pr should be a CategorizedPaths instance instead of a dict", '6.0')
+        paths = CategorizedPaths._from_dict(paths)
+
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
 
@@ -2320,6 +2337,11 @@ def det_pr_target_repo(paths: CategorizedPaths):
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
     """
+    if isinstance(paths, dict):
+        _log.deprecated("`paths` argument to det_pr_target_repo should be a CategorizedPaths instance "
+                        "instead of a dict", '6.0')
+        paths = CategorizedPaths._from_dict(paths)
+
     pr_target_repo = build_option('pr_target_repo')
 
     # determine target repository for PR based on which files are provided
@@ -2364,6 +2386,11 @@ def update_branch(branch_name, paths: CategorizedPaths, ecs, github_account=None
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
+    if isinstance(paths, dict):
+        _log.deprecated("`paths` argument to update_branch should be a CategorizedPaths instance "
+                        "instead of a dict", '6.0')
+        paths = CategorizedPaths._from_dict(paths)
+
     if commit_msg is None:
         commit_msg = build_option('pr_commit_msg')
 
@@ -2399,6 +2426,9 @@ def update_pr(pr_id, paths: CategorizedPaths, ecs, commit_msg=None):
     :param ecs: list of parsed easyconfigs, incl. for dependencies (if robot is enabled)
     :param commit_msg: commit message to use
     """
+    if isinstance(paths, dict):
+        _log.deprecated("`paths` argument to update_pr should be a CategorizedPaths instance instead of a dict", '6.0')
+        paths = CategorizedPaths._from_dict(paths)
 
     pr_target_repo = det_pr_target_repo(paths)
     if pr_target_repo is None:
