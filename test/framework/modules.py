@@ -44,6 +44,7 @@ from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
@@ -1281,11 +1282,22 @@ class ModulesTest(EnhancedTestCase):
             # Check load and unload for a single path when it is the only one
             # Only for Lmod as we have some shortcuts for avoiding the module call there
             old_module_path = os.environ['MODULEPATH']
+
             del os.environ['MODULEPATH']
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
             self.modtool.unuse(test_dir1)
             self.assertNotIn('MODULEPATH', os.environ)
+
+            test_dir4 = os.path.join(self.test_prefix, 'four')
+            os.mkdir(test_dir4)
+            # Same but not normalized
+            test_dir4_2 = os.path.join(self.test_prefix, '.', 'four')
+            self.modtool.use(test_dir4)
+            self.assertEqual(os.environ['MODULEPATH'], test_dir4)
+            self.modtool.unuse(test_dir4_2)
+            self.assertNotIn('MODULEPATH', os.environ)
+
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_add_and_remove_module_path(self):
@@ -1324,7 +1336,7 @@ class ModulesTest(EnhancedTestCase):
         # Environment-Modules 4.x seems to resolve relative paths: /foo/../foo -> /foo
         # Hence we can only check the real paths
         def get_resolved_module_path():
-            return os.pathsep.join(os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep))
+            return join_path_var(os.path.realpath(p) for p in os.environ['MODULEPATH'].split(os.pathsep))
 
         test_dir1_relative = os.path.join(test_dir1, '..', os.path.basename(test_dir1))
         test_dir2_dot = os.path.join(os.path.dirname(test_dir2), '.', os.path.basename(test_dir2))
@@ -1449,12 +1461,9 @@ class ModulesTest(EnhancedTestCase):
         def check_loaded_modules():
             "Helper function to run check_loaded_modules and check on stdout/stderr."
             # there should be no errors/warnings by default if no (EasyBuild-generated) modules are loaded
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            self.modtool.check_loaded_modules()
-            stdout, stderr = self.get_stdout(), self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                self.modtool.check_loaded_modules()
+                stdout, stderr = self.get_stdout(), self.get_stderr()
             self.assertEqual(stdout, '')
             return stderr.strip()
 

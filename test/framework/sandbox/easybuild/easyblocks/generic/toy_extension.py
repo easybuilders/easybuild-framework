@@ -44,6 +44,8 @@ class Toy_Extension(ExtensionEasyBlock):
         """Custom easyconfig parameters for toy extensions."""
         extra_vars = {
             'toy_ext_param': ['', "Toy extension parameter", CUSTOM],
+            'toy_custom_sanity_check_cmds': [None, "Optional list of custom command to run in sanity check", CUSTOM],
+            'use_custom_sanity_check_paths': [True, "Add default paths to check for in sanity check", CUSTOM],
         }
         return ExtensionEasyBlock.extra_options(extra_vars=extra_vars)
 
@@ -106,10 +108,14 @@ class Toy_Extension(ExtensionEasyBlock):
     def sanity_check_step(self, *args, **kwargs):
         """Custom sanity check for toy extensions."""
         self.log.info("Loaded modules: %s", self.modules_tool.list())
-        custom_paths = {
-            'files': [],
-            'dirs': ['.'],  # minor hack to make sure there's always a non-empty list
-        }
-        if self.src:
-            custom_paths['files'].extend(['bin/%s' % self.name, 'lib/lib%s.a' % self.name])
-        return super().sanity_check_step(custom_paths=custom_paths)
+        if self.cfg['use_custom_sanity_check_paths']:
+            custom_paths = {
+                'files': [],
+                'dirs': ['.'],  # minor hack to make sure there's always a non-empty list
+            }
+            if self.src:
+                custom_paths['files'].extend(['bin/%s' % self.name, 'lib/lib%s.a' % self.name])
+        else:
+            custom_paths = None
+        return super().sanity_check_step(custom_paths=custom_paths,
+                                         custom_commands=self.cfg['toy_custom_sanity_check_cmds'])

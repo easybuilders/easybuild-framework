@@ -61,6 +61,8 @@ import time
 import zlib
 from functools import partial
 from html.parser import HTMLParser
+from pathlib import Path
+from typing import List, Union
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
@@ -80,10 +82,17 @@ try:
 except ImportError:
     HAVE_REQUESTS = False
 
+PathOrStr = Union[str, Path]
+
 _log = fancylogger.getLogger('filetools', fname=False)
 
 # easyblock class prefix
 EASYBLOCK_CLASS_PREFIX = 'EB_'
+
+FALLBACK_SOURCE_URLS = [
+    ('https://ftpmirror.gnu.org/gnu/', 'https://ftp.gnu.org/gnu/'),
+    ('https://ftp.gnu.org/gnu/', 'https://ftpmirror.gnu.org/gnu/'),
+]
 
 # character map for encoding strings
 STRING_ENCODING_CHARMAP = {
@@ -175,12 +184,17 @@ EXTRACT_CMDS = {
     # zip file
     '.zip': "unzip -qq %(filepath)s",
     # iso file
-    '.iso': "7z x %(filepath)s",
+    '.iso': "bsdtar xf %(filepath)s",
     # tar.Z: using compress (LZW), but can be handled with gzip so use 'z'
     '.tar.z': "tar xzf %(filepath)s",
     # shell scripts don't need to be unpacked, just copy there
     '.sh': "cp -dR %(filepath)s .",
 }
+
+# 7z can also extract iso files, use it as a fallback
+if not shutil.which('bsdtar'):
+    _log.info("Did not find bsdtar, switching to 7z for iso files")
+    EXTRACT_CMDS['.iso'] = "7z x %(filepath)s"
 
 ZIPPED_PATCH_EXTS = ('.bz2', '.gz', '.xz')
 
@@ -345,6 +359,11 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
 
     if os.path.exists(symlink_path):
         abs_source_path = os.path.abspath(source_path)
+        if not os.path.islink(symlink_path):
+            raise EasyBuildError("Trying to symlink %s to %s, but there already is a %s at %s.",
+                                 source_path, symlink_path, "file" if os.path.isfile(symlink_path) else "folder",
+                                 symlink_path)
+
         symlink_target_path = os.path.abspath(os.readlink(symlink_path))
         if abs_source_path != symlink_target_path:
             raise EasyBuildError("Trying to symlink %s to %s, but the symlink already exists and points to %s.",
@@ -616,11 +635,14 @@ def det_common_path_prefix(paths):
         return None
 
 
-def normalize_path(path):
+def normalize_path(path: PathOrStr) -> str:
     """Normalize path removing empty and dot components.
 
     Similar to os.path.normpath but does not resolve '..' which may return a wrong path when symlinks are used
     """
+    if isinstance(path, Path):
+        # Path instances are already normalized
+        return str(path)
     # In POSIX 3 or more leading slashes are equivalent to 1
     if path.startswith(os.path.sep):
         if path.startswith(os.path.sep * 2) and not path.startswith(os.path.sep * 3):
@@ -871,7 +893,10 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
     wait = False
     wait_time = initial_wait_time
 
+    fallback_src_urls_tried = []
+
     while not downloaded and attempt_cnt < max_attempts:
+        exception_raised = False
         attempt_cnt += 1
         try:
             if insecure:
@@ -905,6 +930,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
             downloaded = True
             url_fd.close()
         except used_urllib.HTTPError as err:
+            exception_raised = True
             if used_urllib is std_urllib:
                 status_code = err.code
             if status_code == 403 and attempt_cnt == 1:
@@ -918,6 +944,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
             else:
                 _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
         except IOError as err:
+            exception_raised = True
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
@@ -929,20 +956,35 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
                 exit_code=EasyBuildExit.FAIL_DOWNLOAD
             )
 
-        if not downloaded and attempt_cnt < max_attempts:
-            _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
-            if used_urllib is std_urllib and switch_to_requests:
-                if not HAVE_REQUESTS:
-                    raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
-                                         "install the python-requests and pyOpenSSL RPM packages and try again.")
-                _log.info("Downloading using requests package instead of urllib2")
-                used_urllib = requests
+        if not downloaded:
+            if attempt_cnt < max_attempts:
+                _log.info("Attempt %d of downloading %s to %s failed, trying again..." % (attempt_cnt, url, path))
+                if used_urllib is std_urllib and switch_to_requests:
+                    if not HAVE_REQUESTS:
+                        raise EasyBuildError("SSL issues with urllib2. If you are using RHEL/CentOS 6.x please "
+                                             "install the python-requests and pyOpenSSL RPM packages and try again.")
+                    _log.info("Downloading using requests package instead of urllib2")
+                    used_urllib = requests
 
-            if wait:
-                _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
-                time.sleep(wait_time)
-                # exponential backoff
-                wait_time *= 2
+                if wait:
+                    _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
+                    time.sleep(wait_time)
+                    # exponential backoff
+                    wait_time *= 2
+
+            # if we're about to give up, consider automatic fallback URL, and reset number of attemps...
+            elif attempt_cnt == max_attempts and exception_raised:
+                for orig_src_url, fallback_src_url in FALLBACK_SOURCE_URLS:
+                    if url.startswith(orig_src_url) and fallback_src_url not in fallback_src_urls_tried:
+                        url = fallback_src_url + url[len(orig_src_url):]
+                        url_req = std_urllib.Request(url, headers=headers)
+                        used_urllib = std_urllib
+                        switch_to_requests = False
+                        _log.info(f"Trying again with fallback URL {fallback_src_url} for {orig_src_url}: {url}")
+                        attempt_cnt = 0
+                        wait_time = initial_wait_time
+                        fallback_src_urls_tried.append(fallback_src_url)
+                        break
 
     if downloaded:
         _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
@@ -1256,7 +1298,9 @@ def dir_contains_files(path, recursive=True):
     :recursive If False only the path itself is considered, else all subdirectories are also searched
     """
     if recursive:
-        return any(files for _root, _dirs, files in os.walk(path))
+        return any(os.path.isfile(os.path.join(root, file))
+                   for root, _dirs, files in os.walk(path, followlinks=True)
+                   for file in files)
     else:
         return any(os.path.isfile(os.path.join(path, x)) for x in os.listdir(path))
 
@@ -2046,11 +2090,12 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
     :param sticky: set the sticky bit on this directory (a.k.a. the restricted deletion flag),
                    to avoid users can removing/renaming files in this directory
     """
-    if not os.path.isabs(path):
-        path = os.path.abspath(path)
+    path = Path(path)
+    if not path.is_absolute():
+        path = path.absolute()
 
     # exit early if path already exists
-    if not os.path.exists(path):
+    if not path.exists():
         if set_gid is None:
             set_gid = build_option('set_gid_bit')
         if sticky is None:
@@ -2058,17 +2103,21 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
 
         _log.info("Creating directory %s (parents: %s, set_gid: %s, sticky: %s)", path, parents, set_gid, sticky)
         # set_gid and sticky bits are only set on new directories, so we need to determine the existing parent path
-        existing_parent_path = os.path.dirname(path)
+        existing_parent_path = path.parent
         try:
             if parents:
-                # climb up until we hit an existing path or the empty string (for relative paths)
-                while existing_parent_path and not os.path.exists(existing_parent_path):
-                    existing_parent_path = os.path.dirname(existing_parent_path)
-                os.makedirs(path, exist_ok=True)
+                # climb up until we hit an existing path
+                while not existing_parent_path.exists():
+                    parent = existing_parent_path.parent
+                    # In practice impossible but to avoid infinite loops
+                    if existing_parent_path == parent:
+                        raise EasyBuildError('Did not find any existing parent path or drive')
+                    existing_parent_path = parent
+                path.mkdir(parents=True, exist_ok=True)
             else:
-                os.mkdir(path)
+                path.mkdir()
         except FileExistsError as err:
-            if os.path.exists(path):
+            if path.exists():
                 # This may happen if a parallel build creates the directory after we checked for its existence
                 _log.debug("Directory creation aborted as it seems it was already created: %s", err)
             else:
@@ -2077,8 +2126,7 @@ def mkdir(path, parents=False, set_gid=None, sticky=None):
             raise EasyBuildError("Failed to create directory %s: %s", path, err)
 
         # set group ID and sticky bits, if desired
-        new_subdir = path[len(existing_parent_path):].lstrip(os.path.sep)
-        new_path = os.path.join(existing_parent_path, new_subdir.split(os.path.sep)[0])
+        new_path = existing_parent_path / path.relative_to(existing_parent_path).parts[0]
         set_gid_sticky_bits(new_path, set_gid, sticky, recursive=True)
     else:
         _log.debug("Not creating existing path %s" % path)
@@ -2501,7 +2549,7 @@ def find_flexlm_license(custom_env_vars=None, lic_specs=None):
     return (valid_lic_specs, lic_env_var)
 
 
-def copy_file(path, target_path, force_in_dry_run=False):
+def copy_file(path: PathOrStr, target_path: PathOrStr, force_in_dry_run: bool = False):
     """
     Copy a file from specified location to specified location
 
@@ -2585,7 +2633,8 @@ def copy_file(path, target_path, force_in_dry_run=False):
             raise EasyBuildError("Failed to copy file %s to %s: %s", path, target_path, err)
 
 
-def copy_files(paths, target_path, force_in_dry_run=False, target_single_file=False, allow_empty=True, verbose=False):
+def copy_files(paths: List[PathOrStr], target_path: PathOrStr, force_in_dry_run: bool = False,
+               target_single_file: bool = False, allow_empty: bool = True, verbose: bool = False) -> None:
     """
     Copy list of files to specified target path.
     Target directory is created if it doesn't exist yet.
@@ -2657,8 +2706,8 @@ def has_recursive_symlinks(path):
     return False
 
 
-def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, check_for_recursive_symlinks=True,
-             **kwargs):
+def copy_dir(path: PathOrStr, target_path: PathOrStr, force_in_dry_run: bool = False,
+             dirs_exist_ok: bool = False, check_for_recursive_symlinks: bool = True, **kwargs) -> None:
     """
     Copy a directory from specified location to specified location
 
@@ -2738,7 +2787,8 @@ def copy_dir(path, target_path, force_in_dry_run=False, dirs_exist_ok=False, che
             raise EasyBuildError("Failed to copy directory %s to %s: %s", path, target_path, err)
 
 
-def copy(paths, target_path, force_in_dry_run=False, **kwargs):
+def copy(paths: Union[PathOrStr, List[PathOrStr]], target_path: PathOrStr,
+         force_in_dry_run: bool = False, **kwargs) -> None:
     """
     Copy single file/directory or list of files and directories to specified location
 
@@ -2747,7 +2797,7 @@ def copy(paths, target_path, force_in_dry_run=False, **kwargs):
     :param force_in_dry_run: force running the command during dry run
     :param kwargs: additional named arguments to pass down to copy_dir
     """
-    if isinstance(paths, str):
+    if isinstance(paths, (str, Path)):
         paths = [paths]
 
     _log.info("Copying %d files & directories to %s", len(paths), target_path)
@@ -3065,10 +3115,15 @@ def install_fake_vsc():
     return fake_vsc_path
 
 
-def get_easyblock_class_name(path):
-    """Make sure file is an easyblock and get easyblock class name"""
-    fn = os.path.basename(path).split('.')[0]
-    mod = load_source(fn, path)
+def get_easyblock_class_name(path: PathOrStr):
+    """Check that file is an easyblock and get easyblock class name"""
+    fn = Path(path).stem
+    try:
+        mod = load_source(fn, path)
+    except SyntaxError as err:
+        raise EasyBuildError("Failed to load easyblock file '%s': %s (line %d)", path, err.msg, err.lineno)
+    except ImportError as err:
+        raise EasyBuildError("Failed to load easyblock file '%s': %s", path, err)
     clsmembers = inspect.getmembers(mod, inspect.isclass)
     for cn, co in clsmembers:
         if co.__module__ == mod.__name__:

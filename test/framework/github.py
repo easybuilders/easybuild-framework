@@ -37,6 +37,7 @@ import sys
 import textwrap
 import unittest
 from string import ascii_letters
+from test.framework import TEST_DIR, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -253,28 +254,21 @@ class GithubTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        error_pattern = "Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet"
-        self.assertErrorRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            error_pattern = "Adding labels to PRs for repositories other than easyconfigs hasn't been implemented yet"
+            self.assertErrorRegex(EasyBuildError, error_pattern, gh.add_pr_labels, 1)
 
         build_options['pr_target_repo'] = GITHUB_EASYCONFIGS_REPO
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        gh.add_pr_labels(21465)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            gh.add_pr_labels(21465)
+            stdout = self.get_stdout()
         self.assertIn("Could not determine any missing labels for PR #21465", stdout)
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            gh.add_pr_labels(22088)  # closed, unmerged, unlabeled PR
+            stdout = self.get_stdout()
         self.assertIn("Could not determine any missing labels for PR #22088", stdout)
 
     def test_github_fetch_pr_data(self):
@@ -312,10 +306,9 @@ class GithubTest(EnhancedTestCase):
 
         expected = "PR #1: a pr"
 
-        self.mock_stdout(True)
-        output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
+            stdout = self.get_stdout()
 
         self.assertTrue(stdout.startswith("== Listing PRs with parameters: "))
 
@@ -341,14 +334,11 @@ class GithubTest(EnhancedTestCase):
 
         pr_data, _ = gh.fetch_pr_data(16080, repo_owner, repo_name, GITHUB_TEST_ACCOUNT, full=True)
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        # can't easily check return value, since auto-detected reasons may change over time if PR is touched
-        res = gh.reasons_for_closing(pr_data)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            # can't easily check return value, since auto-detected reasons may change over time if PR is touched
+            res = gh.reasons_for_closing(pr_data)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
 
         self.assertIsInstance(res, list)
         self.assertEqual(stderr.strip(), "WARNING: Using easyconfigs from closed PR #16080")
@@ -374,10 +364,9 @@ class GithubTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        gh.close_pr(2, motivation_msg='just a test')
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            gh.close_pr(2, motivation_msg='just a test')
+            stdout = self.get_stdout()
 
         patterns = [
             "easybuilders/testrepository PR #2 was submitted by migueldiascosta",
@@ -390,10 +379,9 @@ class GithubTest(EnhancedTestCase):
 
         retest_msg = VALID_CLOSE_PR_REASONS['retest']
 
-        self.mock_stdout(True)
-        gh.close_pr(2, motivation_msg=retest_msg)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            gh.close_pr(2, motivation_msg=retest_msg)
+            stdout = self.get_stdout()
 
         patterns = [
             "easybuilders/testrepository PR #2 was submitted by migueldiascosta",
@@ -607,10 +595,9 @@ class GithubTest(EnhancedTestCase):
             return
 
         cwd = os.getcwd()
-        self.mock_stdout(True)
-
-        # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
-        path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
+        with self.mocked_stdout():
+            # default: download tarball for master branch of easybuilders/easybuild-easyconfigs repo
+            path = gh.download_repo(path=self.test_prefix, github_user=GITHUB_TEST_ACCOUNT)
         repodir = os.path.join(self.test_prefix, 'easybuilders', 'easybuild-easyconfigs-main')
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertExists(repodir)
@@ -642,7 +629,6 @@ class GithubTest(EnhancedTestCase):
         self.assertIn('easybuild', os.listdir(repodir))
         self.assertTrue(re.match('^[0-9a-f]{40}$', read_file(shafile)))
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
-        self.mock_stdout(False)
 
     def test_github_download_repo_commit(self):
         """Test downloading repo at specific commit (which does not require any GitHub token)"""
@@ -748,8 +734,6 @@ class GithubTest(EnhancedTestCase):
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_path = os.path.join(test_dir, 'easyconfigs')
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
@@ -759,26 +743,23 @@ class GithubTest(EnhancedTestCase):
             'valid_module_classes': module_classes(),
             'validate': False,
         })
-        self.mock_stdout(True)
-        ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch', [ec_path])
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch', [TEST_ECS_DIR])
+            txt = self.get_stdout()
 
         self.assertEqual(ec, 'toy')
         reg = re.compile(r'[1-9]+ of [1-9]+ easyconfigs checked')
         self.assertTrue(re.search(reg, txt))
 
-        self.mock_stdout(True)
-        self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.assertEqual(gh.find_software_name_for_patch('test.patch', []), None)
 
         non_utf8_patch = os.path.join(self.test_prefix, 'problem.patch')
         with open(non_utf8_patch, 'wb') as fp:
             fp.write(bytes("+  ximage->byte_order=T1_byte_order; /* Set t1lib\xb4s byteorder */\n", 'iso_8859_1'))
 
-        self.mock_stdout(True)
-        self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.assertEqual(gh.find_software_name_for_patch('test.patch', [self.test_prefix]), None)
 
     def test_github_det_commit_status(self):
         """Test det_commit_status function."""
@@ -835,13 +816,10 @@ class GithubTest(EnhancedTestCase):
         """Test check_pr_eligible_to_merge function"""
         def run_check(expected_result=False):
             """Helper function to check result of check_pr_eligible_to_merge"""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            res = gh.check_pr_eligible_to_merge(pr_data)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                res = gh.check_pr_eligible_to_merge(pr_data)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(res, expected_result)
             self.assertEqual(stdout, expected_stdout)
             self.assertIn(expected_warning, stderr)
@@ -1143,9 +1121,8 @@ class GithubTest(EnhancedTestCase):
         })
 
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/9149
-        self.mock_stdout(True)
-        account, repo, branch = gh.det_account_repo_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            account, repo, branch = gh.det_account_repo_branch_for_pr(9149, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(account, 'boegel')
         self.assertEqual(repo, 'easybuild-easyconfigs')
         self.assertEqual(branch, '20191017070734_new_pr_EasyBuild401')
@@ -1156,9 +1133,8 @@ class GithubTest(EnhancedTestCase):
         })
 
         # see https://github.com/easybuilders/easybuild-framework/pull/3069
-        self.mock_stdout(True)
-        account, repo, branch = gh.det_account_repo_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            account, repo, branch = gh.det_account_repo_branch_for_pr(3069, github_user=GITHUB_TEST_ACCOUNT)
         self.assertEqual(account, 'migueldiascosta')
         self.assertEqual(repo, 'easybuild-framework')
         self.assertEqual(branch, 'fix_inject_checksums')
@@ -1171,12 +1147,10 @@ class GithubTest(EnhancedTestCase):
         # no files => return default target repo (None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
 
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-
         # easyconfigs/patches (incl. files to delete) => easyconfigs repo
         # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
             [toy_patch],
@@ -1191,11 +1165,11 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        github_py = os.path.join(test_dir, 'github.py')
+        github_py = os.path.join(TEST_DIR, 'github.py')
 
-        configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        configuremake = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertExists(configuremake)
-        toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
@@ -1231,15 +1205,12 @@ class GithubTest(EnhancedTestCase):
         git_repo = gh.init_repo(self.test_prefix, GITHUB_REPO)
         branch = 'test123'
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'main')
-        git_repo.create_head(branch, force=True)
-        gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(True)
-        self.mock_stdout(True)
+        with self.mocked_stdout_stderr():
+            gh.setup_repo(git_repo, GITHUB_USER, GITHUB_REPO, 'main')
+            git_repo.create_head(branch, force=True)
+            gh.push_branch_to_github(git_repo, GITHUB_USER, GITHUB_REPO, branch)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
 
         self.assertEqual(stderr, '')
 
@@ -1266,12 +1237,9 @@ class GithubTest(EnhancedTestCase):
 
         init_session_state = session_state()
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertEqual(stderr, '')
 
@@ -1283,12 +1251,9 @@ class GithubTest(EnhancedTestCase):
             regex = re.compile(pattern, re.M)
             self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        post_pr_test_report('1234', gh.GITHUB_EASYBLOCKS_REPO, test_report, "OK!", init_session_state, True)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            post_pr_test_report('1234', gh.GITHUB_EASYBLOCKS_REPO, test_report, "OK!", init_session_state, True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertEqual(stderr, '')
 
@@ -1303,12 +1268,9 @@ class GithubTest(EnhancedTestCase):
         # also test combination of --from-pr and --include-easyblocks-from-pr
         update_build_option('include_easyblocks_from_pr', ['6789'])
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            post_pr_test_report('1234', gh.GITHUB_EASYCONFIGS_REPO, test_report, "OK!", init_session_state, True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertEqual(stderr, '')
 

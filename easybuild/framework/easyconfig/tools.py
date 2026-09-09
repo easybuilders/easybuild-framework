@@ -203,7 +203,10 @@ def dep_graph(filename, specs):
     what = f"dependency graph for {len(specs)} easyconfigs to {filename}"
     silent = build_option('silent')
     try:
-        dep_graph.render(base, cleanup=True)
+        if ext in ['.dot']:
+            dep_graph.save(filename)
+        else:
+            dep_graph.render(base, cleanup=True)
     except Exception as err:
         print_error_and_exit(f"Failed writing {what}: {err}", silent=silent)
     else:

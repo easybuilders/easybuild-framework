@@ -46,7 +46,7 @@ from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, RISCV, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
 from easybuild.tools.systemtools import CPU_VENDORS, AMD, APM, ARM, CAVIUM, IBM, INTEL
-from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP
+from easybuild.tools.systemtools import MAX_FREQ_FP, PROC_CPUINFO_FP, PROC_MEMINFO_FP, PTRACE_SCOPE_FP
 from easybuild.tools.systemtools import check_linked_shared_libs, check_os_dependency, check_python_version
 from easybuild.tools.systemtools import det_parallelism, det_pypkg_version, get_avail_core_count
 from easybuild.tools.systemtools import get_cuda_object_dump_raw, get_cuda_architectures, get_cpu_arch_name
@@ -534,6 +534,7 @@ def mocked_read_file(fp):
         MAX_FREQ_FP: '2850000',
         PROC_CPUINFO_FP: PROC_CPUINFO_TXT,
         PROC_MEMINFO_FP: PROC_MEMINFO_TXT,
+        PTRACE_SCOPE_FP: '4',
     }
     if fp in known_fps:
         return known_fps[fp]
@@ -581,6 +582,7 @@ def mocked_run_shell_cmd(cmd, **kwargs):
         "amd-smi static --driver --board --asic --csv": AMD_SMI_DRIVER,
         "rocm-smi --showdriverversion --csv": ROCM_SMI_DRIVER_VERSION,
         "rocm-smi --showproductname --csv": ROCM_SMI_PRODUCT_NAME,
+        "sysctl kernel.yama.ptrace_scope": '5',
     }
 
     if os.getenv('MOCKED_BROKEN_ROCM_SMI'):
@@ -1209,10 +1211,10 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(check_python_version(), pyver)
 
         # shouldn't raise any errors, since Python version used to run tests should be supported;
-        self.mock_stderr(True)
-        (py_maj_ver, py_min_ver) = check_python_version()
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            (py_maj_ver, py_min_ver) = check_python_version()
+            stderr = self.get_stderr()
+
         self.assertFalse(stderr)
 
         self.assertIn(py_maj_ver, [2, 3])
@@ -1418,13 +1420,10 @@ class SystemToolsTest(EnhancedTestCase):
 
             warning_regex = re.compile(r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!", re.M)
 
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
-            stderr = self.get_stderr()
-            stdout = self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
+            with self.mocked_stdout_stderr():
+                res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
+                stderr = self.get_stderr()
+                stdout = self.get_stdout()
 
             fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
             self.assertTrue(warning_regex.search(stderr), fail_msg)
@@ -1665,6 +1664,43 @@ class SystemToolsTest(EnhancedTestCase):
             'AMD': {'AMD Instinct MI250X/MI250 (model: 0x740c, driver: UNKNOWN)': 4},
         }
         self.assertEqual(get_gpu_info(), expected)
+
+    def test_get_ptrace_scope(self):
+        st.read_file = mocked_read_file
+        st.run_shell_cmd = mocked_run_shell_cmd
+
+        # Try read_file approach. Always tried first, if file exists
+        result = st.get_ptrace_scope()
+        expected = 4
+        self.assertEqual(result, expected)
+
+        # Now, explicitly break read_file and use run_shell_cmd instead.
+        def broken_read_file(*args, **kwargs):
+            raise EasyBuildError('Mocked read file error')
+        st.read_file = broken_read_file
+
+        result = st.get_ptrace_scope()
+        expected = 5
+        self.assertEqual(result, expected)
+
+        # Now also break run_shell_cmd. pthread_trace should yield 0.
+        def broken_run_shell_cmd(*args, **kwargs):
+            return RunShellCmdResult(
+                cmd="",
+                exit_code=1,
+                output="",
+                stderr="Mocked run_shell_cmd error",
+                work_dir="",
+                out_file="",
+                err_file="",
+                cmd_sh="",
+                thread_id="",
+                task_id="")
+        st.run_shell_cmd = broken_run_shell_cmd
+
+        result = st.get_ptrace_scope()
+        expected = 0
+        self.assertEqual(result, expected)
 
 
 def suite(loader=None):

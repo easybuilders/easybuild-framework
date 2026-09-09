@@ -584,6 +584,12 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
         init_config(build_options={'silent': True})
 
+        # extensions step requires that module for dependencies are available, so create dummy ones
+        pymod_txt = "#%Module"
+        mods_path = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(mods_path, 'Python', '3.6.6'), pymod_txt)
+        self.modtool.use(mods_path)
+
         self.contents = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "pi"',
@@ -1658,7 +1664,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         with self.mocked_stdout_stderr() as (_, stderr):
             res = resolve_template(tmpl_str, tmpl_dict)
-        stderr = stderr.getvalue()
+            stderr = stderr.getvalue()
 
         for tmpl in [*template_test_deprecations.keys(), *template_test_alternatives.keys()]:
             self.assertNotIn("%(" + tmpl + ")s", res)
@@ -3301,12 +3307,12 @@ class EasyConfigTest(EnhancedTestCase):
         patterns = [
             rf"digraph {graphname} {{",
             # 3 nodes should be there: 'GCC/6.4.0-2.28 (EXT)', 'toy', and 'intel/2018a'
-            r"^\s*intel\s+\[",
-            r"^\s*toy\s+\[",
-            r"^\s*\"GCC/6\.4\.0-2\.28 \(EXT\)\"\s+\[",
+            r"^\s*intel",
+            r"^\s*toy",
+            r"^\s*\"GCC/6\.4\.0-2\.28 \(EXT\)\"",
             # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
-            r"^\s*toy -> intel\s+\[",
-            r"^\s*toy -> \"GCC/6\.4\.0-2\.28 \(EXT\)\"\s+\[",
+            r"^\s*toy -> intel",
+            r"^\s*toy -> \"GCC/6\.4\.0-2\.28 \(EXT\)\"",
         ]
         self.assert_multi_regex(patterns, dottxt)
 
@@ -3676,18 +3682,22 @@ class EasyConfigTest(EnhancedTestCase):
         my_arch = st.get_cpu_architecture()
 
         # add Java dep with version specified using a dict value
-        toy_ec_txt += '\n'.join([
-            "dependencies += [",
-            "  ('Python', '3.7.2'),"
-            "  ('Java', {",
-            "    'arch=%s': '1.8.0_221'," % my_arch,
-            "    'arch=fooarch': '1.8.0-foo',",
-            "  })",
-            "]",
-            "builddependencies = [",
-            "  ('CMake', '3.18.4'),",
-            "]",
-        ])
+        toy_ec_txt += textwrap.dedent("""
+            dependencies += [
+              ('Python', '3.7.2'),
+              ('Java', {
+                'arch=<arch>': '1.8.0_221',
+                'arch=fooarch': '1.8.0-foo',
+              }),
+              ('Perl', {
+                'arch=<arch>': False,
+                'arch=fooarch': '1.42',
+              }),
+            ]
+            builddependencies = [
+              ('CMake', '3.18.4'),
+            ]
+        """).replace('<arch>', my_arch)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt)
@@ -3722,39 +3732,29 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         # proper EasyConfig instance
-        ec = EasyConfig(test_ec)
-
-        # CMake should *not* be included, since it's a build-only dependency
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-        res = template_constant_dict(ec)
-        dep_names = [x['name'] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-
-        self.assertIn('arch', res)
-        arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
-
-        self.assertEqual(res, expected)
-
+        full_ec = EasyConfig(test_ec)
+        expected_full = expected
         # only perform shallow/quick parse (as is done in list_software function)
-        ec = EasyConfigParser(filename=test_ec).get_config_dict()
-
-        expected['module_name'] = None
+        shallow_ec = EasyConfigParser(filename=test_ec).get_config_dict()
+        expected_shallow = expected.copy()
+        expected_shallow['module_name'] = None
         for key in ('bitbucket_account', 'github_account', 'versionprefix'):
-            del expected[key]
+            del expected_shallow[key]
 
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
-        res = template_constant_dict(ec)
-        dep_names = [x[0] for x in ec['dependencies']]
-        self.assertFalse('CMake' in dep_names, "CMake should not be included in list of dependencies: %s" % dep_names)
+        for name, ec, expected in (('Full', full_ec, expected_full), ('Shallow', shallow_ec, expected_shallow)):
+            with self.subTest(f'{name} easyconfig'):
+                # CMake should *not* be included, since it's a build-only dependency
+                dep_names = [x['name'] if isinstance(x, dict) else x[0] for x in ec['dependencies']]
+                self.assertNotIn('CMake', dep_names)
 
-        self.assertIn('arch', res)
-        arch = res.pop('arch')
-        self.assertTrue(arch_regex.match(arch), "'%s' matches with pattern '%s'" % (arch, arch_regex.pattern))
+                res = template_constant_dict(ec)
+                self.assertIn('arch', res)
+                arch = res.pop('arch')
+                self.assertRegex(arch, arch_regex)
 
-        self.assertEqual(res, expected)
+                self.assertNotIn('perlver', res, "Perl should be filtered out")
+
+                self.assertEqual(res, expected)
 
         # also check result of template_constant_dict when dict representing extension is passed
         ext_dict = {
@@ -4100,11 +4100,9 @@ class EasyConfigTest(EnhancedTestCase):
         symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
         # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
-        self.mock_stderr(True)
-
-        # locations listed in 'robot_path' named argument are taken into account
-        res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            # locations listed in 'robot_path' named argument are taken into account
+            res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
         self.assertTrue(os.path.samefile(test_ecs, res[0]))
 
         # Can't have EB_SCRIPT_PATH set (for some of) these tests
@@ -4546,6 +4544,12 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('pyshortver', ec.template_values)
         self.assertEqual(ec.template_values['pyshortver'], '3.6')
 
+        # extensions step requires that module for dependencies are available, so create dummy ones
+        pymod_txt = "#%Module"
+        mods_path = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(mods_path, 'Python', '3.6.6'), pymod_txt)
+        self.modtool.use(mods_path)
+
         # check that extensions inherit these template values too
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3317
         eb = EasyBlock(ec)
@@ -4582,12 +4586,10 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(test_ec, test_ectxt)
         self.assertErrorRegex(EasyBuildError, unknown_params_error_pattern, EasyConfig, test_ec)
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        fix_deprecated_easyconfigs([test_ec])
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            fix_deprecated_easyconfigs([test_ec])
+            stderr, stdout = self.get_stderr(), self.get_stdout()
+
         self.assertFalse(stderr)
         self.assertIn("test.eb... FIXED!", stdout)
 
@@ -5354,10 +5356,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         # also check whether easyconfigs cache works with end-to-end test
         args = [libtoy_ec, '--trace']
-        self.mock_stdout(True)
-        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+            stdout = self.get_stdout()
 
         regex = re.compile(r"generating module file @ .*/modules/all/libtoy/0.0", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
@@ -5366,10 +5367,9 @@ class EasyConfigTest(EnhancedTestCase):
         write_file(libtoy_ec, '')
 
         # retrying installation of libtoy easyconfig should not fail, thanks to easyconfigs cache
-        self.mock_stdout(True)
-        self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
+            stdout = self.get_stdout()
 
         regex = re.compile(r"libtoy/0\.0 is already installed", re.M)
         self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
@@ -5407,9 +5407,9 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stdout_stderr() as (stdout, stderr):
             self.assertEqual(ec['description'], "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
 
-        self.assertFalse(stdout.getvalue())
-        regex = re.compile(r"WARNING: Failed to resolve all templates.* %\(pyshortver\)s", re.M)
-        self.assertRegex(stderr.getvalue(), regex)
+            self.assertFalse(stdout.getvalue())
+            regex = re.compile(r"WARNING: Failed to resolve all templates.* %\(pyshortver\)s", re.M)
+            self.assertRegex(stderr.getvalue(), regex)
 
 
 def suite(loader=None):

@@ -29,12 +29,14 @@ Unit tests for eb command line options.
 """
 import os
 import sys
+from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
-from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
+from easybuild.tools.include import include_easyblocks, include_job_backends
+from easybuild.tools.include import include_module_naming_schemes, include_toolchains
 from easybuild.tools.include import is_software_specific_easyblock
 
 
@@ -52,7 +54,7 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks(self):
         """Test include_easyblocks()."""
-        test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         # put a couple of custom easyblocks in place, to test
         myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
@@ -118,7 +120,7 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks_priority(self):
         """Test whether easyblocks included via include_easyblocks() get priority over others."""
-        test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         # make sure that test 'foo' easyblock is there
         import easybuild.easyblocks.foo
@@ -243,13 +245,51 @@ class IncludeTest(EnhancedTestCase):
         my_tc_real_py_path = os.path.realpath(os.path.join(os.path.dirname(my_tc_pyc_path), 'my_tc.py'))
         self.assertTrue(os.path.samefile(up(my_tc_real_py_path, 1), my_toolchains))
 
+    def test_include_job_backend(self):
+        """Test include_job_backends()."""
+
+        my_job_backend = os.path.join(self.test_prefix, 'my_job_backend')
+        mkdir(my_job_backend)
+
+        # include __init__.py file that should be ignored, and shouldn't cause trouble (bug #1697)
+        write_file(os.path.join(my_job_backend, '__init__.py'), "# dummy init, should not get included")
+
+        my_job_backend_txt = '\n'.join([
+            "from easybuild.tools.job.backend import JobBackend",
+            "class MyJobBackend(JobBackend):",
+            "   pass",
+        ])
+        write_file(os.path.join(my_job_backend, 'my_job_backend.py'), my_job_backend_txt)
+
+        my_job_backend_bis = os.path.join(self.test_prefix, 'my_job_backend.py')
+        write_file(my_job_backend_bis, '')
+
+        # include custom job backend
+        included_job_backends_path = include_job_backends(self.test_prefix, [os.path.join(my_job_backend, '*.py'),
+                                                          my_job_backend_bis])
+
+        expected_paths = ['__init__.py', 'tools/__init__.py', 'tools/job/__init__.py',
+                          'tools/job/my_job_backend.py']
+        for filepath in expected_paths:
+            fullpath = os.path.join(included_job_backends_path, 'easybuild', filepath)
+            self.assertExists(fullpath)
+
+        # path to included job backends should be prepended to Python search path
+        self.assertEqual(sys.path[0], included_job_backends_path)
+
+        # importing custom job backends should work
+        import easybuild.tools.job.my_job_backend
+        my_job_backend_pyc_path = easybuild.tools.job.my_job_backend.__file__
+        my_job_backend_real_py_path = os.path.realpath(os.path.join(os.path.dirname(my_job_backend_pyc_path),
+                                                       'my_job_backend.py'))
+        self.assertTrue(os.path.samefile(up(my_job_backend_real_py_path, 1), my_job_backend))
+
     def test_is_software_specific_easyblock(self):
         """Test is_software_specific_easyblock function."""
 
         self.assertErrorRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        test_easyblocks = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 'g', 'gcc.py')))
         self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 't', 'toy.py')))

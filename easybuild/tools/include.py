@@ -293,3 +293,35 @@ def include_toolchains(tmpdir, paths):
         verify_imports([os.path.splitext(tcmod)[0] for tcmod in included_subpkg_modules[subpkg]], pkg, loc)
 
     return toolchains_path
+
+
+def include_job_backends(tmpdir, paths):
+    """Include job backends at specified locations."""
+    job_backends_path = os.path.join(tmpdir, 'included-job-backends')
+
+    set_up_eb_package(job_backends_path, 'easybuild.tools.job')
+
+    job_backends_dir = os.path.join(job_backends_path, 'easybuild', 'tools', 'job')
+
+    allpaths = [p for p in expand_glob_paths(paths) if os.path.basename(p) != '__init__.py']
+    for job_backend in allpaths:
+        filename = os.path.basename(job_backend)
+        target_path = os.path.join(job_backends_dir, filename)
+        if not os.path.exists(target_path):
+            symlink(job_backend, target_path)
+
+    included_job_backends = [x for x in os.listdir(job_backends_dir) if x not in ['__init__.py']]
+    _log.debug("Included job backends: %s", included_job_backends)
+
+    # inject path into Python search path, and reload modules to get it 'registered' in sys.modules
+    sys.path.insert(0, job_backends_path)
+
+    # hard inject location to included module naming schemes into Python search path
+    # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in job/__init__.py
+    new_path = os.path.join(job_backends_path, 'easybuild', 'tools', 'job')
+    easybuild.tools.job.__path__.insert(0, new_path)
+
+    # sanity check: verify that included job backends can be imported (from expected location)
+    verify_imports([os.path.splitext(mns)[0] for mns in included_job_backends], 'easybuild.tools.job', job_backends_dir)
+
+    return job_backends_path

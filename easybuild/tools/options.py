@@ -93,7 +93,8 @@ from easybuild.tools.github import GITHUB_PR_STATE_OPEN, GITHUB_PR_STATES, GITHU
 from easybuild.tools.github import HAVE_GITHUB_API, HAVE_KEYRING, VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import fetch_easyblocks_from_commit, fetch_easyblocks_from_pr, fetch_github_token
 from easybuild.tools.hooks import KNOWN_HOOKS
-from easybuild.tools.include import include_easyblocks, include_module_naming_schemes, include_toolchains
+from easybuild.tools.include import include_easyblocks, include_job_backends
+from easybuild.tools.include import include_module_naming_schemes, include_toolchains
 from easybuild.tools.job.backend import avail_job_backends
 from easybuild.tools.modules import avail_modules_tools
 from easybuild.tools.module_generator import ModuleGeneratorLua, avail_module_generators
@@ -640,6 +641,8 @@ class EasyBuildOptions(GeneralOption):
         opts = OrderedDict({
             'avail-module-naming-schemes': ("Show all supported module naming schemes",
                                             None, 'store_true', False,),
+            'avail-job-backends': ("Show all supported job backends",
+                                   None, "store_true", False,),
             'avail-modules-tools': ("Show all supported module tools",
                                     None, "store_true", False,),
             'avail-repositories': ("Show all repository types (incl. non-usable)",
@@ -668,6 +671,7 @@ class EasyBuildOptions(GeneralOption):
                                               'strlist', 'store', []),
             'include-toolchains': ("Location(s) of extra or customized toolchains or toolchain components",
                                    'strlist', 'store', []),
+            'include-job-backends': ("Location(s) of extra or customized job backends", 'strlist', 'store', []),
             'installpath': ("Install path for software and modules",
                             None, 'store', mk_full_default_path('installpath')),
             'installpath-data': ("Install path for data (if None, combine --installpath and --subdir-data)",
@@ -1078,6 +1082,7 @@ class EasyBuildOptions(GeneralOption):
                 self.options.avail_modules_tools, self.options.avail_module_naming_schemes,
                 self.options.show_default_configfiles, self.options.avail_toolchain_opts,
                 self.options.avail_hooks, self.options.show_system_info,
+                self.options.avail_job_backends
                 )):
             build_easyconfig_constants_dict()  # runs the easyconfig constants sanity check
             self._postprocess_list_avail()
@@ -1207,6 +1212,9 @@ class EasyBuildOptions(GeneralOption):
 
         if self.options.include_toolchains:
             include_toolchains(self.tmpdir, self.options.include_toolchains)
+
+        if self.options.include_job_backends:
+            include_job_backends(self.tmpdir, self.options.include_job_backends)
 
     def _postprocess_checks(self):
         """Check whether (combination of) configuration options make sense."""
@@ -1458,6 +1466,10 @@ class EasyBuildOptions(GeneralOption):
         # dump supported module naming schemes
         if self.options.avail_module_naming_schemes:
             msg += self.avail_list('module naming schemes', avail_module_naming_schemes())
+
+        # dump supported job backends
+        if self.options.avail_job_backends:
+            msg += self.avail_list('job backends', avail_job_backends())
 
         # dump default list of config files that are considered
         if self.options.show_default_configfiles:

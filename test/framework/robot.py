@@ -703,10 +703,9 @@ class RobotTest(EnhancedTestCase):
             '--search',
             'toy',
         ]
-        self.mock_stdout(True)
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        outtxt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            outtxt = self.get_stdout()
 
         # Make sure we found the copied file
         regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
@@ -733,10 +732,9 @@ class RobotTest(EnhancedTestCase):
             '--tmpdir=%s' % self.test_prefix,
         ]
 
-        self.mock_stderr(True)
-        outtxt = self.eb_main(args, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            outtxt = self.eb_main(args, raise_error=True)
+            stderr = self.get_stderr()
 
         self.assertFalse(stderr)
 
@@ -795,11 +793,8 @@ class RobotTest(EnhancedTestCase):
             '--tmpdir=%s' % self.test_prefix,
         ]
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
         test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
@@ -1418,10 +1413,10 @@ class RobotTest(EnhancedTestCase):
         non_conflict_ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
-        self.mock_stderr(True)
-        conflicts = check_conflicts(non_conflict_ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(non_conflict_ecs, self.modtool)
+            stderr = self.get_stderr()
+
         self.assertFalse(conflicts)
         self.assertEqual(stderr, '')
 
@@ -1433,10 +1428,9 @@ class RobotTest(EnhancedTestCase):
         ecs, _ = parse_easyconfigs([(new_gompi_ec, False), (gzip_ec, False)])
 
         # conflicts are found and reported to stderr
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
@@ -1455,10 +1449,9 @@ class RobotTest(EnhancedTestCase):
             (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-6.4.0-2.28.eb'), False),
             (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.9.3-2.25.eb'), False),
         ])
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
@@ -1468,10 +1461,9 @@ class RobotTest(EnhancedTestCase):
             (os.path.join(test_easyconfigs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
             (os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'), False),
         ])
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28", stderr)
@@ -1519,10 +1511,10 @@ class RobotTest(EnhancedTestCase):
         write_file(wrapper_ec, wrapper_ec_txt)
 
         ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
-        self.mock_stderr(True)
-        res = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            res = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
+
         self.assertEqual(stderr, '')
         self.assertFalse(res)
 
@@ -1625,15 +1617,12 @@ class RobotTest(EnhancedTestCase):
 
         # test use of print_result (enabled by default)
         for filename_only in [None, False, True]:
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            kwargs = {'consider_extra_paths': False}
-            if filename_only is not None:
-                kwargs['filename_only'] = filename_only
-            search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
+            with self.mocked_stdout_stderr():
+                kwargs = {'consider_extra_paths': False}
+                if filename_only is not None:
+                    kwargs['filename_only'] = filename_only
+                search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
 
             self.assertFalse(stderr)
             self.assertEqual(len(stdout.splitlines()), 2)

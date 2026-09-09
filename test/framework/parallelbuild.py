@@ -213,7 +213,6 @@ class ParallelBuildTest(EnhancedTestCase):
         PbsPython.connect_to_server = PbsPython_connect_to_server
         PbsPython.ppn = PbsPython_ppn
         pbs_python.PbsJob = pbs_python_PbsJob
-        self.mock_stdout(False)
 
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
@@ -366,9 +365,8 @@ class ParallelBuildTest(EnhancedTestCase):
 
         easyconfigs = process_easyconfig(test_ec) + process_easyconfig(foss_ec)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
-        self.mock_stdout(True)
-        jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
 
         # jobs are submitted for foss & gzip (listed easyconfigs)
         self.assertEqual(len(jobs), 2)

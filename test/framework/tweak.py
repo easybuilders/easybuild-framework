@@ -398,12 +398,11 @@ class TweakTest(EnhancedTestCase):
             'version': '0.2.8'
         }
 
-        self.mock_stderr(True)
-        potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping)
-        errtxt = self.get_stderr()
-        warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
-                       "versionsuffix to '-LAPACK-3.4.2'"
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping)
+            errtxt = self.get_stderr()
+            warning_stub = "\nWARNING: There may be newer version(s) of dep 'OpenBLAS' available with a different " \
+                           "versionsuffix to '-LAPACK-3.4.2'"
         self.assertTrue(errtxt.startswith(warning_stub))
         self.assertEqual(len(potential_versions), 0)
         potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)

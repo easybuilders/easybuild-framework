@@ -4183,6 +4183,58 @@ class CommandLineOptionsTest(EnhancedTestCase):
             res = run_shell_cmd(test_cmd)
         self.assertRegex(res.output, tc_regex)
 
+    def test_include_job_backends(self):
+        """Test --include-job-backends."""
+
+        # make sure that calling out to 'eb' will work by restoring $PATH & $PYTHONPATH
+        self.restore_env_path_pythonpath()
+
+        topdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # try and make sure 'eb' is available via $PATH if it isn't yet
+        path = self.env_path
+        if which('eb') is None:
+            path = '%s:%s' % (topdir, path)
+
+        # try and make sure top-level directory is in $PYTHONPATH if it isn't yet
+        pythonpath = self.env_pythonpath
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("cd {self.test_prefix}; python -c 'import easybuild.framework'", fail_on_error=False)
+        if res.exit_code != 0:
+            pythonpath = '%s:%s' % (topdir, pythonpath)
+
+        fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
+        os.close(fd)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        job_backend_regex = re.compile(r'^\s*TestIncludedJobBackend', re.M)
+
+        # TestIncludedJobBackend job backend is not available by default
+        args = ['--avail-job-backends']
+        test_cmd = self.mk_eb_test_cmd(args)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(test_cmd)
+        self.assertNotRegex(res.output, job_backend_regex)
+
+        # include extra test job backend
+        job_backend_txt = '\n'.join([
+            'from easybuild.tools.job.backend import JobBackend',
+            'class TestIncludedJobBackend(JobBackend):',
+            '   pass',
+        ])
+        write_file(os.path.join(self.test_prefix, 'test_job_backend.py'), job_backend_txt)
+
+        # clear log
+        write_file(self.logfile, '')
+
+        args.append('--include-job-backends=%s/*.py' % self.test_prefix)
+        test_cmd = self.mk_eb_test_cmd(args)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd(test_cmd)
+        self.assertRegex(res.output, job_backend_regex)
+
     def test_cleanup_tmpdir(self):
         """Test --cleanup-tmpdir."""
         topdir = os.path.dirname(os.path.abspath(__file__))
@@ -5166,25 +5218,25 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # note: we frequently need to change to a more recent PR here,
         #       to avoid that this test starts failing because commit status is set to None for old commits
         del args[-1]
-        # easyconfig PR for EasyBuild v5.0.0
-        args[1] = '22405'
+        # easyconfig PR for EasyBuild v5.2.1
+        args[1] = '25373'
 
         stdout, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         expected_stdout = '\n'.join([
-            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #22405 for merging...",
+            "Checking eligibility of easybuilders/easybuild-easyconfigs PR #25373 for merging...",
             "* targets develop branch: OK",
             "* test suite passes: OK",
             "* last test report is successful: OK",
             "* no pending change requests: OK",
-            "* approved review: OK (by verdurin)",
-            "* milestone is set: OK (5.0.0)",
+            "* approved review: OK (by bedroge)",
+            "* milestone is set: OK (5.3.0)",
             "* mergeable state is clean: PR is already merged",
             '',
             "Review OK, merging pull request!",
             '',
-            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #22405: 'Going in, thanks @PetrKralCZ!'",
-            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #22405",
+            "[DRY RUN] Adding comment to easybuild-easyconfigs issue #25373: 'Going in, thanks @boegel!'",
+            "[DRY RUN] Merged easybuilders/easybuild-easyconfigs pull request #25373",
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
@@ -5242,7 +5294,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, do_build=True, raise_error=True)
 
     def test_show_config(self):
-        """"Test --show-config and --show-full-config."""
+        """Test --show-config and --show-full-config."""
 
         # only retain $EASYBUILD_* environment variables we expect for this test
         retained_eb_env_vars = [
@@ -5734,7 +5786,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_debug_module_cmds(self):
         """Test use of --debug-module-cmds."""
         patterns = [
-            "Output of ",
+            r"Output \(stdout only\):",
             r"os\.env.*EBROOTGCC.*=",
             r"os\.env.*PATH.*=",
         ]

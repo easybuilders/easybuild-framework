@@ -33,6 +33,7 @@ import stat
 import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework import TEST_ECS_DIR
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -45,7 +46,7 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 FPM_OUTPUT_FILE = 'fpm_mocked.out'
 
 # purposely using non-bash script, to detect issues with shebang line being ignored (run_shell_cmd with use_bash=False)
-MOCKED_FPM = """#!/usr/bin/env python
+MOCKED_FPM = """#!/usr/bin/env python3
 import os, sys
 
 def verbose(msg):
@@ -181,9 +182,7 @@ class PackageTest(EnhancedTestCase):
             os.environ['EASYBUILD_PACKAGE_NAMING_SCHEME'] = pns_type
             init_config(build_options={'silent': True})
 
-            topdir = os.path.dirname(os.path.abspath(__file__))
-            test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-            test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+            test_ec = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
             ec = EasyConfig(test_ec, validate=False)
 
             pns = ActivePNS()
@@ -206,9 +205,7 @@ class PackageTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
 
         mock_fpm(self.test_prefix)
 
@@ -246,7 +243,7 @@ class PackageTest(EnhancedTestCase):
         res = no_logfiles_regex.search(pkgtxt)
         self.assertFalse(res, "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
 
-        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
+        toy_txt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
@@ -266,7 +263,6 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
         regex_pkg = re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE)
         self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
-        self.mock_stdout(False)
 
 
 def suite(loader=None):
