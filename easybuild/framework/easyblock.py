@@ -2339,8 +2339,9 @@ class EasyBlock:
         self.log.info("Installing extensions in parallel...")
         if self.dry_run:
             # No tasks started in dry-run so use dummy result
-            dry_run_mock_result = RunShellCmdResult(cmd='dummy', output="bar", exit_code=0, stderr=None,
-                                                    work_dir='/test_cat', out_file='/tmp/cat.out', err_file=None,
+            dry_run_mock_result = RunShellCmdResult(cmd='dummy', exit_code=EasyBuildExit.SUCCESS,
+                                                    output="bar", stderr=None, work_dir='/test_cat',
+                                                    out_file='/tmp/cat.out', err_file=None,
                                                     cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
         thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
