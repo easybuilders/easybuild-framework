@@ -49,7 +49,7 @@ from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.client import HTTPException
 from string import ascii_letters
-from typing import ClassVar, List, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
@@ -1147,8 +1147,9 @@ def setup_repo(git_repo, target_account, target_repo, branch_name, silent=False,
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def _easyconfigs_pr_common(paths: CategorizedPaths, ecs, start_branch=None, pr_branch=None,
-                           start_account=None, commit_msg=None):
+def _easyconfigs_pr_common(paths: CategorizedPaths, ecs: Dict[str, Any], start_branch: Optional[str] = None,
+                           pr_branch: Optional[str] = None, start_account: Optional[str] = None,
+                           commit_msg: Optional[str] = None):
     """
     Common code for new_pr and update_pr functions:
     * check whether all supplied paths point to existing files
@@ -1358,7 +1359,7 @@ def _easyconfigs_pr_common(paths: CategorizedPaths, ecs, start_branch=None, pr_b
     return file_info, deleted_paths, git_repo, pr_branch, diff_stat, pr_target_repo
 
 
-def create_remote(git_repo, account, repo, https=False):
+def create_remote(git_repo: str, account: str, repo: str, https=False):
     """
     Create remote in specified git working directory for specified account & repository.
 
@@ -2009,7 +2010,7 @@ def add_pr_labels(pr, branch=GITHUB_DEVELOP_BRANCH):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_branch_github(paths: CategorizedPaths, ecs, commit_msg=None):
+def new_branch_github(paths: CategorizedPaths, ecs: Dict[str, Any], commit_msg: Optional[str] = None):
     """
     Create new branch on GitHub using specified files
 
@@ -2072,7 +2073,7 @@ def det_pr_title(ecs):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def new_pr_from_branch(branch_name: CategorizedPaths, title=None, descr=None,
+def new_pr_from_branch(branch_name: str, title=None, descr=None,
                        pr_target_repo=None, pr_metadata=None, commit_msg=None):
     """
     Create new pull request from specified branch on GitHub.
@@ -2254,7 +2255,8 @@ def new_pr_from_branch(branch_name: CategorizedPaths, title=None, descr=None,
                 print_msg("This PR should be labelled %s" % ', '.join(labels), log=_log, prefix=False)
 
 
-def new_pr(paths: CategorizedPaths, ecs, title=None, descr=None, commit_msg=None):
+def new_pr(paths: CategorizedPaths, ecs: Dict[str, Any], title: Optional[str] = None, descr: Optional[str] = None,
+           commit_msg: Optional[str] = None):
     """
     Open new pull request using specified files
 
@@ -2377,7 +2379,8 @@ def det_pr_target_repo(paths: CategorizedPaths):
 
 
 @only_if_module_is_available('git', pkgname='GitPython')
-def update_branch(branch_name, paths: CategorizedPaths, ecs, github_account=None, commit_msg=None):
+def update_branch(branch_name: Optional[str], paths: CategorizedPaths, ecs: Dict[str, Any],
+                  github_account: Optional[str] = None, commit_msg: Optional[str] = None):
     """
     Update specified branch in GitHub using specified files
 
