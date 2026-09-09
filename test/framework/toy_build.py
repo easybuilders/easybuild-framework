@@ -2113,24 +2113,9 @@ class ToyBuildTest(EnhancedTestCase):
             "toy/0.0-GCC-12.3.0",
         ]
         self.assertEqual(res, expected)
-        self.assertIn("Async toy extension build done", stdout)  # async_cmd_check of custom easyblock called
 
-        dry_run_args = args + [
-            '--extended-dry-run',
-            # Start clean, otherwise the existing dir is detected as a ghost directory
-            f'--installpath={tempfile.mkdtemp()}'
-        ]
-        logtxt = self._test_toy_exts_common(args=dry_run_args)[1]
-        # Compare those to the patterns in real mod above
-        patterns = [
-            "INFO Installing extensions in parallel",
-            # In dry-run mode extension installations complete immediately, so bar is finished already
-            r"INFO 2 out of 4 extensions installed \(2 queued, 0 running: \)$",
-            # Same for toy
-            r"INFO 3 out of 4 extensions installed \(1 queued, 0 running: \)$",
-            r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
-        ]
-        self.assert_multi_regex(patterns, logtxt)
+        # check that async_cmd_check of custom easyblock (EB_Toy) was called
+        self.assertIn("Async toy extension build done, exit code: 0\n", stdout)
 
         # also test skipping of extensions in parallel
         args.append('--skip')
@@ -2168,6 +2153,25 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
             r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
+        ]
+        self.assert_multi_regex(patterns, logtxt)
+
+        # also check dry run output
+
+        # use clean install path, otherwise the existing dir is detected as a ghost directory
+        remove_dir(self.test_installpath)
+
+        dry_run_args = args + ['--extended-dry-run']
+        logtxt = self._test_toy_exts_common(args=dry_run_args)[1]
+
+        # Compare those to the patterns in real mod above
+        patterns = [
+            "INFO Installing extensions in parallel",
+            # In dry-run mode extension installations complete immediately, so bar is finished already
+            r"INFO 2 out of 4 extensions installed \(2 queued, 0 running: \)$",
+            # Same for toy
+            r"INFO 3 out of 4 extensions installed \(1 queued, 0 running: \)$",
+            r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
         ]
         self.assert_multi_regex(patterns, logtxt)
 

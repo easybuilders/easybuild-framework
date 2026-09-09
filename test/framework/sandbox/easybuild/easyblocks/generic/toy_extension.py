@@ -99,10 +99,10 @@ class Toy_Extension(ExtensionEasyBlock):
 
     def async_cmd_check(self):
         """Show success"""
-        done = super().async_cmd_check()
-        if done:
-            print("Async toy extension build done")
-        return done
+        res = super().async_cmd_check()
+        if res:
+            print(f"Async toy extension build done, exit code: {res.exit_code}")
+        return res
 
     def post_install_extension(self):
         """
