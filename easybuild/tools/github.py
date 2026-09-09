@@ -92,12 +92,15 @@ except ImportError as err:
     _log.warning("Failed to import 'git' Python module: %s", err)
 
 
-class CategorizedPaths(MutableMapping):  # Todo: use NamedTuple or dataclass instead
+# Todo in EasyBuild 6: Use NamedTuple or dataclass instead the dict-interface is no longer required
+class CategorizedPaths(MutableMapping):
     """Named tuple for categorized paths, to avoid using a dictionary with string keys."""
     easyconfigs: List[str]
     files_to_delete: List[str]
     patch_files: List[str]
     py_files: List[str]
+
+    # All members below are solely for backwards compatibility and can be removed in EB 6
 
     _others: dict  # Other keys than the above for backwards compatibility
     _fields: ClassVar[Tuple[str, ...]]
