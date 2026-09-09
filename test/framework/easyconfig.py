@@ -581,6 +581,12 @@ class EasyConfigTest(EnhancedTestCase):
         toy_patch = os.path.join(self.test_sourcepath, 'toy', toy_patch_fn)
         copy_file(toy_patch, self.test_prefix)
 
+        # Creates empty module files for expected dependencies, needed for `load_fake_module`
+        tmpdir = tempfile.mkdtemp()
+        for dep_mod_name in ('Python/3.6.6', ):
+            write_file(os.path.join(tmpdir, dep_mod_name), "#%Module")
+        os.environ['MODULEPATH'] = tmpdir
+
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
         init_config(build_options={'silent': True})
 
@@ -598,6 +604,7 @@ class EasyConfigTest(EnhancedTestCase):
             'homepage = "http://example.com"',
             'description = "test easyconfig"',
             'toolchain = SYSTEM',
+            # Needed to resolve %(pymajver)s template in exts_list
             'dependencies = [("Python", "3.6.6")]',
             # bogus, but useful to check whether this get resolved
             'exts_default_options = {"source_urls": [PYPI_SOURCE]}',
