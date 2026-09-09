@@ -145,6 +145,9 @@ class Extension:
         for opt_name in restore_options:
             self.cfg[opt_name] = get_easyconfig_parameter_default(opt_name)
 
+        # Update name and version
+        self.cfg['name'] = name
+        self.cfg['version'] = version
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 

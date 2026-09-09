@@ -81,10 +81,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
             Extension.__init__(self, *args, **kwargs)
 
-            # name and version properties of EasyBlock are used, so make sure name and version are correct
-            self.cfg['name'] = self.ext.get('name', None)
-            self.cfg['version'] = self.ext.get('version', None)
-
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
