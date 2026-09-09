@@ -1282,11 +1282,22 @@ class ModulesTest(EnhancedTestCase):
             # Check load and unload for a single path when it is the only one
             # Only for Lmod as we have some shortcuts for avoiding the module call there
             old_module_path = os.environ['MODULEPATH']
+
             del os.environ['MODULEPATH']
             self.modtool.use(test_dir1)
             self.assertEqual(os.environ['MODULEPATH'], test_dir1)
             self.modtool.unuse(test_dir1)
             self.assertNotIn('MODULEPATH', os.environ)
+
+            test_dir4 = os.path.join(self.test_prefix, 'four')
+            os.mkdir(test_dir4)
+            # Same but not normalized
+            test_dir4_2 = os.path.join(self.test_prefix, '.', 'four')
+            self.modtool.use(test_dir4)
+            self.assertEqual(os.environ['MODULEPATH'], test_dir4)
+            self.modtool.unuse(test_dir4_2)
+            self.assertNotIn('MODULEPATH', os.environ)
+
             os.environ['MODULEPATH'] = old_module_path  # Restore
 
     def test_add_and_remove_module_path(self):
