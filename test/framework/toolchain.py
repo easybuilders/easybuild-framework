@@ -3407,7 +3407,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertNotIsInstance(tc, NVHPC)
 
         # check new NVHPC toolchain with nvidia-compilers dependency
-        from easybuild.toolchains.nvhpc import NVHPC as NVHPC
+        from easybuild.toolchains.nvhpc import NVHPC
         tc = NVHPC(version='25.1', tcdeps=[{'name': 'nvidia-compilers', 'version': '25.1'}])
         self.assertIsInstance(tc, NVHPC)
         self.assertNotIsInstance(tc, NVHPCToolchain)
