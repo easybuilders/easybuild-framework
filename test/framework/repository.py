@@ -87,7 +87,7 @@ class RepositoryTest(EnhancedTestCase):
             shutil.rmtree(repo.wc)
         except EasyBuildError as err:
             print("ignoring failed subtest in test_gitrepo, testing offline?")
-            self.assertRegex(str(err, "pull in working copy .* went wrong"))
+            self.assertRegex(str(err), "pull in working copy .* went wrong")
 
         # filepath
         tmpdir = tempfile.mkdtemp()
