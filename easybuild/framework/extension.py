@@ -70,7 +70,7 @@ def get_load_names(ext: 'Extension') -> List[str]:
                                  f"are specified for extension {ext.name}")
         options = ExtensionOptionsDict(options)  # Handles the deprecated 'modulename' key
 
-    load_names = options.get('load_name', [ext.name])
+    load_names = options.get('load_name', options.get('extension_name', ext.name))
     if isinstance(load_names, list):
         if not load_names:
             raise EasyBuildError(f"Empty load_name list for {ext.name} is not supported."

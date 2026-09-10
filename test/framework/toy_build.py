@@ -41,6 +41,7 @@ import tempfile
 import textwrap
 import filecmp
 from importlib import reload
+from inspect import cleandoc
 from unittest import TextTestRunner
 
 from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
@@ -2581,6 +2582,42 @@ class ToyBuildTest(EnhancedTestCase):
         # working dir for sanity check command should be an empty custom temporary directory
         regex = re.compile('^.*/eb-[^/]+/eb-sanity-check-[^/]+\n[ ]*0$')
         self.assertTrue(regex.match(out_txt), f"Pattern '{regex.pattern}' should match in: {out_txt}")
+
+    def test_toy_extension_name(self):
+        """Test toy build with set extension_name."""
+
+        toy_ec_txt = TOY_EC_TXT + cleandoc("""
+            extension_name = "custom_ext"
+            build_opts = "&& touch toy_custom_ext.md"
+            exts_filter = ('ls -l bin/toy_%(ext_name)s.md', '')
+        """)
+
+        toy_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
+        write_file(toy_ec, toy_ec_txt)
+
+        args = [
+            toy_ec,
+            '--debug',
+            '--force',
+            '--unittest-file=%s' % self.logfile,
+            ]
+        with self.mocked_stdout_stderr():
+            self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
+
+        toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
+        if get_module_syntax() == 'Lua':
+            toy_module += '.lua'
+        toy_module_txt = read_file(toy_module)
+        # Extension is added to module file
+        self.assert_multi_regex(['EBEXTSLISTTOY.+custom_ext-0.0', 'extensions.*"custom_ext/0.0"'], toy_module_txt)
+        # Sanity check is run using extension_name
+        self.assertIn('ls -l bin/toy_custom_ext.md', read_file(self.logfile))
+
+        write_file(self.logfile, '')
+        write_file(toy_ec, '\nload_name = "wrong_load_name"', append=True)
+        self.assertRaisesRegex(EasyBuildError,
+                               'Sanity check failed: command "ls -l bin/toy_wrong_load_name.md" failed',
+                               self.eb_main, args, do_build=True, raise_error=True)
 
     def test_toy_extension_sanity_check(self):
         """Check sanity check for extensions:
