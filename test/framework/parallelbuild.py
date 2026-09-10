@@ -78,6 +78,23 @@ MOCKED_SCONTROL = """#!/bin/bash
     echo "(scontrol args: $@)"
 """
 
+# Mock the output of sacct.
+# Expected call to sacct:
+# `sacct --allocations --noheader --parsable2 --jobs=1,2,3,4 --format=JobID,State,Elapsed`
+# Expected output:
+# ```
+# 1|COMPLETED|00:01:00"
+# 2|COMPLETED|00:01:00"
+# 3|COMPLETED|00:01:00"
+# 4|COMPLETED|00:01:00"
+# ```
+MOCKED_SACCT = """#!/bin/bash
+    # For each job ID, we write to stdout a line showing the job as completed.
+    for JOBID in $(echo "$*" | sed 's/^.*--jobs=\\([^ ]*\\) .*$/\\1/;s/,/ /g') ; do
+       echo "${JOBID}|COMPLETED|00:01:00"
+    done
+"""
+
 
 def mock(*args, **kwargs):
     """Function used for mocking several functions imported in parallelbuild module."""
@@ -337,7 +354,7 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
 
-        # install mocked versions of 'sbatch' and 'scontrol' commands
+        # install mocked versions of 'sbatch', 'scontrol' and 'sacct' commands
         sbatch = os.path.join(self.test_prefix, 'bin', 'sbatch')
         write_file(sbatch, MOCKED_SBATCH)
         adjust_permissions(sbatch, stat.S_IXUSR, add=True)
@@ -345,6 +362,10 @@ class ParallelBuildTest(EnhancedTestCase):
         scontrol = os.path.join(self.test_prefix, 'bin', 'scontrol')
         write_file(scontrol, MOCKED_SCONTROL)
         adjust_permissions(scontrol, stat.S_IXUSR, add=True)
+
+        sacct = os.path.join(self.test_prefix, 'bin', 'sacct')
+        write_file(sacct, MOCKED_SACCT)
+        adjust_permissions(sacct, stat.S_IXUSR, add=True)
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
@@ -360,6 +381,8 @@ class ParallelBuildTest(EnhancedTestCase):
             'job_cores': 3,
             'job_max_walltime': 5,
             'force': True,
+            'job_polling_interval': 30,
+            'job_max_jobs': 100,
         }
         init_config(args=['--job-backend=Slurm'], build_options=build_options)
 
@@ -376,10 +399,10 @@ class ParallelBuildTest(EnhancedTestCase):
 
         expected = {
             'dependency': 'afterok:%s' % jobs[0].jobid,
-            'hold': True,
             'job-name': 'gzip-1.5-foss-2018a',
             'nodes': 1,
-            'ntasks': 3,
+            'ntasks': 1,
+            'cpus-per-task': 3,
             'output': 'gzip-1.5-foss-2018a-%j.out',
             'time': 300,  # 60*5 (unit is minutes)
             'wrap': "echo '%s'" % test_ec,
