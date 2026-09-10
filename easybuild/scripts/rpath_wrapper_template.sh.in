@@ -41,11 +41,9 @@ function log {
     echo "($$) [$(date "+%%Y-%%m-%%d %%H:%%M:%%S")] $1" >> '%(rpath_wrapper_log)s'
 }
 
-# Path to directory containing this script
-# Can be used to find rpath_args.py relative to this script, relied on by prepare_rpath_wrappers
-TOPDIR=$(dirname "$0")
 # command name
 CMD=$(basename "$0")
+# Path to directory containing this script.
 # $TOPDIR is not used in this template script, but Toolchain.prepare_rpath_wrappers assumes it is set
 # so it can be used as an anchor to determine the path to the rpath_args.py script
 TOPDIR=$(dirname "$0")
