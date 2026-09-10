@@ -1418,7 +1418,7 @@ class ToolchainTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 tc.prepare()
             val = tc.get_variable('CFLAGS')
-            self.assertTrue(omp_flag in val, "'%s' not found in '%s'" % (omp_flag, val))
+            self.assertIn(omp_flag, val)
 
         # Test vectorize support
         vec_cases = {
@@ -1434,7 +1434,7 @@ class ToolchainTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 tc.prepare()
             val = tc.get_variable('CFLAGS')
-            self.assertTrue(vec_flag in val, "'%s' not found in '%s'" % (vec_flag, val))
+            self.assertIn(vec_flag, val)
 
     def setup_sandbox_for_foss_fftw(self, moddir, fftwver='3.3.7'):
         """Set up sandbox for foss FFTW and FFTW.MPI"""
