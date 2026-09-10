@@ -1018,9 +1018,9 @@ class Toolchain:
         """
         if os.path.basename(os.path.dirname(os.path.dirname(path))) != RPATH_WRAPPERS_SUBDIR:
             return False
-        # Check if `rpath_args`` is called in the file
+        # Check if rpath_args.py is called in the file;
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
-        return b'rpath_args.py $CMD' in read_file(path, mode='rb')
+        return b'"$RPATH_ARGS_PY" "$CMD"' in read_file(path, mode='rb')
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
@@ -1080,6 +1080,8 @@ class Toolchain:
             # we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
             # ${TOPDIR} is defined in template for RPATH wrapper scripts, refers to parent dir of RPATH wrapper script
             rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
+        else:
+            rpath_args_py = f"'{rpath_args_py}'"  # Single quotes to avoid issues with spaces etc. in the path
 
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
