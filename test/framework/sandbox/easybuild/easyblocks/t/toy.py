@@ -89,9 +89,10 @@ class EB_toy(ExtensionEasyBlock):
         """
         Tweak iterative easyconfig parameters.
         """
-        if isinstance(self.cfg['buildopts'], list):
-            # inject list of values for prebuildopts, same length as buildopts
-            self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
+        with self.cfg.disable_templating():
+            if isinstance(self.cfg['buildopts'], list):
+                # inject list of values for prebuildopts, same length as buildopts
+                self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
 
         return super().run_all_steps(*args, **kwargs)
 
