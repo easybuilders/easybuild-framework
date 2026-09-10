@@ -49,7 +49,7 @@ from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import setvar
+from easybuild.tools.environment import join_path_var, setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
 from easybuild.tools.modules import EnvironmentModules
@@ -3032,17 +3032,27 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = pre_cmd_args_ld + ["-rpath=%s" % new_lib64] + post_cmd_args_ld
         self.assertEqual(out, cmd_args)
 
-    def test_toolchain_prepare_rpath(self):
-        """Test toolchain.prepare under --rpath"""
-
+    def _setup_fake_binary(self, binary_name: str) -> str:
+        """Create an executable script with the given name that simply prints its arguments
+        and makes it available in $PATH"""
         # Code for a bash script that prints each passed argument on a new line
         BASH_SCRIPT_PRINT_ARGS = '#!/bin/bash\nfor arg in "$@"; do echo "$arg"; done'
 
+        fake_path = os.path.join(self.test_prefix, 'fake')
         # put fake 'g++' command in place that just echos its arguments
-        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
-        write_file(fake_gxx, BASH_SCRIPT_PRINT_ARGS)
-        adjust_permissions(fake_gxx, stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+        fake_binary = os.path.join(fake_path, binary_name)
+        write_file(fake_binary, BASH_SCRIPT_PRINT_ARGS)
+        adjust_permissions(fake_binary, stat.S_IXUSR)
+        paths = os.environ.get('PATH', '').split(os.path.pathsep)
+        if fake_path not in paths:
+            os.environ['PATH'] = join_path_var([fake_path] + paths)
+        return fake_binary
+
+    def test_toolchain_prepare_rpath(self):
+        """Test toolchain.prepare under --rpath"""
+
+        # put fake 'g++' command in place that just echos its arguments
+        fake_gxx = self._setup_fake_binary('g++')
 
         # enable --rpath and prepare toolchain
         init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*'], 'silent': True})
@@ -3084,9 +3094,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # Check that we can create a wrapper for a toolchain for which self.compilers() returns 'None' for the Fortran
         # compilers (i.e. Clang)
-        fake_clang = os.path.join(self.test_prefix, 'fake', 'clang')
-        write_file(fake_clang, BASH_SCRIPT_PRINT_ARGS)
-        adjust_permissions(fake_clang, stat.S_IXUSR)
+        fake_clang = self._setup_fake_binary('clang')
         tc_clang = Clang(name='Clang', version='1')
         tc_clang.prepare_rpath_wrappers()
 
@@ -3241,10 +3249,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test toolchain.prepare under --rpath with rpath_wrappers_dir argument"""
 
         # put fake 'g++' command in place that just echos its arguments
-        fake_gxx = os.path.join(self.test_prefix, 'fake', 'g++')
-        write_file(fake_gxx, '#!/bin/bash\necho "$@"')
-        adjust_permissions(fake_gxx, stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'fake'), os.getenv('PATH', ''))
+        fake_gxx = self._setup_fake_binary('g++')
 
         # export the wrappers to a target location
         target_wrapper_dir = os.path.abspath(os.path.join(self.test_prefix, 'target'))
