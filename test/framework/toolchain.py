@@ -3286,18 +3286,18 @@ class ToolchainTest(EnhancedTestCase):
         source_path = os.path.join(self.test_prefix, 'src.c')
         write_file(source_path, cleandoc(r"""
             #ifndef FOO_EMPTY
-            #error "FOO_EMPTY must be defined"
+            #  error "FOO_EMPTY must be defined"
             #endif
-
             #ifndef FOO_QUOTE
-            #error "FOO_QUOTE must be defined"
+            #  error "FOO_QUOTE must be defined"
             #endif
 
-            char foo_empty_must_be_empty[(sizeof(FOO_EMPTY) == 1) ? 1 : -1];
-            char foo_quote_must_be_1char[(sizeof(FOO_QUOTE) == 2) ? 1 : -1];
-            char foo_quote_must_be_1quote[(FOO_QUOTE[0] == '\'') ? 1 : -1];
+            static_assert(sizeof(FOO_EMPTY) == 1 && FOO_EMPTY[0] == '\0',
+                          "FOO_EMPTY should be the empty string");
+            static_assert(sizeof(FOO_QUOTE) == 2 && FOO_QUOTE[0] == '\'' && FOO_QUOTE[1] == '\0',
+                          "FOO_QUOTE should be a 1-char string with a single quote");
         """))
-        # -std=c++11 required for last check, available since GCC 4.7
+        # C++11 required for last check, available since GCC 4.7
         cmd = fr"""g++ -std=c++11 '-DFOO_EMPTY=""' '-DFOO_QUOTE="'\''"' {source_path} -c -o /dev/null"""
 
         init_config(build_options={'rpath': True, 'silent': True})
@@ -3306,12 +3306,16 @@ class ToolchainTest(EnhancedTestCase):
 
         # Sanity check that it works without our wrappers
         self.assertFalse(tc.is_rpath_wrapper(which('g++')))
-        run_shell_cmd(cmd, fail_on_error=True)
+        res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.output, "")
+        self.assertEqual(res.exit_code, 0)
         # Still works using rpath wrappers
         with self.mocked_stdout_stderr():
             tc.prepare()
         self.assertTrue(tc.is_rpath_wrapper(which('g++')))
-        run_shell_cmd(cmd, fail_on_error=True)
+        res = run_shell_cmd(cmd, fail_on_error=False)
+        self.assertEqual(res.output, "")
+        self.assertEqual(res.exit_code, 0)
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
