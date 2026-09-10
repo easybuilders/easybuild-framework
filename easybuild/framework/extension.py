@@ -115,7 +115,8 @@ def construct_exts_filter_cmds(exts_filter: Union[str, Tuple[str, str]], ext: Un
     """
 
     if isinstance(exts_filter, str) or len(exts_filter) != 2:
-        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input"), '
+                             f"got: {exts_filter} (type {type(exts_filter)})")
 
     cmd, cmdinput = exts_filter
 
