@@ -3264,10 +3264,20 @@ class ToolchainTest(EnhancedTestCase):
         # check that wrapper was created
         target_wrapper = os.path.join(target_wrapper_dir, RPATH_WRAPPERS_SUBDIR, 'gxx_wrapper', 'g++')
         self.assertTrue(os.path.exists(target_wrapper))
+        wrapper_txt = read_file(target_wrapper, mode='rb')
         # Make sure it is a wrapper
-        self.assertTrue(b'rpath_args.py' in read_file(target_wrapper, mode='rb'))
+        self.assertIn(b'rpath_args.py', wrapper_txt)
         # Make sure it wraps our fake 'g++'
-        self.assertTrue(fake_gxx.encode(encoding="utf-8") in read_file(target_wrapper, mode='rb'))
+        self.assertIn(fake_gxx.encode(), wrapper_txt)
+        # Should not refer to rpath-script in EB sources
+        script = find_eb_script('rpath_args.py')
+        self.assertNotIn(script.encode(), wrapper_txt)
+
+        # Ensure it works
+        foo_path = os.path.join(self.test_prefix, 'foo')
+        mkdir(foo_path, parents=True)
+        out = self.run_cmd_and_split(f'g++ -L{foo_path}', sep='\n')
+        self.assertEqual(out, ['-Wl,--disable-new-dtags', f'-Wl,-rpath={foo_path}', f'-L{foo_path}'])
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
