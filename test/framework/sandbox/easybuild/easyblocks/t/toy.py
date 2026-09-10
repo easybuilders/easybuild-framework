@@ -131,7 +131,7 @@ class EB_toy(ExtensionEasyBlock):
         # we rely on this in test_toy_build_hooks
         res = run_shell_cmd(cmd, fail_on_error=False)
         if res.exit_code:
-            print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
+            print_warning("Command '%s' failed, but we'll ignore it..." % cmd, log=self.log)
 
     def test_step(self, *args, **kwargs):
         """Test toy."""
