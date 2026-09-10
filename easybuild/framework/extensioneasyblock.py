@@ -65,7 +65,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             _log.nosupport("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
 
         extra_vars.update({
-            'load_name': [None, "Name used to load/import this software package, defaults to its name.", CUSTOM],
+            'load_name': [None, "Name used to load/import this software package, "
+                          "defaults to `extension_name` if set otherwise its name.", CUSTOM],
             'options': [{}, "Dictionary with extension options.", CUSTOM],
         })
         return EasyBlock.extra_options(extra_vars)
@@ -93,8 +94,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         else:
             EasyBlock.__init__(self, *args, **kwargs)
 
-            # Propagate top-level 'load_name' and deprecated 'modulename' to options
-            # Check for conflicts and remapping is done inside the 'self.options'  setter
+            # Propagate top-level 'load_name' to options
+            # Check for conflicts and remapping is done inside the 'self.options' setter
             options = copy.deepcopy(self.cfg.get('options', {}))
             load_name = self.cfg.get('load_name')
             if load_name is not None:
@@ -103,6 +104,12 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                                          f"specified for {self.name}; use the 'load_name' parameter "
                                          "without specifying it in 'options'")
                 options['load_name'] = load_name
+
+            # Also propagate extension_name
+            extension_name = self.cfg.get('extension_name')
+            if extension_name is not None:
+                options['extension_name'] = extension_name
+
             self.options = options
 
         self.ext_dir = None  # dir where extension source was unpacked

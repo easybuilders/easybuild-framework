@@ -1687,15 +1687,28 @@ class EasyBlockTest(EnhancedTestCase):
             description = "test easyconfig"
             toolchain = SYSTEM
             exts_list = [
+                # Use name
                 "ext1",
+                # lowercase and replace - by _ (done in DummyExtension)
                 ("EXT-2", "42", {"source_tmpl": "dummy.tgz"}),
+                # explicit load_name
                 ("ext3", "1.1", {"source_tmpl": "dummy.tgz", "load_name": "real_ext"}),
+                # disable check by using False
                 ("ext4", "0.2", {"source_tmpl": "dummy.tgz", "load_name": False}),
+                # default to extension_name instead of name
+                ("ext5", "0.3", {"source_tmpl": "dummy.tgz", "extension_name": "ext_name5"}),
+                # load_name takes precedence over extension_name
+                ("ext6", "0.4", {"source_tmpl": "dummy.tgz", "load_name": "ext_name6_load",
+                                                             "extension_name": "ext_name6"}),
+                # Disable even with extension_name set
+                ("ext7", "0.5", {"source_tmpl": "dummy.tgz", "load_name": False,
+                                                             "extension_name": "ext_name7"}),
             ]
             exts_filter = ("\
                 if [ %(ext_name)s == 'ext_2' ] && [ %(ext_version)s == '42' ] && [[ %(src)s == *dummy.tgz ]];\
                     then exit 0;\
                 elif [ %(ext_name)s == 'real_ext' ]; then exit 0;\
+                elif [ %(ext_name)s == 'ext_name6_load' ]; then exit 0;\
                 else exit 1; fi", "")
             exts_defaultclass = "DummyExtension"
         """)
@@ -1710,16 +1723,20 @@ class EasyBlockTest(EnhancedTestCase):
             eb.extensions_step(fetch=True)
             stdout = self.get_stdout()
         logtxt = read_file(eb.logfile)
-        regexs = [r'Running shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
+        regexs = [r'Running shell command in .*:\n\sif \[ %s' % ext
+                  for ext in ['ext1', 'ext_2', 'real_ext', 'ext_name5', 'ext_name6_load']]
         self.assert_multi_regex(regexs, logtxt)
         # load_name: False skips the check
-        self.assertNotRegex(logtxt, r"Running shell command .* in .*:\n\sif \[ (False|ext4)")
+        self.assertNotRegex(logtxt, r"Running shell command .* in .*:\n\sif \[ (False|ext4|ext7|ext_name7)")
 
         patterns = [
+            r"^== installing extension ext1  \(1/4\)\.\.\.",
             r"^== skipping extension EXT-2",
             r"^== skipping extension ext3",
-            r"^== installing extension ext1  \(1/2\)\.\.\.",
-            r"^== installing extension ext4 0.2 \(2/2\)\.\.\.",
+            r"^== installing extension ext4 0.2 \(2/4\)\.\.\.",
+            r"^== installing extension ext5 0.3 \(3/4\)\.\.\.",
+            r"^== skipping extension ext6",
+            r"^== installing extension ext7 0.5 \(4/4\)\.\.\.",
         ]
         self.assert_multi_regex(patterns, stdout)
 
@@ -1781,25 +1798,31 @@ class EasyBlockTest(EnhancedTestCase):
         # note: use a separate easyconfig file for each test case,
         # since process_easyconfig caches parsed easyconfigs per file path
 
-        # native 'load_name' easyconfig parameter
-        ec_fn = os.path.join(self.test_prefix, 'test_load_name_1.eb')
-        write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'")
-        eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
-        self.assertEqual(eb.options['load_name'], 'real_pi')
-        self.assertEqual(get_load_names(eb), ['real_pi'])
-        self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
-        eb.close_log()
-
-        # 'load_name' in 'options' is still supported as well
-        ec_fn = os.path.join(self.test_prefix, 'test_load_name_2.eb')
-        write_file(ec_fn, test_ec_base + "\noptions = {'load_name': 'real_pi'}")
-        eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
-        self.assertEqual(eb.options['load_name'], 'real_pi')
-        self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb), [('run real_pi', None)])
-        eb.close_log()
+        test_cases = [
+            # native 'load_name' easyconfig parameter
+            ("load_name = 'top_pi'", "top_pi"),
+            # 'load_name' in 'options' is still supported as well
+            ("options = {'load_name': 'opt_pi'}", "opt_pi"),
+            # Extension name used as default for load_name
+            ("extension_name = 'ext_pi'", "ext_pi"),
+            # Can be overwritten
+            ("extension_name = 'ext_pi'\nload_name = 'top_pi'", "top_pi"),
+            ("extension_name = 'ext_pi'\noptions = {'load_name': 'opt_pi'}", "opt_pi"),
+        ]
+        for i, (add_txt, expected_name) in enumerate(test_cases):
+            with self.subTest(add_txt=add_txt):
+                ec_fn = os.path.join(self.test_prefix, f'test_load_name_{i}.eb')
+                write_file(ec_fn, test_ec_base + f"\n{add_txt}")
+                eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+                if 'load_name' in add_txt:
+                    self.assertEqual(eb.options['load_name'], expected_name)
+                self.assertEqual(get_load_names(eb), [expected_name])
+                self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb),
+                                 [(f'run {expected_name}', None)])
+                eb.close_log()
 
         # specifying 'load_name' both as easyconfig parameter and in 'options' is not allowed
-        ec_fn = os.path.join(self.test_prefix, 'test_load_name_3.eb')
+        ec_fn = os.path.join(self.test_prefix, 'test_load_name_error.eb')
         write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'load_name': 'other_pi'}")
         error_msg = "'load_name' easyconfig parameter and 'load_name' in 'options' are both specified for pi"
         self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
