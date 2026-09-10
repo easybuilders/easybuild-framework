@@ -2541,7 +2541,7 @@ class ToolchainTest(EnhancedTestCase):
         ])
 
         # simplest possible compiler command, no linking
-        out = self.run_cmd_and_split("%s gcc '' '%s' -c foo.c" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} gcc '' '{rpath_inc}' -c foo.c")
         cmd_args = [
             "-c",
             "foo.c",
@@ -2549,10 +2549,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # linker command, --enable-new-dtags should be replaced with --disable-new-dtags
-        out = self.run_cmd_and_split("%s ld '' '%s' --enable-new-dtags foo.o" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} ld '' '{rpath_inc}' --enable-new-dtags foo.o")
         cmd_args = [
-            "-rpath=%s/lib" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=$ORIGIN",
             "-rpath=$ORIGIN/../lib",
             "-rpath=$ORIGIN/../lib64",
@@ -2572,10 +2572,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # compiler command, -Wl,--enable-new-dtags should be replaced with -Wl,--disable-new-dtags
-        out = self.run_cmd_and_split("%s gcc '' '%s' -Wl,--enable-new-dtags foo.c" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} gcc '' '{rpath_inc}' -Wl,--enable-new-dtags foo.c")
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2588,8 +2588,8 @@ class ToolchainTest(EnhancedTestCase):
         # compiler command, -Xlinker --enable-new-dtags should be replaced with -Wl,--disable-new-dtags
         out = self.run_cmd_and_split(f"{script} gcc '' '{rpath_inc}' -Xlinker --enable-new-dtags foo.c")
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2600,10 +2600,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # test passing no arguments
-        out = self.run_cmd_and_split("%s gcc '' '%s'" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} gcc '' '{rpath_inc}'")
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2612,10 +2612,10 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # test passing a single empty argument
-        out = self.run_cmd_and_split("%s ld.gold '' '%s' ''" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} ld.gold '' '{rpath_inc}' ''")
         cmd_args = [
-            "-rpath=%s/lib" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=$ORIGIN",
             "-rpath=$ORIGIN/../lib",
             "-rpath=$ORIGIN/../lib64",
@@ -2625,17 +2625,17 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # single -L argument, but non-existing path => not used in RPATH, but -L option is retained
-        cmd = "%s gcc '' '%s' foo.c -L%s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
+        cmd = f"{script} gcc '' '{rpath_inc}' foo.c -L{self.test_prefix}/foo -lfoo"
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
             "foo.c",
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/foo",
             "-lfoo",
         ]
         self.assertEqual(out, cmd_args)
@@ -2644,24 +2644,24 @@ class ToolchainTest(EnhancedTestCase):
         mkdir(os.path.join(self.test_prefix, 'foo'))
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
-            "-Wl,-rpath=%s/foo" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/foo",
             "foo.c",
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/foo",
             "-lfoo",
         ]
         self.assertEqual(out, cmd_args)
 
         # relative paths passed to -L are *not* RPATH'ed in
-        out = self.run_cmd_and_split("%s gcc '' '%s' foo.c -L../lib -lfoo" % (script, rpath_inc))
+        out = self.run_cmd_and_split(f"{script} gcc '' '{rpath_inc}' foo.c -L../lib -lfoo")
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2673,18 +2673,18 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(out, cmd_args)
 
         # single -L argument, with value separated by a space
-        cmd = "%s gcc '' '%s' foo.c -L   %s/foo -lfoo" % (script, rpath_inc, self.test_prefix)
+        cmd = f"{script} gcc '' '{rpath_inc}' foo.c -L   {self.test_prefix}/foo -lfoo"
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
-            "-Wl,-rpath=%s/foo" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/foo",
             "foo.c",
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/foo",
             "-lfoo",
         ]
         self.assertEqual(out, cmd_args)
@@ -2695,15 +2695,15 @@ class ToolchainTest(EnhancedTestCase):
                f"-ldummy -lfoo foo.c")
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
-            "-Wl,-rpath=%s/foo" % self.test_prefix,
-            "-L%s/dummy" % self.test_prefix,
-            "-L%s/foo" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/foo",
+            f"-L{self.test_prefix}/dummy",
+            f"-L{self.test_prefix}/foo",
             "-ldummy",
             "-lfoo",
             "foo.c",
@@ -2716,15 +2716,15 @@ class ToolchainTest(EnhancedTestCase):
                f"-ldummy -lfoo foo.c")
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
-            "-Wl,-rpath=%s/foo" % self.test_prefix,
-            "-L%s/dummy" % self.test_prefix,
-            "-L%s/foo" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/foo",
+            f"-L{self.test_prefix}/dummy",
+            f"-L{self.test_prefix}/foo",
             "-ldummy",
             "-lfoo",
             "foo.c",
@@ -2737,8 +2737,8 @@ class ToolchainTest(EnhancedTestCase):
                f"-lfoo -ldummy -c foo.c")
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-L%s/dummy" % self.test_prefix,
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/dummy",
+            f"-L{self.test_prefix}/foo",
             "-lfoo",
             "-ldummy",
             "-c",
@@ -2755,36 +2755,36 @@ class ToolchainTest(EnhancedTestCase):
             script,
             'ld',
             "''",
-            "'%s'" % rpath_inc,
-            '-L%s/foo' % self.test_prefix,
+            f"'{rpath_inc}'",
+            f'-L{self.test_prefix}/foo',
             'foo.o',
-            '-L%s/lib64' % self.test_prefix,
-            '-L%s/foo' % self.test_prefix,
+            f'-L{self.test_prefix}/lib64',
+            f'-L{self.test_prefix}/foo',
             '-lfoo',
             '-lbar',
             '-L/usr/lib',
-            '-L%s/bar' % self.test_prefix,
+            f'-L{self.test_prefix}/bar',
         ])
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-rpath=%s/lib" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=$ORIGIN",
             "-rpath=$ORIGIN/../lib",
             "-rpath=$ORIGIN/../lib64",
             "--disable-new-dtags",
-            "-rpath=%s/foo" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/foo",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=/usr/lib",
-            "-rpath=%s/bar" % self.test_prefix,
-            "-L%s/foo" % self.test_prefix,
+            f"-rpath={self.test_prefix}/bar",
+            f"-L{self.test_prefix}/foo",
             "foo.o",
-            "-L%s/lib64" % self.test_prefix,
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/lib64",
+            f"-L{self.test_prefix}/foo",
             "-lfoo",
             "-lbar",
             "-L/usr/lib",
-            "-L%s/bar" % self.test_prefix,
+            f"-L{self.test_prefix}/bar",
         ]
         self.assertEqual(out, cmd_args)
 
@@ -2793,26 +2793,26 @@ class ToolchainTest(EnhancedTestCase):
             script,
             'ld',
             '/fo.*,/bar.*',
-            "'%s'" % rpath_inc,
+            f"'{rpath_inc}'",
             '-L/foo',
             'foo.o',
-            '-L%s/lib64' % self.test_prefix,
+            f'-L{self.test_prefix}/lib64',
             '-lfoo',
             '-L/bar',
             '-lbar',
         ])
         out = self.run_cmd_and_split(cmd)
         cmd_args = [
-            "-rpath=%s/lib" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=$ORIGIN",
             "-rpath=$ORIGIN/../lib",
             "-rpath=$ORIGIN/../lib64",
             "--disable-new-dtags",
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib64",
             "-L/foo",
             "foo.o",
-            "-L%s/lib64" % self.test_prefix,
+            f"-L{self.test_prefix}/lib64",
             "-lfoo",
             "-L/bar",
             "-lbar",
@@ -2830,37 +2830,37 @@ class ToolchainTest(EnhancedTestCase):
             '-xHost',
             '-o .libs/lzmainfo',
             'lzmainfo-lzmainfo.o lzmainfo-tuklib_progname.o lzmainfo-tuklib_exit.o',
-            '-L%s/icc/lib/intel64' % self.test_prefix,
-            '-L%s/imkl/lib' % self.test_prefix,
-            '-L%s/imkl/mkl/lib/intel64' % self.test_prefix,
-            '-L%s/gettext/lib' % self.test_prefix,
+            f'-L{self.test_prefix}/icc/lib/intel64',
+            f'-L{self.test_prefix}/imkl/lib',
+            f'-L{self.test_prefix}/imkl/mkl/lib/intel64',
+            f'-L{self.test_prefix}/gettext/lib',
             '../../src/liblzma/.libs/liblzma.so',
             '-lrt -liomp5 -lpthread',
             '-Wl,-rpath',
             '-Wl,/example/software/XZ/5.2.2-intel-2016b/lib',
         ])
-        out = self.run_cmd_and_split("%s icc '' '%s' %s" % (script, rpath_inc, args))
+        out = self.run_cmd_and_split(f"{script} icc '' '{rpath_inc}' {args}")
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
             "-Wl,--disable-new-dtags",
-            "-Wl,-rpath=%s/icc/lib/intel64" % self.test_prefix,
-            "-Wl,-rpath=%s/imkl/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/imkl/mkl/lib/intel64" % self.test_prefix,
-            "-Wl,-rpath=%s/gettext/lib" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/icc/lib/intel64",
+            f"-Wl,-rpath={self.test_prefix}/imkl/lib",
+            f"-Wl,-rpath={self.test_prefix}/imkl/mkl/lib/intel64",
+            f"-Wl,-rpath={self.test_prefix}/gettext/lib",
             "-fvisibility=hidden",
             "-Wall",
             "-O2",
             "-xHost",
             "-o", ".libs/lzmainfo",
             "lzmainfo-lzmainfo.o", "lzmainfo-tuklib_progname.o", "lzmainfo-tuklib_exit.o",
-            "-L%s/icc/lib/intel64" % self.test_prefix,
-            "-L%s/imkl/lib" % self.test_prefix,
-            "-L%s/imkl/mkl/lib/intel64" % self.test_prefix,
-            "-L%s/gettext/lib" % self.test_prefix,
+            f"-L{self.test_prefix}/icc/lib/intel64",
+            f"-L{self.test_prefix}/imkl/lib",
+            f"-L{self.test_prefix}/imkl/mkl/lib/intel64",
+            f"-L{self.test_prefix}/gettext/lib",
             "../../src/liblzma/.libs/liblzma.so",
             "-lrt", "-liomp5", "-lpthread",
             "-Wl,-rpath",
@@ -2881,12 +2881,12 @@ class ToolchainTest(EnhancedTestCase):
             '-o build/version.o',
             '../../gcc/version.c',
         ]
-        cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, ' '.join(args))
+        cmd = f"{script} g++ '' '{rpath_inc}' {' '.join(args)}"
         out = self.run_cmd_and_split(cmd)
 
         cmd_args = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2906,7 +2906,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # verify that no -rpath arguments are injected when command is run in 'version check' mode
         for extra_args in ["-v", "-V", "--version", "-dumpversion", "-v -L/test/lib"]:
-            cmd = "%s g++ '' '%s' %s" % (script, rpath_inc, extra_args)
+            cmd = f"{script} g++ '' '{rpath_inc}' {extra_args}"
             out = self.run_cmd_and_split(cmd)
             self.assertEqual(out, extra_args.split(' '))
 
@@ -2919,21 +2919,21 @@ class ToolchainTest(EnhancedTestCase):
             "-L/test/lib -x c++-header",
         ]
         for extra_args in test_cases:
-            cmd = "%s g++ '' '%s' foo.c -O2 %s" % (script, rpath_inc, extra_args)
+            cmd = f"{script} g++ '' '{rpath_inc}' foo.c -O2 {extra_args}"
             out = self.run_cmd_and_split(cmd)
             cmd_args = ["foo.c", "-O2"] + extra_args.split(' ')
             self.assertEqual(out, cmd_args)
 
         # check whether $LIBRARY_PATH is taken into account
-        test_cmd_gcc_c = "%s gcc '' '%s' -c foo.c" % (script, rpath_inc)
-        test_cmd_gcc = "%s gcc '' '%s' -o foo foo.c" % (script, rpath_inc)
+        test_cmd_gcc_c = f"{script} gcc '' '{rpath_inc}' -c foo.c"
+        test_cmd_gcc = f"{script} gcc '' '{rpath_inc}' -o foo foo.c"
         cmd_args_gcc_c = [
             "-c",
             "foo.c",
         ]
         pre_cmd_args_gcc = [
-            "-Wl,-rpath=%s/lib" % self.test_prefix,
-            "-Wl,-rpath=%s/lib64" % self.test_prefix,
+            f"-Wl,-rpath={self.test_prefix}/lib",
+            f"-Wl,-rpath={self.test_prefix}/lib64",
             "-Wl,-rpath=$ORIGIN",
             "-Wl,-rpath=$ORIGIN/../lib",
             "-Wl,-rpath=$ORIGIN/../lib64",
@@ -2949,35 +2949,35 @@ class ToolchainTest(EnhancedTestCase):
             script,
             'ld',
             "''",
-            "'%s'" % rpath_inc,
-            '-L%s/foo' % self.test_prefix,
+            f"'{rpath_inc}'",
+            f'-L{self.test_prefix}/foo',
             'foo.o',
-            '-L%s/lib64' % self.test_prefix,
+            f'-L{self.test_prefix}/lib64',
             '-lfoo',
             '-lbar',
             '-L/usr/lib',
-            '-L%s/bar' % self.test_prefix,
+            f'-L{self.test_prefix}/bar',
         ])
         pre_cmd_args_ld = [
-            "-rpath=%s/lib" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/lib",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=$ORIGIN",
             "-rpath=$ORIGIN/../lib",
             "-rpath=$ORIGIN/../lib64",
             "--disable-new-dtags",
-            "-rpath=%s/foo" % self.test_prefix,
-            "-rpath=%s/lib64" % self.test_prefix,
+            f"-rpath={self.test_prefix}/foo",
+            f"-rpath={self.test_prefix}/lib64",
             "-rpath=/usr/lib",
-            "-rpath=%s/bar" % self.test_prefix,
+            f"-rpath={self.test_prefix}/bar",
         ]
         post_cmd_args_ld = [
-            "-L%s/foo" % self.test_prefix,
+            f"-L{self.test_prefix}/foo",
             "foo.o",
-            "-L%s/lib64" % self.test_prefix,
+            f"-L{self.test_prefix}/lib64",
             "-lfoo",
             "-lbar",
             "-L/usr/lib",
-            "-L%s/bar" % self.test_prefix,
+            f"-L{self.test_prefix}/bar",
         ]
 
         library_paths = [
@@ -2999,11 +2999,11 @@ class ToolchainTest(EnhancedTestCase):
             self.assertEqual(out, cmd_args)
 
             out = self.run_cmd_and_split(test_cmd_gcc)
-            cmd_args = pre_cmd_args_gcc + ["-Wl,-rpath=%s" % x for x in library_path if x] + post_cmd_args_gcc
+            cmd_args = pre_cmd_args_gcc + [f"-Wl,-rpath={x}" for x in library_path if x] + post_cmd_args_gcc
             self.assertEqual(out, cmd_args)
 
             out = self.run_cmd_and_split(test_cmd_ld)
-            cmd_args = pre_cmd_args_ld + ["-rpath=%s" % x for x in library_path if x] + post_cmd_args_ld
+            cmd_args = pre_cmd_args_ld + [f"-rpath={x}" for x in library_path if x] + post_cmd_args_ld
             self.assertEqual(out, cmd_args)
 
         # paths already listed via -L don't get included again as RPATH option
@@ -3024,13 +3024,13 @@ class ToolchainTest(EnhancedTestCase):
 
         out = self.run_cmd_and_split(test_cmd_gcc)
         # no -L options in GCC command, so all $LIBRARY_PATH entries are retained except for last one (lib symlink)
-        cmd_args = pre_cmd_args_gcc + ["-Wl,-rpath=%s" % x for x in library_path[:-1] if x] + post_cmd_args_gcc
+        cmd_args = pre_cmd_args_gcc + [f"-Wl,-rpath={x}" for x in library_path[:-1] if x] + post_cmd_args_gcc
         self.assertEqual(out, cmd_args)
 
         out = self.run_cmd_and_split(test_cmd_ld)
         # only new path from $LIBRARY_PATH is included as -rpath option,
         # since others are already included via corresponding -L flag
-        cmd_args = pre_cmd_args_ld + ["-rpath=%s" % new_lib64] + post_cmd_args_ld
+        cmd_args = pre_cmd_args_ld + [f"-rpath={new_lib64}"] + post_cmd_args_ld
         self.assertEqual(out, cmd_args)
 
     def _setup_fake_binary(self, binary_name: str) -> str:
