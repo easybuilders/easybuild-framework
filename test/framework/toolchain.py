@@ -35,6 +35,7 @@ import stat
 import sys
 import tempfile
 import textwrap
+from inspect import cleandoc
 from itertools import product
 from unittest import TextTestRunner
 from test.framework import TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
@@ -3278,6 +3279,39 @@ class ToolchainTest(EnhancedTestCase):
         mkdir(foo_path, parents=True)
         out = self.run_cmd_and_split(f'g++ -L{foo_path}', sep='\n')
         self.assertEqual(out, ['-Wl,--disable-new-dtags', f'-Wl,-rpath={foo_path}', f'-L{foo_path}'])
+
+    def test_rpath_wrapper_passes_quoted_strings(self):
+        """Check that quoted strings are correctly passed through"""
+        # See https://github.com/easybuilders/easybuild-framework/issues/5192
+        source_path = os.path.join(self.test_prefix, 'src.c')
+        write_file(source_path, cleandoc(r"""
+            #ifndef FOO_EMPTY
+            #error "FOO_EMPTY must be defined"
+            #endif
+
+            #ifndef FOO_QUOTE
+            #error "FOO_QUOTE must be defined"
+            #endif
+
+            char foo_empty_must_be_empty[(sizeof(FOO_EMPTY) == 1) ? 1 : -1];
+            char foo_quote_must_be_1char[(sizeof(FOO_QUOTE) == 2) ? 1 : -1];
+            char foo_quote_must_be_1quote[(FOO_QUOTE[0] == '\'') ? 1 : -1];
+        """))
+        # -std=c++11 required for last check, available since GCC 4.7
+        cmd = fr"""g++ -std=c++11 '-DFOO_EMPTY=""' '-DFOO_QUOTE="'\''"' {source_path} -c -o /dev/null"""
+
+        init_config(build_options={'rpath': True, 'silent': True})
+        tc = self.get_toolchain('GCC', version='12.3.0')
+        tc.set_options({'rpath': True})
+
+        # Sanity check that it works without our wrappers
+        self.assertFalse(tc.is_rpath_wrapper(which('g++')))
+        run_shell_cmd(cmd, fail_on_error=True)
+        # Still works using rpath wrappers
+        with self.mocked_stdout_stderr():
+            tc.prepare()
+        self.assertTrue(tc.is_rpath_wrapper(which('g++')))
+        run_shell_cmd(cmd, fail_on_error=True)
 
     def test_prepare_openmpi_tmpdir(self):
         """Test handling of long $TMPDIR path for OpenMPI 2.x"""
