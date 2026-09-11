@@ -1165,8 +1165,12 @@ class EasyConfig:
 
         return res
 
-    def dep_is_filtered(self, dep, filter_deps_specs):
+    def dep_is_filtered(self, dep, filter_deps_specs=None):
         """Returns True if a dependency is filtered according to the filter_deps_specs"""
+
+        if filter_deps_specs is None:
+            filter_deps_specs = self.parse_filter_deps()
+
         filter_dep = False
         if dep['name'] in filter_deps_specs:
             filter_spec = filter_deps_specs[dep['name']]
