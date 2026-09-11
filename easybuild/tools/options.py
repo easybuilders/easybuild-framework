@@ -1786,22 +1786,26 @@ def handle_include_easyblocks_from(options, log):
     """
     Handle --include-easyblocks-from-pr and --include-easyblocks-from-commit
     """
-    def check_included_multiple(included_easyblocks_from, source):
-        """Check whether easyblock is being included multiple times"""
-        included_multiple = included_easyblocks_from & included_easyblocks
-        if included_multiple:
-            warning_msg = "One or more easyblocks included from multiple locations: %s " \
-                          % ', '.join(included_multiple)
-            warning_msg += "(the one(s) from %s will be used)" % source
-            print_warning(warning_msg)
-
     if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
         terse = build_option('terse')
-
         if options.include_easyblocks:
-            # check if you are including the same easyblock twice
-            included_paths = expand_glob_paths(options.include_easyblocks)
-            included_easyblocks = {os.path.basename(eb) for eb in included_paths}
+            included_easyblocks = {os.path.basename(eb) for eb in expand_glob_paths(options.include_easyblocks)}
+        else:
+            included_easyblocks = set()
+
+        def check_and_log_include(additional_easyblocks: list, source: str):
+            """Check whether easyblock is being included multiple times and log its inclusion"""
+            additional_easyblocks = {os.path.basename(eb) for eb in additional_easyblocks}
+            included_multiple = include_easyblocks & additional_easyblocks
+            if included_multiple:
+                warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                            % ', '.join(included_multiple)
+                warning_msg += "(the one(s) from %s will be used)" % source
+                print_warning(warning_msg)
+            included_easyblocks.update(additional_easyblocks)
+            for easyblock in additional_easyblocks:
+                easyblock = os.path.basename(easyblock)
+                print_msg(f"easyblock {easyblock} included from {source}", log=log, silent=terse)
 
         if options.include_easyblocks_from_pr:
             try:
@@ -1814,29 +1818,13 @@ def handle_include_easyblocks_from(options, log):
 
             for easyblock_pr in easyblock_prs:
                 easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-                included_from_pr = {os.path.basename(eb) for eb in easyblocks_from_pr}
-
-                if options.include_easyblocks:
-                    check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
-                    included_easyblocks |= included_from_pr
-
-                for easyblock in included_from_pr:
-                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log, silent=terse)
-
+                check_and_log_include(easyblocks_from_pr, "PR #%s" % easyblock_pr)
                 include_easyblocks(options.tmpdir, easyblocks_from_pr)
 
         easyblock_commit = options.include_easyblocks_from_commit
         if easyblock_commit:
             easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
-            included_from_commit = {os.path.basename(eb) for eb in easyblocks_from_commit}
-
-            if options.include_easyblocks:
-                check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
-
-            for easyblock in included_from_commit:
-                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit),
-                          log=log, silent=terse)
-
+            check_and_log_include(easyblocks_from_commit, "commit %s" % easyblock_commit)
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 
         if options.list_easyblocks:
