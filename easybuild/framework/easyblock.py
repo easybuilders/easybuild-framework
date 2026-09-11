@@ -4525,6 +4525,7 @@ class EasyBlock:
                                      f'Should be: {self.is_extension}, got:  {extension}')
         del extension  # Avoid accidental use
 
+        # Don't load any module for extensions
         if self.is_extension:
             return self.fake_mod_data
 
@@ -4533,8 +4534,7 @@ class EasyBlock:
             self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
             self.load_module(extra_modules=extra_modules)
             self.sanity_check_module_loaded = True
-        # only load fake module for non-extensions, and not during dry run
-        elif not (self.is_extension or self.dry_run):
+        elif not self.dry_run:
             if extra_modules:
                 self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
             try:
