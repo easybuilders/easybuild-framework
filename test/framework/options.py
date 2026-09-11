@@ -1847,7 +1847,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^ \* \[.\] .*-gompi-2018a",
             r"^ \* \[.\] .*-GCC.*6\.4\.0",
         ]
-        self.assert_multi_regex(anti_patterns, outtxt, assert_true=False)
+        self.assert_multi_regex(anti_patterns, outtxt, assert_match=False)
 
     def test_try_update_deps(self):
         """Test for --try-update-deps."""
@@ -3233,7 +3233,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             if words_expected is not None:
                 self.assert_multi_regex(words_expected, stdout)
             if words_unexpected is not None:
-                self.assert_multi_regex(words_unexpected, stdout, assert_true=False)
+                self.assert_multi_regex(words_unexpected, stdout, assert_match=False)
 
         # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
         args = list(common_args)
@@ -3343,7 +3343,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_report_txt = toy()
         self.assertIn(test_var_secret_ondemand, test_report_txt)
         self.assertIn(test_var_public, test_report_txt)
-        self.assert_multi_regex([test_var_secret_always, test_var_secret_always2], test_report_txt, assert_true=False)
+        self.assert_multi_regex([test_var_secret_always, test_var_secret_always2], test_report_txt, assert_match=False)
 
         # filter out env vars that match specified regex pattern
         filter_arg = "--test-report-env-filter=.*_IS_A_CUSTOM_ENV_VAR_FOR_EASYBUILD"
@@ -3353,7 +3353,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             test_var_secret_always,
             test_var_secret_always2,
         ]
-        self.assert_multi_regex(regexs, test_report_txt, assert_true=False)
+        self.assert_multi_regex(regexs, test_report_txt, assert_match=False)
         # make sure that used filter is reported correctly in test report
         filter_arg_regex = r"--test-report-env-filter='.\*_IS_A_CUSTOM_ENV_VAR_FOR_EASYBUILD'"
         self.assertRegex(test_report_txt, filter_arg_regex)
@@ -4458,7 +4458,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assert_multi_regex(msg_regexs, stdout)
 
             # no ignored errors should occur
-            self.assert_multi_regex([ignoring_error_regex, ignored_error_regex], stdout, assert_true=False)
+            self.assert_multi_regex([ignoring_error_regex, ignored_error_regex], stdout, assert_match=False)
 
     def test_last_log(self):
         """Test --last-log."""
@@ -4908,7 +4908,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"# Build statistics",
             r"buildstats\s*=",
         ]
-        self.assert_multi_regex(regexs, txt, assert_true=False)
+        self.assert_multi_regex(regexs, txt, assert_match=False)
 
     def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
@@ -5797,7 +5797,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                     self.modtool.load(['GCC/4.6.3'])
                 logtxt = read_file(self.logfile)
                 self.assertRegex(logtxt, "Running .*\n.*load GCC/4.6.3")
-                self.assert_multi_regex(patterns, logtxt, assert_true=enable)
+                self.assert_multi_regex(patterns, logtxt, assert_match=enable)
                 self.modtool.purge()
 
     def test_use_color(self):

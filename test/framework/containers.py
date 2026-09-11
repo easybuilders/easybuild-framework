@@ -405,9 +405,7 @@ class ContainersTest(EnhancedTestCase):
         self.check_regexs(regexs, def_file)
 
         # there should be no leading/trailing whitespace included
-        for pattern in [r'^\s+', r'\s+$']:
-            regex = re.compile(pattern)
-            self.assertFalse(regex.search(def_file), "Pattern '%s' should *not* be found in: %s" % (pattern, def_file))
+        self.assert_multi_regex((r'^\s+', r'\s+$'), def_file, assert_match=False, multi_line=False)
 
     def test_end2end_docker_image(self):
 
