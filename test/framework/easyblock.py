@@ -51,6 +51,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance, BUILD_STEP
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
+from easybuild.framework.easyconfig.templates import PYPI_SOURCE
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config
@@ -2457,7 +2458,7 @@ class EasyBlockTest(EnhancedTestCase):
         # file specifications via URL also work, are downloaded to (first) sourcepath
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (tmpdir, sandbox_sources)])
         urls = [
-            "https://easybuilders.github.io/easybuild/index.html",
+            "http://easybuilders.github.io/easybuild/index.html",
             "https://easybuilders.github.io/easybuild/index.html",
         ]
         for file_url in urls:
@@ -2482,6 +2483,61 @@ class EasyBlockTest(EnhancedTestCase):
                 print("ignoring failure to download %s in test_obtain_file, testing offline?" % file_url)
 
         shutil.rmtree(tmpdir)
+
+    def test_obtain_file_pypi_fallback_name(self):
+        ANY = unittest.mock.ANY
+        # Avoid it finding the source and only try specified URLs
+        init_config([f'--sourcepath={self.test_prefix}'], build_options={'extra_source_urls': []})
+        self.contents = textwrap.dedent("""
+            easyblock = "ConfigureMake"
+            name = "foo"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        error_tmpl = "Couldn't find file %s anywhere, and downloading it didn't work either"
+        test_cases = (
+            ('foo.zip', []),
+            ('foo-1.23.zip', []),
+            ('foo-bar-1.23.zip', ['foo_bar-1.23.zip']),
+            # Only single underscore as fallback will be tried
+            ('foo_-bar-1.23.zip', ['foo_bar-1.23.zip']),
+            ('foo-bar-baz-1.23.zip', ['foo_bar_baz-1.23.zip']),
+            # Dots
+            ('foo.bar-1.23.zip', ['foo_bar-1.23.zip']),
+            # Variant order when mixing - and .
+            ('foo.bar-baz-1.23.zip', ['foo_bar_baz-1.23.zip', 'foo.bar_baz-1.23.zip', 'foo_bar-baz-1.23.zip']),
+            ('foo-.bar-1.23.zip', ['foo_bar-1.23.zip', 'foo_.bar-1.23.zip', 'foo-_bar-1.23.zip']),
+        )
+        # Note: Mocking the IMPORTED functions, not the original as we already imported easybuild.framework.easyblock
+        with unittest.mock.patch.multiple('easybuild.framework.easyblock',
+                                          download_file=unittest.mock.DEFAULT,
+                                          derive_alt_pypi_url=unittest.mock.DEFAULT) as mocks:
+            base_url = 'https://any'
+            pypi_url = eb.cfg.resolve_template(PYPI_SOURCE)
+            mocked_download_file = mocks['download_file']
+            mocked_download_file.return_value = False  # Simulate failure so all alternatives will be tried
+            # Mocked too as this would try downloading the alternative URL list
+            mocks['derive_alt_pypi_url'].return_value = None  # Simulate failure, will use original URL
+            for orig_fn, fallback_fns in test_cases:
+                with self.subTest(filename=orig_fn):
+                    # With a non-PYPI URL only a single download attempt is done
+                    eb.cfg['source_urls'] = [base_url]
+                    mocked_download_file.reset_mock()
+                    self.assertRaisesRegex(EasyBuildError, error_tmpl % orig_fn, eb.obtain_file, orig_fn)
+                    mocked_download_file.assert_called_once_with(orig_fn, f"{base_url}/{orig_fn}", ANY)
+
+                    # For PYPI URLs the original name and then the fallbacks are tried
+                    eb.cfg['source_urls'] = [pypi_url]
+                    mocked_download_file.reset_mock()
+                    self.assertRaisesRegex(EasyBuildError, error_tmpl % orig_fn, eb.obtain_file, orig_fn)
+                    expected = [unittest.mock.call(orig_fn, f"{pypi_url}/{fn}", ANY)
+                                for fn in [orig_fn] + fallback_fns]
+                    self.assertEqual(mocked_download_file.call_args_list, expected)
 
     def test_fallback_source_url(self):
         """Check whether downloading from fallback source URL https://sources.easybuild.io works."""
