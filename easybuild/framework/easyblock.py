@@ -68,6 +68,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
+from typing import Any, Dict, List
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -213,8 +214,8 @@ class EasyBlock:
         self.installdir_mod = None  # module file
 
         # extensions
-        self.exts = []
-        self.ext_instances = []
+        self.exts: List[Dict[str, Any]] = []
+        self.ext_instances: List[Extension] = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
@@ -645,7 +646,7 @@ class EasyBlock:
         else:
             self.log.info("Added patches: %s", self.patches)
 
-    def collect_exts_file_info(self, fetch_files=True, verify_checksums=True):
+    def collect_exts_file_info(self, fetch_files=True, verify_checksums=True) -> List[Dict[str, Any]]:
         """
         Collect information on source and patch files for extensions.
 
@@ -2093,7 +2094,7 @@ class EasyBlock:
                               f"exit code {res.exit_code}; output: {res.output}")
                 if res.exit_code != EasyBuildExit.SUCCESS:
                     break
-            # Don't skip extension if there were no commands to check, e.g. modulename=False
+            # Don't skip extension if there were no commands to check, e.g. load_name=False
             if cmds and res.exit_code == EasyBuildExit.SUCCESS:
                 print_msg(f"skipping extension {ext_inst.name}", silent=self.silent, log=self.log)
             else:
@@ -3335,7 +3336,7 @@ class EasyBlock:
         # self.exts may already be populated at this point through collect_exts_file_info;
         # if it's not, we do it lightweight here, by skipping fetching of the files;
         # information on location of source/patch files will be lacking in that case (but that should be fine)
-        if exts_list and not self.exts:
+        if not self.exts:
             self.exts = self.collect_exts_file_info(fetch_files=False, verify_checksums=False)
 
         # obtain name and module path for default extention class
