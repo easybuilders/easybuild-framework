@@ -68,6 +68,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
+from typing import Any
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -3690,17 +3691,22 @@ class EasyBlock:
         self.cfg['builddependencies'] = builddeps
         self.cfg.iterating = False
 
+    def get_from_easyconfig_or_build_option(self, option_name: str) -> Any:
+        """Return the value of this option if it is set (not None) in the easyconfig else from the CLI/config"""
+        res = self.cfg.get(option_name)
+        return res if res is not None else build_option(option_name)
+
     def sanity_check_cuda(self, cuda_dirs=None):
         """Sanity check that binaries/libraries contain device code for the correct architecture targets."""
 
         self.log.info("Checking binaries/libraries for CUDA device code...")
 
         fail_msgs = []
-        cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities', None)
-        ignore_failures = not build_option('cuda_sanity_check_error_on_failed_checks')
-        strict_cc_check = build_option('cuda_sanity_check_strict')
-        accept_ptx_as_devcode = build_option('cuda_sanity_check_accept_ptx_as_devcode')
-        accept_missing_ptx = build_option('cuda_sanity_check_accept_missing_ptx')
+        cfg_ccs = build_option('cuda_compute_capabilities') or self.cfg.get('cuda_compute_capabilities')
+        ignore_failures = not self.get_from_easyconfig_or_build_option('cuda_sanity_check_error_on_failed_checks')
+        strict_cc_check = self.get_from_easyconfig_or_build_option('cuda_sanity_check_strict')
+        accept_ptx_as_devcode = self.get_from_easyconfig_or_build_option('cuda_sanity_check_accept_ptx_as_devcode')
+        accept_missing_ptx = self.get_from_easyconfig_or_build_option('cuda_sanity_check_accept_missing_ptx')
 
         # Construct the list of files to ignore as full paths (cuda_sanity_ignore_files contains the paths
         # to ignore, relative to the installation prefix)
