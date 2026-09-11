@@ -2600,6 +2600,7 @@ class ToyBuildTest(EnhancedTestCase):
             '--debug',
             '--force',
             '--unittest-file=%s' % self.logfile,
+            '--module-extensions',
             ]
         with self.mocked_stdout_stderr():
             self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=True, raise_error=True)
@@ -2609,7 +2610,10 @@ class ToyBuildTest(EnhancedTestCase):
             toy_module += '.lua'
         toy_module_txt = read_file(toy_module)
         # Extension is added to module file
-        self.assert_multi_regex(['EBEXTSLISTTOY.+custom_ext-0.0', 'extensions.*"custom_ext/0.0"'], toy_module_txt)
+        self.assertRegex(toy_module_txt, 'EBEXTSLISTTOY.+custom_ext-0.0')
+        if self.modtool.supports_extensions:
+            self.assertRegex(toy_module_txt, 'extensions.*"custom_ext/0.0"')
+
         # Sanity check is run using extension_name
         self.assertIn('ls -l bin/toy_custom_ext.md', read_file(self.logfile))
 
