@@ -50,7 +50,7 @@ from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIO
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.tools.build_log import EasyBuildError, EasyBuildLog
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, EasyBuildLog
 from easybuild.tools.config import DEFAULT_MODULECLASSES, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
@@ -1182,10 +1182,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for pattern in ['netCDF-C++', 'foo|bar', '^foo', 'foo.*bar']:
                 args = [opt, pattern, '--robot', test_easyconfigs_dir]
                 with self.mocked_stdout_stderr(mock_stderr=False):
-                    self.eb_main(args, raise_error=True, verbose=True, testing=False)
+                    _log, err = self.eb_main(args, return_error=True, verbose=True, testing=False)
                     stdout = self.get_stdout()
                 # there shouldn't be any hits for any of these queries, so empty output...
                 self.assertEqual(stdout.strip(), '')
+                self.assertIsInstance(err, SystemExit)
+                self.assertEqual(err.code, EasyBuildExit.MISSING_EASYCONFIG)
 
         # some search patterns are simply invalid,
         # if they include allowed special characters like '*' but are used incorrectly...
@@ -1200,7 +1202,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 4 corresponds with MISSING_EASYCONFIG in EasyBuildExit (see easybuild/tools/build_log.py)
         args = ['--search', 'nosuchsoftware-1.2.3.4.5']
         self.assertErrorRegex(SystemExit, 'MISSING_EASYCONFIG|4', self.eb_main, args,
-                              testing=False, raise_error=True, raise_systemexit=True)
+                              testing=False, raise_error=True)
 
     def test_ignore_index(self):
         """
@@ -3492,7 +3494,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for arg in ['-DX', '-DrX', '-DXr', '-frkDX', '-XfrD']:
             args = ['toy-0.0.eb', arg]
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+                self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True)
                 stderr = self.get_stderr()
             self.assertIn("error: no such option: -X", stderr)
 
@@ -4114,11 +4116,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_regex = "Selected module naming scheme \'AnotherTestIncludedMNS\' is unknown"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, error_regex, self.eb_main, args, logfile=dummylogfn,
-                                  raise_error=True, raise_systemexit=True)
+                                  raise_error=True)
 
         args.append('--include-module-naming-schemes=%s/*.py' % self.test_prefix)
         with self.mocked_stdout_stderr():
-            self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True, verbose=True)
+            self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, verbose=True)
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_mod += '.lua'
@@ -5552,8 +5554,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # 'source' step was renamed to 'extract' in EasyBuild 5.0,
         # see https://github.com/easybuilders/easybuild-framework/pull/4629
         args = ['toy-0.0.eb', '--force', '--stop=source']
-        _, stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
-        self.assertIn("option --stop: invalid choice: 'source' (choose from", stderr)
+        with self.mocked_stderr() as stderr:
+            with self.assertRaises(SystemExit):
+                self.eb_main(args, do_build=True, raise_error=True, testing=False)
+            self.assertIn("option --stop: invalid choice: 'source' (choose from", stderr.getvalue())
 
     def test_fetch(self):
         """Test use of --fetch"""
@@ -6557,7 +6561,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # because it's not a valid type of checksum
         args = ['--inject-checksums', test_ec]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True, raise_systemexit=True)
+            self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, raise_error=True)
             stdout = self.get_stdout().strip()
             stderr = self.get_stderr().strip()
 

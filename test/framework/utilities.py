@@ -308,7 +308,7 @@ class EnhancedTestCase(TestCase):
         self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, return_exit_code=False, logfile=None, verbose=False,
-                raise_error=False, reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True,
+                raise_error=False, reset_env=True, testing=True, redo_init_config=True,
                 clear_caches=True):
         """Helper method to call EasyBuild main function."""
 
@@ -337,9 +337,6 @@ class EnhancedTestCase(TestCase):
             else:
                 modtool = self.modtool
             exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
-        except SystemExit as err:
-            if raise_systemexit:
-                raise err
         except Exception as err:
             myerr = err
             if verbose:
