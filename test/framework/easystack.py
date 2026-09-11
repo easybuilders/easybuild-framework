@@ -29,7 +29,6 @@ Unit tests for easystack files
 @author: Kenneth Hoste (Ghent University)
 """
 import os
-import re
 import sys
 import tempfile
 from unittest import TextTestRunner
@@ -152,8 +151,7 @@ class EasyStackTest(EnhancedTestCase):
         with self.mocked_stdout():
             stdout = self.eb_main(args, do_build=True, raise_error=True)
             stdout = self.eb_main(args, do_build=True, raise_error=True, reset_env=False, redo_init_config=False)
-        regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
-        self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+        self.assertNotRegex(stdout, r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
 
         # temporary directory after run should be exactly 2 levels deeper than original one:
         # - 1 level added by setting up configuration in EasyBuild main function

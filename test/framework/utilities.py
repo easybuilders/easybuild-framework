@@ -450,10 +450,10 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs, txt, assert_true=True):
+    def assert_multi_regex(self, regexs, txt, assert_true=True, flags=re.M):
         """Helper function to assert presence/absence of list of regex patterns in a text"""
         for regex in regexs:
-            regex = re.compile(regex, re.M)
+            regex = re.compile(regex, flags)
             if assert_true:
                 self.assertRegex(txt, regex)
             else:
