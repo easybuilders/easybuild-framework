@@ -36,7 +36,7 @@ import os
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import install_path, ConfigurationVariables
-from easybuild.tools.filetools import mkdir, write_file
+from easybuild.tools.filetools import copy_dir, mkdir, write_file
 from easybuild.tools.utilities import trace_msg
 
 
@@ -104,10 +104,11 @@ def prepare_bwrap(bwrap_installpath):
 
     set_bwrap_info('bwrap_installpath', bwrap_installpath)
 
-    installpath_software = install_path(typ='software')
+    installpath_software = os.path.realpath(install_path(typ='software'))
     set_bwrap_info('installpath_software', installpath_software)
 
-    set_bwrap_info('installpath_modules', install_path(typ='modules'))
+    installpath_modules = os.path.realpath(install_path(typ='modules'))
+    set_bwrap_info('installpath_modules', installpath_modules)
 
     variables = ConfigurationVariables()
     bwrap_installpath_software = os.path.join(bwrap_installpath, variables['subdir_software'])
@@ -117,34 +118,64 @@ def prepare_bwrap(bwrap_installpath):
 
     bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
 
+    mkdir(bwrap_installpath_modules, parents=True)
+
+    bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
+
+    try:
+        mkdir(installpath_modules, parents=True)
+        # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available
+        # required for building multiple unrelated easyconfigs (e.g. easystacks)
+        if os.path.exists(installpath_modules):
+            copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
+        # bind mount the modules installpath
+        bwrap_cmd.extend([
+            '--bind', bwrap_installpath_modules, installpath_modules])
+
+    except EasyBuildError:
+        # if we can't create the external modules directory, try to use overlayfs
+        mkdir(bwrap_workdir, parents=True)
+        bwrap_cmd.extend([
+            '--overlay-src', installpath_modules,
+            '--overlay', bwrap_installpath_modules, bwrap_workdir, installpath_modules])
+
+    # store bwrap options in a set to avoid duplicate binds
+    bwrap_opts = set()
+
     # bind mount all software directories
     for mod in sorted(get_bwrap_info('modules_to_install')):
         installdir = os.path.join(os.path.realpath(installpath_software), mod)
         bwrap_installdir = os.path.join(bwrap_installpath_software, mod)
+        mkdir(bwrap_installdir, parents=True)
+
         use_overlayfs = False
         try:
             mkdir(installdir, parents=True)
         except EasyBuildError:
             # if we can't create the external installation directory, try to use overlayfs
             use_overlayfs = True
-        mkdir(bwrap_installdir, parents=True)
+
         if use_overlayfs:
-            bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', mod)
-            mkdir(bwrap_workdir, parents=True)
             # go up the tree until we find a directory that exists
             while not os.path.exists(installdir):
                 installdir = os.path.dirname(installdir)
                 bwrap_installdir = os.path.dirname(bwrap_installdir)
-            opts = ['--overlay-src', installdir, '--overlay', bwrap_installdir, bwrap_workdir, installdir]
+            mkdir(bwrap_workdir, parents=True)
+            bwrap_opts.add((
+                '--overlay-src', installdir,
+                '--overlay', bwrap_installdir, bwrap_workdir, installdir))
         else:
-            opts = ['--bind', bwrap_installdir, installdir]
-        bwrap_cmd.extend(opts)
+            bwrap_opts.add((
+                '--bind', bwrap_installdir, installdir))
+
+    for x in bwrap_opts:
+        bwrap_cmd.extend(x)
 
     set_bwrap_info('bwrap_cmd', bwrap_cmd)
     bwrap_cmd_str = ' '.join(bwrap_cmd)
 
     # disable `--bwrap` to prepare for a real installation (in bwrap namespace)
-    bwrap_eb_options = ['--disable-bwrap', f'--installpath-modules={bwrap_installpath_modules}']
+    bwrap_eb_options = ['--disable-bwrap']
     set_bwrap_info('bwrap_eb_options', bwrap_eb_options)
 
     _log.info(f'Info needed for bwrap: {_bwrap_info}')
