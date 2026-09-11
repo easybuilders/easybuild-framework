@@ -1398,6 +1398,7 @@ class EasyBuildOptions(GeneralOption):
             self.options.stop = FETCH_STEP
             self.options.ignore_locks = True
             self.options.ignore_osdeps = True
+            self.original_modules_tool = self.options.modules_tool
             self.options.modules_tool = None
 
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
@@ -1941,6 +1942,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'extra_ec_paths': extra_ec_paths,
+        'original_modules_tool': getattr(eb_go, 'original_modules_tool', None),
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,

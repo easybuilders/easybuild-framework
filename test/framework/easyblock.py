@@ -59,7 +59,7 @@ from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, mkdir, read_file
 from easybuild.tools.filetools import remove_dir, remove_file, symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, NoModulesTool, reset_module_caches
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL
 from easybuild.tools.run import RunShellCmdError
 from easybuild.tools.version import get_git_revision, this_is_easybuild
@@ -1316,6 +1316,49 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path_src))
         self.assertTrue(os.path.samefile(eb.patches[0]['path'], expected_path_patch))
+
+    def test_fetch_step_source_deps(self):
+        """Test fetching sources with source dependencies."""
+        init_config(
+            [f'--sourcepath={self.test_prefix}'],
+            build_options={'original_modules_tool': 'Lmod'},
+        )
+
+        url = 'https://dummy-url-for-testing'
+        source_fn = 'mysource.tar.gz'
+        self.contents = textwrap.dedent(f"""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            source_urls = ['{url}']
+            sources = ['{source_fn}']
+            source_deps = [('foo', '1.2.3')]
+        """)
+        self.writeEC()
+
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        eb.modules_tool = NoModulesTool(testing=True)
+
+        def create_file(_filename, _url, path, *_args, **_kwargs):
+            write_file(path, 'content')
+            return True
+
+        mocked_modtool = unittest.mock.MagicMock()
+
+        with unittest.mock.patch(
+            'easybuild.framework.easyblock.modules_tool',
+            return_value=mocked_modtool,
+        ) as mocked_modules_tool, unittest.mock.patch(
+            'easybuild.framework.easyblock.download_file',
+            side_effect=create_file,
+        ):
+            eb.fetch_step()
+
+        mocked_modules_tool.assert_called_once_with(modules_tool_name='Lmod')
+        mocked_modtool.load.assert_called_once_with(['foo/1.2.3'])
 
     def test_test_cases_step(self):
         """Test test_cases_step"""

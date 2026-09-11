@@ -116,6 +116,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.modules import NoModulesTool, modules_tool
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
@@ -2877,6 +2878,18 @@ class EasyBlock:
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        source_deps = self.cfg['source_deps']
+        pre_fetch_env = None
+        # load modules for source dependencies (if any)
+        if source_deps:
+            pre_fetch_env = copy.deepcopy(os.environ)
+
+            if isinstance(self.modules_tool, NoModulesTool):
+                self.modules_tool = modules_tool(modules_tool_name=build_option('original_modules_tool'))
+
+            source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
+            self.modules_tool.load(source_deps_mod_names)
+
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
         if self.dry_run:
@@ -2963,6 +2976,9 @@ class EasyBlock:
             self.log.info("Skipped installation dirs check per user request")
 
         stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        if pre_fetch_env:
+            restore_env(pre_fetch_env)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""

@@ -5557,11 +5557,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_fetch(self):
         """Test use of --fetch"""
-        options = EasyBuildOptions(go_args=['--fetch'])
+        options = EasyBuildOptions(go_args=['--fetch', '--modules-tool=Lmod'])
 
         self.assertTrue(options.options.fetch)
         self.assertEqual(options.options.stop, 'fetch')
         self.assertEqual(options.options.modules_tool, None)
+        self.assertEqual(options.original_modules_tool, 'Lmod')
         self.assertTrue(options.options.ignore_locks)
         self.assertTrue(options.options.ignore_osdeps)
 
@@ -5644,6 +5645,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             pattern = r"WARNING: FAILED: File toy-1.2.3.4.5.6.tar.gz not found from NO_SOURCE_URLS_PROVIDED."
             self.assertRegex(stderr, pattern)
+
+    def test_fetch_original_modules_tool(self):
+        """Test preserving the original modules tool with --fetch."""
+        set_up_configuration(
+            args=['--fetch', '--modules-tool=Lmod'],
+            silent=True,
+            reconfigure=True,
+        )
+
+        self.assertEqual(build_option('original_modules_tool'), 'Lmod')
+        self.assertEqual(ConfigurationVariables()['modules_tool'], None)
 
     def test_parse_external_modules_metadata(self):
         """Test parse_external_modules_metadata function."""
