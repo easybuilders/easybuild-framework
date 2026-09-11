@@ -46,21 +46,21 @@ class EasyConfigVersion(EnhancedTestCase):
         """Test the version parser"""
         vop = VersionOperator()
         # version tests
-        self.assertTrue(vop.regex.search('< 4'))
-        self.assertTrue(vop.regex.search('>= 20131016'))
-        self.assertTrue(vop.regex.search('<= 1.2.3'))
-        self.assertTrue(vop.regex.search('> 2.4'))
-        self.assertTrue(vop.regex.search('== 1.2b'))
-        self.assertTrue(vop.regex.search('< 2.0dev'))
-        self.assertTrue(vop.regex.search('1.2.3'))  # operator is optional, '==' is default
-        self.assertFalse(vop.regex.search('>='))  # version is mandatory (even if DEFAULT_UNDEFINED_VERSION exists)
-        self.assertFalse(vop.regex.search('%s1.2.3' % vop.SEPARATOR))  # no separator usage w/o something to separate
-        self.assertFalse(vop.regex.search('1.2.3%s' % vop.SEPARATOR))  # no separator usage w/o something to separate
-        self.assertFalse(vop.regex.search('>%s2.4' % vop.SEPARATOR * 2))  # double space as separator is not allowed
-        self.assertFalse(vop.regex.search('>%s 2.4' % vop.SEPARATOR))  # double separator is not allowed
-        self.assertTrue(vop.regex.search('>%sa2.4' % vop.SEPARATOR))  # version starts/ends with *any* word character
-        self.assertTrue(vop.regex.search('>%s2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
-        self.assertTrue(vop.regex.search('>%sG2.4_' % vop.SEPARATOR))  # version starts/ends with *any* word character
+        self.assertRegex('< 4', vop.regex)
+        self.assertRegex('>= 20131016', vop.regex)
+        self.assertRegex('<= 1.2.3', vop.regex)
+        self.assertRegex('> 2.4', vop.regex)
+        self.assertRegex('== 1.2b', vop.regex)
+        self.assertRegex('< 2.0dev', vop.regex)
+        self.assertRegex('1.2.3', vop.regex)  # operator is optional, '==' is default
+        self.assertNotRegex('>=', vop.regex)  # version is mandatory (even if DEFAULT_UNDEFINED_VERSION exists)
+        self.assertNotRegex('%s1.2.3' % vop.SEPARATOR, vop.regex)  # no separator usage w/o something to separate
+        self.assertNotRegex('1.2.3%s' % vop.SEPARATOR, vop.regex)  # no separator usage w/o something to separate
+        self.assertNotRegex('>%s2.4' % vop.SEPARATOR * 2, vop.regex)  # double space as separator is not allowed
+        self.assertNotRegex('>%s 2.4' % vop.SEPARATOR, vop.regex)  # double separator is not allowed
+        self.assertRegex('>%sa2.4' % vop.SEPARATOR, vop.regex)  # version starts/ends with *any* word character
+        self.assertRegex('>%s2.4_' % vop.SEPARATOR, vop.regex)  # version starts/ends with *any* word character
+        self.assertRegex('>%sG2.4_' % vop.SEPARATOR, vop.regex)  # version starts/ends with *any* word character
 
     def test_boolean(self):
         """Test boolean test"""
@@ -184,7 +184,7 @@ class EasyConfigVersion(EnhancedTestCase):
                 (tc, None),  # only toolchain name, no dict repr (default operator is >=, version is 0.0.0)
             ]
             for txt, as_dict in ok_tests:
-                self.assertTrue(top.regex.search(txt), "%s matches toolchain section marker regex" % txt)
+                self.assertRegex(txt, top.regex)
                 tcversop = ToolchainVersionOperator(txt)
                 self.assertTrue(tcversop)
                 self.assertEqual(tcversop.as_dict(), as_dict)
@@ -198,7 +198,7 @@ class EasyConfigVersion(EnhancedTestCase):
                 ">= 1.2.3",
             ]
             for txt in fail_tests:
-                self.assertFalse(top.regex.search(txt), "%s doesn't match toolchain section marker regex" % txt)
+                self.assertNotRegex(txt, top.regex)
                 tcv = ToolchainVersionOperator(txt)
                 self.assertEqual(tcv.tc_name, None)
                 self.assertEqual(tcv.tcversop_str, None)

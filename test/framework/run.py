@@ -272,8 +272,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        regex = re.compile("pwd: .*\nbash_env: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, "pwd: .*\nbash_env: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
 
         # check whether working directory is what's expected
         matches = re.findall('^pwd: (.*)', res.output, re.M)
@@ -295,7 +294,7 @@ class RunTest(EnhancedTestCase):
         else:
             self.fail("Unknown modules tool used!")
 
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, regex)
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -389,9 +388,9 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 0)
         self.assertIn("FOOBAR=foobar\n", res.output)
-        self.assertTrue(re.search("^_=.*/env$", res.output, re.M))
+        self.assertRegex(res.output, re.compile("^_=.*/env$", re.M))
         for var in ('HOME', 'USER'):
-            self.assertFalse(re.search('^' + var + '=.*', res.output, re.M))
+            self.assertNotRegex(res.output, re.compile('^' + var + '=.*', re.M))
 
         # check on helper scripts that were generated for this command
         paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'env-*'))
@@ -496,9 +495,9 @@ class RunTest(EnhancedTestCase):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex_start_cmd = re.compile(r"Running shell command in .*:\n\techo hello", re.M)
+        regex_start_cmd = re.compile(r"Running shell command in .*:\n\techo hello")
         regex_cmd_exit = re.compile(r"Shell command completed successfully")
-        regex_cmd_output = re.compile(r"Output \(stdout \+ stderr\):\nhello", re.M)
+        regex_cmd_output = re.compile(r"Output \(stdout \+ stderr\):\nhello")
 
         # command output is logged
         init_logging(logfile, silent=True)
@@ -635,9 +634,7 @@ class RunTest(EnhancedTestCase):
                     r"\s+output \(stdout \+ stderr\)\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
                     r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
-                for pattern in patterns:
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+                self.assert_multi_regex(patterns, stderr)
 
             # check error reporting output when stdout/stderr are collected separately
             try:
@@ -673,9 +670,7 @@ class RunTest(EnhancedTestCase):
                     r"\s+error/warnings \(stderr\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/err.txt",
                     r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
-                for pattern in patterns:
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+                self.assert_multi_regex(patterns, stderr)
 
             # no error reporting when fail_on_error is disabled
             with self.mocked_stdout_stderr() as (_, stderr):
@@ -851,8 +846,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)
 
-        regex = re.compile(".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, ".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
 
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
@@ -879,8 +873,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         update_build_option('trace', False)
         with self.mocked_stdout_stderr():
@@ -903,8 +896,7 @@ class RunTest(EnhancedTestCase):
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         pattern.insert(3, r"\t\[input: hello\]")
         pattern[-2] = "\tcat"
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         update_build_option('trace', False)
         with self.mocked_stdout_stderr():
@@ -950,8 +942,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         init_config(build_options={'trace': False})
         with self.mocked_stdout_stderr():
@@ -997,8 +988,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         # also test with command that is fed input via stdin
         with self.mocked_stdout_stderr():
@@ -1010,8 +1000,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
         pattern.insert(4, r"\t\[input: hello\]")
         pattern[1] = "\tcat"
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         # trace output can be disabled on a per-command basis by enabling 'hidden'
         with self.mocked_stdout_stderr():
@@ -1223,8 +1212,7 @@ class RunTest(EnhancedTestCase):
             (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
 
         self.assertEqual(ec, 0)
-        regex = re.compile("Picked number: 42$")
-        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        self.assertRegex(out, "Picked number: 42$")
 
         # also test with script run as interactive command that quickly exits with non-zero exit code;
         # see https://github.com/easybuilders/easybuild-framework/issues/3593
@@ -1255,8 +1243,7 @@ class RunTest(EnhancedTestCase):
             res = run_shell_cmd(cmd, qa_patterns=[('Pick a number: ', '42')], qa_timeout=10)
 
         self.assertEqual(res.exit_code, 0)
-        regex = re.compile("Picked number: 42$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' found in: {res.output}")
+        self.assertRegex(res.output, "Picked number: 42$")
 
         # also test with script run as interactive command that quickly exits with non-zero exit code;
         # see https://github.com/easybuilders/easybuild-framework/issues/3593
@@ -1324,7 +1311,7 @@ class RunTest(EnhancedTestCase):
         pattern += r"\t\[output logged in .*\]\n"
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += r'  >> interactive command completed: exit 0, ran in .*'
-        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+        self.assertRegex(stdout, pattern)
 
         # trace output can be disabled on a per-command basis
         with self.mocked_stdout_stderr():
@@ -1349,7 +1336,7 @@ class RunTest(EnhancedTestCase):
         pattern += r"\t\[working dir: .*\]\n"
         pattern += r"\t\[output and state saved to .*\]\n"
         pattern += r'  >> command completed: exit 0, ran in .*'
-        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+        self.assertRegex(stdout, pattern)
 
         # trace output can be disabled on a per-command basis
         with self.mocked_stdout_stderr():
@@ -2160,8 +2147,7 @@ class RunTest(EnhancedTestCase):
             run_shell_cmd("make")
             stdout = self.get_stdout()
 
-        regex = re.compile('>> running shell command:\n\techo make', re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, re.compile('>> running shell command:\n\techo make', re.M))
 
         with self.mocked_stdout_stderr():
             # run_shell_cmd will raise RunShellCmdError which we don't care about here,

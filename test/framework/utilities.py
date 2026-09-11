@@ -39,6 +39,7 @@ import unittest
 from contextlib import contextmanager
 from importlib import reload
 from pathlib import Path
+from typing import List
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
 from easybuild.base import fancylogger
@@ -449,10 +450,17 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs, txt, assert_true=True, flags=re.M):
-        """Helper function to assert presence/absence of list of regex patterns in a text"""
+    def assert_multi_regex(self, regexs: List[str], txt: str,
+                           assert_true: bool = True, multi_line: bool = True) -> None:
+        """Helper function to assert presence/absence of list of regex patterns in a text
+        param: regexs: list of regex patterns to check for
+        param: txt: text to check for regex patterns
+        param: assert_true: Whether regex patterns should be present or absent in text
+        param: multi_line: if True, match ^/$ on each line instead of only at the beginning/end of the whole string
+        """
         for regex in regexs:
-            regex = re.compile(regex, flags)
+            if multi_line:
+                regex = re.compile(regex, re.M)
             if assert_true:
                 self.assertRegex(txt, regex)
             else:
