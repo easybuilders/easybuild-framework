@@ -46,6 +46,7 @@ import re
 import sys
 import tempfile
 from collections import OrderedDict
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -60,7 +61,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
 from easybuild.tools.filetools import locate_files, read_file, resolve_path, which, write_file
-from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, CategorizedPaths
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
@@ -620,37 +621,30 @@ def dump_env_script(easyconfigs):
         dump_env_easyblock(app, orig_env=orig_env, ec_path=ec.path, script_path=script_path)
 
 
-def categorize_files_by_type(paths):
+def categorize_files_by_type(paths: List[str]) -> CategorizedPaths:
     """
     Splits list of filepaths into a 4 separate lists: easyconfigs, files to delete, patch files and
     files with extension .py
     """
-    res = {
-        'easyconfigs': [],
-        'files_to_delete': [],
-        'patch_files': [],
-        'py_files': [],
-    }
+    res = CategorizedPaths([], [], [], [])
 
     for path in paths:
         if path.startswith(':'):
-            res['files_to_delete'].append(path[1:])
+            res.files_to_delete.append(path[1:])
         elif path.endswith('.py'):
-            res['py_files'].append(path)
+            res.py_files.append(path)
         # file must exist in order to check whether it's a patch file
         elif os.path.isfile(path) and is_patch_file(path):
-            res['patch_files'].append(path)
+            res.patch_files.append(path)
         elif path.endswith('.patch'):
             if not os.path.exists(path):
                 raise EasyBuildError('File %s does not exist, did you mistype the path?', path)
-            elif not os.path.isfile(path):
+            if not os.path.isfile(path):
                 raise EasyBuildError('File %s is expected to be a regular file, but is a folder instead', path)
-            else:
-                raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!',
-                                     path)
+            raise EasyBuildError('%s is not detected as a valid patch file. Please verify its contents!', path)
         else:
             # anything else is considered to be an easyconfig file
-            res['easyconfigs'].append(path)
+            res.easyconfigs.append(path)
 
     return res
 

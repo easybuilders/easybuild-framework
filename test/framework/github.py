@@ -129,6 +129,77 @@ class GithubTest(EnhancedTestCase):
 
         super().tearDown()
 
+    def test_CategorizedPaths_backwards_compat(self):
+        """Test backwards compatibility of CategorizedPaths (use as dictionary)."""
+        paths = gh.CategorizedPaths(
+            easyconfigs=['foo.eb'],
+            files_to_delete=['bar.txt'],
+            patch_files=['baz.patch'],
+            py_files=['qux.py'],
+        )
+        expected_keys = ['easyconfigs', 'files_to_delete', 'patch_files', 'py_files']
+        expected_values = [['foo.eb'], ['bar.txt'], ['baz.patch'], ['qux.py']]
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            for key, expected_value in zip(expected_keys, expected_values):
+                self.assertEqual(paths[key], expected_value)
+            self.assertIn("Accessing CategorizedPaths via index is deprecated, use named attributes instead",
+                          self.get_stderr())
+
+            self.assertEqual(list(paths.keys()), expected_keys)
+            self.assertEqual(list(paths), list(paths.keys()))  # Iteration
+            self.assertEqual(list(paths.values()), expected_values)
+            self.assertEqual(list(paths.items()), list(zip(expected_keys, expected_values)))
+            self.assertIn("Using CategorizedPaths as a dictionary is deprecated, use named attributes instead",
+                          self.get_stderr())
+            self.assertEqual(len(paths), len(expected_keys))
+            with self.assertRaises(KeyError):
+                _ = paths['non_existing_key']
+            self.assertEqual(paths.get('non_existing_key', 'default'), 'default')
+
+            # Add new dictionary entry
+            paths['new_field'] = ['newfile.txt']
+            expected_keys.append('new_field')
+            expected_values.append(['newfile.txt'])
+            self.assertEqual(list(paths.keys()), expected_keys)
+            self.assertEqual(list(paths), list(paths.keys()))  # Iteration
+            self.assertEqual(list(paths.values()), expected_values)
+            self.assertEqual(list(paths.items()), list(zip(expected_keys, expected_values)))
+            del paths['new_field']
+            self.assertEqual(list(paths.keys()), expected_keys[:-1])
+
+            # Check that modifying a list in-place works as expected
+            paths['easyconfigs'] = ['newfoo.eb']
+            self.assertEqual(paths.easyconfigs, ['newfoo.eb'])
+            paths['easyconfigs'].append('another.eb')
+            self.assertEqual(paths.easyconfigs, ['newfoo.eb', 'another.eb'])
+
+        # Comparisons do not trigger deprecations
+        self.assertEqual(paths, paths)
+        self.assertNotEqual(paths,
+                            gh.CategorizedPaths(easyconfigs=[], files_to_delete=[], patch_files=[], py_files=[]))
+        self.assertNotEqual(paths, {})
+        self.assertNotEqual({}, paths)
+        paths2 = gh.CategorizedPaths(easyconfigs=['foo.eb'], files_to_delete=['bar.txt'], patch_files=['foo.patch'],
+                                     py_files=['foo.py'])
+        path_dict = {'easyconfigs': ['foo.eb'], 'files_to_delete': ['bar.txt'], 'patch_files': ['foo.patch'],
+                     'py_files': ['foo.py']}
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            # Converting to dict triggers deprecation warning
+            self.assertEqual(dict(paths2), path_dict)
+        # Direct comparison to dict does not trigger deprecation warning
+        self.assertEqual(paths2, path_dict)
+        self.assertEqual(path_dict, paths2)
+        self.assertEqual(repr(paths2), repr(path_dict))
+
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), path_dict)
+        path_dict["unrelated"] = "Anything"
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), path_dict)
+        # Not all key
+        path_dict = {'easyconfigs': ['foo.eb'], 'files_to_delete': ['bar.txt']}
+        expected = dict(path_dict)
+        expected.update({'patch_files': [], 'py_files': []})
+        self.assertEqual(gh.CategorizedPaths._from_dict(path_dict), expected)
+
     def test_det_pr_title(self):
         """Test det_pr_title function"""
         rawtxt = textwrap.dedent("""
@@ -673,7 +744,7 @@ class GithubTest(EnhancedTestCase):
 
         # poor mans mocking of getpass
         # inject leading/trailing spaces to verify stripping of provided value
-        def fake_getpass(*args, **kwargs):
+        def fake_getpass(*_args, **_kwargs):
             return ' ' + self.github_token + '  '
 
         orig_getpass = gh.getpass.getpass
@@ -1374,7 +1445,7 @@ class GithubTest(EnhancedTestCase):
             self.assertNotIn(pattern.lower(), res['full'])
 
         # mock create_gist function, we don't want to actually create a gist every time we run this test...
-        def fake_create_gist(*args, **kwargs):
+        def fake_create_gist(*_args, **_kwargs):
             return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
 
         easybuild.tools.testing.create_gist = fake_create_gist
