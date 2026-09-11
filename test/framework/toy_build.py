@@ -3624,7 +3624,10 @@ class ToyBuildTest(EnhancedTestCase):
     def test_toy_build_hooks(self):
         """Test use of --hooks."""
         test_ec = os.path.join(self.test_prefix, 'test.eb')
+        # Using some dependencies where we have (test) modules installed
         test_ec_txt = TOY_EC_TXT + '\n'.join([
+            "builddependencies = [('icc', '11.1.073', '', SYSTEM), ('FFTW', '3.3.7', '', SYSTEM)]",
+            "dependencies = [('GCCcore', '12.3.0', '', SYSTEM), ('imkl', '2021.4.0', '', SYSTEM)]",
             "exts_list = [('bar', '0.0'), ('toy', '0.0')]",
             "exts_defaultclass = 'DummyExtension'",
         ])
@@ -3648,6 +3651,7 @@ class ToyBuildTest(EnhancedTestCase):
                # (required templating to be disabled before parse_hook is called)
                ec['postinstallcmds'].append('echo toy')
                print(ec['postinstallcmds'][-1])
+               print('Deps:', ', '.join(sorted(ec.dependency_names())))
 
             def pre_build_and_install_loop_hook(ecs):
                 mod_names = ' '.join(ec['full_mod_name'] for ec in ecs)
@@ -3740,6 +3744,7 @@ class ToyBuildTest(EnhancedTestCase):
             Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
+            Deps: FFTW, GCCcore, icc, imkl
             installing 1 easyconfigs: toy/0.0
             starting installation of toy 0.0
             pre-configure: toy.source: True
@@ -3751,9 +3756,11 @@ class ToyBuildTest(EnhancedTestCase):
             Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
+            Deps: FFTW, GCCcore, icc, imkl
             Parse Hook toy 0.0
             ['%(name)s-%(version)s.tar.gz']
             echo toy
+            Deps: FFTW, GCCcore, icc, imkl
             in module-write hook hook for {mod_name}
             in module-write hook hook for {mod_name}
             in module-write hook hook for {mod_name}

@@ -1225,6 +1225,9 @@ class EasyConfig:
             # use += rather than .extend to get a new list rather than updating list of build deps in place...
             deps += self['dependencies']
 
+        if not self.get('parsed'):
+            self.log.debug("Easyconfig not fully parsed yet, returning unparsed dependencies")
+            return deps  # Cannot filter dependencies until the easyconfig has been fully parsed
         # if filter-deps option is provided we "clean" the list of dependencies for
         # each processed easyconfig to remove the unwanted dependencies
         self.log.debug("Dependencies BEFORE filtering: %s", deps)
@@ -1242,8 +1245,10 @@ class EasyConfig:
         :param build_only: only return build dependencies, discard others
         :param runtime_only: only return runtime dependencies, discard others
         """
-        return {dep['name'] for dep in self.dependencies(build_only=build_only, runtime_only=runtime_only)
-                if dep['name']}
+        deps = self.dependencies(build_only=build_only, runtime_only=runtime_only)
+        if self.get('parsed'):
+            return {dep['name'] for dep in deps if dep['name']}
+        return {dep[0] for dep in deps}  # Unparsed dependencies are still tuples of (name, version, [...])
 
     def builddependencies(self):
         """
