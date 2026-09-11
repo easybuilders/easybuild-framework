@@ -43,9 +43,10 @@ import filecmp
 from importlib import reload
 from unittest import TextTestRunner
 
-from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
+from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup
 from test.framework.package import mock_fpm
+
 import easybuild.tools.hooks  # so we can reset cached hooks
 import easybuild.tools.module_naming_scheme  # required to dynamically load test module naming scheme(s)
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -466,10 +467,6 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_build_formatv2(self):
         """Perform a toy build (format v2)."""
-        # set $MODULEPATH such that modules for specified dependencies are found
-        modulepath = os.environ.get('MODULEPATH')
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
-
         args = [
             os.path.join(TEST_DIR, 'easyconfigs', 'v2.0', 'toy.eb'),
             '--debug',
@@ -483,12 +480,6 @@ class ToyBuildTest(EnhancedTestCase):
         outtxt = self.run_eb_main_capture_output(args, logfile=self.dummylogfn, do_build=True, verbose=True)
 
         self.check_toy(self.test_installpath, outtxt)
-
-        # restore
-        if modulepath is not None:
-            os.environ['MODULEPATH'] = modulepath
-        else:
-            del os.environ['MODULEPATH']
 
     def test_toy_build_with_blocks(self):
         """Test a toy build with multiple blocks."""
@@ -901,7 +892,7 @@ class ToyBuildTest(EnhancedTestCase):
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
 
         args = [
-            os.path.join(TOY_EC),
+            TOY_EC,
             '--debug',
             '--unittest-file=%s' % self.logfile,
             '--force',
@@ -1182,7 +1173,6 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_toy_advanced(self):
         """Test toy build with extensions and non-system toolchain."""
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
         test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         with self.mocked_stdout_stderr():
             self._test_toy_build(ec_file=test_ec, versionsuffix='-gompi-2018a-test', extra_args=['--debug'])
@@ -1217,7 +1207,6 @@ class ToyBuildTest(EnhancedTestCase):
         """Test toy build with extensions, and filtered build dependency."""
         # test case for bug https://github.com/easybuilders/easybuild-framework/pull/2515
 
-        os.environ['MODULEPATH'] = os.path.join(TEST_MODULES_DIR)
         toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         toy_ec_txt = read_file(toy_ec)
@@ -1768,9 +1757,6 @@ class ToyBuildTest(EnhancedTestCase):
         """Test use of --module-only."""
         ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-deps')
-
-        # only consider provided test modules
-        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
 
         # sanity check fails without --force if software is not installed yet
         common_args = [

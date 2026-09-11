@@ -41,12 +41,13 @@ from importlib import reload
 from pathlib import Path
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
-from easybuild.base import fancylogger
-from easybuild.base.testing import TestCase
+
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
+from easybuild.base import fancylogger
+from easybuild.base.testing import TestCase
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
@@ -214,7 +215,7 @@ class EnhancedTestCase(TestCase):
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool: ModulesTool = modules_tool()
-        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
+        self.reset_modulepath([TEST_MODULES_DIR])
         reset_module_caches()
 
     def disallow_deprecated_behaviour(self):
