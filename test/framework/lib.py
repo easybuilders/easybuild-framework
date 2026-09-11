@@ -33,6 +33,7 @@ import sys
 import tempfile
 from unittest import TextTestRunner
 
+from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import TestLoaderFiltered
 
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
@@ -125,10 +126,8 @@ class EasyBuildLibTest(TestCase):
 
         self.configure()
 
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-
         modtool = modules_tool()
-        modtool.use(test_mods_path)
+        modtool.use(TEST_MODULES_DIR)
         self.assertIn('GCC/6.4.0-2.28', modtool.available())
         modtool.load(['GCC/6.4.0-2.28'])
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])
