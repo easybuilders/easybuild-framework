@@ -95,10 +95,10 @@ jobs:
         APT_PKGS+=" graphviz"
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        if ! sudo apt-get install $APT_PKGS; then
+        if ! sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS; then
           # Try to update cache, then try again to resolve 404s of old packages
           sudo apt-get update -yqq || true
-          sudo apt-get install $APT_PKGS
+          sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS
         fi
 
     - name: set up Python

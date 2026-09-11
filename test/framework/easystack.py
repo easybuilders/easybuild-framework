@@ -29,7 +29,6 @@ Unit tests for easystack files
 @author: Kenneth Hoste (Ghent University)
 """
 import os
-import re
 import sys
 import tempfile
 from unittest import TextTestRunner
@@ -38,6 +37,7 @@ import easybuild.tools.build_log
 from easybuild.framework.easystack import check_value, parse_easystack
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
+from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 
@@ -60,15 +60,13 @@ class EasyStackTest(EnhancedTestCase):
 
     def test_easystack_basic(self):
         """Test for basic easystack files."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-
         test_easystacks = [
             'test_easystack_basic.yaml',
             'test_easystack_basic_dict.yaml',
             'test_easystack_easyconfigs_with_eb_ext.yaml',
         ]
         for fn in test_easystacks:
-            test_easystack = os.path.join(topdir, 'easystacks', fn)
+            test_easystack = os.path.join(TEST_DIR, 'easystacks', fn)
 
             easystack = parse_easystack(test_easystack)
             expected = [
@@ -83,8 +81,7 @@ class EasyStackTest(EnhancedTestCase):
     def test_easystack_easyconfigs_dict(self):
         """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
         prefixed by dashes"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_dict.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_easyconfigs_dict.yaml')
 
         error_pattern = r"Found dict value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
@@ -92,16 +89,14 @@ class EasyStackTest(EnhancedTestCase):
     def test_easystack_easyconfigs_str(self):
         """Test for easystack file where easyconfigs item is parsed as a dict, because easyconfig names are not
         prefixed by dashes"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_str.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_easyconfigs_str.yaml')
 
         error_pattern = r"Found str value for 'easyconfigs' in .* should be list.\nMake sure you use '-' to create .*"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_easyconfig_opts(self):
         """Test an easystack file using the 'easyconfigs' key, with additonal options for some easyconfigs"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_easyconfigs_opts.yaml')
 
         easystack = parse_easystack(test_easystack)
         expected_tuples = [
@@ -114,16 +109,14 @@ class EasyStackTest(EnhancedTestCase):
 
     def test_easystack_invalid_key(self):
         """Test easystack files with invalid key at the same level as the 'options' key"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_invalid_key.yaml')
 
         error_pattern = r"Found one or more invalid keys for .* \(only 'options' supported\).*"
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)
 
     def test_easystack_invalid_key2(self):
         """Test easystack files with invalid key at the same level as the key that names the easyconfig"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_easystack_invalid_key2.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_invalid_key2.yaml')
 
         error_pattern = r"expected a dictionary with one key \(the EasyConfig name\), "
         error_pattern += r"instead found keys: .*, invalid_key"
@@ -158,8 +151,7 @@ class EasyStackTest(EnhancedTestCase):
         with self.mocked_stdout():
             stdout = self.eb_main(args, do_build=True, raise_error=True)
             stdout = self.eb_main(args, do_build=True, raise_error=True, reset_env=False, redo_init_config=False)
-        regex = re.compile(r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
-        self.assertFalse(regex.search(stdout), "Pattern '%s' should not be found in: %s" % (regex.pattern, stdout))
+        self.assertNotRegex(stdout, r"WARNING Loaded modules detected: \[.*gompi/2018.*\]\n")
 
         # temporary directory after run should be exactly 2 levels deeper than original one:
         # - 1 level added by setting up configuration in EasyBuild main function
@@ -177,8 +169,7 @@ class EasyStackTest(EnhancedTestCase):
 
     def test_missing_easyconfigs_key(self):
         """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easystack = os.path.join(topdir, 'easystacks', 'test_missing_easyconfigs_key.yaml')
+        test_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_missing_easyconfigs_key.yaml')
 
         error_pattern = r"Top-level key 'easyconfigs' missing in easystack file %s" % test_easystack
         self.assertErrorRegex(EasyBuildError, error_pattern, parse_easystack, test_easystack)

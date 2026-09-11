@@ -63,15 +63,15 @@ class ToolchainVariablesTest(EnhancedTestCase):
         self.assertEqual(str(tcv['MPICC']), "gcc")
 
         tcv['F90'] = ['gfortran', '-foo', '-bar']
-        self.assertEqual(tcv['F90'].__repr__(), "[['gfortran', '-foo', '-bar']]")
+        self.assertEqual(repr(tcv['F90']), "[['gfortran', '-foo', '-bar']]")
         self.assertEqual(str(tcv['F90']), "gfortran -foo -bar")
 
         tcv.nappend('FLAGS', ['-one', '-two'])
         x = tcv.nappend('FLAGS', ['-three', '-four'])
         x.POSITION = -5  # sanitize will reorder, default POSITION is 0
-        self.assertEqual(tcv['FLAGS'].__repr__(), "[['-one', '-two'], ['-three', '-four']]")
+        self.assertEqual(repr(tcv['FLAGS']), "[['-one', '-two'], ['-three', '-four']]")
         tcv['FLAGS'].sanitize()  # sort on position, called by __str__ also
-        self.assertEqual(tcv['FLAGS'].__repr__(), "[['-three', '-four'], ['-one', '-two']]")
+        self.assertEqual(repr(tcv['FLAGS']), "[['-three', '-four'], ['-one', '-two']]")
         self.assertEqual(str(tcv['FLAGS']), "-three -four -one -two")
 
         # LIBBLAS is a LibraryList
@@ -79,13 +79,13 @@ class ToolchainVariablesTest(EnhancedTestCase):
         lib.POSITION = 5  # relative position after default
         lib = tcv.nappend('LIBBLAS', ['a', 'b', 'c'])
         tcv.add_begin_end_linkerflags(lib, toggle_startstopgroup=True, toggle_staticdynamic=True)
-        self.assertEqual(lib.BEGIN.__repr__(), "['-Bstatic', '-Xstart']")
-        self.assertEqual(tcv['LIBBLAS'].__repr__(), "[['d', 'e', 'f'], ['a', 'b', 'c']]")
+        self.assertEqual(repr(lib.BEGIN), "['-Bstatic', '-Xstart']")
+        self.assertEqual(repr(tcv['LIBBLAS']), "[['d', 'e', 'f'], ['a', 'b', 'c']]")
         # str calls sanitize
         self.assertEqual(str(tcv['LIBBLAS']),
                          "-Wl,-Bstatic -Wl,-Xstart -la -lb -lc -Wl,-Xstop -Wl,-Bdynamic -ld -le -lf")
         # sanitize is on self
-        self.assertEqual(tcv['LIBBLAS'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
+        self.assertEqual(repr(tcv['LIBBLAS']), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
 
         # make copies for later
         copy_blas = tcv['LIBBLAS'].copy()
@@ -138,23 +138,23 @@ class ToolchainVariablesTest(EnhancedTestCase):
 
         # test try remove
         copy_blas.try_remove(['a', 'f'])
-        self.assertEqual(copy_blas.__repr__(), "[['b', 'c'], ['d', 'e']]")
+        self.assertEqual(repr(copy_blas), "[['b', 'c'], ['d', 'e']]")
 
         # test join
         tcv.join('LIBLAPACK', 'LIBBLAS')
-        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
+        self.assertEqual(repr(tcv['LIBLAPACK']), "[['a', 'b', 'c'], ['d', 'e', 'f']]")
         lib = tcv.nappend('LIBLAPACK', ['g', 'h'])
         tcv.add_begin_end_linkerflags(lib, toggle_startstopgroup=True)
-        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h']]")
+        self.assertEqual(repr(tcv['LIBLAPACK']), "[['a', 'b', 'c'], ['d', 'e', 'f'], ['g', 'h']]")
         # sanitize will reorder wrt POSISTION but not join the start/stop group (blas has also statc/dynamic)
         tcv['LIBLAPACK'].sanitize()
-        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c'], ['g', 'h'], ['d', 'e', 'f']]")
+        self.assertEqual(repr(tcv['LIBLAPACK']), "[['a', 'b', 'c'], ['g', 'h'], ['d', 'e', 'f']]")
 
         # run both toggle, not just static/dynamic one.
         tcv.add_begin_end_linkerflags(lib, toggle_startstopgroup=True, toggle_staticdynamic=True)
         # sanitize will reorder wrt POSISTION and join the start/stop group
         tcv['LIBLAPACK'].sanitize()
-        self.assertEqual(tcv['LIBLAPACK'].__repr__(), "[['a', 'b', 'c', 'g', 'h'], ['d', 'e', 'f']]")
+        self.assertEqual(repr(tcv['LIBLAPACK']), "[['a', 'b', 'c', 'g', 'h'], ['d', 'e', 'f']]")
         self.assertEqual(str(tcv['LIBLAPACK']), "-Wl,-Bstatic,-Xstart,-la,-lb,-lc,-lg,-lh,-Xstop,-Bdynamic -ld -le -lf")
 
         tcv.nappend('MPICH_CC', 'icc', var_class=CommandFlagList)

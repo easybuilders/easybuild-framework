@@ -34,11 +34,13 @@ import re
 import sys
 import tempfile
 from unittest import TextTestRunner, TestSuite
+from typing import Optional, Type
 
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
-from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, dependencies_for, wrap_shell_vars
+from easybuild.tools.module_generator import ModuleGenerator, ModuleGeneratorLua, ModuleGeneratorTcl
+from easybuild.tools.module_generator import dependencies_for, wrap_shell_vars
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
@@ -51,7 +53,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 class ModuleGeneratorTest(EnhancedTestCase):
     """Tests for module_generator module."""
 
-    MODULE_GENERATOR_CLASS = None
+    MODULE_GENERATOR_CLASS: Optional[Type[ModuleGenerator]] = None
 
     def setUp(self):
         """Test setup."""
@@ -856,6 +858,41 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         self.assert_multi_regex(patterns, desc, assert_true=False)
 
+    def test_module_extensions_extension_name(self):
+        """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""
+        # not supported by Environment Modules for the moment
+        if isinstance(self.modtool, EnvironmentModules):
+            return
+
+        init_config(build_options={'module_extensions': True})
+
+        test_dir = os.path.abspath(os.path.dirname(__file__))
+        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
+        # toy easyconfig without extensions in exts_list
+        test_ec_txt = read_file(os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb'))
+        test_ec = os.path.join(self.test_prefix, 'test.eb')
+        for with_ext in (True, False):
+            with self.subTest(add_extension=with_ext):
+                if with_ext:
+                    ec_txt = test_ec_txt + "\nextension_name = 'extra'\n"
+                else:
+                    ec_txt = test_ec_txt
+                write_file(test_ec, ec_txt)
+
+                eb = EasyBlock(EasyConfig(test_ec))
+                modgen = self.MODULE_GENERATOR_CLASS(eb)
+                desc = modgen.get_description()
+
+                if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl:
+                    pattern = r'\s*extensions extra/0.0\n'
+                else:
+                    pattern = r'\s*extensions\("extra/0\.0"\)'
+
+                if with_ext:
+                    self.assertRegex(desc, pattern)
+                else:
+                    self.assertNotRegex(desc, pattern)
+
     def test_prepend_paths(self):
         """Test generating prepend-paths statements."""
         # test prepend_paths
@@ -1008,6 +1045,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
     def test_env(self):
         """Test setting of environment variables."""
         collection = (
+            # pylint: disable=line-too-long
             # value,               relpath, Tcl reference,                                    Lua reference
             ("value",              False,   'setenv\tkey\t\t"value"\n',                       'setenv("key", "value")\n'),  # noqa
             ('va"lue',             False,   'setenv\tkey\t\t"va\\"lue"\n',                    'setenv("key", \'va"lue\')\n'),  # noqa

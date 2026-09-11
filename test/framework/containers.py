@@ -31,6 +31,7 @@ import os
 import re
 import stat
 import sys
+from test.framework import TEST_ECS_DIR, TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -89,9 +90,6 @@ class ContainersTest(EnhancedTestCase):
 
     def test_end2end_singularity_recipe_config(self):
         """End-to-end test for --containerize (recipe only), using --container-config."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
-
         containerpath = os.path.join(self.test_prefix, 'containers')
         os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
         # --containerpath must be an existing directory (this is done to avoid misconfiguration)
@@ -100,7 +98,7 @@ class ContainersTest(EnhancedTestCase):
         test_container_recipe = os.path.join(self.test_prefix, 'containers', 'Singularity.toy-0.0')
 
         args = [
-            toy_ec,
+            TOY_EC,
             '--containerize',
             '--experimental',
         ]
@@ -257,9 +255,6 @@ class ContainersTest(EnhancedTestCase):
 
     def test_end2end_singularity_image(self):
         """End-to-end test for --containerize (recipe + image)."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         containerpath = os.path.join(self.test_prefix, 'containers')
         os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
         # --containerpath must be an existing directory (this is done to avoid misconfiguration)
@@ -269,7 +264,7 @@ class ContainersTest(EnhancedTestCase):
         write_file(test_img, '')
 
         args = [
-            toy_ec,
+            TOY_EC,
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-config=bootstrap=localimage,from=%s' % test_img,
@@ -360,16 +355,13 @@ class ContainersTest(EnhancedTestCase):
         self.check_regexs(regexs, stdout)
 
     def test_end2end_dockerfile(self):
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb')
-
         containerpath = os.path.join(self.test_prefix, 'containers')
         os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
         # --containerpath must be an existing directory (this is done to avoid misconfiguration)
         mkdir(containerpath)
 
         base_args = [
-            toy_ec,
+            TOY_EC,
             '--containerize',
             '--container-type=docker',
             '--experimental',
@@ -402,7 +394,7 @@ class ContainersTest(EnhancedTestCase):
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
-        base_args.insert(1, os.path.join(test_ecs, 'g', 'GCC', 'GCC-4.9.2.eb'))
+        base_args.insert(1, os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.9.2.eb'))
         self.run_main(base_args + ['--container-config=ubuntu:20.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [
@@ -419,16 +411,13 @@ class ContainersTest(EnhancedTestCase):
 
     def test_end2end_docker_image(self):
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         containerpath = os.path.join(self.test_prefix, 'containers')
         os.environ['EASYBUILD_CONTAINERPATH'] = containerpath
         # --containerpath must be an existing directory (this is done to avoid misconfiguration)
         mkdir(containerpath)
 
         args = [
-            toy_ec,
+            TOY_EC,
             '-C',  # equivalent with --containerize
             '--experimental',
             '--container-type=docker',

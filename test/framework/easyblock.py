@@ -1587,6 +1587,94 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.fetch_step()
 
+    def test_make_extension_list(self):
+        """Test make_extension_list method, incl. 'extension_name' easyconfig parameter & option."""
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'toy'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "exts_list = [",
+            "    'ulimit',",
+            "    ('bar', '0.0', {'extension_name': 'bar-alias'}),",
+            "    ('barbar', '1.2', {'extension_name': '%(name)s-ext_%(version)s'}),",
+            "    ('%(name)s', '%(version)s'),",
+            "    '%(name)s-str',",
+            "]",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        # 'extension_name' option for an extension is used instead of the extension name;
+        # templates used for name and version are resolved using parent templates,
+        # templates in options (including in extension_name) are resolved using the extension template values.
+        expected = [
+            ('ulimit',),
+            ('bar-alias', '0.0'),
+            ('barbar-ext_1.2', '1.2'),
+            ('toy', '0.0'),
+            ('toy-str',),
+        ]
+        self.assertEqual(eb.make_extension_list(), expected)
+        self.assertEqual(eb.make_extension_string(), 'bar-alias-0.0, barbar-ext_1.2-1.2, toy-0.0, toy-str, ulimit')
+
+        # top-level 'extension_name' is added as an extra extension, as if it was in exts_list
+        eb.cfg['extension_name'] = 'extra'
+        self.assertEqual(eb.make_extension_list(), expected + [('extra', '0.0')])
+        self.assertEqual(eb.make_extension_string(),
+                         'bar-alias-0.0, barbar-ext_1.2-1.2, extra-0.0, toy-0.0, toy-str, ulimit')
+
+        # templates used in top-level 'extension_name' are resolved
+        eb.cfg['extension_name'] = '%(name)s-extra'
+        self.assertEqual(eb.make_extension_list(), expected + [('toy-extra', '0.0')])
+
+        # no duplicate if value of 'extension_name' matches an extension name already in the list
+        eb.cfg['extension_name'] = 'ulimit'
+        self.assertEqual(eb.make_extension_list(), expected)
+
+        # exts_formatter is applied to all extension names, incl. renamed/added ones
+        eb.cfg['extension_name'] = 'extra'
+        eb.cfg['exts_formatter'] = lambda name: name + '-fmt'
+        self.assertEqual(eb.make_extension_list(), [
+            ('ulimit-fmt',),
+            ('bar-alias-fmt', '0.0'),
+            ('barbar-ext_1.2-fmt', '1.2'),
+            ('toy-fmt', '0.0'),
+            ('toy-str-fmt',),
+            ('extra-fmt', '0.0'),
+        ])
+
+        # top-level 'extension_name' works without any extensions in exts_list
+        self.contents = '\n'.join([
+            "easyblock = 'ConfigureMake'",
+            "name = 'toy'",
+            "version = '0.0'",
+            "homepage = 'https://example.com'",
+            "description = 'test'",
+            "toolchain = SYSTEM",
+            "extension_name = 'extra'",
+        ])
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.make_extension_list(), [('extra', '0.0')])
+        self.assertEqual(eb.make_extension_string(), 'extra-0.0')
+
+        # the generated module file includes 'extension_name' in the list of extensions,
+        # in whatis, and in the EBEXTSLIST* environment variable
+        with self.mocked_stdout_stderr():
+            modfile = os.path.join(eb.make_module_step(), 'toy',
+                                   '0.0' + eb.module_generator.MODULE_FILE_EXTENSION)
+        modtxt = read_file(modfile)
+        self.assert_multi_regex([
+            'Included extensions',
+            r'^\s*extra-0.0\s*$',
+            r'Extensions: extra',
+            r'EBEXTSLISTTOY.*extra',
+            ],
+            modtxt)
+
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
 

@@ -2,6 +2,9 @@ name: End-to-end test of EasyBuild with bwrap
 
 on: [push, pull_request]
 
+env:
+  EASYBUILD_DOWNLOAD_TIMEOUT: 100
+
 jobs:
   end2end:
     name: End-to-end test (runner VM)
@@ -12,7 +15,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
 
       - name: Install system packages
-        run: sudo apt-get install -y lmod bubblewrap
+        run: sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends lmod bubblewrap
 
       - name: Allow unprivileged user namespaces (Ubuntu 26.04)
         run: |

@@ -99,7 +99,7 @@ class NestedDict(dict):
 
     def __init__(self, parent, depth):
         """Initialise NestedDict instance"""
-        dict.__init__(self)
+        super().__init__()
         self.depth = depth
         self.parent = parent
 

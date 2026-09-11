@@ -39,6 +39,7 @@ from easybuild.tools.docs import md_title_and_table, rst_title_and_table
 from easybuild.tools.options import EasyBuildOptions
 from easybuild.tools.utilities import mk_md_table, mk_rst_table
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework import TEST_DIR, TEST_ECS_DIR
 
 
 LIST_EASYBLOCKS_SIMPLE_TXT = """EasyBlock
@@ -869,8 +870,7 @@ class DocsTest(EnhancedTestCase):
         """
         Tests for list_easyblocks function
         """
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        topdir_easyblocks = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
+        topdir_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         txt = list_easyblocks()
         self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_TXT)
@@ -899,7 +899,7 @@ class DocsTest(EnhancedTestCase):
     def test_list_software(self):
         """Test list_software* functions."""
         build_options = {
-            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'v1.0')],
+            'robot_path': [os.path.join(TEST_DIR, 'easyconfigs', 'v1.0')],
             'silent': True,
             'valid_module_classes': module_classes(),
         }
@@ -933,7 +933,7 @@ class DocsTest(EnhancedTestCase):
 
         # check for specific patterns in output for larger set of test easyconfigs
         build_options = {
-            'robot_path': [os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
             'valid_module_classes': module_classes(),
         }

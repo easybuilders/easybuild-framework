@@ -2081,16 +2081,15 @@ class Lmod(ModulesTool):
         # We can simply remove the path from MODULEPATH to avoid the costly module call
         cur_mod_path = os.environ.get('MODULEPATH')
         if cur_mod_path is not None:
+            path = normalize_path(path)
+            new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
             # Removing the last entry unsets the variable
-            if cur_mod_path == path:
+            if not new_mod_path:
                 self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
                 del os.environ['MODULEPATH']
-            else:
-                path = normalize_path(path)
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
-                if new_mod_path != cur_mod_path:
-                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
-                    os.environ['MODULEPATH'] = new_mod_path
+            elif new_mod_path != cur_mod_path:
+                self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
+                os.environ['MODULEPATH'] = new_mod_path
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """

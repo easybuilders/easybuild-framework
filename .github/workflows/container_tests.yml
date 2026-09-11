@@ -9,6 +9,9 @@ concurrency:
   group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
   cancel-in-progress: true
 
+env:
+  EASYBUILD_DOWNLOAD_TIMEOUT: 100
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -34,10 +37,10 @@ jobs:
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        if ! sudo apt-get install $APT_PKGS; then
+        if ! sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS; then
           # Try to update cache, then try again to resolve 404s of old packages
           sudo apt-get update -yqq || true
-          sudo apt-get install $APT_PKGS
+          sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS
         fi
 
     - name: install Lmod
@@ -57,14 +60,14 @@ jobs:
       run: |
         sudo apt-get update
         # install alien, which can be used to convert RPMs to Debian packages
-        sudo apt-get install alien
+        sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends alien
         alien --version
         # determine latest version of Singularity available in EPEL, and download RPM
         singularity_rpm=$(curl -sL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/ | grep singularity | sed 's/.*singularity/singularity/g' | sed 's/rpm.*/rpm/g')
         curl -OL https://dl.fedoraproject.org/pub/archive/epel/8.5/Everything/x86_64/Packages/s/${singularity_rpm}
         # convert Singularity RPM to Debian package, and install it
         sudo alien -d ${singularity_rpm}
-        sudo apt-get install ./singularity*.deb
+        sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends ./singularity*.deb
         singularity --version
 
     - name: install sources

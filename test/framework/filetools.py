@@ -46,6 +46,7 @@ import textwrap
 import time
 import types
 from io import StringIO
+from pathlib import Path
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -477,17 +478,23 @@ class FileToolsTest(EnhancedTestCase):
     def test_normalize_path(self):
         """Test normalize_path"""
         self.assertEqual(ft.normalize_path(''), '')
-        self.assertEqual(ft.normalize_path('/'), '/')
-        self.assertEqual(ft.normalize_path('//'), '//')
-        self.assertEqual(ft.normalize_path('///'), '/')
-        self.assertEqual(ft.normalize_path('/foo/bar/baz'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('foo//bar/././baz/'), 'foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//foo//bar/././baz/'), '//foo/bar/baz')
-        self.assertEqual(ft.normalize_path('///foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('////foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
+        test_cases = [
+            ('/', '/'),
+            ('//', '//'),
+            ('///', '/'),
+            ('/foo/bar/baz', '/foo/bar/baz'),
+            ('/foo//bar/././baz/', '/foo/bar/baz'),
+            ('foo//bar/././baz/', 'foo/bar/baz'),
+            ('//foo//bar/././baz/', '//foo/bar/baz'),
+            ('///foo//bar/././baz/', '/foo/bar/baz'),
+            ('////foo//bar/././baz/', '/foo/bar/baz'),
+            ('/././foo//bar/././baz/', '/foo/bar/baz'),
+            ('//././foo//bar/././baz/', '//foo/bar/baz'),
+        ]
+        for in_path, expected in test_cases:
+            with self.subTest(in_path=in_path):
+                self.assertEqual(ft.normalize_path(in_path), expected)
+                self.assertEqual(ft.normalize_path(Path(in_path)), expected)
 
     def test_is_parent_path(self):
         """Test is_parent_path"""
@@ -626,8 +633,8 @@ class FileToolsTest(EnhancedTestCase):
         # make sure specified timeout is parsed correctly (as a float, not a string)
         opts = init_config(args=['--download-timeout=5.3'])
         init_config(build_options={'download_timeout': opts.download_timeout})
-        target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
-        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
+        url = 'https://sources.easybuild.io/icons/blank.gif'
+        target_location = os.path.join(self.test_prefix, os.path.basename(url))
         try:
             request.urlopen(url)
             with self.mocked_stdout_stderr():
@@ -829,11 +836,13 @@ class FileToolsTest(EnhancedTestCase):
     def test_mkdir(self):
         """Test mkdir function."""
 
-        def check_mkdir(path, error=None, **kwargs):
+        def check_mkdir(path, error=None, expected_path=None, **kwargs):
             """Create specified directory with mkdir, and check for correctness."""
             if error is None:
+                if expected_path is None:
+                    expected_path = path
                 ft.mkdir(path, **kwargs)
-                self.assertTrue(os.path.exists(path) and os.path.isdir(path), "Directory %s exists" % path)
+                self.assertTrue(os.path.isdir(expected_path), "Directory %s exists" % expected_path)
             else:
                 self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
 
@@ -854,7 +863,7 @@ class FileToolsTest(EnhancedTestCase):
         check_mkdir(giddir, set_gid=True)
         self.assertTrue(os.stat(giddir).st_mode & stat.S_ISGID, "gid bit set %s" % giddir)
         self.assertFalse(os.stat(giddir).st_mode & stat.S_ISVTX, "no sticky bit %s" % giddir)
-        # setting stciky bit works
+        # setting sticky bit works
         stickydir = os.path.join(barfoodir, 'sticky')
         check_mkdir(stickydir, sticky=True)
         self.assertFalse(os.stat(stickydir).st_mode & stat.S_ISGID, "no gid bit %s" % stickydir)
@@ -871,6 +880,11 @@ class FileToolsTest(EnhancedTestCase):
         # existing parent dirs are untouched, no sticky/group ID bits set
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+        # Relative path works
+        ft.change_dir(foodir)
+        check_mkdir(os.path.join('relative', 'subdir'), expected_path=os.path.join(foodir, 'relative'), parents=True)
+        # pathlib paths works
+        check_mkdir(Path(self.test_prefix) / 'pathlibdir')
 
     def test_path_matches(self):
         """Test path_matches function."""
@@ -936,6 +950,12 @@ class FileToolsTest(EnhancedTestCase):
                               "Trying to symlink %s to %s, but the symlink already exists and points to %s." %
                               (test_file2, link, test_file),
                               ft.symlink, test_file2, link)
+
+        # Test when symlink is an existing file
+        self.assertErrorRegex(EasyBuildError,
+                              "Trying to symlink %s to %s, but there already is a file at %s." %
+                              (test_file2, test_file, test_file),
+                              ft.symlink, test_file2, test_file)
 
         # test resolve_path
         self.assertEqual(test_dir, ft.resolve_path(link_dir))
@@ -2436,6 +2456,14 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy(toy_file, os.path.join(self.test_prefix, 'foo'))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', 'toy-0.0.eb')))
 
+        # Test using Path instance
+        toy_patch_path = Path(toy_patch)
+        ft.copy(toy_patch_path, os.path.join(self.test_prefix, 'foo'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', toy_patch_path.name)))
+        # And as list
+        ft.copy([toy_patch_path], os.path.join(self.test_prefix, 'foo2'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo2', toy_patch_path.name)))
+
         # also test behaviour of copy under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -2942,6 +2970,42 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
         self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file))
         self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file, recursive=False))
+
+        # Folder that is a symlink or contains a symlink to a folder
+        symlink_dir = makedirs_in_test('symlink_dir')
+        symlink_empty_folder = os.path.join(symlink_dir, 'to_empty')
+        ft.symlink(empty_dir, symlink_empty_folder)
+        self.assertFalse(ft.dir_contains_files(symlink_dir))
+        self.assertFalse(ft.dir_contains_files(symlink_dir, recursive=False))
+        self.assertFalse(ft.dir_contains_files(symlink_empty_folder))
+        self.assertFalse(ft.dir_contains_files(symlink_empty_folder, recursive=False))
+        symlink_full_folder = os.path.join(symlink_dir, 'to_full')
+        ft.symlink(dir_w_file, symlink_full_folder)
+        self.assertTrue(ft.dir_contains_files(symlink_dir))
+        self.assertFalse(ft.dir_contains_files(symlink_dir, recursive=False))
+        self.assertTrue(ft.dir_contains_files(symlink_full_folder))
+        self.assertTrue(ft.dir_contains_files(symlink_full_folder, recursive=False))
+
+        dir_w_symlinked_file = makedirs_in_test('dir_w_symlinked_file')
+        ft.symlink(os.path.join(dir_w_file, 'file.h'), os.path.join(dir_w_symlinked_file, 'file.h'))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file, recursive=False))
+
+        dir_w_symlinked_file_in_subdir = makedirs_in_test('dir_w_symlinked_file_in_subdir', 'subdir')
+        subdir = os.path.join(dir_w_symlinked_file_in_subdir, 'subdir')
+        ft.symlink(os.path.join(dir_w_file, 'file.h'),
+                   os.path.join(subdir, 'file.h'))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file_in_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir, recursive=False))
+        self.assertTrue(ft.dir_contains_files(subdir))
+        self.assertTrue(ft.dir_contains_files(subdir, recursive=False))
+
+        # Broken symlink is not considered a file
+        ft.remove_file(os.path.join(dir_w_file, 'file.h'))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir, recursive=False))
+        self.assertFalse(ft.dir_contains_files(subdir))
+        self.assertFalse(ft.dir_contains_files(subdir, recursive=False))
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
@@ -3576,6 +3640,23 @@ class FileToolsTest(EnhancedTestCase):
         toy_eb = os.path.join(test_ebs, 't', 'toy.py')
         self.assertEqual(ft.get_easyblock_class_name(toy_eb), 'EB_toy')
 
+        bad_py = os.path.join(self.test_prefix, 'bad_easyblock.py')
+
+        # test with syntax error in easyblock file
+        ft.write_file(bad_py, "def foo(:\n    pass\n")
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 1\)$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
+
+        # test with import error in easyblock file
+        ft.write_file(bad_py, "import non_existent_module_xyz\n")
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': No module named 'non_existent_module_xyz'$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
+
+        # Both
+        ft.write_file(bad_py, "def foo(:\n    pass\n", append=True)
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 2\)$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
+
     def test_copy_easyblocks(self):
         """Test for copy_easyblocks function."""
 
@@ -3671,7 +3752,7 @@ class FileToolsTest(EnhancedTestCase):
         # (it's straight in the easybuild-framework directory)
         setup_py = 'setup.py'
         if os.path.exists(os.path.join(topdir, setup_py)):
-            test_files.append(os.path.join(setup_py))
+            test_files.append(setup_py)
             expected_entries.append(setup_py)
             expected_new.append(True)
 

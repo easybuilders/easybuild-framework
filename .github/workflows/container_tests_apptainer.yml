@@ -9,6 +9,9 @@ concurrency:
   group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
   cancel-in-progress: true
 
+env:
+  EASYBUILD_DOWNLOAD_TIMEOUT: 100
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -35,10 +38,10 @@ jobs:
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        if ! sudo apt-get install $APT_PKGS; then
+        if ! sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS; then
           # Try to update cache, then try again to resolve 404s of old packages
-          sudo apt-get update -yqq || true
-          sudo apt-get install $APT_PKGS
+          sudo apt-get update -yqq -o Acquire::Retries=3 || true
+          sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS
         fi
 
     - name: install Lmod

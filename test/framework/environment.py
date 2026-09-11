@@ -31,12 +31,27 @@ import os
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
+from pathlib import Path
 
 import easybuild.tools.environment as env
 
 
 class EnvironmentTest(EnhancedTestCase):
     """ Testcase for run module """
+
+    def test_join_path_var(self):
+        """Test join_path_var function."""
+        # join_path_var is same as os.pathsep.join if there are no empty paths involved
+        paths = ['/foo', '/bar', '/baz']
+        self.assertEqual(env.join_path_var(paths), os.pathsep.join(paths))
+
+        paths = ['/foo', '', '/bar', None, '/baz']
+        self.assertEqual(env.join_path_var(paths), '/foo:/bar:/baz')
+        self.assertEqual(env.join_path_var([Path(p) if p else p for p in paths]), '/foo:/bar:/baz')
+        self.assertEqual(env.join_path_var(['foo']), 'foo')
+        self.assertEqual(env.join_path_var(['foo', '']), 'foo')
+        self.assertEqual(env.join_path_var(['', 'foo']), 'foo')
+        self.assertEqual(env.join_path_var(['']), '')
 
     def test_setvar(self):
         """Test setvar function."""
@@ -88,8 +103,8 @@ class EnvironmentTest(EnhancedTestCase):
         # keys in new_env should not be set yet, keys in old_env are expected to be set
         for key in new_env_vars:
             os.environ.pop(key, None)
-        for key in old_env_vars:
-            os.environ[key] = old_env_vars[key]
+        for key, value in old_env_vars.items():
+            os.environ[key] = value
 
         env.modify_env(os.environ, new_env_vars)
 
@@ -144,7 +159,7 @@ class EnvironmentTest(EnhancedTestCase):
 
         env.sanitize_env()
 
-        self.assertFalse(any(x for x in os.environ.keys() if x.startswith('PYTHON')))
+        self.assertFalse(any(x for x in os.environ if x.startswith('PYTHON')))
 
         expected = {
             'CPATH': self.test_prefix,

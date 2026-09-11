@@ -37,6 +37,7 @@ import sys
 import textwrap
 import unittest
 from string import ascii_letters
+from test.framework import TEST_DIR, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
@@ -733,8 +734,6 @@ class GithubTest(EnhancedTestCase):
 
     def test_github_find_patches(self):
         """ Test for find_software_name_for_patch """
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_path = os.path.join(test_dir, 'easyconfigs')
         init_config(build_options={
             'allow_modules_tool_mismatch': True,
             'minimal_toolchains': True,
@@ -745,7 +744,7 @@ class GithubTest(EnhancedTestCase):
             'validate': False,
         })
         with self.mocked_stdout():
-            ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch', [ec_path])
+            ec = gh.find_software_name_for_patch('toy-0.0_fix-silly-typo-in-printf-statement.patch', [TEST_ECS_DIR])
             txt = self.get_stdout()
 
         self.assertEqual(ec, 'toy')
@@ -1148,12 +1147,10 @@ class GithubTest(EnhancedTestCase):
         # no files => return default target repo (None)
         self.assertEqual(gh.det_pr_target_repo(categorize_files_by_type([])), None)
 
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-
         # easyconfigs/patches (incl. files to delete) => easyconfigs repo
         # this is solely based on filenames, actual files are not opened, except for the patch file which must exist
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(test_dir, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
         test_cases = [
             ['toy.eb'],
             [toy_patch],
@@ -1168,11 +1165,11 @@ class GithubTest(EnhancedTestCase):
         # if only Python files are involved, result is easyblocks or framework repo;
         # all Python files are easyblocks => easyblocks repo, otherwise => framework repo;
         # files are opened and inspected here to discriminate between easyblocks & other Python files, so must exist!
-        github_py = os.path.join(test_dir, 'github.py')
+        github_py = os.path.join(TEST_DIR, 'github.py')
 
-        configuremake = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
+        configuremake = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks', 'generic', 'configuremake.py')
         self.assertExists(configuremake)
-        toy_eb = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
         self.assertExists(toy_eb)
 
         self.assertEqual(build_option('pr_target_repo'), None)
