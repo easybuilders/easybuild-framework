@@ -105,16 +105,16 @@ class ContainersTest(EnhancedTestCase):
 
         args.extend(['--container-config', 'osversion=7.6.1810'])
         error_pattern = r"Keyword 'bootstrap' is required in container base config"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         args.extend(['--container-config', 'bootstrap=foobar'])
         error_pattern = r"Unknown value specified for 'bootstrap' keyword: foobar \(known: arch, busybox, debootstrap, "
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # default mirror URL for yum bootstrap agent uses ${OSVERSION}, so 'osversion' must be specified too
         args.extend(['--container-config', 'bootstrap=yum'])
         error_pattern = "Keyword 'osversion' is required in container base config when '%{OSVERSION}' is used"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         args[-1] = 'bootstrap=yum,osversion=7.6.1810'
         stdout, stderr = self.run_main(args, raise_error=True)
@@ -192,7 +192,7 @@ class ContainersTest(EnhancedTestCase):
         error_pattern = "Keyword 'from' is required in container base config when using bootstrap agent"
         for (bootstrap, from_spec) in test_cases:
             args[-1] = 'bootstrap=%s' % bootstrap
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
             args[-1] += ',from=%s' % from_spec
             remove_file(test_container_recipe)
@@ -273,7 +273,7 @@ class ContainersTest(EnhancedTestCase):
 
         if which('singularity') is None:
             error_pattern = "singularity with version 2.4 or higher not found on your system."
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'singularity' commands
         singularity = os.path.join(self.test_prefix, 'bin', 'singularity')
@@ -330,7 +330,7 @@ class ContainersTest(EnhancedTestCase):
 
         error_pattern = "Container image already exists at %s, not overwriting it without --force" % cont_img
         with self.mocked_stdout():
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         args.append('--force')
         stdout, stderr = self.run_main(args)
@@ -368,11 +368,11 @@ class ContainersTest(EnhancedTestCase):
         ]
 
         error_pattern = "Unsupported container config 'not-supported'"
-        self.assertErrorRegex(EasyBuildError,
-                              error_pattern,
-                              self.run_main,
-                              base_args + ['--container-config=not-supported'],
-                              raise_error=True)
+        self.assertRaisesRegex(EasyBuildError,
+                               error_pattern,
+                               self.run_main,
+                               base_args + ['--container-config=not-supported'],
+                               raise_error=True)
 
         for cont_base in ['ubuntu:20.04', 'centos:7']:
             stdout, stderr = self.run_main(base_args + ['--container-config=%s' % cont_base])
@@ -386,11 +386,11 @@ class ContainersTest(EnhancedTestCase):
         error_pattern = "Container recipe at %s/containers/Dockerfile.toy-0.0 already exists, " \
                         "not overwriting it without --force" % self.test_prefix
         with self.mocked_stdout():
-            self.assertErrorRegex(EasyBuildError,
-                                  error_pattern,
-                                  self.run_main,
-                                  base_args + ['--container-config=centos:7'],
-                                  raise_error=True)
+            self.assertRaisesRegex(EasyBuildError,
+                                   error_pattern,
+                                   self.run_main,
+                                   base_args + ['--container-config=centos:7'],
+                                   raise_error=True)
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
@@ -427,7 +427,7 @@ class ContainersTest(EnhancedTestCase):
 
         if not which('docker'):
             error_pattern = "docker not found on your system."
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'docker' commands
         docker = os.path.join(self.test_prefix, 'bin', 'docker')
@@ -474,7 +474,7 @@ class ContainersTest(EnhancedTestCase):
             'toy-0.0.eb',
         ]
         error_pattern = "--container-config must be specified!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.run_main, args)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args)
 
         args.extend(['--container-config', 'bootstrap=localimage,from=foobar'])
         stdout, stderr = self.run_main(args)

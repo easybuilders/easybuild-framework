@@ -74,7 +74,7 @@ class VariablesTest(EnhancedTestCase):
         v.join('BAR2', 'FOO', 'BARINT')
         self.assertEqual(str(v['BAR2']), "0,1,2 0")
 
-        self.assertErrorRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
+        self.assertRaisesRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")

@@ -169,7 +169,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         installpath_software = tempfile.mkdtemp(prefix='installpath-software')
         os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = installpath_software
         error_regex = r"Found problems validating the options.*'subdir_software' must specify a \*relative\* path"
-        self.assertErrorRegex(EasyBuildError, error_regex, init_config)
+        self.assertRaisesRegex(EasyBuildError, error_regex, init_config)
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
@@ -185,7 +185,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
         error += r"but do not match valid option\(s\): "
         error += r','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
-        self.assertErrorRegex(EasyBuildError, error, init_config)
+        self.assertRaisesRegex(EasyBuildError, error, init_config)
 
         del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
         del os.environ['EASYBUILD_FOO']
@@ -198,7 +198,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(install_path(typ='mod'), os.path.join(self.test_installpath, 'modules'))
         self.assertEqual(install_path('modules'), os.path.join(self.test_installpath, 'modules'))
 
-        self.assertErrorRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
+        self.assertRaisesRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
 
         args = [
             '--subdir-software', 'SOFT',
@@ -343,7 +343,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # if build options is not initialised yet, we'll get an error when querying any build option (even known ones)
         error_pattern = "Build options are not initialized yet, or undefined build option used: 'debug'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, build_option, 'debug')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, build_option, 'debug')
 
         # specifying a default value can be used as workaround
         self.assertEqual(build_option('debug', default='DEFAULT'), 'DEFAULT')
@@ -365,16 +365,16 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
-        self.assertErrorRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
-        self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
+        self.assertRaisesRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
+        self.assertRaisesRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
         BuildOptions.__class__._instances.clear()
         msg = r"Encountered unknown keys .* \(known keys: .*"
-        self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertRaisesRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
         # test init_build_options and build_option functions
-        self.assertErrorRegex(KeyError, msg, init_build_options, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertRaisesRegex(KeyError, msg, init_build_options, {'thisisclearlynotavalidbuildoption': 'FAIL'})
         bo = init_build_options({
             'robot_path': '/some/robot/path',
             'stop': 'configure',
@@ -385,7 +385,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(bo['stop'], 'configure')
 
         # test error reporting when unknown build option is used
-        self.assertErrorRegex(EasyBuildError, "undefined build option used: 'foobar'", build_option, 'foobar')
+        self.assertRaisesRegex(EasyBuildError, "undefined build option used: 'foobar'", build_option, 'foobar')
 
         # specifying a default value can be used as workaround
         self.assertEqual(build_option('foobar', default='DEFAULT'), 'DEFAULT')
@@ -662,7 +662,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # test handling of incorrect setting for --logfile-format
         init_config(args=['--logfile-format=easybuild,log.txt,thisiswrong'])
         error_pattern = "Incorrect log file format specification, should be 2-tuple"
-        self.assertErrorRegex(EasyBuildError, error_pattern, log_file_format)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, log_file_format)
 
     def test_log_path(self):
         """Test for log_path()."""
