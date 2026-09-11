@@ -101,6 +101,25 @@ def ignore_rate_limit_in_pr(test_item):
     return skip_wrapper
 
 
+def requires_github_token():
+    """Require a github token to be available unless $FORCE_EB_GITHUB_TESTS is set"""
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ:
+        return unittest.skipIf(False, None)
+    github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
+    if os.getenv('GITHUB_EVENT_NAME') != 'pull_request':
+        return unittest.skipUnless(github_token, "No GitHub token available")
+    elif github_token:
+        return unittest.skipIf(False, None)
+    else:
+        # For pull requests silently skip if no token is available as that is expected
+        def decorator(test_item):
+            @functools.wraps(test_item)
+            def skip_wrapper(*args, **kwargs):
+                return
+            return skip_wrapper
+        return decorator
+
+
 class GithubTest(EnhancedTestCase):
     """ small test for The github package
     This should not be to much, since there is an hourly limit of request
