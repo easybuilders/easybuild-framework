@@ -42,6 +42,7 @@ import os
 import re
 import shlex
 from enum import Enum
+from pathlib import Path
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -1240,7 +1241,7 @@ class ModulesTool:
                                      type(self.COMMAND_SHELL), self.COMMAND_SHELL)
             cmdlist = self.COMMAND_SHELL + cmdlist
 
-        return cmdlist + args
+        return cmdlist + [str(arg) if isinstance(arg, Path) else arg for arg in args]
 
     def run_module(self, *args, **kwargs):
         """

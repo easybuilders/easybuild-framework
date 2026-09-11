@@ -214,7 +214,7 @@ class EnhancedTestCase(TestCase):
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool: ModulesTool = modules_tool()
-        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
+        self.reset_modulepath([TEST_MODULES_DIR])
         reset_module_caches()
 
     def disallow_deprecated_behaviour(self):
@@ -383,7 +383,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(TEST_MODULES_DIR, mod_subdir)
+            src_mod_path = TEST_MODULES_DIR / mod_subdir
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
@@ -428,7 +428,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(TEST_MODULES_DIR, 'CategorizedHMNS', mod_subdir)
+            src_mod_path = TEST_MODULES_DIR / 'CategorizedHMNS' / mod_subdir
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
