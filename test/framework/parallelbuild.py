@@ -145,8 +145,7 @@ class ParallelBuildTest(EnhancedTestCase):
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
         # only one job submitted since foss/2018a module is already available
         self.assertEqual(len(jobs), 1)
-        regex = re.compile("echo '.*/gzip-1.5-foss-2018a.eb'")
-        self.assertTrue(regex.search(jobs[-1].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[-1].script))
+        self.assertRegex(jobs[-1].script, "echo '.*/gzip-1.5-foss-2018a.eb'")
 
         ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
@@ -155,10 +154,9 @@ class ParallelBuildTest(EnhancedTestCase):
         # make sure command is correct, and that --hidden is there when it needs to be
         for i, ec in enumerate(ordered_ecs):
             if ec['hidden']:
-                regex = re.compile("eb %s.* --hidden" % ec['spec'])
+                self.assertRegex(jobs[i].script, "eb %s.* --hidden" % ec['spec'])
             else:
-                regex = re.compile("eb %s" % ec['spec'])
-            self.assertTrue(regex.search(jobs[i].script), "Pattern '%s' found in: %s" % (regex.pattern, jobs[i].script))
+                self.assertRegex(jobs[i].script, "eb %s" % ec['spec'])
 
         for job in jobs:
             self.assertEqual(job.cores, build_options['job_cores'])
@@ -175,10 +173,8 @@ class ParallelBuildTest(EnhancedTestCase):
         # dependencies for gzip/1.4-GCC-4.6.3: GCC/4.6.3 (toolchain) + toy/.0.0-deps
         self.assertIn('gzip-1.4-GCC-4.6.3.eb', jobs[3].script)
         self.assertEqual(len(jobs[3].deps), 2)
-        regex = re.compile(r'toy-0.0-deps\.eb.* --hidden')
         script_txt = jobs[3].deps[0].script
-        fail_msg = "Pattern '%s' should be found in: %s" % (regex.pattern, script_txt)
-        self.assertTrue(regex.search(script_txt), fail_msg)
+        self.assertRegex(script_txt, r'toy-0.0-deps\.eb.* --hidden')
         self.assertIn('GCC-4.6.3.eb', jobs[3].deps[1].script)
 
         # also test use of --pre-create-installdir
@@ -318,21 +314,17 @@ class ParallelBuildTest(EnhancedTestCase):
             r' --testoutput=%\(output_dir\)s',
             r' --disable-job ',
         ]
-        for regex in regexs:
-            regex = re.compile(regex)
-            self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
+        self.assert_multi_regex(regexs, cmd)
 
         # these patterns should NOT be found, these options get filtered out
         # (self.test_prefix was argument to --robot)
-        for regex in ['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' ']:
-            regex = re.compile(regex)
-            self.assertFalse(regex.search(cmd), "Pattern '%s' should *not* be found in: %s" % (regex.pattern, cmd))
+        self.assert_multi_regex(['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' '],
+                                cmd, assert_true=False)
 
         # test again with custom EasyBuild command to use in jobs
         update_build_option('job_eb_cmd', "/just/testing/bin/eb --debug")
         cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
-        regex = re.compile(r" && /just/testing/bin/eb --debug %\(spec\)s ")
-        self.assertTrue(regex.search(cmd), "Pattern '%s' found in: %s" % (regex.pattern, cmd))
+        self.assertRegex(cmd, r" && /just/testing/bin/eb --debug %\(spec\)s ")
 
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
