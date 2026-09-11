@@ -1334,7 +1334,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb.cfg['tests'] = ['/abs/path/does-not-exist']
         self.assertRaisesRegex(EasyBuildError, 'non-existing path: /abs/path/does-not-exist', eb.test_cases_step)
 
-        mock_test_bin = os.path.join(self.test_prefix, 'pi', 'test_me')
+        new_source_path = os.path.join(tempfile.mkdtemp(), 'sources')
+        mock_test_bin = os.path.join(new_source_path, 'pi', 'test_me')
         os.environ['PATH'] += f':{os.path.dirname(mock_test_bin)}'
         write_file(mock_test_bin, "#!/bin/bash\necho 'Test case success'")
 
@@ -1343,10 +1344,12 @@ class EasyBlockTest(EnhancedTestCase):
         fn = os.path.basename(mock_test_bin)
         self.assertRaisesRegex(EasyBuildError, f'non-existing path: {fn}', eb.test_cases_step)
 
-        init_config(args=[f"--sourcepath={self.test_prefix}"])
+        init_config(args=[f"--sourcepath={new_source_path}", "--debug"])
         write_file(eb.logfile, '')
         eb.test_cases_step()
-        self.assertIn('Test case success', read_file(eb.logfile))
+        logtxt = read_file(eb.logfile)
+        self.assertIn(f'Running test {mock_test_bin}', logtxt)
+        self.assertIn('Test case success', logtxt)
 
         # Also works with non-executable file
         perms = stat.S_IREAD
@@ -1369,15 +1372,34 @@ class EasyBlockTest(EnhancedTestCase):
         eb.cfg['tests'] = [mock_test_bin_fail]
         write_file(eb.logfile, '')
         self.assertRaisesRegex(RunShellCmdError, f"'{os.path.basename(mock_test_bin_fail)}' failed", eb.test_cases_step)
-        self.assertIn('Test case failure', read_file(eb.logfile))
+        logtxt = read_file(eb.logfile)
+        self.assertIn(f'Running test {mock_test_bin_fail}', logtxt)
+        self.assertIn('Test case failure', logtxt)
 
         # Multiple tests
         eb.cfg['tests'] = [mock_test_bin, mock_test_bin_fail]
         write_file(eb.logfile, '')
         self.assertRaisesRegex(RunShellCmdError, f"'{os.path.basename(mock_test_bin_fail)}' failed", eb.test_cases_step)
         log_txt = read_file(eb.logfile)
+        self.assertIn(f'Running test {mock_test_bin}', logtxt)
+        self.assertIn(f'Running test {mock_test_bin_fail}', logtxt)
         self.assertIn('Test case success', log_txt)
         self.assertIn('Test case failure', log_txt)
+
+        # Test is found when put next to easyconfig file, and preferred
+        new_mock_test_bin = os.path.join(os.path.dirname(self.eb_file), os.path.basename(mock_test_bin))
+        write_file(new_mock_test_bin, '#!/bin/bash\necho "new test passed"')
+        new_mock_test_bin2 = os.path.join(os.path.dirname(self.eb_file), 'example_test2')
+        write_file(new_mock_test_bin2, '#!/bin/bash\necho "additional test passed"')
+        eb.cfg['tests'] = [os.path.basename(new_mock_test_bin), os.path.basename(new_mock_test_bin2)]
+
+        write_file(eb.logfile, '')  # reset log file
+        eb.test_cases_step()
+        logtxt = read_file(eb.logfile)
+        self.assertIn(f'Running test {new_mock_test_bin}', logtxt)
+        self.assertIn(f'Running test {new_mock_test_bin2}', logtxt)
+        self.assertIn("new test passed", logtxt)
+        self.assertIn("additional test passed", logtxt)
 
     def test_post_processing_step(self):
         """Test post_processing_step and deprecated post_install_step."""
