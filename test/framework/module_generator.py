@@ -856,7 +856,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assert_multi_regex(patterns, desc, assert_true=False)
+        self.assert_multi_regex(patterns, desc, assert_match=False)
 
     def test_module_extensions_extension_name(self):
         """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""

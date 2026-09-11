@@ -39,6 +39,7 @@ import unittest
 from contextlib import contextmanager
 from importlib import reload
 from pathlib import Path
+from typing import List, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
 from easybuild.base import fancylogger
@@ -449,11 +450,17 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs, txt, assert_true=True, flags=re.M):
-        """Helper function to assert presence/absence of list of regex patterns in a text"""
+    def assert_multi_regex(self, regexs: List[Union[str, re.Pattern]], txt: str,
+                           assert_match=True, flags: re.RegexFlag = re.M) -> None:
+        """Assert that all given regexs do or don't match in the text.
+
+        :param assert_match: When false check for ABSENCE of all regexs
+        :flags:              Regex flags. By default regexes are MULTI_LINE, i.e. ^/$ match line beginning/end.
+        This can be changed using ``
+        """
         for regex in regexs:
             regex = re.compile(regex, flags)
-            if assert_true:
+            if assert_match:
                 self.assertRegex(txt, regex)
             else:
                 self.assertNotRegex(txt, regex)

@@ -782,7 +782,7 @@ class EasyBlockTest(EnhancedTestCase):
             r"^prepend[-_]path.*CPATH.*root.*include/bar.*",
             r"^prepend[-_]path.*TEST_VAR.*root.*baz",
         ]
-        self.assert_multi_regex(non_expected_patterns, txt, assert_true=False)
+        self.assert_multi_regex(non_expected_patterns, txt, assert_match=False)
 
         # cleanup
         eb.close_log()
