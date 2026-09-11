@@ -35,10 +35,10 @@ import random
 import re
 import sys
 import textwrap
-import unittest
 from string import ascii_letters
 from test.framework import TEST_DIR, TEST_ECS_DIR
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework.utilities import (EnhancedTestCase, TestLoaderFiltered, init_config,
+                                      skip_never, skip_silentCI_unless)
 from time import gmtime
 from unittest import TextTestRunner
 from urllib.request import HTTPError, URLError
@@ -75,14 +75,13 @@ GITHUB_BRANCH = 'main'
 
 
 def requires_github_access():
-    """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
+    """Skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
 
     Useful when the test uses e.g. `git` commands to download from Github and would run into rate limits
     """
-    return unittest.skipUnless(
-        os.environ.get('FORCE_EB_GITHUB_TESTS', '0') != '0' or os.getenv('GITHUB_EVENT_NAME') != 'pull_request',
-        "Skipping test requiring GitHub access"
-    )
+    if 'FORCE_EB_GITHUB_TESTS' in os.environ:
+        return skip_never
+    return skip_silentCI_unless(os.getenv('GITHUB_EVENT_NAME') != 'pull_request', "Requires GitHub access")
 
 
 def ignore_rate_limit_in_pr(test_item):
