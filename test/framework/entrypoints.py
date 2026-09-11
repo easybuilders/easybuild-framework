@@ -267,9 +267,9 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         with self.assertRaises(EasyBuildError):
             decorator(MOCK)
 
-        class MOCK(EasyBlock):
+        class MOCK_EB(EasyBlock):
             pass
-        decorator(MOCK)
+        decorator(MOCK_EB)
 
     def test_entrypoints_register_toolchain(self):
         """Test registering entry point toolchains with both valid and invalid toolchain names."""
@@ -284,9 +284,9 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
         with self.assertRaises(EasyBuildError):
             decorator(MOCK)
 
-        class MOCK(Toolchain):
+        class MOCK_TC(Toolchain):
             pass
-        decorator(MOCK)
+        decorator(MOCK_TC)
 
     def test_entrypoints_get_group(self):
         """Test retrieving entrypoints for a specific group."""
