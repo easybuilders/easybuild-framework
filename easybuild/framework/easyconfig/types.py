@@ -34,7 +34,7 @@ Authors:
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
-from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
+from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES, Dependency
 from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
@@ -143,7 +143,7 @@ def is_value_of_type(value, expected_type):
     """
     type_ok = False
 
-    if expected_type in EASY_TYPES:
+    if isinstance(expected_type, type):
         # easy types can be checked using isinstance
         type_ok = isinstance(value, expected_type)
 
@@ -223,6 +223,18 @@ def check_type_of_param_value(key, val, auto_convert=False):
     return type_ok, newval
 
 
+def type_spec_to_string(type_spec):
+    """
+    Convert the given type to the name of a constant defined in this file if any.
+    If no (unique) constant is found the string representation of the type is returned.
+    """
+    candidates = [name for name, value in globals().items() if name.isupper() and type_spec is value]
+    if len(candidates) == 1:
+        return f"<type '{candidates[0]}'>"
+    else:
+        return str(type_spec)
+
+
 def convert_value_type(val, typ):
     """
     Try to convert type of provided value to specific type.
@@ -230,30 +242,28 @@ def convert_value_type(val, typ):
     :param val: value to convert type of
     :param typ: target type
     """
-    res = None
+    # Shouldn't be called if the type is already correct
+    if is_value_of_type(val, typ):
+        _log.warning("Value %s is already of specified target type %s, no conversion needed",
+                     val, type_spec_to_string(typ))
+        return val
 
-    if typ in EASY_TYPES and isinstance(val, typ):
-        _log.debug("Value %s is already of specified target type %s, no conversion needed", val, typ)
-        res = val
-
-    elif typ in CHECKABLE_TYPES and is_value_of_type(val, typ):
-        _log.debug("Value %s is already of specified non-trivial target type %s, no conversion needed", val, typ)
-        res = val
-
-    elif typ in TYPE_CONVERSION_FUNCTIONS:
+    try:
         func = TYPE_CONVERSION_FUNCTIONS[typ]
-        _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
-        try:
-            res = func(val)
-            _log.debug("Type conversion seems to have worked, new type: %s", type(res))
-        except Exception as err:
-            raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s", val, type(val), typ, func, err)
+    except KeyError:
+        raise EasyBuildError("No conversion function available (yet) for target type %s", type_spec_to_string(typ))
 
-        if not isinstance(res, typ):
-            raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s", val, typ, type(res))
+    _log.debug("Trying to convert value %s (type: %s) to %s using %s", val, type(val), typ, func)
+    try:
+        res = func(val)
+        _log.debug("Type conversion seems to have worked, new type: %s", type(res))
+    except Exception as err:
+        raise EasyBuildError("Converting type of %s (%s) to %s using %s failed: %s",
+                             val, type(val), type_spec_to_string(typ), func, err)
 
-    else:
-        raise EasyBuildError("No conversion function available (yet) for target type %s", typ)
+    if not is_value_of_type(res, typ):
+        raise EasyBuildError("Converting value %s to type %s didn't work as expected: got %s of type %s",
+                             val, type_spec_to_string(typ), res, type(res))
 
     return res
 
@@ -581,6 +591,24 @@ def ensure_iterable_license_specs(specs):
 # these constants use functions defined in this module, so they needs to be at the bottom of the module
 # specific type: dict with only name/version as keys with string values, and optionally a hidden key with bool value
 # additional type requirements are specified as tuple of tuples rather than a dict, since this needs to be hashable
+TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
+LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
+STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+STRING_OR_TUPLE_TUPLE = (tuple, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
+STRING_DICT = (dict, as_hashable(
+    {
+        'elem_types': [str],
+        'key_types': [str],
+    }
+))
+STRING_OR_TUPLE_DICT = (dict, as_hashable(
+    {
+        'key_types': [str],
+        'elem_types': [str, TUPLE_OF_STRINGS],
+    }
+))
+STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, tuple, STRING_DICT]}))
+
 TOOLCHAIN_DICT = (dict, as_hashable({
     'elem_types': {
         'hidden': [bool],
@@ -602,32 +630,21 @@ DEPENDENCY_DICT = (dict, as_hashable({
     'opt_keys': ['full_mod_name', 'short_mod_name', 'toolchain', 'versionsuffix'],
     'req_keys': ['name', 'version'],
 }))
-DEPENDENCIES = (list, as_hashable({'elem_types': [DEPENDENCY_DICT]}))
+DEPENDENCY_TUPLE = (tuple, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, dict, bool]}))
 
-TUPLE_OF_STRINGS = (tuple, as_hashable({'elem_types': [str]}))
-LIST_OF_STRINGS = (list, as_hashable({'elem_types': [str]}))
-STRING_OR_TUPLE_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS]}))
-STRING_DICT = (dict, as_hashable(
-    {
-        'elem_types': [str],
-        'key_types': [str],
-    }
-))
-STRING_OR_TUPLE_DICT = (dict, as_hashable(
-    {
-        'elem_types': [str],
-        'key_types': [str, TUPLE_OF_STRINGS],
-    }
-))
-STRING_OR_TUPLE_OR_DICT_LIST = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_DICT]}))
+DEPENDENCY_TYPES = [DEPENDENCY_DICT, Dependency, DEPENDENCY_TUPLE]
+# For iterated dependencies
+DEPENDENCY_LIST = (list, as_hashable({'elem_types': DEPENDENCY_TYPES}))
+DEPENDENCIES = (list, as_hashable({'elem_types': DEPENDENCY_TYPES + [DEPENDENCY_LIST]}))
+
 SANITY_CHECK_PATHS_ENTRY = (list, as_hashable({'elem_types': [str, TUPLE_OF_STRINGS, STRING_OR_TUPLE_DICT]}))
 SANITY_CHECK_PATHS_DICT = (dict, as_hashable({
     'elem_types': {
         SANITY_CHECK_PATHS_FILES: [SANITY_CHECK_PATHS_ENTRY],
         SANITY_CHECK_PATHS_DIRS: [SANITY_CHECK_PATHS_ENTRY],
     },
-    'opt_keys': [],
-    'req_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
+    'opt_keys': [SANITY_CHECK_PATHS_FILES, SANITY_CHECK_PATHS_DIRS],
+    'req_keys': [],
 }))
 # checksums is a list of checksums, one entry per file (source/patch)
 # each entry can be:
@@ -658,12 +675,11 @@ CHECKSUMS = (list, as_hashable({'elem_types': [type(None), str, CHECKSUM_AND_TYP
 
 CHECKABLE_TYPES = [CHECKSUM_AND_TYPE, CHECKSUM_LIST, CHECKSUM_TUPLE,
                    CHECKSUM_LIST_W_DICT, CHECKSUM_TUPLE_W_DICT, CHECKSUM_DICT, CHECKSUMS,
-                   DEPENDENCIES, DEPENDENCY_DICT, LIST_OF_STRINGS,
-                   SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY, STRING_DICT, STRING_OR_TUPLE_LIST,
-                   STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_OR_DICT_LIST, TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
-
-# easy types, that can be verified with isinstance
-EASY_TYPES = [str, bool, dict, int, list, str, tuple, type(None)]
+                   DEPENDENCIES, DEPENDENCY_DICT, DEPENDENCY_LIST, LIST_OF_STRINGS,
+                   SANITY_CHECK_PATHS_DICT, SANITY_CHECK_PATHS_ENTRY,
+                   STRING_DICT, STRING_OR_TUPLE_DICT, STRING_OR_TUPLE_LIST, STRING_OR_TUPLE_TUPLE,
+                   STRING_OR_TUPLE_OR_DICT_LIST, DEPENDENCY_TUPLE,
+                   TOOLCHAIN_DICT, TUPLE_OF_STRINGS]
 
 # type checking is skipped for easyconfig parameters names not listed in PARAMETER_TYPES
 PARAMETER_TYPES = {
@@ -681,7 +697,6 @@ for dep in DEPENDENCY_PARAMETERS:
     PARAMETER_TYPES[dep] = DEPENDENCIES
 
 TYPE_CONVERSION_FUNCTIONS = {
-    str: str,
     float: float,
     int: int,
     str: str,
