@@ -589,8 +589,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test specifying a non-existing group
         allargs = [test_ec] + args + ['--group=thisgroupdoesnotexist']
-        outtxt, _err = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True,
-                                                       return_error=True)
+        outtxt = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True)
         self.assertRegex(outtxt, "Failed to get group ID .* group does not exist")
 
         # determine current group name (at least we can use that)
