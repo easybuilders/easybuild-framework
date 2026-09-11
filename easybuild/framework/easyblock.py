@@ -2241,6 +2241,8 @@ class EasyBlock:
         after installing extension(s)
         """
         res = None
+        if self.dry_run:
+            return res  # No module file is written, so no changes. See _install_extensions_det_init_build_env
 
         self.log.debug(f"Checking whether contents of fake module file {fake_mod_file_path} have changed...")
 
