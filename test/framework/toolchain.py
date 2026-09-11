@@ -35,15 +35,15 @@ import stat
 import sys
 import tempfile
 import textwrap
+import unittest.mock
 from inspect import cleandoc
 from itertools import product
 from unittest import TextTestRunner
 from test.framework import TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
-import easybuild.tools.modules as modules
-import easybuild.tools.toolchain as toolchain
-import easybuild.tools.toolchain.compiler
+from easybuild.tools import modules
+from easybuild.tools import toolchain
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
@@ -61,29 +61,15 @@ from easybuild.tools.toolchain.toolchain import env_vars_external_module, RPATH_
 from easybuild.tools.toolchain.utilities import get_toolchain, search_toolchain
 from easybuild.toolchains.compiler.clang import Clang
 
-easybuild.tools.toolchain.compiler.systemtools.get_compiler_family = lambda: st.POWER
+MOD_ST = 'easybuild.tools.systemtools'
 
 
 class ToolchainTest(EnhancedTestCase):
     """ Baseclass for toolchain testcases """
-
     def setUp(self):
         """Set up toolchain test."""
         super().setUp()
-        self.orig_get_cpu_architecture = st.get_cpu_architecture
-        self.orig_get_cpu_family = st.get_cpu_family
-        self.orig_get_cpu_model = st.get_cpu_model
-        self.orig_get_cpu_vendor = st.get_cpu_vendor
-
         init_config(build_options={'silent': True})
-
-    def tearDown(self):
-        """Cleanup after toolchain test."""
-        st.get_cpu_architecture = self.orig_get_cpu_architecture
-        st.get_cpu_family = self.orig_get_cpu_family
-        st.get_cpu_model = self.orig_get_cpu_model
-        st.get_cpu_vendor = self.orig_get_cpu_vendor
-        super().tearDown()
 
     def run_cmd_and_split(self, cmd, sep='\0'):
         """Run the command, check return code and return output as list of lines"""
@@ -752,12 +738,12 @@ class ToolchainTest(EnhancedTestCase):
 
                     modules.modules_tool().purge()
 
-    def test_optarch_aarch64_heuristic(self):
+    @unittest.mock.patch(f'{MOD_ST}.get_cpu_architecture', return_value=st.AARCH64)
+    @unittest.mock.patch(f'{MOD_ST}.get_cpu_family', return_value=st.ARM)
+    @unittest.mock.patch(f'{MOD_ST}.get_cpu_model', return_value='ARM Cortex-A53')
+    @unittest.mock.patch(f'{MOD_ST}.get_cpu_vendor', return_value=st.ARM)
+    def test_optarch_aarch64_heuristic(self, *_):
         """Test whether AArch64 pre-GCC-6 optimal architecture flag heuristic works."""
-        st.get_cpu_architecture = lambda: st.AARCH64
-        st.get_cpu_family = lambda: st.ARM
-        st.get_cpu_model = lambda: 'ARM Cortex-A53'
-        st.get_cpu_vendor = lambda: st.ARM
         tc = self.get_toolchain("GCC", version="4.6.4")
         tc.set_options({})
         with self.mocked_stdout_stderr():
@@ -821,11 +807,19 @@ class ToolchainTest(EnhancedTestCase):
             optarch_var['Intel'] = intel_flags
             optarch_var['GCC'] = gcc_flags
             optarch_var['GCCcore'] = gcccore_flags
+
+            # Save current tmp dir
+            old_vars = {name: os.environ.get(name) for name in ('TMPDIR', 'TEMP', 'TMP')}
+
             init_config(build_options={'optarch': optarch_var, 'silent': True})
             tc = self.get_toolchain(toolchain_name, version=toolchain_ver)
             tc.set_options({'optarch': enable})
             with self.mocked_stdout_stderr():
                 tc.prepare()
+
+            # Restore tmp dir
+            os.environ.update(old_vars)
+
             flags = None
             if toolchain_name == 'iccifort':
                 flags = intel_flags_exp
@@ -880,18 +874,29 @@ class ToolchainTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         toy_txt = read_file(eb_file)
 
-        # check that an optarch map raises an error
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandrybridge;Intel:-xAVX'}")
-        msg = "syntax is not allowed"
+        # check that using compilers in optarch raises an error
+        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': 'GCC:-march=sandybridge;Intel:-xAVX'}")
+        msg = "The optarch option has an incorrect syntax"
         with self.mocked_stdout_stderr():
             self.assertErrorRegex(EasyBuildError, msg, self.eb_main, [test_ec], raise_error=True, do_build=True)
 
         # check that setting optarch flags work
-        write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '-march=sandybridge'}")
-        with self.mocked_stdout_stderr():
-            out = self.eb_main([test_ec], raise_error=True, do_build=True)
-        regex = re.compile("_set_optimal_architecture: using -march=sandybridge as optarch for x86_64")
-        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        test_cases = [
+            ('-march=sandybridge', '-march=sandybridge'),
+            # <cpu-arch>,<cpu-family>,<vector-ext>
+            ('POWER,POWER:-march=ppc; x86_64,Intel,AVX:-march=avx', '-march=avx'),
+            ('POWER,POWER:-march=ppc; x86_64,Intel,AVX2:-march=avx; :GENERIC', '-march=x86-64 -mtune=generic'),
+        ]
+
+        with unittest.mock.patch(f'{MOD_ST}.get_cpu_arch_name', return_value=st.X86_64), \
+                unittest.mock.patch(f'{MOD_ST}.get_cpu_family', return_value=st.INTEL), \
+                unittest.mock.patch(f'{MOD_ST}.get_cpu_vector_exts', return_value=[st.SSE, st.SSE2, st.AVX]):
+            for optarch, expected in test_cases:
+                write_file(test_ec, toy_txt + "\ntoolchainopts = {'optarch': '%s'}" % optarch)
+                with self.mocked_stdout_stderr():
+                    out = self.eb_main([test_ec, '--extended-dry-run'], raise_error=True, do_build=True)
+                msg = "_set_optimal_architecture: using %s as optarch for x86_64" % expected
+                self.assertIn(msg, out)
 
     def test_misc_flags_unique_fortran(self):
         """Test whether unique Fortran compiler flags are set correctly."""
