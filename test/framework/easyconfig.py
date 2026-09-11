@@ -40,6 +40,7 @@ import tempfile
 import textwrap
 from collections import OrderedDict
 from easybuild.tools import LooseVersion
+from test.framework import TEST_DIR, TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -460,10 +461,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_exts_list(self):
         """Test handling of list of extensions."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
         os.environ['EASYBUILD_SOURCEPATH'] = ':'.join([
-            os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip'),
-            os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy'),
+            os.path.join(TEST_ECS_DIR, 'g', 'gzip'),
+            os.path.join(TEST_ECS_DIR, 't', 'toy'),
         ])
         init_config()
         self.contents = textwrap.dedent("""
@@ -853,11 +853,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_tweak_multiple_tcs(self):
         """Test that tweaking variables of ECs from multiple toolchains works"""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-
         # Create directories to store the tweaked easyconfigs
         tweaked_ecs_paths, pr_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
-        robot_path = det_robot_path([test_easyconfigs], tweaked_ecs_paths, pr_path, auto_robot=True)
+        robot_path = det_robot_path([TEST_ECS_DIR], tweaked_ecs_paths, pr_path, auto_robot=True)
 
         init_config(build_options={
             'valid_module_classes': module_classes(),
@@ -866,8 +864,8 @@ class EasyConfigTest(EnhancedTestCase):
         })
 
         # Allow tweaking of non-toolchain values for multiple ECs of different toolchains
-        untweaked_openmpi_1 = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-4.6.4.eb')
-        untweaked_openmpi_2 = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-3.1.1-GCC-7.3.0-2.30.eb')
+        untweaked_openmpi_1 = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-4.6.4.eb')
+        untweaked_openmpi_2 = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-3.1.1-GCC-7.3.0-2.30.eb')
         easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi_1, False), (untweaked_openmpi_2, False)])
         tweak_specs = {'moduleclass': 'debugger'}
         easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
@@ -1330,8 +1328,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['source_urls'][3], 'https://github.com/pi/pi/releases/download/v3.04')
 
         # test use of %(mpi_cmd_prefix)s template
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        gompi_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        gompi_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
 
@@ -1512,8 +1509,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_start_dir_template(self):
         """Test the %(startdir)s template"""
 
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec = process_easyconfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))[0]
+        ec = process_easyconfig(TOY_EC)[0]
 
         self.contents = textwrap.dedent("""
             name = 'toy'
@@ -1557,11 +1553,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_rpath_template(self):
         """Test the %(rpath)s template"""
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt += "configopts = '--with-rpath=%(rpath_enabled)s'"
         write_file(test_ec, test_ec_txt)
 
@@ -1582,11 +1576,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_sysroot_template(self):
         """Test the %(sysroot)s template"""
 
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt += '\nconfigopts = "--some-opt=%(sysroot)s/"'
         test_ec_txt += '\nbuildopts = "--some-opt=%(sysroot)s/"'
         test_ec_txt += '\ninstallopts = "--some-opt=%(sysroot)s/"'
@@ -1610,11 +1601,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_software_commit_template(self):
         """Test the %(software_commit)s template"""
 
-        test_easyconfigs = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt += '\nconfigopts = "--some-opt=%(software_commit)s"'
         test_ec_txt += '\nbuildopts = "--some-opt=%(software_commit)s"'
         test_ec_txt += '\ninstallopts = "--some-opt=%(software_commit)s"'
@@ -1797,7 +1785,7 @@ class EasyConfigTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        easyconfigs_path = os.path.join(os.path.dirname(__file__), 'easyconfigs')
+        easyconfigs_path = TEST_DIR / 'easyconfigs'
 
         # set max diff high enough to make sure the difference is shown in case of problems
         self.maxDiff = 10000
@@ -1828,19 +1816,16 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_fetch_parameters_from_easyconfig(self):
         """Test fetch_parameters_from_easyconfig function."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec_file = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-
         for ec_file, correct_name, correct_easyblock in [
-            (toy_ec_file, 'toy', None),
-            (os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb'), 'foss', 'Toolchain'),
+            (TOY_EC, 'toy', None),
+            (os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb'), 'foss', 'Toolchain'),
         ]:
             name, easyblock = fetch_parameters_from_easyconfig(read_file(ec_file), ['name', 'easyblock'])
             self.assertEqual(name, correct_name)
             self.assertEqual(easyblock, correct_easyblock)
 
         expected = "Toy C program, 100% toy."
-        self.assertEqual(fetch_parameters_from_easyconfig(read_file(toy_ec_file), ['description'])[0], expected)
+        self.assertEqual(fetch_parameters_from_easyconfig(TOY_EC_TXT, ['description'])[0], expected)
 
         res = fetch_parameters_from_easyconfig("easyblock = 'ConfigureMake'  # test comment", ['easyblock'])
         self.assertEqual(res, ['ConfigureMake'])
@@ -1906,32 +1891,30 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_toolchain_inspection(self):
         """Test whether available toolchain inspection functionality is working."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
-            'robot_path': [test_ecs],
+            'robot_path': [TEST_ECS_DIR],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
 
-        ec = EasyConfig(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
         tc_compilers = ['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)]
         self.assertEqual(tc_compilers, ['GCC/6.4.0-2.28'])
         self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
 
-        ec = EasyConfig(os.path.join(test_ecs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
         tc_comps = det_toolchain_compilers(ec)
         expected = ['GCC/6.4.0-2.28']
         self.assertEqual(['/'.join([x['name'], x['version'] + x['versionsuffix']]) for x in tc_comps], expected)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
-        ec = EasyConfig(os.path.join(test_ecs, 't', 'toy', 'toy-0.0.eb'))
+        ec = EasyConfig(TOY_EC)
         self.assertEqual(det_toolchain_compilers(ec), None)
         self.assertEqual(det_toolchain_mpi(ec), None)
 
     def test_filter_deps(self):
         """Test filtered dependencies."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec_file = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
         ec = EasyConfig(ec_file)
         self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
@@ -1956,13 +1939,13 @@ class EasyConfigTest(EnhancedTestCase):
         build_options = {
             'external_modules_metadata': ConfigObj(),
             'minimal_toolchains': True,
-            'robot_path': [test_ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
 
         ec_file = os.path.join(self.test_prefix, 'test.eb')
-        shutil.copy2(os.path.join(test_ecs_dir, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'), ec_file)
+        shutil.copy2(os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'), ec_file)
 
         ec_txt = read_file(ec_file)
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
@@ -1979,8 +1962,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_replaced_easyconfig_parameters(self):
         """Test handling of replaced easyconfig parameters."""
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+        ec = EasyConfig(TOY_EC)
         replaced_parameters = {
             'license': ('license_file', '2.0'),
             'makeopts': ('buildopts', '2.0'),
@@ -1999,10 +1981,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_alternative_easyconfig_parameters(self):
         """Test handling of alternative easyconfig parameters."""
 
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt = test_ec_txt.replace('postinstallcmds', 'post_install_cmds')
         test_ec_txt = test_ec_txt.replace('moduleclass', 'env_mod_class')
 
@@ -2048,8 +2027,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.allow_deprecated_behaviour()
         init_config()
 
-        test_ecs_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+        ec = EasyConfig(TOY_EC)
 
         easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS = {
             'foobar': ('barfoo', '0.0'),  # deprecated since forever
@@ -2100,9 +2078,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec_params, expected)
 
         # try parsing an easyconfig file that defines a deprecated easyconfig parameter
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(toy_ec))
+        write_file(test_ec, TOY_EC_TXT)
         write_file(test_ec, "\nfoobarbarfoo = 'foobarbarfoo'", append=True)
 
         with self.mocked_stdout_stderr():
@@ -2133,8 +2110,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        ectxt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb'))
+        ectxt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb'))
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
@@ -2388,10 +2364,6 @@ class EasyConfigTest(EnhancedTestCase):
     def test_external_dependencies_templates(self):
         """Test use of templates for dependencies marked as external modules."""
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-        toy_ectxt = read_file(toy_ec)
-
         extra_ectxt = '\n'.join([
             "versionsuffix = '-Python-%(pyver)s-Perl-%(perlshortver)s'",
             '',
@@ -2401,7 +2373,7 @@ class EasyConfigTest(EnhancedTestCase):
             "]",
         ])
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, toy_ectxt + '\n' + extra_ectxt)
+        write_file(test_ec, TOY_EC_TXT + '\n' + extra_ectxt)
 
         # put metadata in place so templates can be defined
         metadata = os.path.join(self.test_prefix, 'external_modules_metadata.cfg')
@@ -2440,8 +2412,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_update(self):
         """Test use of update() method for EasyConfig instances."""
-        topdir = os.path.abspath(os.path.dirname(__file__))
-        toy_ebfile = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        toy_ebfile = TOY_EC
         ec = EasyConfig(toy_ebfile)
 
         # for string values: append
@@ -2484,8 +2455,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4-GCC-4.6.3.eb'
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
@@ -2591,10 +2561,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_dump(self):
         """Test EasyConfig's dump() method."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'check_osdeps': False,
-            'robot_path': [test_ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -2608,7 +2577,7 @@ class EasyConfigTest(EnhancedTestCase):
         for ecfile in ecfiles:
             test_ec = os.path.join(self.test_prefix, 'test.eb')
 
-            ec = EasyConfig(os.path.join(test_ecs_dir, ecfile))
+            ec = EasyConfig(os.path.join(TEST_ECS_DIR, ecfile))
             with ec.disable_templating():
                 ecdict = ec.asdict()
                 ec.dump(test_ec)
@@ -2679,10 +2648,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_toolchain_hierarchy_aware_dump(self):
         """Test that EasyConfig's dump() method is aware of the toolchain hierarchy."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'check_osdeps': False,
-            'robot_path': [test_ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -3286,16 +3254,15 @@ class EasyConfigTest(EnhancedTestCase):
             print("Skipping test_dep_graph, since graphviz is not available")
             return
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
         }
         init_config(build_options=build_options)
 
-        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
         ec_files = [(ec_file, False)]
         ecs, _ = parse_easyconfigs(ec_files)
 
@@ -3329,20 +3296,16 @@ class EasyConfigTest(EnhancedTestCase):
             print("Skipping test_dep_graph_multi_deps, since graphviz is not available")
             return
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         build_options = {
             'external_modules_metadata': ConfigObj(),
             'valid_module_classes': module_classes(),
-            'robot_path': [test_easyconfigs],
+            'robot_path': [TEST_ECS_DIR],
             'silent': True,
         }
         init_config(build_options=build_options)
 
-        toy_ec = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
+        test_ec_txt = TOY_EC_TXT + "\nmulti_deps = {'GCC': ['4.6.3', '4.8.3', '7.3.0-2.30']}"
         write_file(test_ec, test_ec_txt)
 
         ec_files = [(test_ec, False)]
@@ -3382,15 +3345,14 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         init_config(build_options=build_options)
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
+        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/6.4.0-2.28')
 
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
         hiddendep = ec['hiddendependencies'][0]
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep), 'toy/.0.0-deps')
@@ -3398,46 +3360,45 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_find_related_easyconfigs(self):
         """Test find_related_easyconfigs function."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec_file = os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.6.3.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.6.3.eb')
         ec = EasyConfig(ec_file)
 
         # exact match: GCC-4.6.3.eb
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         self.assertEqual(res, ['GCC-4.6.3.eb'])
 
         # tweak version to 4.6.1, GCC/4.6.x easyconfigs are found as closest match
         ec['version'] = '4.6.1'
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         self.assertEqual(res, ['GCC-4.6.4.eb', 'GCC-4.6.3.eb'])
 
         # tweak version to 4.5.0, GCC/4.x easyconfigs are found as closest match
         ec['version'] = '4.5.0'
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         expected = ['GCC-4.9.2.eb', 'GCC-4.8.3.eb', 'GCC-4.8.2.eb', 'GCC-4.6.4.eb', 'GCC-4.6.3.eb']
         self.assertEqual(res, expected)
 
-        ec_file = os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
         ec = EasyConfig(ec_file)
 
         # exact match
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         self.assertEqual(res, ['toy-0.0-deps.eb'])
 
         # tweak toolchain name/version and versionsuffix => closest match with same toolchain name is found
         ec['toolchain'] = {'name': 'gompi', 'version': '1.5.16'}
         ec['versionsuffix'] = '-foobar'
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         self.assertEqual(res, ['toy-0.0-gompi-2018a.eb', 'toy-0.0-gompi-2018a-test.eb'])
 
         # restore original versionsuffix => matching versionsuffix wins over matching toolchain (name)
         ec['versionsuffix'] = '-deps'
-        res = [os.path.basename(x) for x in find_related_easyconfigs(test_easyconfigs, ec)]
+        res = [os.path.basename(x) for x in find_related_easyconfigs(TEST_ECS_DIR, ec)]
         self.assertEqual(res, ['toy-0.0-deps.eb'])
 
         # no matches for unknown software name
         ec['name'] = 'nosuchsoftware'
-        self.assertEqual(find_related_easyconfigs(test_easyconfigs, ec), [])
+        self.assertEqual(find_related_easyconfigs(TEST_ECS_DIR, ec), [])
 
         # no problem with special characters in software name
         ec['name'] = 'nosuchsoftware++'
@@ -3448,8 +3409,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-deps.eb')
+        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
         ectxt = read_file(ec_file)
         modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
         write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
@@ -3461,15 +3421,14 @@ class EasyConfigTest(EnhancedTestCase):
     def test_software_license(self):
         """Tests related to software_license easyconfig parameter."""
         # default: None
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
+        ec_file = TOY_EC
         ec = EasyConfig(ec_file)
         ec.validate_license()
         self.assertEqual(ec['software_license'], None)
         self.assertEqual(ec.software_license, None)
 
         # specified software license gets handled correctly
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
+        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb')
         ec = EasyConfig(ec_file)
         ec.validate_license()
         # constant GPLv3 is resolved as string
@@ -3484,8 +3443,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_param_value_type_checking(self):
         """Test value tupe checking of easyconfig parameters."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        ec_file = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
+        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4-broken.eb'
         # version parameter has values of wrong type in this broken easyconfig
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         self.assertErrorRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
@@ -3498,8 +3456,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test copy method of EasyConfig object."""
         init_config(build_options={'silent': True})
 
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
+        ec1 = EasyConfig(TOY_EC)
 
         # inject fake template value, just to check whether they are copied over too
         ec1.template_values['pyshortver'] = '3.7'
@@ -3514,9 +3471,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec1 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
-        ec2 = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0.eb'))
+        ec1 = EasyConfig(TOY_EC)
+        ec2 = EasyConfig(TOY_EC)
 
         # different instances, same parsed easyconfig
         self.assertIsNot(ec1, ec2)
@@ -3528,14 +3484,13 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(hash(ec1), hash(ec2))
 
         # other parsed easyconfig is not equal
-        ec3 = EasyConfig(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
+        ec3 = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb'))
         self.assertFalse(ec1 == ec3)
         self.assertTrue(ec1 != ec3)
 
     def test_copy_easyconfigs(self):
         """Test copy_easyconfigs function."""
         init_config(build_options={'silent': True})
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         target_dir = os.path.join(self.test_prefix, 'copied_ecs')
         # easybuild/easyconfigs subdir is expected to exist
@@ -3558,7 +3513,7 @@ class EasyConfigTest(EnhancedTestCase):
         ecs_to_copy = []
         for (src_ec, target_ec) in test_ecs:
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
-            shutil.copy2(os.path.join(test_ecs_dir, src_ec), ecs_to_copy[-1])
+            shutil.copy2(os.path.join(TEST_ECS_DIR, src_ec), ecs_to_copy[-1])
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
         self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
@@ -3578,7 +3533,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # create test easyconfig that includes comments & build stats, just like an archived easyconfig
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
-        copy_file(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'), toy_ec)
+        copy_file(TOY_EC, toy_ec)
         toy_ec_txt = read_file(toy_ec)
         toy_ec_txt = '\n'.join([
             "# Built with EasyBuild version 3.1.2 on 2017-04-25_21-35-15",
@@ -3621,8 +3576,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
@@ -3676,7 +3630,7 @@ class EasyConfigTest(EnhancedTestCase):
         res.pop('arch')
         self.assertEqual(res, expected)
 
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
         toy_ec_txt = read_file(toy_ec)
 
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -3806,10 +3760,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
-        test_ecs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')
-        shutil.copy2(os.path.join(test_ecs, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
+        shutil.copy2(os.path.join(TEST_ECS_DIR, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
         write_file(pyec, "\ntoolchain = {'name': 'foss', 'version': '2018a'}", append=True)
 
         ec_txt = '\n'.join([
@@ -3839,7 +3791,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         build_options = {
             'external_modules_metadata': ConfigObj(),
-            'robot_path': [test_ecs, self.test_prefix],
+            'robot_path': [TEST_ECS_DIR, self.test_prefix],
             'valid_module_classes': module_classes(),
             'validate': False,
         }
@@ -3859,8 +3811,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_hidden_toolchain(self):
         """Test hiding of toolchain via easyconfig parameter."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec_txt = read_file(os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb'))
+        ec_txt = read_file(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb'))
 
         new_tc = "toolchain = {'name': 'GCC', 'version': '4.9.2', 'hidden': True}"
         ec_txt = re.sub("toolchain = .*", new_tc, ec_txt, re.M)
@@ -3882,16 +3833,14 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': []},
                          categorize_files_by_type([]))
 
-        test_dir = os.path.dirname(os.path.abspath(__file__))
-        test_ecs_dir = os.path.join(test_dir, 'easyconfigs')
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
 
-        easyblocks_dir = os.path.join(test_dir, 'sandbox', 'easybuild', 'easyblocks')
+        easyblocks_dir = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
         configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
         toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
 
-        gzip_ec = os.path.join(test_ecs_dir, 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
+        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb')
         paths = [
             'bzip2-1.0.6.eb',
             toy_easyblock,
@@ -4043,8 +3992,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         toy_ec_name = os.path.basename(toy_ec)
         specs = {
             'name': 'toy',
@@ -4097,16 +4045,14 @@ class EasyConfigTest(EnhancedTestCase):
                 path.append(subdir)
         os.environ['PATH'] = os.pathsep.join(path)
 
-        top_dir = os.path.dirname(os.path.abspath(__file__))
         mkdir(os.path.join(self.test_prefix, 'easybuild'))
-        test_ecs = os.path.join(top_dir, 'easyconfigs')
-        symlink(test_ecs, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
+        symlink(TEST_ECS_DIR, os.path.join(self.test_prefix, 'easybuild', 'easyconfigs'))
 
         # temporarily mock stderr to avoid printed warning (because 'eb' is not available via $PATH)
         with self.mocked_stderr():
             # locations listed in 'robot_path' named argument are taken into account
             res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
-        self.assertTrue(os.path.samefile(test_ecs, res[0]))
+        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[0]))
 
         # Can't have EB_SCRIPT_PATH set (for some of) these tests
         env_eb_script_path = os.getenv('EB_SCRIPT_PATH')
@@ -4119,7 +4065,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[-1]))
 
         # also works when 'eb' resides in a symlinked location
         altbin = os.path.join(self.test_prefix, 'some', 'other', 'symlinked', 'bin')
@@ -4127,7 +4073,7 @@ class EasyConfigTest(EnhancedTestCase):
         symlink(os.path.join(self.test_prefix, 'bin'), altbin)
         os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(test_ecs, res[-1]))
+        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[-1]))
 
         # Restore (temporarily) EB_SCRIPT_PATH value if set originally
         if env_eb_script_path:
@@ -4137,7 +4083,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PATH'] = orig_path
         sys.path.insert(0, self.test_prefix)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(test_ecs, res[0]))
+        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[0]))
 
         # put mock 'eb' back in $PATH
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
@@ -4197,10 +4143,9 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_not_an_easyconfig(self):
         """Test error reporting when a file that's not actually an easyconfig file is provided."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs',)
         # run test on an easyconfig file that was downloaded using wget using a non-raw GitHub URL
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
-        not_an_ec = os.path.join(os.path.dirname(test_ecs_dir), 'sandbox', 'not_an_easyconfig.eb')
+        not_an_ec = TEST_DIR / 'sandbox' / 'not_an_easyconfig.eb'
 
         # from Python 3.10 onwards: invalid decimal literal
         # older Python versions: invalid syntax
@@ -4209,9 +4154,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_check_sha256_checksums(self):
         """Test for check_sha256_checksums function."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = TOY_EC_TXT
 
         checksums_regex = re.compile(r'^checksums = \[\[(.|\n)*\]\]', re.M)
 
@@ -4259,7 +4202,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(check_sha256_checksums(ecs), [])
 
         # also test toy easyconfig with extensions, for which some checksums are missing
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
         ecs, _ = parse_easyconfigs([(toy_ec, False)])
         ecs = [ec['ec'] for ec in ecs]
 
@@ -4298,8 +4241,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_deprecated(self):
         """Test use of 'deprecated' easyconfig parameter."""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        toy_ec_txt = read_file(os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))
+        toy_ec_txt = TOY_EC_TXT
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, toy_ec_txt + "\ndeprecated = 'this is just a test'")
 
@@ -4314,8 +4256,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_deprecated_toolchain(self):
         """Test use of deprecated toolchain"""
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        deprecated_toolchain_ec = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        deprecated_toolchain_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a.eb'
         init_config(build_options={'silence_deprecation_warnings': [], 'unit_testing_mode': False})
         error_pattern = r"toolchain 'gompi/2018a' is marked as deprecated \(see also"
         self.assertErrorRegex(EasyBuildError, error_pattern, EasyConfig, deprecated_toolchain_ec)
@@ -4329,7 +4270,6 @@ class EasyConfigTest(EnhancedTestCase):
     def test_filename(self):
         """Test filename method of EasyConfig class."""
         init_config(build_options={'silent': True})
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
 
         test_ecs = [
             os.path.join('g', 'GCC', 'GCC-4.6.4.eb'),
@@ -4340,14 +4280,13 @@ class EasyConfigTest(EnhancedTestCase):
             os.path.join('t', 'toy', 'toy-0.0-deps.eb'),
         ]
         for test_ec in test_ecs:
-            test_ec = os.path.join(test_ecs_dir, test_ec)
+            test_ec = os.path.join(TEST_ECS_DIR, test_ec)
             ec = EasyConfig(test_ec)
             self.assertTrue(ec.filename(), os.path.basename(test_ec))
 
     def test_get_ref(self):
         """Test get_ref method."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-iter.eb'))
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-iter.eb'))
 
         # without using get_ref, we get a (templated) copy rather than the original value
         sources = ec['sources']
@@ -4378,9 +4317,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_multi_deps(self):
         """Test handling of multi_deps easyconfig parameter."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
+        toy_ec = TOY_EC
+        toy_ec_txt = TOY_EC_TXT
 
         ec = EasyConfig(toy_ec)
         self.assertEqual(ec['builddependencies'], [])
@@ -4453,9 +4391,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_multi_deps_templated_builddeps(self):
         """Test effect of multi_deps on builddependencies w.r.t. resolving templates like %(pyver)s."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
+        toy_ec_txt = TOY_EC_TXT
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['3.7.2', '2.7.15']}"
@@ -4502,12 +4438,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_iter_builddeps_templates(self):
         """Test whether iterative builddependencies are taken into account to define *ver and *shortver templates."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = toy_ec_txt + "\nmulti_deps = {'Python': ['2.7.15', '3.6.6']}"
+        test_ec_txt = TOY_EC_TXT + "\nmulti_deps = {'Python': ['2.7.15', '3.6.6']}"
 
         # inject extension that uses %(pyshortver)s, to check whether the template value is properly resolved
         test_ec_txt += '\n'.join([
@@ -4563,21 +4495,16 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_fix_deprecated_easyconfigs(self):
         """Test fix_deprecated_easyconfigs function."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_ec_txt = read_file(toy_ec)
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # need to allow triggering deprecated behaviour, since that's exactly what we're fixing...
         self.allow_deprecated_behaviour()
 
-        test_ectxt = toy_ec_txt
         # inject local variables with names that need to be tweaked (or not for single-letter ones)
         regex = re.compile('^(sanity_check_paths)', re.M)
         # purposely define configopts via local variable 'foo', which has value that also contains 'foo' substring;
         # that way, we can check whether only the 'foo' variable name is replaced with 'local_foo'
-        test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', toy_ec_txt)
+        test_ectxt = regex.sub(r'foo = "--foobar --barfoo --barfoobaz"\nconfigopts = foo\n\n\1', TOY_EC_TXT)
         regex = re.compile(r'^(toolchain\s*=.*)$', re.M)
         test_ectxt = regex.sub(r'\1\n\nsome_list = [x + "1" for x in ["one", "two", "three"]]', test_ectxt)
 
@@ -4972,8 +4899,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_recursive_module_unload(self):
         """Test use of recursive_module_unload easyconfig parameter."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
+        toy_ec = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
 
@@ -5089,8 +5015,7 @@ class EasyConfigTest(EnhancedTestCase):
         Test whether we can get a 'pure' view on the easyconfig file,
         which correctly reflects what's defined in the easyconfig file.
         """
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = EasyConfig(os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb'))
+        toy_ec = EasyConfig(TOY_EC)
 
         ec_dict = toy_ec.parser.get_config_dict()
         self.assertEqual(ec_dict.get('version'), '0.0')
@@ -5114,11 +5039,9 @@ class EasyConfigTest(EnhancedTestCase):
         """
         Test parsing of an easyconfig file that includes import statements.
         """
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt += '\n' + '\n'.join([
             "import os",
             "local_test = os.getenv('TEST_TOY')",
@@ -5253,11 +5176,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-
-        foss = os.path.join(test_ecs_dir, 'f', 'foss', 'foss-2018a.eb')
-        toy = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
-        toy_exts = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        foss = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
+        toy_exts = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         # no sources or patches for toolchain => 0
         foss_ec = EasyConfig(foss)
@@ -5265,7 +5185,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(foss_ec['patches'], [])
         self.assertEqual(foss_ec.count_files(), 0)
         # 1 source + 2 patches => 3
-        toy_ec = EasyConfig(toy)
+        toy_ec = EasyConfig(TOY_EC)
         self.assertEqual(len(toy_ec['sources']), 1)
         self.assertEqual(len(toy_ec['patches']), 2)
         self.assertEqual(toy_ec['exts_list'], [])
@@ -5313,13 +5233,11 @@ class EasyConfigTest(EnhancedTestCase):
         """
         Test whether easyconfigs caches work as intended.
         """
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        libtoy_ec = os.path.join(test_ecs_dir, 'l', 'libtoy', 'libtoy-0.0.eb')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
+        libtoy_ec = os.path.join(TEST_ECS_DIR, 'l', 'libtoy', 'libtoy-0.0.eb')
         copy_file(libtoy_ec, self.test_prefix)
-        copy_file(toy_ec, self.test_prefix)
+        copy_file(TOY_EC, self.test_prefix)
         libtoy_ec = os.path.join(self.test_prefix, os.path.basename(libtoy_ec))
-        toy_ec = os.path.join(self.test_prefix, os.path.basename(toy_ec))
+        toy_ec = os.path.join(self.test_prefix, os.path.basename(TOY_EC))
 
         ec1 = process_easyconfig(toy_ec)[0]
         self.assertEqual(ec1['ec'].name, 'toy')
@@ -5381,10 +5299,8 @@ class EasyConfigTest(EnhancedTestCase):
         """
         Test use of template values like %(version)s
         """
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        toy_ec = os.path.join(test_ecs_dir, 't', 'toy', 'toy-0.0.eb')
 
-        test_ec_txt = read_file(toy_ec)
+        test_ec_txt = TOY_EC_TXT
         test_ec_txt += '\ndescription = "name: %(name)s, version: %(version)s"'
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')

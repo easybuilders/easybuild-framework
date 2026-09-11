@@ -36,6 +36,7 @@ import tempfile
 import shutil
 import stat
 import sys
+from test.framework import TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -64,7 +65,7 @@ class ModulesTest(EnhancedTestCase):
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
         if test_modules_paths is None:
-            test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
+            test_modules_paths = [os.path.abspath(os.path.join(TEST_MODULES_DIR))]
         self.reset_modulepath(test_modules_paths)
 
     # for Lmod, this test has to run first, to avoid that it fails;
@@ -83,7 +84,7 @@ class ModulesTest(EnhancedTestCase):
         # copy one of the test modules there
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
         os.makedirs(gcc_mod_dir)
-        gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
+        gcc_mod_path = os.path.join(TEST_MODULES_DIR, 'GCC', '4.6.3')
         copy_file(gcc_mod_path, gcc_mod_dir)
 
         # try and use long modules path
@@ -97,8 +98,6 @@ class ModulesTest(EnhancedTestCase):
     def test_run_module(self):
         """Test for ModulesTool.run_module method."""
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-
         for key in ['EBROOTGCC', 'EBROOTOPENMPI', 'EBROOTOPENBLAS']:
             os.environ.pop(key, None)
 
@@ -107,7 +106,7 @@ class ModulesTest(EnhancedTestCase):
             self.modtool.run_module('load', 'GCC/6.4.0-2.28')
             self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
+        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
 
         self.assertNotIn('EBROOTGCC', os.environ)
         self.modtool.run_module(['load', 'GCC/6.4.0-2.28'])
@@ -266,7 +265,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['OpenMPI'], maybe_partial=False, skip_avail=True), [False])
 
         # exist works on hidden modules in Lua syntax (only with Lmod)
-        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+        test_modules_path = os.path.join(TEST_MODULES_DIR)
         if isinstance(self.modtool, Lmod):
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
             self.assertExists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua'))
@@ -626,7 +625,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(modulepath, curr_module_paths())
 
         # prepending path that is 'deeper down' in $MODULEPATH works, brings it back to front
-        test_mods_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_mods_dir = os.path.join(TEST_MODULES_DIR)
         self.assertTrue(any(os.path.samefile(test_mods_dir, p) for p in modulepath))
         self.modtool.prepend_module_path(test_mods_dir)
         self.assertTrue(os.path.samefile(curr_module_paths()[0], test_mods_dir))
@@ -771,7 +770,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_wrong_modulepath(self):
         """Test whether modules tool can deal with a broken $MODULEPATH."""
-        test_modules_path = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+        test_modules_path = os.path.realpath(os.path.join(TEST_MODULES_DIR))
         modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
         os.environ['MODULEPATH'] = '/some/non-existing/path:/this/doesnt/exists/anywhere:%s' % test_modules_path
         init_config()
@@ -785,8 +784,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_modulefile_path(self):
         """Test modulefile_path method"""
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        gcc_mod_file = os.path.join(test_dir, 'modules', 'GCC', '6.4.0-2.28')
+        gcc_mod_file = os.path.join(TEST_MODULES_DIR, 'GCC', '6.4.0-2.28')
 
         modtool = modules_tool()
         res = modtool.modulefile_path('GCC/6.4.0-2.28')
@@ -794,7 +792,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             res = modtool.modulefile_path('bzip2/.1.0.6')
-            self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'bzip2', '.1.0.6.lua')))
+            self.assertTrue(os.path.samefile(res, os.path.join(TEST_MODULES_DIR, 'bzip2', '.1.0.6.lua')))
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
             self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
 
@@ -814,11 +812,10 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_hierarchical_mns(self):
         """Test function to determine path to top of the module tree for a hierarchical module naming scheme."""
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -853,7 +850,7 @@ class ModulesTest(EnhancedTestCase):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if isinstance(self.modtool, Lmod):
             orig_modulepath = os.environ.get('MODULEPATH')
-            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+            self.modtool.unuse(os.path.join(TEST_MODULES_DIR))
             curr_modulepath = os.environ.get('MODULEPATH')
             error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
             self.assertEqual(curr_modulepath, None, error_msg)
@@ -1024,11 +1021,10 @@ class ModulesTest(EnhancedTestCase):
         scheme.
         """
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -1063,7 +1059,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_modules_tool_stateless(self):
         """Check whether ModulesTool instance is stateless between runs."""
-        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_modules_path = os.path.join(TEST_MODULES_DIR)
 
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
         copy_dir(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
@@ -1159,7 +1155,7 @@ class ModulesTest(EnhancedTestCase):
 
         # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
         # invalidate_module_caches_for should be able to deal with this
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_mods_path = os.path.join(TEST_MODULES_DIR)
         mods_symlink = os.path.join(self.test_prefix, 'modules_symlink')
         os.symlink(test_mods_path, mods_symlink)
         self.modtool.use(mods_symlink)
@@ -1599,11 +1595,8 @@ class ModulesTest(EnhancedTestCase):
 
         init_config(build_options={'generate_devel_module': True})
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(eb_path))
+        write_file(test_ec, TOY_EC_TXT)
         write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))

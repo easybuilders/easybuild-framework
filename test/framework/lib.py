@@ -33,6 +33,7 @@ import sys
 import tempfile
 from unittest import TextTestRunner
 
+from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import TestLoaderFiltered
 
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
@@ -125,7 +126,7 @@ class EasyBuildLibTest(TestCase):
 
         self.configure()
 
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+        test_mods_path = os.path.join(TEST_MODULES_DIR)
 
         modtool = modules_tool()
         modtool.use(test_mods_path)
