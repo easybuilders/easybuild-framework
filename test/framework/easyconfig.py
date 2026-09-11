@@ -60,7 +60,7 @@ from easybuild.framework.easyconfig.templates import template_constant_dict, to_
 from easybuild.framework.easyconfig.style import check_easyconfigs_style
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, categorize_files_by_type, check_sha256_checksums
 from easybuild.framework.easyconfig.tools import dep_graph, det_copy_ec_specs, find_related_easyconfigs, get_paths_for
-from easybuild.framework.easyconfig.tools import parse_easyconfigs
+from easybuild.framework.easyconfig.tools import parse_easyconfigs, CategorizedPaths
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak, tweak_one
 from easybuild.framework.extension import construct_exts_filter_cmds
 from easybuild.toolchains.system import SystemToolchain
@@ -3879,8 +3879,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_categorize_files_by_type(self):
         """Test categorize_files_by_type"""
-        self.assertEqual({'easyconfigs': [], 'files_to_delete': [], 'patch_files': [], 'py_files': []},
-                         categorize_files_by_type([]))
+        self.assertEqual(categorize_files_by_type([]), CategorizedPaths([], [], [], []))
 
         test_dir = os.path.dirname(os.path.abspath(__file__))
         test_ecs_dir = os.path.join(test_dir, 'easyconfigs')
@@ -3907,10 +3906,10 @@ class EasyConfigTest(EnhancedTestCase):
             gzip_ec,
             'foo',
         ]
-        self.assertEqual(res['easyconfigs'], expected)
-        self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
-        self.assertEqual(res['patch_files'], [toy_patch])
-        self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
+        self.assertEqual(res.easyconfigs, expected)
+        self.assertEqual(res.files_to_delete, ['toy-0.0-deps.eb'])
+        self.assertEqual(res.patch_files, [toy_patch])
+        self.assertEqual(res.py_files, [toy_easyblock, configuremake])
 
         # Error cases
         tmpdir = tempfile.mkdtemp()
