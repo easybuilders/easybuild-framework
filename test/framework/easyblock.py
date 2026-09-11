@@ -2571,6 +2571,16 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(exts_file_info[5]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
         self.assertNotIn('patches', exts_file_info[5])
 
+        self.assertEqual(exts_file_info[4]['name'], 'barbar')
+        self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[4]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[4])
+
+        self.assertEqual(exts_file_info[5]['name'], 'toy')
+        self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
+        self.assertEqual(exts_file_info[5]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertNotIn('patches', exts_file_info[5])
+
         # location of files is missing when fetch_files is set to False
         exts_file_info = toy_eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
 
