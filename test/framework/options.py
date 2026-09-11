@@ -261,7 +261,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             outtxt, error_thrown = self.eb_main(args, return_error=True)
 
         error_msg = "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown
-        self.assertTrue(not error_thrown, error_msg)
+        self.assertIsNone(error_thrown, error_msg)
 
         already_msg = "GCC/4.6.3 is already installed"
         error_msg = "Already installed message without --force, outtxt: %s" % outtxt
@@ -6958,7 +6958,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         args = [test_ec, '--force', '--skip-extensions']
         with self.mocked_stdout_stderr():
-            self.eb_main(args, do_build=True, return_error=True)
+            self.eb_main(args, do_build=True)
 
         toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':

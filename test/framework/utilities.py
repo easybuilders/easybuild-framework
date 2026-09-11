@@ -318,7 +318,7 @@ class EnhancedTestCase(TestCase):
         # note: don't change 'args' value, which is passed by reference!
         main_args = [str(arg) if isinstance(arg, Path) else arg for arg in args] + ['--unit-testing-mode']
 
-        myerr = False
+        myerr = None
         if logfile is None:
             logfile = self.logfile
         # clear log file
@@ -336,7 +336,14 @@ class EnhancedTestCase(TestCase):
                 modtool = None
             else:
                 modtool = self.modtool
-            exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
+            try:
+                exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
+            except SystemExit as err:
+                # Ignore successful exits, i.e. `sys.exit(0)` on e.g. --help
+                if err.code != 0:
+                    myerr = err
+                    exit_code = err.code
+
         except Exception as err:
             myerr = err
             if verbose:
