@@ -112,7 +112,8 @@ class ToyBuildTest(EnhancedTestCase):
         if os.path.exists(self.dummylogfn):
             os.remove(self.dummylogfn)
 
-    def check_toy(self, installpath, outtxt, name='toy', version='0.0', versionprefix='', versionsuffix='', error=None):
+    def check_toy(self, installpath, outtxt, name='toy', version='0.0', versionprefix='', versionsuffix='', error=None,
+                  args=None):
         """Check whether toy build succeeded."""
 
         full_version = ''.join([versionprefix, version, versionsuffix])
@@ -125,6 +126,8 @@ class ToyBuildTest(EnhancedTestCase):
         # check for success
         success = re.compile(r"COMPLETED: Installation (ended|STOPPED) successfully \(took .* secs?\)")
         self.assertTrue(success.search(outtxt), "COMPLETED message found in '%s'%s" % (outtxt, error_msg))
+        if args and any(arg in args for arg in ('--dry-run', '--extended-dry-run')):
+            return  # No module created
 
         # if the module exists, it should be fine
         toy_module = os.path.join(installpath, 'modules', 'all', name, full_version)
@@ -195,7 +198,8 @@ class ToyBuildTest(EnhancedTestCase):
                 raise myerr
 
         if verify:
-            self.check_toy(self.test_installpath, outtxt, name=name, versionsuffix=versionsuffix, error=myerr)
+            self.check_toy(self.test_installpath, outtxt, name=name, versionsuffix=versionsuffix, error=myerr,
+                           args=args)
 
         if test_readme:
             # make sure postinstallcmds were used
@@ -1988,7 +1992,7 @@ class ToyBuildTest(EnhancedTestCase):
         ])
         write_file(test_ec, test_ec_txt)
 
-        extra_args = ['--force', '--parallel=3']
+        extra_args = ['--rebuild', '--parallel=3']
         if args:
             extra_args.extend(args)
 
@@ -2000,7 +2004,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         logtxt = read_file(self.logfile)
 
-        return logtxt
+        return stdout, logtxt
 
     def test_toy_exts_sequential(self):
         """
@@ -2010,7 +2014,7 @@ class ToyBuildTest(EnhancedTestCase):
         # but also test with it disable explicitly
         for args in ([], ['--disable-parallel-extensions-install']):
 
-            logtxt = self._test_toy_exts_common(args=args)
+            logtxt = self._test_toy_exts_common(args=args)[1]
 
             self.assertRegex(logtxt, "INFO Installing extensions sequentially")
 
@@ -2052,7 +2056,7 @@ class ToyBuildTest(EnhancedTestCase):
             # also test skipping of extensions in parallel
             args.append('--skip')
 
-            logtxt = self._test_toy_exts_common(args=args)
+            logtxt = self._test_toy_exts_common(args=args)[1]
 
             # order in which these patterns occur is not fixed, so check them one by one
             patterns = [
@@ -2070,7 +2074,7 @@ class ToyBuildTest(EnhancedTestCase):
         """
         args = ['--parallel-extensions-install']
 
-        logtxt = self._test_toy_exts_common(args=args)
+        stdout, logtxt = self._test_toy_exts_common(args=args)
 
         # take into account that each of these lines may appear multiple times,
         # in case no progress was made between checks
@@ -2110,10 +2114,13 @@ class ToyBuildTest(EnhancedTestCase):
         ]
         self.assertEqual(res, expected)
 
+        # check that async_cmd_check of custom easyblock (EB_Toy) was called
+        self.assertIn("Async toy extension build done, exit code: 0\n", stdout)
+
         # also test skipping of extensions in parallel
         args.append('--skip')
 
-        logtxt = self._test_toy_exts_common(args=args)
+        logtxt = self._test_toy_exts_common(args=args)[1]
 
         # order in which these patterns occur is not fixed, so check them one by one
         patterns = [
@@ -2136,7 +2143,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         args[-1] = '--include-easyblocks=%s' % toy_ext_eb
 
-        logtxt = self._test_toy_exts_common(args=args)
+        logtxt = self._test_toy_exts_common(args=args)[1]
 
         # take into account that each of these lines may appear multiple times,
         # in case no progress was made between checks
@@ -2146,6 +2153,25 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
             r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
+        ]
+        self.assert_multi_regex(patterns, logtxt)
+
+        # also check dry run output
+
+        # use clean install path, otherwise the existing dir is detected as a ghost directory
+        remove_dir(self.test_installpath)
+
+        dry_run_args = args + ['--extended-dry-run']
+        logtxt = self._test_toy_exts_common(args=dry_run_args)[1]
+
+        # Compare those to the patterns in real mod above
+        patterns = [
+            "INFO Installing extensions in parallel",
+            # In dry-run mode extension installations complete immediately, so bar is finished already
+            r"INFO 2 out of 4 extensions installed \(2 queued, 0 running: \)$",
+            # Same for toy
+            r"INFO 3 out of 4 extensions installed \(1 queued, 0 running: \)$",
+            r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
         ]
         self.assert_multi_regex(patterns, logtxt)
 

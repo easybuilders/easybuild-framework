@@ -68,6 +68,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
+from typing import List
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -108,7 +109,7 @@ from easybuild.tools.hooks import (
     MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
     READY_STEP, SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
 )
-from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
+from easybuild.tools.run import RunShellCmdError, RunShellCmdResult, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -2241,6 +2242,8 @@ class EasyBlock:
         after installing extension(s)
         """
         res = None
+        if self.dry_run:
+            return res  # No module file is written, so no changes. See _install_extensions_det_init_build_env
 
         self.log.debug(f"Checking whether contents of fake module file {fake_mod_file_path} have changed...")
 
@@ -2293,7 +2296,7 @@ class EasyBlock:
 
         build_env, fake_mod_file_txt = self._install_extensions_det_init_build_env(fake_mod_file_path)
 
-        for idx, ext in enumerate(self.ext_instances):
+        for idx, ext in enumerate(self.ext_instances, start=1):
             self.log.info("Starting extension %s", ext.name)
 
             run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
@@ -2301,18 +2304,17 @@ class EasyBlock:
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            progress_info = "Installing '%s' extension (%s/%s)" % (ext.name, idx + 1, exts_cnt)
+            progress_info = f"Installing '{ext.name}' extension ({idx}/{exts_cnt})"
             self.update_exts_progress_bar(progress_info)
 
-            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent, log=self.log)
+            print_msg(f"installing extension {ext.name} {ext.version or ''} ({idx}/{exts_cnt})...",
+                      silent=self.silent, log=self.log)
             start_time = datetime.now()
 
             if install:
                 if self.dry_run:
-                    tup = (ext.name, ext.version, ext.__class__.__name__)
-                    msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
-                    self.dry_run_msg(msg)
+                    self.dry_run_msg(f"\n* installing extension {ext.name} {ext.version} "
+                                     f"using '{ext.__class__.__name__}' easyblock\n")
                 else:  # actual installation of the extension
                     # restore build environment for this extension
                     restore_env(build_env, log_changes=False)
@@ -2350,7 +2352,12 @@ class EasyBlock:
         :param install: actually install extensions, don't just prepare environment for installing
         """
         self.log.info("Installing extensions in parallel...")
-
+        if self.dry_run:
+            # No tasks started in dry-run so use dummy result
+            dry_run_mock_result = RunShellCmdResult(cmd='dummy', exit_code=EasyBuildExit.SUCCESS,
+                                                    output="bar", stderr=None, work_dir='/test_cat',
+                                                    out_file='/tmp/cat.out', err_file=None,
+                                                    cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
         thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
         # path to fake module file, so we can check if contents change after installing extensions
@@ -2359,8 +2366,8 @@ class EasyBlock:
         self.log.debug("Determining build environment for extensions...")
         build_env, fake_mod_file_txt = self._install_extensions_det_init_build_env(fake_mod_file_path)
 
-        running_exts = []
-        installed_ext_names = []
+        running_exts: List[Extension] = []
+        installed_ext_names: List[str] = []
 
         all_ext_names = [x['name'] for x in self.exts]
         self.log.debug("List of names of all extensions: %s", all_ext_names)
@@ -2370,7 +2377,7 @@ class EasyBlock:
         installed_ext_names = [n for n in all_ext_names if n not in to_install_ext_names]
 
         exts_cnt = len(all_ext_names)
-        exts_queue = self.ext_instances[:]
+        exts_queue: List[Extension] = self.ext_instances[:]
 
         def update_exts_progress_bar_helper(running_exts, progress_size):
             """Helper function to update extensions progress bar."""
@@ -2429,15 +2436,8 @@ class EasyBlock:
                     else:
                         pending_deps = []
 
-                if self.dry_run:
-                    tup = (ext.name, ext.version, ext.__class__.__name__)
-                    msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
-                    self.dry_run_msg(msg)
-                    running_exts.append(ext)
-
                 # if some of the required dependencies are not installed yet, requeue this extension
-                elif pending_deps:
-
+                if pending_deps:
                     # check whether all required dependency extensions are actually going to be installed;
                     # if not, we assume that they are provided by dependencies;
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
@@ -2453,49 +2453,57 @@ class EasyBlock:
                         msg = f"Pending dependencies for {ext.name} after taking into account missing dependencies: "
                         self.log.debug(msg + ', '.join(pending_deps))
 
-                    if pending_deps:
-                        msg = f"Required dependencies not installed yet for extension {ext.name} ("
-                        msg += ', '.join(pending_deps)
-                        msg += "), adding it back to queue..."
-                        self.log.info(msg)
-                        # purposely adding extension back in the queue at Nth place rather than at the end,
-                        # since we assume that the required dependencies will be installed soon...
-                        exts_queue.insert(max_iter, ext)
-
                 # list of pending dependencies may be empty now after taking into account required extensions
                 # that are not being installed above, so extension may be ready to install
-                if not pending_deps:
-                    tup = (ext.name, ext.version or '')
-                    print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
+                if pending_deps:
+                    msg = f"Required dependencies not installed yet for extension {ext.name} ("
+                    msg += ', '.join(pending_deps)
+                    msg += "), adding it back to queue..."
+                    self.log.info(msg)
+                    # purposely adding extension back in the queue at Nth place rather than at the end,
+                    # since we assume that the required dependencies will be installed soon...
+                    exts_queue.insert(max_iter, ext)
+                else:
+                    print_msg(f"starting installation of extension {ext.name} {ext.version or ''}...",
+                              silent=self.silent, log=self.log)
 
-                    if install and not self.dry_run:
-                        # restore build environment for this extension
-                        restore_env(build_env, log_changes=False)
+                    if install:
+                        if self.dry_run:
+                            self.dry_run_msg(f"\n* installing extension {ext.name} {ext.version} using "
+                                             f"'{ext.__class__.__name__}' easyblock\n")
+                            running_exts.append(ext)
+                        else:
+                            # restore build environment for this extension
+                            restore_env(build_env, log_changes=False)
 
-                        ext.install_extension_substep("pre_install_extension")
+                            ext.install_extension_substep("pre_install_extension")
 
-                        # note: current build environment is copied when install_extension_async is called
-                        ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
-                        running_exts.append(ext)
+                            # note: current build environment is copied when install_extension_async is called
+                            ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
+                            running_exts.append(ext)
 
-                        self.log.info(f"Started installation of extension {ext.name} in the background...")
-                        update_exts_progress_bar_helper(running_exts, 0)
+                            self.log.info(f"Started installation of extension {ext.name} in the background...")
+                            update_exts_progress_bar_helper(running_exts, 0)
 
             # check for extension installations that have completed
             installs_completed = False
             if running_exts:
                 self.log.info(f"Checking for completed extension installations ({len(running_exts)} running)...")
                 for ext in running_exts[:]:
-                    if self.dry_run or ext.async_cmd_task.done():
+                    if self.dry_run or ext.async_cmd_check():
+                        if self.dry_run:
+                            res = dry_run_mock_result
+                        else:
+                            res = ext.async_cmd_task.result()
                         installs_completed = True
-                        res = ext.async_cmd_task.result()
                         if res.exit_code == EasyBuildExit.SUCCESS:
                             print_msg(f"installation of extension {ext.name} {ext.version or ''} completed!",
                                       silent=self.silent, log=self.log)
-                            # run post-install method for extension from same working dir as installation of extension
-                            cwd = change_dir(res.work_dir)
-                            ext.install_extension_substep("post_install_extension")
-                            change_dir(cwd)
+                            if not self.dry_run:
+                                # run post-install method for extension from same working dir as installation of it
+                                cwd = change_dir(res.work_dir)
+                                ext.install_extension_substep("post_install_extension")
+                                change_dir(cwd)
                             running_exts.remove(ext)
                             installed_ext_names.append(ext.name)
                             update_exts_progress_bar_helper(running_exts, 1)
