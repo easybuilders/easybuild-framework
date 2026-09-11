@@ -61,7 +61,7 @@ class GeneralTest(EnhancedTestCase):
                     path = os.path.join(dirpath, filename)
                     txt = read_file(path)
                     for regex in log_method_regexes:
-                        self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                        self.assertNotRegex(txt, regex)
 
     def test_only_if_module_is_available(self):
         """Test only_if_module_is_available decorator."""
@@ -106,10 +106,10 @@ class GeneralTest(EnhancedTestCase):
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
         easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
 
-        docstring_regexes = [
-            re.compile("@author"),
-            re.compile("@param"),
-            re.compile("@return"),
+        docstring_patterns = [
+            "@author",
+            "@param",
+            "@return",
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
@@ -120,8 +120,8 @@ class GeneralTest(EnhancedTestCase):
 
                 path = os.path.join(dirpath, filename)
                 txt = read_file(path)
-                for regex in docstring_regexes:
-                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                for pattern in docstring_patterns:
+                    self.assertNotIn(pattern, txt)
 
     def test_import_available_modules(self):
         """Test for import_available_modules function."""

@@ -67,8 +67,7 @@ class BuildLogTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
             logtxt = read_file(logfile)
 
-        log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M))
 
         # test formatting of message
         self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
@@ -153,8 +152,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
 
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
@@ -180,8 +178,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): foo baz baz",
             '',
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
 
         write_file(tmplog, '')
         logToFile(tmplog, enable=True)
@@ -239,8 +236,7 @@ class BuildLogTest(EnhancedTestCase):
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg,
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg, devel_msg,
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
 
     def test_print_warning(self):
         """Test print_warning"""

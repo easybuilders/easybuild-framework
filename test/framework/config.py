@@ -598,33 +598,27 @@ class EasyBuildConfigTest(EnhancedTestCase):
         tmpdir = tempfile.gettempdir()
 
         res = get_log_filename('foo', '1.2.3')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$')))
 
         res = get_log_filename('foo', '1.2.3', date='19700101')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$')))
 
         res = get_log_filename('foo', '1.2.3', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$')))
 
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$')))
 
         # if log file already exists, numbers are added to the filename to obtain a new file path
         write_file(res, '')
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$')))
 
         # adding salt ensures a unique filename (pretty much)
         prev_log_filenames = []
-        for i in range(10):
+        for _ in range(10):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
-            regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
-            self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+            self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertNotIn(res, prev_log_filenames)
             prev_log_filenames.append(res)
 
@@ -676,9 +670,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # reconfigure with value for log directory that includes templates
         init_config(args=['--logfile-format=easybuild-%(name)s-%(version)s-%(date)s-%(time)s,log.txt'])
-        regex = re.compile(r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
         res = log_path(ec=ec)
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
         self.assertEqual(log_file_format(), 'log.txt')
 
     def test_get_build_log_path(self):
