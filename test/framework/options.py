@@ -37,13 +37,12 @@ import sys
 import tempfile
 import textwrap
 from importlib import reload
-from unittest import TextTestRunner
+from unittest import TextTestRunner, mock
 from urllib.request import URLError
 
 import easybuild.main
 import easybuild.tools.build_log
 import easybuild.tools.options
-import easybuild.tools.toolchain
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
@@ -4711,13 +4710,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         write_file(toy_ec, toy_ec_txt)
 
-        args = [
+        # Shared arguments for dry-run opening a new PR
+        common_new_pr_args = [
             '--new-pr',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            toy_ec,
             '-D',
-            '--disable-cleanup-tmpdir',
         ]
+        args = common_new_pr_args + ['--disable-cleanup-tmpdir', toy_ec]
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
         # determine location of repo clone, can be used to test --git-working-dirs-path (and save time)
@@ -4726,7 +4725,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             git_working_dir = dirs[0]
         else:
             self.fail("Failed to find temporary git working dir: %s" % dirs)
-        args.append(f'--git-working-dirs-path={git_working_dir}')
+        common_new_pr_args.append(f'--git-working-dirs-path={git_working_dir}')
 
         remote = 'git@github.com:%s/easybuild-easyconfigs.git' % GITHUB_TEST_ACCOUNT
         regexs = [
@@ -4743,172 +4742,221 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assert_multi_regex(regexs, txt)
 
-        # Commit message must not be specified for only new ECs
-        args_new_pr = args + ['--pr-commit-msg=just a test']
-        error_msg = r"PR commit msg \(--pr-commit-msg\) should not be used"
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args_new_pr, raise_error=True, testing=False)
+        # Do not really fetch remote again which won't include changes and speeds up the test a lot
+        def get_orig_remote_dir(repo):
+            return glob.glob(os.path.join(git_working_dir, repo, '.git', 'refs', 'remotes', '*'))[0]
 
-        # But commit message can still be specified when using --force
-        args_new_pr.append('--force')
-        txt, _ = self._run_mock_eb(args_new_pr, do_build=True, raise_error=True, testing=False)
-        regexs_with_msg = [
-            error_msg,  # Still shown as a warning
-            r'== Using the specified --pr-commit-msg',
-            r'\* title: "just a test"',
-        ]
-        self.assert_multi_regex(regexs_with_msg, txt)
+        def fake_fetch(self, *args, **kwargs):
+            repo_dir = self.repo.working_dir
+            copy_dir(get_orig_remote_dir(os.path.basename(repo_dir)),
+                     os.path.join(repo_dir, '.git', 'refs', 'remotes', self.name))
+            return [mock.Mock(flags=0)]
 
-        # add unstaged file to git working dir, to check on later
-        unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
-        write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
-        # Remove other temporary git working dirs
-        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
-        res = [d for d in res if d != git_working_dir]
-        for path in res:
-            remove_dir(path)
+        with mock.patch('git.remote.Remote.fetch', new=fake_fetch):
+            # Should error when no files were modified
+            # Pick an existing easyconfig, use SYSTEM toolchain to allow easy parsing
+            gcc_ecs = glob.glob(os.path.join(git_working_dir, '**', 'GCC', 'GCC-*.eb'), recursive=True)
+            if not gcc_ecs:
+                self.fail("Found no GCC easyconfigs in checkout to use for this test")
+            unmodified_ec = os.path.join(self.test_prefix, os.path.basename(gcc_ecs[0]))
+            copy_file(gcc_ecs[0], unmodified_ec)
+            args = common_new_pr_args + [unmodified_ec]
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, 'No changed files.*empty pull request',
+                                      self.eb_main, args, raise_error=True)
 
-        ec_name = 'bzip2-1.0.8.eb'
-        # a custom commit message is required when doing more than just adding new easyconfigs (e.g., deleting a file)
-        args.append(f':{ec_name}')
-        error_msg = f"A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: {ec_name}"
+            # New patch only
+            with mock.patch('easybuild.tools.github.find_software_name_for_patch') as mock_find_sw_name:
+                for with_unmodified_ec in (False, True):
+                    with self.subTest(f'With unmodified easyconfig: {with_unmodified_ec}'):
+                        mock_find_sw_name.return_value = 'toy'
+                        args = common_new_pr_args + [toy_patch]
+                        if with_unmodified_ec:
+                            args.append(unmodified_ec)
+                        with self.mocked_stdout_stderr():
+                            self.assertErrorRegex(EasyBuildError, 'use --pr-title', self.eb_main, args,
+                                                  raise_error=True, testing=False)
+                        args += ['--pr-title=New patch']
+                        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+                        self.assert_multi_regex((
+                            r'^\* target: easybuilders/easybuild-easyconfigs:develop',
+                            r'^\* title: "New patch"',
+                            r"^\* overview of changes:",
+                            rf".*/{os.path.basename(toy_patch)}\s*\|",
+                        ), txt)
+            # With corresponding, new EC no pr-title needs to be specified
+            args = common_new_pr_args + [toy_patch, toy_ec]
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            self.assert_multi_regex((
+                r'^\* target: easybuilders/easybuild-easyconfigs:develop',
+                r'^\* title: ".*toy v0.0.*"',
+                r"^\* overview of changes:",
+                rf".*/{os.path.basename(toy_patch)}\s*\|",
+            ), txt)
 
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
+            # Commit message must not be specified for only new ECs
+            args = common_new_pr_args + [toy_ec]
+            args_new_pr = args + ['--pr-commit-msg=just a test']
+            error_msg = r"PR commit msg \(--pr-commit-msg\) should not be used"
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args_new_pr,
+                                      raise_error=True, testing=False)
 
-        # check whether unstaged file in git working dir was copied (it shouldn't)
-        res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
-        res = [d for d in res if d != git_working_dir]
-        if len(res) == 1:
-            unstaged_file_full = os.path.join(res[0], unstaged_file)
-            self.assertNotExists(unstaged_file_full)
-        else:
-            self.fail("Found copy of easybuild-easyconfigs working copy")
+            # But commit message can still be specified when using --force
+            args_new_pr.append('--force')
+            txt, _ = self._run_mock_eb(args_new_pr, do_build=True, raise_error=True, testing=False)
+            regexs_with_msg = [
+                error_msg,  # Still shown as a warning
+                r'== Using the specified --pr-commit-msg',
+                r'\* title: "just a test"',
+            ]
+            self.assert_multi_regex(regexs_with_msg, txt)
 
-        # add required commit message, try again
-        args.append('--pr-commit-msg=just a test')
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            # add unstaged file to git working dir, to check on later
+            unstaged_file = os.path.join('easybuild-easyconfigs', 'easybuild', 'easyconfigs', 'test.eb')
+            write_file(os.path.join(git_working_dir, unstaged_file), 'test123')
+            # Remove other temporary git working dirs
+            res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+            res = [d for d in res if d != git_working_dir]
+            for path in res:
+                remove_dir(path)
 
-        regexs[-1] = r"^\s*2 files changed"
-        regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0 w/ test\"")
-        regexs.append(r"^\* title: \"just a test\"")
-        regexs.append(rf".*/{ec_name}\s*\|")
-        regexs.append(r".*[0-9]+ deletions\(-\)")
-        self.assert_multi_regex(regexs, txt)
+            ec_name = 'bzip2-1.0.8.eb'
+            # a custom commit message is required when not just adding new easyconfigs (e.g., deleting a file)
+            args.append(f':{ec_name}')
+            error_msg = f"A meaningful commit message must be specified via --pr-commit-msg.*\nDeleted: {ec_name}"
 
-        GITHUB_TEST_ORG = 'test-organization'
-        args.extend([
-            '--pr-branch-name=branch_name_for_new_pr_test',
-            '--pr-commit-msg="this is a commit message. really!"',
-            '--pr-descr="moar letters foar teh lettre box"',
-            '--pr-target-branch=main',
-            '--github-org=%s' % GITHUB_TEST_ORG,
-            '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
-            '--pr-title=test-1-2-3',
-        ])
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True, testing=False)
 
-        regexs = [
-            r"^== fetching branch 'main' from https://github.com/boegel/easybuild-easyconfigs.git...",
-            r"^Opening pull request \[DRY RUN\]",
-            r"^\* target: boegel/easybuild-easyconfigs:main",
-            r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
-            r"\(created using `eb --new-pr`\)",  # description
-            r"moar letters foar teh lettre box",  # also description (see --pr-descr)
-            r"^\* title: \"test-1-2-3\"",
-            r"^\* overview of changes:",
-            r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
-            rf".*/{ec_name}\s*\|",
-            r"^\s*2 files changed",
-            r".*[0-9]+ deletions\(-\)",
-        ]
-        self.assert_multi_regex(regexs, txt)
+            # check whether unstaged file in git working dir was copied (it shouldn't)
+            res = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'eb-*', 'git-working-dir*'))
+            res = [d for d in res if d != git_working_dir]
+            if len(res) == 1:
+                unstaged_file_full = os.path.join(res[0], unstaged_file)
+                self.assertNotExists(unstaged_file_full)
+            else:
+                self.fail("Found copy of easybuild-easyconfigs working copy")
 
-        # should also work with a patch
-        args.append(toy_patch)
-        with self.mocked_stdout_stderr():
-            self.eb_main(args, do_build=True, raise_error=True, testing=False)
-            txt = self.get_stdout()
+            # add required commit message, try again
+            args.append('--pr-commit-msg=just a test')
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regexs[-2] = r"^\s*3 files changed"
-        regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
-        self.assert_multi_regex(regexs, txt)
+            regexs[-1] = r"^\s*2 files changed"
+            regexs.remove(r"^\* title: \"\{tools\}\[gompi/2018a\] toy v0.0 w/ test\"")
+            regexs.append(r"^\* title: \"just a test\"")
+            regexs.append(rf".*/{ec_name}\s*\|")
+            regexs.append(r".*[0-9]+ deletions\(-\)")
+            self.assert_multi_regex(regexs, txt)
 
-        # modifying an existing easyconfig requires a custom PR title;
-        # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
-        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
-        gcc_new_ec = os.path.join(self.test_prefix, 'GCC-14.3.0.eb')
-        gcc_new_txt = read_file(gcc_ec).replace('10.2.0', '14.3.0')
-        write_file(gcc_new_ec, gcc_new_txt)
+            GITHUB_TEST_ORG = 'test-organization'
+            args.extend([
+                '--pr-branch-name=branch_name_for_new_pr_test',
+                '--pr-commit-msg="this is a commit message. really!"',
+                '--pr-descr="moar letters foar teh lettre box"',
+                '--pr-target-branch=main',
+                '--github-org=%s' % GITHUB_TEST_ORG,
+                '--pr-target-account=boegel',  # we need to be able to 'clone' from here (via https)
+                '--pr-title=test-1-2-3',
+            ])
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        args = [
-            '--new-pr',
-            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            toy_ec,
-            gcc_new_ec,
-            '-D',
-        ]
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
-        error_msg += "Modified: " + os.path.basename(gcc_new_ec)
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            regexs = [
+                r"^== fetching branch 'main' from https://github.com/boegel/easybuild-easyconfigs.git...",
+                r"^Opening pull request \[DRY RUN\]",
+                r"^\* target: boegel/easybuild-easyconfigs:main",
+                r"^\* from: %s/easybuild-easyconfigs:branch_name_for_new_pr_test" % GITHUB_TEST_ORG,
+                r"\(created using `eb --new-pr`\)",  # description
+                r"moar letters foar teh lettre box",  # also description (see --pr-descr)
+                r"^\* title: \"test-1-2-3\"",
+                r"^\* overview of changes:",
+                r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
+                rf".*/{ec_name}\s*\|",
+                r"^\s*2 files changed",
+                r".*[0-9]+ deletions\(-\)",
+            ]
+            self.assert_multi_regex(regexs, txt)
 
-        # also specifying commit message is sufficient; PR title is inherited from commit message
-        args.append('--pr-commit-msg=this is just a test')
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            # should also work with a patch
+            args.append(toy_patch)
+            with self.mocked_stdout_stderr():
+                self.eb_main(args, do_build=True, raise_error=True, testing=False)
+                txt = self.get_stdout()
 
-        regex = re.compile(r'^\* title: "this is just a test"', re.M)
-        self.assertRegex(txt, regex)
+            regexs[-2] = r"^\s*3 files changed"
+            regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
+            self.assert_multi_regex(regexs, txt)
 
-        args = [
-            # PR for EasyBuild v2.5.0 release
-            # we need a PR where the base branch is still available ('develop', in this case)
-            '--update-pr=2237',
-            '--github-user=%s' % GITHUB_TEST_ACCOUNT,
-            toy_ec,
-            '-D',
-            # only to speed things up
-            '--git-working-dirs-path=%s' % git_working_dir,
-        ]
+            # modifying an existing easyconfig requires a custom PR title;
+            # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
+            gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
+            gcc_new_ec = os.path.join(self.test_prefix, 'GCC-14.3.0.eb')
+            gcc_new_txt = read_file(gcc_ec).replace('10.2.0', '14.3.0')
+            write_file(gcc_new_ec, gcc_new_txt)
 
-        error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
-        with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
+            args = common_new_pr_args + [toy_ec, gcc_new_ec]
+            error_msg = "A meaningful commit message must be specified via --pr-commit-msg.*\n"
+            error_msg += "Modified: " + os.path.basename(gcc_new_ec)
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
-        args.append('--pr-commit-msg=just a test')
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            # also specifying commit message is sufficient; PR title is inherited from commit message
+            args.append('--pr-commit-msg=this is just a test')
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        regexs = [
-            r"^== Determined branch name corresponding to easybuilders/easybuild-easyconfigs PR #2237: develop",
-            r"^== fetching branch 'develop' from https://github.com/easybuilders/easybuild-easyconfigs.git...",
-            r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
-            r"^\s*1 file(s?) changed",
-            r"^== pushing branch 'develop' to remote '.*' \(git@github.com:easybuilders/easybuild-easyconfigs.git\)",
-            r"^== pushed updated branch 'develop' to easybuilders/easybuild-easyconfigs \[DRY RUN\]",
-            r"^== updated https://github.com/easybuilders/easybuild-easyconfigs/pull/2237 \[DRY RUN\]",
-        ]
-        self.assert_multi_regex(regexs, txt)
+            regex = re.compile(r'^\* title: "this is just a test"', re.M)
+            self.assertRegex(txt, regex)
 
-        # also check behaviour under --extended-dry-run/-x
-        args.remove('-D')
-        args.append('-x')
+            args = [
+                # PR for EasyBuild v2.5.0 release
+                # we need a PR where the base branch is still available ('develop', in this case)
+                '--update-pr=2237',
+                '--github-user=%s' % GITHUB_TEST_ACCOUNT,
+                toy_ec,
+                '-D',
+                # only to speed things up
+                '--git-working-dirs-path=%s' % git_working_dir,
+            ]
 
-        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            error_msg = "A meaningful commit message must be specified via --pr-commit-msg when using --update-pr"
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(EasyBuildError, error_msg, self.eb_main, args, raise_error=True)
 
-        regexs.extend([
-            r"Full patch:",
-            r"^\+\+\+\s*.*toy-0.0-gompi-2018a-test.eb",
-            r"^\+name = 'toy'",
-        ])
-        self.assert_multi_regex(regexs, txt)
+            args.append('--pr-commit-msg=just a test')
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
 
-        # check whether comments/buildstats get filtered out
-        regexs = [
-            r"# Built with EasyBuild",
-            r"# Build statistics",
-            r"buildstats\s*=",
-        ]
-        self.assert_multi_regex(regexs, txt, assert_true=False)
+            repo_slug = "easybuilders/easybuild-easyconfigs"
+            regexs = [
+                rf"^== Determined branch name corresponding to {repo_slug} PR #2237: develop",
+                rf"^== fetching branch 'develop' from https://github.com/{repo_slug}.git...",
+                r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
+                r"^\s*1 file(s?) changed",
+                rf"^== pushing branch 'develop' to remote '.*' \(git@github.com:{repo_slug}.git\)",
+                rf"^== pushed updated branch 'develop' to {repo_slug} \[DRY RUN\]",
+                rf"^== updated https://github.com/{repo_slug}/pull/2237 \[DRY RUN\]",
+            ]
+            self.assert_multi_regex(regexs, txt)
+
+            # also check behaviour under --extended-dry-run/-x
+            args.remove('-D')
+            args.append('-x')
+
+            txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+
+            regexs.extend([
+                r"Full patch:",
+                r"^\+\+\+\s*.*toy-0.0-gompi-2018a-test.eb",
+                r"^\+name = 'toy'",
+            ])
+            self.assert_multi_regex(regexs, txt)
+
+            # check whether comments/buildstats get filtered out
+            regexs = [
+                r"# Built with EasyBuild",
+                r"# Build statistics",
+                r"buildstats\s*=",
+            ]
+            self.assert_multi_regex(regexs, txt, assert_true=False)
 
     def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""

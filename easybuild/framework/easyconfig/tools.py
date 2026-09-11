@@ -516,7 +516,7 @@ def review_pr(paths=None, pr=None, colored=True, branch='develop', testing=False
             lines.extend(['', "(no related easyconfigs found for %s)\n" % os.path.basename(ec['spec'])])
 
     if pr:
-        file_info = det_file_info(pr_files, download_repo_path)
+        file_info = det_file_info(pr_files, download_repo_path, ignore_unchanged_files=True)
 
         pr_target_account = build_option('pr_target_account')
         github_user = build_option('github_user')
