@@ -4833,7 +4833,7 @@ class EasyConfigTest(EnhancedTestCase):
             homepage = 'https://example.com'
             description = 'test'
             toolchain = SYSTEM
-            cuda_compute_capabilities = ['5.1', '7.0', '7.1']
+            cuda_compute_capabilities = ['5.1', '7.1', '7.0']  # Unordered to test sorting
             preconfigopts = 'CUDAARCHS="%(cuda_cc_cmake)s"'
             configopts = 'comma="%(cuda_sm_comma_sep)s" space="%(cuda_sm_space_sep)s"'
             prebuildopts = '%(cuda_cc_semicolon_sep)s'
@@ -4856,17 +4856,17 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['installopts'], '5.1,7.0,7.1')
 
         # build options overwrite it
-        init_config(build_options={'cuda_compute_capabilities': ['4.2', '6.3']})
+        init_config(build_options={'cuda_compute_capabilities': ['12.1', '4.2']})
         ec = EasyConfig(self.eb_file)
-        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;63"')
-        self.assertEqual(ec['configopts'], 'comma="sm_42,sm_63" '
-                                           'space="sm_42 sm_63"')
-        self.assertEqual(ec['buildopts'], 'comma="42,63" '
-                                          'space="42 63" '
-                                          'semi="42;63"')
-        self.assertEqual(ec['prebuildopts'], '4.2;6.3')
-        self.assertEqual(ec['preinstallopts'], 'period="4.2 6.3" noperiod="42 63"')
-        self.assertEqual(ec['installopts'], '4.2,6.3')
+        self.assertEqual(ec['preconfigopts'], 'CUDAARCHS="42;121"')
+        self.assertEqual(ec['configopts'], 'comma="sm_42,sm_121" '
+                                           'space="sm_42 sm_121"')
+        self.assertEqual(ec['buildopts'], 'comma="42,121" '
+                                          'space="42 121" '
+                                          'semi="42;121"')
+        self.assertEqual(ec['prebuildopts'], '4.2;12.1')
+        self.assertEqual(ec['preinstallopts'], 'period="4.2 12.1" noperiod="42 121"')
+        self.assertEqual(ec['installopts'], '4.2,12.1')
 
     def test_amdgcn_capabilities(self):
         self.contents = textwrap.dedent("""
@@ -5169,20 +5169,20 @@ class EasyConfigTest(EnhancedTestCase):
         error_pattern += r"Make sure that either the --cuda-compute-capabilities EasyBuild configuration "
         error_pattern += "option is set, or that the cuda_compute_capabilities easyconfig parameter is defined."
         cuda_template_values = {
-            'cuda_compute_capabilities': '6.5,7.0',
-            'cuda_cc_space_sep': '6.5 7.0',
-            'cuda_cc_semicolon_sep': '6.5;7.0',
-            'cuda_int_comma_sep': '65,70',
-            'cuda_int_space_sep': '65 70',
-            'cuda_int_semicolon_sep': '65;70',
-            'cuda_sm_comma_sep': 'sm_65,sm_70',
-            'cuda_sm_space_sep': 'sm_65 sm_70',
+            'cuda_compute_capabilities': '6.5,12.0',
+            'cuda_cc_space_sep': '6.5 12.0',
+            'cuda_cc_semicolon_sep': '6.5;12.0',
+            'cuda_int_comma_sep': '65,120',
+            'cuda_int_space_sep': '65 120',
+            'cuda_int_semicolon_sep': '65;120',
+            'cuda_sm_comma_sep': 'sm_65,sm_120',
+            'cuda_sm_space_sep': 'sm_65 sm_120',
         }
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
             self.assertEqual(ec.get_cuda_cc_template_value(key, required=False), '')
 
-        update_build_option('cuda_compute_capabilities', ['6.5', '7.0'])
+        update_build_option('cuda_compute_capabilities', ['6.5', '12.0'])
         ec = EasyConfig(self.eb_file)
 
         for key, expected in cuda_template_values.items():
@@ -5194,7 +5194,7 @@ class EasyConfigTest(EnhancedTestCase):
         for key in cuda_template_values:
             self.assertErrorRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)
 
-        self.contents += "\ncuda_compute_capabilities = ['6.5', '7.0']"
+        self.contents += "\ncuda_compute_capabilities = ['12.0', '6.5']"
         self.prep()
         ec = EasyConfig(self.eb_file)
 

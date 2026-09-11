@@ -414,9 +414,10 @@ class EasyBuildOptions(GeneralOption):
             'cuda-cache-maxsize': ("Maximum size of the CUDA cache (in MiB) used for JIT compilation of PTX code. "
                                    "Leave value empty to let EasyBuild choose a value or '0' to disable the cache",
                                    int, 'store_or_None', None),
-            'cuda-compute-capabilities': ("List of CUDA compute capabilities to use when building GPU software; "
-                                          "values should be specified as digits separated by a dot, "
-                                          "for example: 3.5,5.0,7.2. EasyBuild will (where possible) compile fat "
+            'cuda-compute-capabilities': ("Set of CUDA compute capabilities to use when building GPU software. "
+                                          "Values must be specified as digits separated by a dot, "
+                                          "for example: 3.5,5.0,7.2. Order does not matter. "
+                                          "EasyBuild will (where possible) compile fat "
                                           "binaries with support for (at least) all requested CUDA compute "
                                           "capabilities, and PTX code for the highest CUDA compute capability (for "
                                           "forwards compatibility). The check on this behavior may be relaxed using "
