@@ -2612,7 +2612,7 @@ class ToyBuildTest(EnhancedTestCase):
         # Extension is added to module file
         self.assertRegex(toy_module_txt, 'EBEXTSLISTTOY.+custom_ext-0.0')
         if self.modtool.supports_extensions:
-            self.assertRegex(toy_module_txt, 'extensions.*"custom_ext/0.0"')
+            self.assertRegex(toy_module_txt, r'extensions.*\bcustom_ext/0.0\b')
 
         # Sanity check is run using extension_name
         self.assertIn('ls -l bin/toy_custom_ext.md', read_file(self.logfile))
