@@ -34,6 +34,7 @@ import os
 import xml.dom.minidom as xml
 
 from datetime import datetime
+from typing import Any, Dict, Sequence, Tuple
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -43,7 +44,8 @@ from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 _log = fancylogger.getLogger('jenkins', fname=False)
 
 
-def write_to_xml(succes, failed, filename):
+def write_to_xml(succes: Sequence[Tuple[Any, Dict[str, Any]]],
+                 failed: Sequence[Tuple[Any, str, str, Any]], filename: str) -> None:
     """
     Create xml output, using minimal output required according to
     http://stackoverflow.com/questions/4922867/junit-xml-format-specification-that-hudson-supports
@@ -113,7 +115,7 @@ def write_to_xml(succes, failed, filename):
         raise EasyBuildError("Failed to write out XML file %s: %s", filename, err)
 
 
-def aggregate_xml_in_dirs(base_dir, output_filename):
+def aggregate_xml_in_dirs(base_dir: str, output_filename: str) -> None:
     """
     Finds all the xml files in the dirs and takes the testcase attribute out of them.
     These are then put in a single output file.

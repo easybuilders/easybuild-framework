@@ -36,6 +36,8 @@ import re
 import sys
 from string import ascii_letters, digits
 
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
@@ -47,15 +49,16 @@ INDENT_2SPACES = ' ' * 2
 INDENT_4SPACES = ' ' * 4
 
 
-def flatten(lst):
+def flatten(lst: Iterable[Iterable[Any]]) -> List[Any]:
     """Flatten a list of lists."""
-    res = []
+    res: List[Any] = []
     for x in lst:
         res.extend(x)
     return res
 
 
-def quote_str(val, escape_newline=False, prefer_single_quotes=False, escape_backslash=False, tcl=False):
+def quote_str(val, escape_newline: bool = False, prefer_single_quotes: bool = False,
+              escape_backslash: bool = False, tcl: bool = False):
     """
     Obtain a new value to be used in string replacement context.
 
@@ -105,7 +108,7 @@ def quote_py_str(val):
     return quote_str(val, escape_newline=True, prefer_single_quotes=True, escape_backslash=True)
 
 
-def shell_quote(token):
+def shell_quote(token) -> str:
     """
     Wrap provided token in single quotes (to escape space and characters with special meaning in a shell),
     so it can be used in a shell command. This results in token that is not expanded/interpolated by the shell.
@@ -117,7 +120,7 @@ def shell_quote(token):
     return "'%s'" % re.sub(r"(?<!\\)'", r"\'", token)
 
 
-def remove_unwanted_chars(inputstring):
+def remove_unwanted_chars(inputstring: str) -> str:
     """Remove unwanted characters from the given string and return a copy
 
     All non-letter and non-numeral characters are considered unwanted except for underscore ('_').
@@ -132,7 +135,7 @@ def capitalize_first_letter(string: str) -> str:
     return string[0].upper() + string[1:]
 
 
-def import_available_modules(namespace):
+def import_available_modules(namespace: str) -> list:
     """
     Import all available module in the specified namespace.
 
@@ -165,7 +168,8 @@ def import_available_modules(namespace):
     return modules
 
 
-def only_if_module_is_available(modnames, pkgname=None, url=None):
+def only_if_module_is_available(modnames: Union[str, Iterable[str]], pkgname: Optional[str] = None,
+                                url: Optional[str] = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to guard functions/methods against missing required module with specified name."""
     if pkgname and url is None:
         url = 'https://pypi.python.org/pypi/%s' % pkgname
@@ -173,7 +177,7 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     if isinstance(modnames, str):
         modnames = (modnames,)
 
-    def wrap(orig):
+    def wrap(orig: Callable[..., Any]) -> Callable[..., Any]:
         """Decorated function, raises ImportError if specified module is not available."""
         try:
             imported = None
@@ -204,13 +208,13 @@ def only_if_module_is_available(modnames, pkgname=None, url=None):
     return wrap
 
 
-def trace_msg(message, silent=False):
+def trace_msg(message: Any, silent: bool = False) -> None:
     """Print trace message."""
     if build_option('trace'):
         print_msg('  >> ' + message, prefix=False)
 
 
-def nub(list_):
+def nub(list_: list) -> list:
     """Returns the unique items of a list of hashables, while preserving order of the original list,
     i.e. the first unique element encoutered is retained.
 
@@ -225,7 +229,7 @@ def nub(list_):
     return list(dict.fromkeys(list_))
 
 
-def unique_ordered_extend(base, affix):
+def unique_ordered_extend(base: list, affix: list) -> list:
     """Extend base list with elements of affix list keeping order and without duplicates"""
     if isinstance(affix, str):
         # avoid extending with strings, as iterables generate wrong result without error
@@ -242,7 +246,7 @@ def unique_ordered_extend(base, affix):
     return nub(ext_base)  # remove duplicates
 
 
-def get_class_for(modulepath, class_name):
+def get_class_for(modulepath: str, class_name: str) -> type:
     """
     Get class for a given Python class name and Python module path.
 
@@ -262,9 +266,9 @@ def get_class_for(modulepath, class_name):
     return klass
 
 
-def get_subclasses_dict(klass, include_base_class=False):
+def get_subclasses_dict(klass: type, include_base_class: bool = False) -> Dict[type, List[type]]:
     """Get dict with subclasses per classes, recursively from the specified base class."""
-    res = {}
+    res: Dict[type, List[type]] = {}
     subclasses = klass.__subclasses__()
     if include_base_class:
         res.update({klass: subclasses})
@@ -274,12 +278,12 @@ def get_subclasses_dict(klass, include_base_class=False):
     return res
 
 
-def get_subclasses(klass, include_base_class=False):
+def get_subclasses(klass: type, include_base_class: bool = False) -> Iterable[type]:
     """Get list of all subclasses, recursively from the specified base class."""
     return get_subclasses_dict(klass, include_base_class=include_base_class).keys()
 
 
-def mk_md_table(titles, columns):
+def mk_md_table(titles: Iterable[str], columns: Iterable[Iterable[str]]) -> List[str]:
     """
     Returns a MarkDown table with given titles and columns (a nested list of string columns for each column)
     """
@@ -315,7 +319,7 @@ def mk_md_table(titles, columns):
     return table
 
 
-def mk_rst_table(titles, columns):
+def mk_rst_table(titles: Iterable[str], columns: Iterable[Iterable[str]]) -> List[str]:
     """
     Returns an rst table with given titles and columns (a nested list of string columns for each column)
     """
@@ -354,7 +358,7 @@ def mk_rst_table(titles, columns):
     return table
 
 
-def time2str(delta):
+def time2str(delta: datetime.timedelta) -> str:
     """Return string representing provided datetime.timedelta value in human-readable form."""
     res = None
 
@@ -376,8 +380,8 @@ def time2str(delta):
     return ' '.join(res)
 
 
-def natural_keys(key):
+def natural_keys(key: str) -> List[Any]:
     """Can be used as the sort key in list.sort(key=natural_keys) to sort in natural order (i.e. respecting numbers)"""
-    def try_to_int(key_part):
+    def try_to_int(key_part: str) -> Any:
         return int(key_part) if key_part.isdigit() else key_part
     return [try_to_int(key_part) for key_part in re.split(r'(\d+)', key)]

@@ -30,6 +30,7 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 import copy
+from typing import Any, Dict, Tuple
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, process_easyconfig, robot_find_easyconfig
@@ -39,7 +40,7 @@ from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 
 _log = fancylogger.getLogger('module_naming_scheme.toolchain', fname=False)
 
-_toolchain_details_cache = {}
+_toolchain_details_cache: Dict[Tuple[str, str, str], Any] = {}
 
 
 # different types of toolchain elements

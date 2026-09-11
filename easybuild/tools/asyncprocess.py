@@ -73,6 +73,7 @@ import os
 import select
 import subprocess
 import time
+from typing import Any, Optional, Tuple, Union
 
 PIPE = subprocess.PIPE
 STDOUT = subprocess.STDOUT
@@ -88,27 +89,28 @@ class Popen(subprocess.Popen):
         kwargs['bufsize'] = 0
         super().__init__(*args, **kwargs)
 
-    def recv(self, maxsize=None):
+    def recv(self, maxsize: Optional[int] = None) -> Optional[Union[str, bytes]]:
         return self._recv('stdout', maxsize)
 
-    def recv_err(self, maxsize=None):
+    def recv_err(self, maxsize: Optional[int] = None) -> Optional[Union[str, bytes]]:
         return self._recv('stderr', maxsize)
 
-    def send_recv(self, inp='', maxsize=None):
+    def send_recv(self, inp: str = '', maxsize: Optional[int] = None) -> Tuple[
+            Optional[int], Optional[Union[str, bytes]], Optional[Union[str, bytes]]]:
         return self.send(inp), self.recv(maxsize), self.recv_err(maxsize)
 
-    def get_conn_maxsize(self, which, maxsize):
+    def get_conn_maxsize(self, which: str, maxsize: Optional[int]) -> Tuple[Any, int]:
         if maxsize is None:
             maxsize = 1024
         elif maxsize < 1:
             maxsize = 1
         return getattr(self, which), maxsize
 
-    def _close(self, which):
+    def _close(self, which: str) -> None:
         getattr(self, which).close()
         setattr(self, which, None)
 
-    def send(self, inp):
+    def send(self, inp: str) -> Optional[int]:
         if not self.stdin:
             return None
 
@@ -124,7 +126,7 @@ class Popen(subprocess.Popen):
 
         return written
 
-    def _recv(self, which, maxsize):
+    def _recv(self, which: str, maxsize: Optional[int]) -> Optional[Union[str, bytes]]:
         conn, maxsize = self.get_conn_maxsize(which, maxsize)
         if conn is None:
             return None
@@ -152,7 +154,7 @@ class Popen(subprocess.Popen):
 message = "Other end disconnected!"
 
 
-def recv_some(p, t=.2, e=1, tr=5, stderr=0):
+def recv_some(p: 'Popen', t: float = 0.2, e: int = 1, tr: int = 5, stderr: int = 0) -> bytes:
     if tr < 1:
         tr = 1
     x = time.time() + t
@@ -175,7 +177,7 @@ def recv_some(p, t=.2, e=1, tr=5, stderr=0):
     return b''.join(y)
 
 
-def send_all(p, data):
+def send_all(p: 'Popen', data: str) -> None:
     while len(data):
         sent = p.send(data)
         if sent is None:

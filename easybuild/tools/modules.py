@@ -42,6 +42,7 @@ import os
 import re
 import shlex
 from enum import Enum
+from typing import Any, Dict, Optional, Tuple, Type
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -123,14 +124,14 @@ OUTPUT_MATCHES = {
 }
 # cache for result of module subcommands
 # key: tuple with $MODULEPATH and (stringified) list of extra arguments/options for module subcommand
-# value: result of module subcommand
-MODULE_AVAIL_CACHE = {}
-MODULE_SHOW_CACHE = {}
+# value: result of module subcommand (various types)
+MODULE_AVAIL_CACHE: Dict[Tuple[str, str], Any] = {}
+MODULE_SHOW_CACHE: Dict[Tuple[str, str], Any] = {}
 
 # cache for modules tool version
 # cache key: module command
 # value: corresponding (validated) module version
-MODULE_VERSION_CACHE = {}
+MODULE_VERSION_CACHE: Dict[str, str] = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
@@ -568,30 +569,30 @@ class ModuleLoadEnvironment:
 class ModulesTool:
     """An abstract interface to a tool that deals with modules."""
     # name of this modules tool (used in log/warning/error messages)
-    NAME = None
+    NAME: Optional[str] = None
     # position and optionname
     TERSE_OPTION = (0, '--terse')
     # module command to use
-    COMMAND = None
+    COMMAND: Optional[str] = None
     # environment variable to determine path to module command;
     # used as fallback in case command is not available in $PATH
-    COMMAND_ENVIRONMENT = None
+    COMMAND_ENVIRONMENT: Optional[str] = None
     # run module command explicitly using this shell
     COMMAND_SHELL = None
     # option to determine the version
     VERSION_OPTION = '--version'
     # minimal required version (cannot include -beta or rc)
-    REQ_VERSION = None
+    REQ_VERSION: Optional[str] = None
     # minimal required version to check user's group in modulefile
-    REQ_VERSION_TCL_CHECK_GROUP = None
+    REQ_VERSION_TCL_CHECK_GROUP: Optional[str] = None
     # deprecated version limit (support for versions below this version is deprecated)
-    DEPR_VERSION = None
+    DEPR_VERSION: Optional[str] = None
     # maximum version allowed (cannot include -beta or rc)
-    MAX_VERSION = None
+    MAX_VERSION: Optional[str] = None
     # the regexp, should have a "version" group (multiline search)
-    VERSION_REGEXP = None
+    VERSION_REGEXP: Optional[str] = None
     # modules tool user cache directory
-    USER_CACHE_DIR = None
+    USER_CACHE_DIR: Optional[str] = None
 
     def __init__(self, mod_paths=None, testing=False):
         """
@@ -2265,7 +2266,7 @@ def mk_module_path(paths):
     return ':'.join(paths)
 
 
-def avail_modules_tools():
+def avail_modules_tools() -> Dict[str, Type['ModulesTool']]:
     """
     Return all known modules tools.
     """

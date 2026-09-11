@@ -48,6 +48,7 @@ import tempfile
 import time
 from collections import namedtuple
 from datetime import datetime
+from typing import Any, Optional, Sequence, Tuple, Union
 
 # import deprecated functions so they can still be imported from easybuild.tools.run, for now
 from easybuild._deprecated import check_async_cmd, check_log_for_errors, complete_cmd, extract_errors_from_log  # noqa
@@ -103,7 +104,7 @@ with the following fields:
 
 class RunShellCmdError(Exception):
 
-    def __init__(self, cmd_result, caller_info, *args, **kwargs):
+    def __init__(self, cmd_result, caller_info: Tuple[str, int, str], *args, **kwargs) -> None:
         """Constructor for RunShellCmdError."""
         self.cmd = cmd_result.cmd
         self.cmd_name = os.path.basename(self.cmd.split(' ')[0])
@@ -120,7 +121,7 @@ class RunShellCmdError(Exception):
         msg = f"Shell command '{self.cmd_name}' failed!"
         super().__init__(msg, *args, **kwargs)
 
-    def print(self):
+    def print(self) -> None:
         """
         Report failed shell command for this RunShellCmdError instance
         """
@@ -200,7 +201,7 @@ def run_shell_cmd_cache(func):
     return cache_aware_func
 
 
-def fileprefix_from_cmd(cmd, allowed_chars=False):
+def fileprefix_from_cmd(cmd: str, allowed_chars: Union[bool, str] = False) -> str:
     """
     Simplify the cmd to only the allowed_chars we want in a filename
 
@@ -213,7 +214,8 @@ def fileprefix_from_cmd(cmd, allowed_chars=False):
     return ''.join([c for c in cmd if c in allowed_chars])
 
 
-def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
+def create_cmd_scripts(cmd_str: str, work_dir: str, env: Optional[dict], tmpdir: str,
+                       out_file: str, err_file: Optional[str]) -> str:
     """
     Create helper scripts for specified command in specified directory:
     - env.sh which can be sourced to define environment in which command was run;
@@ -301,7 +303,7 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
     return cmd_fp
 
 
-def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
+def _answer_question(stdout: bytes, proc, qa_patterns, qa_wait_patterns) -> bool:
     """
     Private helper function to try and answer questions raised in interactive shell commands.
     """
@@ -374,10 +376,15 @@ def _answer_question(stdout, proc, qa_patterns, qa_wait_patterns):
 
 
 @run_shell_cmd_cache
-def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=None,
-                  hidden=False, in_dry_run=False, verbose_dry_run=False, work_dir=None, use_bash=True,
-                  output_file=True, stream_output=None, asynchronous=False, task_id=None, with_hooks=True,
-                  qa_patterns=None, qa_wait_patterns=None, qa_timeout=100, log_output_on_success=True):
+def run_shell_cmd(cmd: Any, fail_on_error: bool = True, split_stderr: bool = False,
+                  stdin: Optional[Any] = None, env: Optional[dict] = None,
+                  hidden: bool = False, in_dry_run: bool = False, verbose_dry_run: bool = False,
+                  work_dir: Optional[str] = None, use_bash: bool = True,
+                  output_file: bool = True, stream_output: Optional[Any] = None,
+                  asynchronous: bool = False, task_id: Optional[Any] = None,
+                  with_hooks: bool = True, qa_patterns: Optional[Sequence[Tuple[Any, Any]]] = None,
+                  qa_wait_patterns: Optional[Sequence[str]] = None, qa_timeout: int = 100,
+                  log_output_on_success: bool = True) -> RunShellCmdResult:
     """
     Run specified (interactive) shell command, and capture output + exit code.
 

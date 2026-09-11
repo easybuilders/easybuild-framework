@@ -34,6 +34,7 @@ Authors:
 import copy
 import re
 import sys
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -152,7 +153,7 @@ class EasyConfigFormatConfigObj(EasyConfigFormat):
      - feed to ConfigObj
     """
 
-    PYHEADER_ALLOWED_BUILTINS = []  # default no builtins
+    PYHEADER_ALLOWED_BUILTINS: List[str] = []  # default no builtins
     PYHEADER_MANDATORY = None  # no defaults
     PYHEADER_BLACKLIST = None  # no defaults
 

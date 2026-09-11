@@ -31,13 +31,14 @@ Authors:
 """
 import difflib
 import os
+from typing import Any, Dict, Callable
+from importlib.util import spec_from_file_location, module_from_spec
 
 from easybuild.tools.entrypoints import EntrypointHook
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option
-from importlib.util import spec_from_file_location, module_from_spec
 
 
 _log = fancylogger.getLogger('hooks', fname=False)
@@ -122,7 +123,7 @@ KNOWN_HOOKS = [h + HOOK_SUFF for h in HOOK_NAMES]
 
 
 # cached version of hooks, to avoid having to load them from file multiple times
-_cached_hooks = {}
+_cached_hooks: Dict[str, Dict[str, Callable[..., Any]]] = {}
 
 
 def load_source(filename, path):
