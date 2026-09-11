@@ -4676,6 +4676,7 @@ class EasyBlock:
                     else:
                         print_warning(mod_files_found_msg)
 
+            # Do not do those checks for extensions, only in the main easyconfig
             if self.toolchain.use_rpath:
                 rpath_fails = self.sanity_check_rpath()
                 if rpath_fails:
@@ -4704,13 +4705,13 @@ class EasyBlock:
             self.fake_mod_data = None
 
         # pass or fail
-        if self.sanity_check_fail_msgs:
+        if not self.sanity_check_fail_msgs:
+            self.log.debug("Sanity check passed!")
+        elif not self.is_extension:
             raise EasyBuildError(
                 "Sanity check failed: " + '\n'.join(self.sanity_check_fail_msgs),
                 exit_code=EasyBuildExit.FAIL_SANITY_CHECK,
             )
-
-        self.log.debug("Sanity check passed!")
 
     def _set_module_as_default(self, fake=False):
         """
