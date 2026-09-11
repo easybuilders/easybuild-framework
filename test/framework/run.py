@@ -1314,7 +1314,7 @@ class RunTest(EnhancedTestCase):
 
         # --trace is enabled by default
         with self.mocked_stdout_stderr():
-            (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
+            run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
             stdout = self.get_stdout()
             stderr = self.get_stderr()
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
@@ -1328,7 +1328,7 @@ class RunTest(EnhancedTestCase):
 
         # trace output can be disabled on a per-command basis
         with self.mocked_stdout_stderr():
-            (out, ec) = run_cmd("echo hello", trace=False)
+            run_cmd("echo hello", trace=False)
             stdout = self.get_stdout()
             stderr = self.get_stderr()
         self.assertEqual(stdout, '')

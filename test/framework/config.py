@@ -621,7 +621,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # adding salt ensures a unique filename (pretty much)
         prev_log_filenames = []
-        for i in range(10):
+        for _ in range(10):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
             regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))

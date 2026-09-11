@@ -77,12 +77,12 @@ class TestEBConfigObj(EnhancedTestCase):
         # the defaults will be interpreted with dedicated default_version and default_toochain
         data = [
             # default operator > and/or version 0.0.0 are not usable for default
-            ('toolchains=%s' % self.tc_first, {}),
+            ('toolchains=%s' % self.tc_first),
             # > not usable for default
-            ('toolchains=%s > 1' % self.tc_first, {}),
+            ('toolchains=%s > 1' % self.tc_first),
         ]
 
-        for val, res in data:
+        for val in data:
             configobj_txt = ['[SUPPORTED]', val]
             co = ConfigObj(configobj_txt)
             self.assertErrorRegex(EasyBuildError,
