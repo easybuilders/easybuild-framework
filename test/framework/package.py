@@ -237,7 +237,7 @@ class PackageTest(EnhancedTestCase):
         pkgtxt = read_file(pkgfile)
         self.assertIn("STARTCONTENTS of installdir %s" % easyblock.installdir, pkgtxt)
 
-        self.assertNotRegex(pkgtxt, re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.MULTILINE))
+        self.assertNotRegex(pkgtxt, re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.M))
 
         toy_txt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
@@ -255,7 +255,7 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile))
         pkgtxt = read_file(pkgfile)
         self.assertRegex(pkgtxt, r"""DESCRIPTION:.*`backticks'.*""")
-        self.assertRegex(pkgtxt, re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE))
+        self.assertRegex(pkgtxt, r"""DESCRIPTION:.*\nand newlines""")
 
 
 def suite(loader=None):

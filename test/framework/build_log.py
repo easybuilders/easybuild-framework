@@ -92,7 +92,7 @@ class BuildLogTest(EnhancedTestCase):
              r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
              r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
              r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
-             )), re.M)
+             )))
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""
@@ -152,7 +152,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
-        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
@@ -178,7 +178,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): foo baz baz",
             '',
         ])
-        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
         write_file(tmplog, '')
         logToFile(tmplog, enable=True)
@@ -236,7 +236,7 @@ class BuildLogTest(EnhancedTestCase):
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg,
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg, devel_msg,
         ])
-        self.assertRegex(logtxt, re.compile(r'^%s' % expected_logtxt, re.M))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
     def test_print_warning(self):
         """Test print_warning"""

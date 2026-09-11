@@ -28,7 +28,6 @@ Unit tests for general aspects of the EasyBuild framework
 @author: Kenneth hoste (Ghent University)
 """
 import os
-import re
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
@@ -49,9 +48,9 @@ class GeneralTest(EnhancedTestCase):
         easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
 
         log_method_regexes = [
-            re.compile(r"log\.error\("),
-            re.compile(r"log\.exception\("),
-            re.compile(r"log\.raiseException\("),
+            r"log\.error\(",
+            r"log\.exception\(",
+            r"log\.raiseException\(",
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):

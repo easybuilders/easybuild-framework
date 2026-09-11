@@ -29,7 +29,6 @@ Unit tests for EasyBuild configuration.
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -598,21 +597,21 @@ class EasyBuildConfigTest(EnhancedTestCase):
         tmpdir = tempfile.gettempdir()
 
         res = get_log_filename('foo', '1.2.3')
-        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$')))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$'))
 
         res = get_log_filename('foo', '1.2.3', date='19700101')
-        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$')))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$'))
 
         res = get_log_filename('foo', '1.2.3', timestamp='094651')
-        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$')))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$'))
 
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$')))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$'))
 
         # if log file already exists, numbers are added to the filename to obtain a new file path
         write_file(res, '')
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        self.assertRegex(res, re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$')))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$'))
 
         # adding salt ensures a unique filename (pretty much)
         prev_log_filenames = []
