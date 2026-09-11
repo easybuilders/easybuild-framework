@@ -1666,35 +1666,44 @@ class EasyBlock:
         Sets optional variables for extensions.
         """
         # add stuff specific to individual extensions
-        lines = [self.module_extra_extensions]
+        txt = self.module_extra_extensions
+
+        if not self.ext_instances:
+            self.prepare_for_extensions()
+            self.init_ext_instances()
+
+        for ext in self.ext_instances:
+            ext_txt = ext.make_extension_module_extra()
+            if ext_txt:
+                txt += ext_txt
 
         # set environment variable that specifies list of extensions
         # We need only name and version, so don't resolve templates
         exts_list = self.make_extension_string(ext_sep=',', sort=False)
         env_var_name = 'EBEXTSLIST' + convert_name(self.name, upper=True)
-        lines.append(self.module_generator.set_environment(env_var_name, exts_list))
+        txt += self.module_generator.set_environment(env_var_name, exts_list)
 
-        return ''.join(lines)
+        return txt
 
     def make_module_footer(self):
         """
         Insert a footer section in the module file, primarily meant for contextual information
         """
-        footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
+        footer = []
 
         # add extra stuff for extensions (if any), or if the 'extension_name' easyconfig parameter is used
         if self.cfg.get_ref('exts_list') or self.cfg.get('extension_name'):
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
-        if self.modules_footer is not None:
+        if self.modules_footer:
             self.log.debug("Including specified footer into module: '%s'" % self.modules_footer)
             footer.append(self.modules_footer)
 
         if self.cfg['modtclfooter']:
             if isinstance(self.module_generator, ModuleGeneratorTcl):
                 self.log.debug("Including Tcl footer in module: %s", self.cfg['modtclfooter'])
-                footer.extend([self.cfg['modtclfooter'], '\n'])
+                footer.append(self.cfg['modtclfooter'])
             else:
                 self.log.warning("Not including footer in Tcl syntax in non-Tcl module file: %s",
                                  self.cfg['modtclfooter'])
@@ -1702,12 +1711,13 @@ class EasyBlock:
         if self.cfg['modluafooter']:
             if isinstance(self.module_generator, ModuleGeneratorLua):
                 self.log.debug("Including Lua footer in module: %s", self.cfg['modluafooter'])
-                footer.extend([self.cfg['modluafooter'], '\n'])
+                footer.append(self.cfg['modluafooter'])
             else:
                 self.log.warning("Not including footer in Lua syntax in non-Lua module file: %s",
                                  self.cfg['modluafooter'])
 
-        return ''.join(footer)
+        footer.append(self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION))
+        return '\n'.join(footer)
 
     def make_module_extend_modpath(self):
         """
