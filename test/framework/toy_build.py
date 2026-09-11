@@ -1994,8 +1994,8 @@ class ToyBuildTest(EnhancedTestCase):
 
         write_file(self.logfile, '')
 
-        stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, versionsuffix='-GCC-12.3.0',
-                                                             extra_args=extra_args, raise_error=True)
+        _stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, versionsuffix='-GCC-12.3.0',
+                                                              extra_args=extra_args, raise_error=True)
         self.assertEqual(stderr, '')
 
         logtxt = read_file(self.logfile)

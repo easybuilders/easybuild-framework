@@ -33,6 +33,8 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
+from typing import Dict, Type
+
 from easybuild.base import fancylogger
 from easybuild.tools.utilities import get_subclasses
 
@@ -157,7 +159,7 @@ class LicenseLibpng(LicenseOpen):
                    "to 3 restrictions; http://libpng.org/pub/png/src/libpng-LICENSE.txt for full license")
 
 
-def what_licenses():
+def what_licenses() -> Dict[str, Type[License]]:
     """Return a dict of License subclasses names and license instances"""
     res = {}
     for lic in get_subclasses(License):
