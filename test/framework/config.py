@@ -292,7 +292,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         topdir = os.path.join(os.getenv('HOME'), '.local', 'easybuild')
         self.assertEqual(install_path(), os.path.join(topdir, 'software'))  # default
-        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
+        self.assertEqual(install_path('mod'), installpath_modules)  # via config file
         self.assertEqual(source_paths(), [testpath2])  # via command line
         self.assertEqual(build_path(), testpath1)  # via config file
         self.assertEqual(get_repositorypath(), [os.path.join(topdir, 'ebfiles_repo'), 'somesubdir'])  # via config file
@@ -318,7 +318,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         self.assertEqual(source_paths(), [testpath2])  # via environment variable $EASYBUILD_SOURCEPATHS
         self.assertEqual(install_path(), os.path.join(testpath3, 'software'))  # via command line
-        self.assertEqual(install_path('mod'), installpath_modules),  # via config file
+        self.assertEqual(install_path('mod'), installpath_modules)  # via config file
         self.assertEqual(build_path(), testpath1)  # via config file
 
         del os.environ['EASYBUILD_CONFIGFILES']
@@ -365,7 +365,9 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
+        # pylint: disable=no-member, unnecessary-lambda
         self.assertErrorRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
+        # pylint: disable=no-member
         self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
@@ -621,7 +623,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # adding salt ensures a unique filename (pretty much)
         prev_log_filenames = []
-        for i in range(10):
+        for _ in range(10):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
             regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
