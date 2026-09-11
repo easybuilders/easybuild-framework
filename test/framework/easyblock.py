@@ -100,9 +100,9 @@ class EasyBlockTest(EnhancedTestCase):
             extra_options.items()
             extra_options.keys()
             extra_options.values()
-            for key in extra_options.keys():
-                self.assertIsInstance(extra_options[key], list)
-                self.assertEqual(len(extra_options[key]), 3)
+            for opt in extra_options.values():
+                self.assertIsInstance(opt, list)
+                self.assertEqual(len(opt), 3)
 
         name = "pi"
         version = "3.14"

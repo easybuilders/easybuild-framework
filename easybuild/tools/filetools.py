@@ -803,7 +803,7 @@ def parse_http_header_fields_urlpat(arg, urlpat=None, header=None, urlpat_header
             argline = header.strip() + ':' + argline
 
         if urlpat is not None:
-            if urlpat in urlpat_headers.keys():
+            if urlpat in urlpat_headers:
                 urlpat_headers[urlpat].append(argline)  # add headers to the list
             else:
                 urlpat_headers[urlpat] = [argline]  # new list headers for this urlpat
@@ -1662,9 +1662,9 @@ def create_patch_info(patch_spec):
         patch_info = {'name': patch_spec}
     elif isinstance(patch_spec, dict):
         patch_info = {}
-        for key in patch_spec.keys():
+        for key, value in patch_spec.items():
             if key in valid_keys:
-                patch_info[key] = patch_spec[key]
+                patch_info[key] = value
             else:
                 raise EasyBuildError(
                     "Wrong patch spec '%s', use of unknown key %s in dict (valid keys are %s)",

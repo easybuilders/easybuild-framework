@@ -2203,11 +2203,11 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
                     orig_value = value
                     # map old templates to new values for alternative and deprecated templates
                     alt_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, new_tmpl) in
-                               ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                               ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict}
                     alt_map2 = {new_tmpl: tmpl_dict[old_tmpl] for (old_tmpl, new_tmpl) in
-                                ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if old_tmpl in tmpl_dict.keys()}
+                                ALTERNATIVE_EASYCONFIG_TEMPLATES.items() if old_tmpl in tmpl_dict}
                     depr_map = {old_tmpl: tmpl_dict[new_tmpl] for (old_tmpl, (new_tmpl, ver)) in
-                                DEPRECATED_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict.keys()}
+                                DEPRECATED_EASYCONFIG_TEMPLATES.items() if new_tmpl in tmpl_dict}
 
                     # try templating with alternative and deprecated templates included
                     value = value % {**tmpl_dict, **alt_map, **alt_map2, **depr_map}

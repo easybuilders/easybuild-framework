@@ -2302,7 +2302,7 @@ def invalidate_module_caches_for(path):
 
     _log.debug("Invallidating module cache entries for path '%s'", path)
     for cache, subcmd in [(MODULE_AVAIL_CACHE, 'avail'), (MODULE_SHOW_CACHE, 'show')]:
-        for key in list(cache.keys()):
+        for key in list(cache):
             paths_in_key = '='.join(key[0].split('=')[1:]).split(os.pathsep)
             _log.debug("Paths for 'module %s' key '%s': %s", subcmd, key, paths_in_key)
             for path_in_key in paths_in_key:

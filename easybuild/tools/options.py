@@ -2138,7 +2138,7 @@ def parse_external_modules_metadata(cfgs):
     # make sure name/version values are always lists, make sure they're equal length
     for mod, entry in parsed_metadata.items():
         # make sure only known keys are used
-        for key in entry.keys():
+        for key in entry:
             if key not in known_metadata_keys:
                 unknown_keys.setdefault(mod, []).append(key)
 
@@ -2159,8 +2159,8 @@ def parse_external_modules_metadata(cfgs):
 
     if unknown_keys:
         error_msg = "Found metadata entries with unknown keys:"
-        for mod in sorted(unknown_keys.keys()):
-            error_msg += "\n* %s: %s" % (mod, ', '.join(sorted(unknown_keys[mod])))
+        for mod, keys in sorted(unknown_keys.items()):
+            error_msg += "\n* %s: %s" % (mod, ', '.join(sorted(keys)))
         raise EasyBuildError(error_msg, exit_code=EasyBuildExit.MODULE_ERROR)
 
     _log.debug("External modules metadata: %s", parsed_metadata)

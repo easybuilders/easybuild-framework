@@ -294,8 +294,8 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
         "```",
     ] + eb_config + ["````", ""])
 
-    system_info = init_session_state['system_info']
-    system_info = [" * _%s:_ %s" % (key.replace('_', ' '), system_info[key]) for key in sorted(system_info.keys())]
+    system_info_dict: dict = init_session_state['system_info']
+    system_info = [" * _%s:_ %s" % (key.replace('_', ' '), value) for key, value in sorted(system_info_dict.items())]
     test_report.extend(["#### System info"] + system_info + [""])
 
     module_list = init_session_state['module_list']
@@ -309,12 +309,11 @@ def create_test_report(msg, ecs_with_res, init_session_state, pr_nrs=None, gist_
     environment = []
     env_filter = build_option('test_report_env_filter')
 
-    for key in sorted(environ_dump.keys()):
+    for key, value in sorted(environ_dump.items()):
         if env_filter is not None and env_filter.search(key):
             continue
         if any(x in key.upper() for x in DEFAULT_EXCLUDE_FROM_TEST_REPORT_ENV_VAR_NAMES):
             continue
-        value = environ_dump[key]
         if any(re.match(rgx, value) for rgx in DEFAULT_EXCLUDE_FROM_TEST_REPORT_VALUE_REGEX):
             continue
         environment += ["%s = %s" % (key, value)]

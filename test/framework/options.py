@@ -70,7 +70,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, clean
 from test.framework.github import ignore_rate_limit_in_pr
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa pylint:disable=unused-import
 except ImportError:
     pass
 
@@ -2642,7 +2642,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_allow_modules_tool_mismatch(self):
         """Test allowing mismatch of modules tool with 'module' function."""
         # make sure MockModulesTool is available
-        from test.framework.modulestool import MockModulesTool  # noqa
+        from test.framework.modulestool import MockModulesTool  # noqa pylint:disable=unused-import
 
         # trigger that main() creates new instance of ModulesTool
         self.modtool = None
@@ -4014,9 +4014,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         del sys.modules['easybuild.easyblocks.llvm']
         del sys.modules['easybuild.easyblocks.generic.cmakemake']
         sys.path[:] = orig_local_sys_path
-        import easybuild.easyblocks
+        import easybuild.easyblocks  # pylint:disable=reimported
         reload(easybuild.easyblocks)
-        import easybuild.easyblocks.generic
+        import easybuild.easyblocks.generic  # pylint:disable=reimported
         reload(easybuild.easyblocks.generic)
 
     def mk_eb_test_cmd(self, args):

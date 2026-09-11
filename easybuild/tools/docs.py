@@ -850,7 +850,7 @@ def list_software_md(software, detailed=True):
     ]
 
     # links to per-letter tables
-    key_letters = nub(sorted(k[0].lower() for k in software.keys()))
+    key_letters = nub(sorted(k[0].lower() for k in software))
     letter_links = ' - '.join(['[' + x + '](#' + x + ')' for x in ascii_lowercase if x in key_letters])
     lines.extend([letter_links, ''])
 
@@ -922,7 +922,7 @@ def list_software_md(software, detailed=True):
     return '\n'.join(lines)
 
 
-def list_software_rst(software, detailed=False):
+def list_software_rst(software: dict, detailed=False):
     """
     Return overview of supported software in RST format
 
@@ -942,7 +942,7 @@ def list_software_rst(software, detailed=False):
 
     # links to per-letter tables
     letter_refs = ''
-    key_letters = nub(sorted(k[0].lower() for k in software.keys()))
+    key_letters = nub(sorted(k[0].lower() for k in software))
     for letter in ascii_lowercase:
         if letter in key_letters:
             if letter_refs:
@@ -1072,7 +1072,7 @@ def list_software_txt(software, detailed=False):
     return '\n'.join(lines)
 
 
-def list_software_json(software, detailed=False):
+def list_software_json(software: dict, detailed=False):
     """
     Return overview of supported software in json
 
@@ -1320,11 +1320,11 @@ def avail_toolchain_opts_json(name, tc_dict):
     raise NotImplementedError("JSON output not implemented yet for --avail-toolchain-opts")
 
 
-def avail_toolchain_opts_txt(name, tc_dict):
+def avail_toolchain_opts_txt(name, tc_dict: dict):
     """ Returns overview of toolchain options in txt format """
     doc = ["Available options for %s toolchain:" % name]
-    for opt_name in sorted(tc_dict.keys()):
-        doc.append("%s%s: %s (default: %s)" % (INDENT_4SPACES, opt_name, tc_dict[opt_name][1], tc_dict[opt_name][0]))
+    for opt_name, value in sorted(tc_dict.items()):
+        doc.append("%s%s: %s (default: %s)" % (INDENT_4SPACES, opt_name, value[1], value[0]))
 
     return '\n'.join(doc)
 
