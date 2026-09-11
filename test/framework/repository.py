@@ -28,7 +28,6 @@ Unit tests for repository.py.
 @author: Toon Willems (Ghent University)
 """
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -89,7 +88,7 @@ class RepositoryTest(EnhancedTestCase):
             shutil.rmtree(repo.wc)
         except EasyBuildError as err:
             print("ignoring failed subtest in test_gitrepo, testing offline?")
-            self.assertTrue(re.search("pull in working copy .* went wrong", str(err)))
+            self.assertRegex(str(err), "pull in working copy .* went wrong")
 
         # filepath
         tmpdir = tempfile.mkdtemp()
@@ -106,9 +105,8 @@ class RepositoryTest(EnhancedTestCase):
                                               'GIT_COMMITTER_NAME': 'test', 'GIT_COMMITTER_EMAIL': 'test@test.org'}):
                 repo.commit("toy/0.0")
 
-            log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
             logmsg = repo.client.log('HEAD^!')
-            self.assertTrue(log_regex.search(logmsg), "Pattern '%s' found in %s" % (log_regex.pattern, logmsg))
+            self.assertRegex(logmsg, r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION)
 
             shutil.rmtree(repo.wc)
             shutil.rmtree(tmpdir)

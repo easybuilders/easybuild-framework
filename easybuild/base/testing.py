@@ -36,7 +36,6 @@ Authors:
 import difflib
 import os
 import pprint
-import re
 import sys
 from contextlib import contextmanager
 from io import StringIO
@@ -173,10 +172,7 @@ class TestCase(OrigTestCase):
             str_args = ', '.join(list(map(str, args)) + str_kwargs)
             self.fail("Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
         except error as err:
-            msg = self.convert_exception_to_str(err)
-            if isinstance(regex, str):
-                regex = re.compile(regex)
-            self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
+            self.assertRegex(self.convert_exception_to_str(err), regex)
 
     def mock_stdout(self, enable, force_tty=False):
         """Enable/disable mocking stdout."""
