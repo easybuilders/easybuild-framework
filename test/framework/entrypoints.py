@@ -381,14 +381,14 @@ class EasyBuildEntrypointsTest(EnhancedTestCase):
     def test_entrypoints_show_config(self):
         """Test that showing configuration includes entry points."""
         args = ['--show-config']
-        stdout, stderr = self._run_mock_eb(args, strip=True)
+        stdout, _stderr = self._run_mock_eb(args, strip=True)
 
         for name in ['Hooks', 'Easyblocks', 'Toolchains']:
             pattern = f"{name} from entrypoints ("
             self.assertIn(pattern, stdout, f"Expected {name} in configuration output")
 
         args = ['--show-full-config']
-        stdout, stderr = self._run_mock_eb(args, strip=True)
+        stdout, _stderr = self._run_mock_eb(args, strip=True)
 
         for name in ['Hooks', 'Easyblocks', 'Toolchains']:
             pattern = f"{name} from entrypoints ("
