@@ -788,9 +788,6 @@ class EasyConfigTest(EnhancedTestCase):
         eb = EasyConfig(tweaked_fn)
         self.assertEqual(eb['patches'], [new_patches[0]])
 
-        # cleanup
-        os.remove(tweaked_fn)
-
     def test_parse_easyconfig(self):
         """Test parse_easyconfig function"""
         self.contents = textwrap.dedent("""
@@ -4612,9 +4609,6 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         for idx, pattern in enumerate(patterns):
             self.assertTrue(re.match(pattern, stdout[idx]), "Pattern '%s' matches '%s'" % (pattern, stdout[idx]))
-
-        # cleanup
-        remove_file(glob.glob(os.path.join(test_ec + '.orig*'))[0])
 
     def test_parse_list_comprehension_scope(self):
         """Test parsing of an easyconfig file that uses a local variable in list comprehension."""

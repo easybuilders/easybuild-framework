@@ -276,9 +276,6 @@ class ToyBuildTest(EnhancedTestCase):
         self.run_test_toy_build_with_output(ec_file=broken_toy_ec, tmpdir=tmpdir, verify=False, fails=True,
                                             verbose=False, raise_error=True, test_report=test_report_fp)
 
-        # cleanup
-        shutil.rmtree(tmpdir)
-
     def test_toy_broken_copy_log_build_dir(self):
         """
         Test whether log files and the build directory are copied to a permanent location
@@ -519,7 +516,6 @@ class ToyBuildTest(EnhancedTestCase):
                            versionprefix=toy_prefix, versionsuffix=toy_suffix)
 
         # cleanup
-        shutil.rmtree(tmpdir)
         sys.path[:] = orig_sys_path
 
     def test_toy_build_formatv2_sections(self):

@@ -164,7 +164,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_load_module(self):
         """Test load_module method."""
@@ -218,7 +217,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
         # test HMNS module load when conflicting dependencies are available in both Core and
         # toolchain-specific modulepaths
@@ -293,7 +291,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_make_module_extend_modpath(self):
         """Test for make_module_extend_modpath"""
@@ -786,7 +783,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_module_search_path_headers(self):
         """Test functionality of module-search-path-headers option"""
@@ -879,7 +875,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_make_module_extra(self):
         """Test for make_module_extra."""
@@ -1465,7 +1460,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_extensions_step_deprecations(self):
         """Test extension install with deprecated substeps."""
@@ -1733,7 +1727,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         eb.close_log()
-        os.remove(eb.logfile)
 
     def test_extension_fake_modules(self):
         """
@@ -1975,8 +1968,6 @@ class EasyBlockTest(EnhancedTestCase):
             "toolchain = SYSTEM",
         ])
         self.writeEC()
-        stdoutorig = sys.stdout
-        sys.stdout = open("/dev/null", 'w')
         eb = EasyBlock(EasyConfig(self.eb_file))
         resb = eb.gen_builddir()
         resi = eb.gen_installdir()
@@ -2008,8 +1999,6 @@ class EasyBlockTest(EnhancedTestCase):
             eb.make_builddir()
 
         # cleanup
-        sys.stdout.close()
-        sys.stdout = stdoutorig
         eb.close_log()
 
     def test_make_builddir(self):
@@ -2168,6 +2157,7 @@ class EasyBlockTest(EnhancedTestCase):
     @requires_github_access()
     def test_fetch_sources_git(self):
         """Test fetch_sources method from git repo."""
+        init_config(args=[f"--sourcepath={self.test_prefix}"])
 
         testdir = os.path.abspath(os.path.dirname(__file__))
         ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
@@ -2206,9 +2196,6 @@ class EasyBlockTest(EnhancedTestCase):
             reference_checksum = None
 
         self.assertEqual(eb.src[0]['checksum'], reference_checksum)
-
-        # cleanup
-        remove_file(eb.src[0]['path'])
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
@@ -3951,8 +3938,6 @@ class EasyBlockTest(EnhancedTestCase):
         # Then close the log from creating EasyBlock. This should work as expected.
         eb.close_log()
         self.assertEqual(getattr(file_log, 'logtofile_%s' % eb.logfile), False)
-
-        os.remove(eb.logfile)
 
     def test_report_current_step_method(self):
         """
