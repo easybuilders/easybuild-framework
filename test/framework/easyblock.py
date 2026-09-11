@@ -251,7 +251,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_eb_file = os.path.join(test_ecs_path, 'g', 'GLib', 'GLib-2.77.1-GCCcore-12.3.0.eb')
         eb = EasyBlock(EasyConfig(test_eb_file))
 
-        self.reset_modulepath([os.path.join(mod_prefix)])
+        self.reset_modulepath([mod_prefix])
 
         with self.mocked_stdout_stderr():
             eb.check_readiness_step()
