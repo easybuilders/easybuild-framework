@@ -650,6 +650,7 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'bwrap-installpath': ("Bubblewrap install path for software and modules", None, 'store',
                                   mk_full_default_path('bwrap_installpath')),
+            'bwrap-options': ("List of additional options to pass to the 'bwrap' command", 'strlist', 'store', None),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
             'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
