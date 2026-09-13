@@ -98,6 +98,25 @@ jobs:
               return 1
           }
 
+          check_bwrap_info_contains() {
+              local label="$1"
+              local option="$2"
+              local bwrap_info="/tmp/bwrap-installpath/bwrap_info.json"
+
+              echo ">>> CHECK: $label"
+              echo "    option: $option"
+
+              if python3 -c "import json, sys; sys.exit(0 if '$option' in json.load(open('$bwrap_info'))['bwrap_cmd'] else 1)"; then
+                  echo "PASS: '$option' found in bwrap_cmd"
+                  echo
+                  return 0
+              fi
+
+              echo "FAIL: '$option' not found in bwrap_cmd"
+              echo
+              return 1
+          }
+
           check_glob_exists() {
               local label="$1"
               local pattern="$2"
@@ -158,6 +177,9 @@ jobs:
               check_glob_exists "bwrap bzip2 EasyBuild logs exist" \
                   "/tmp/bwrap-installpath/software/bzip2/*/easybuild/*log*" || failures=$((failures + 1))
 
+              check_bwrap_info_contains "bwrap-options value was passed through to bwrap command" \
+                  "--die-with-parent" || failures=$((failures + 1))
+
               if [[ "$failures" -ne 0 ]]; then
                   echo "ERROR: $failures bwrap validation check(s) failed"
                   return 1
@@ -181,7 +203,8 @@ jobs:
             eb --show-config --prefix /tmp | grep "bwrap-installpath [ ]* \(C\) = /tmp/bwrap"
 
             # test installation of UnZip + bzip2 dependency
-            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
+            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath \
+                --bwrap-options=--die-with-parent --filter-deps=binutils
 
             /tmp/check_bwrap_install.sh
 
