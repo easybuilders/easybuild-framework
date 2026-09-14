@@ -113,8 +113,12 @@ while idx < len(args):
 
     arg = args[idx]
 
-    # if command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
-    if arg in ['-v', '-V', '--version', '-dumpversion']:
+    # if non-linker command is run in 'version check' mode, make sure we don't include *any* -rpath arguments;
+    # this is required because add an option like -Wl,-rpath=... to a compiler command may change what it does,
+    # for example: "gcc -v" (without additional arguments);
+    # we should not do this for linking command (add -rpath=... options causes no problems)
+    # see also https://github.com/easybuilders/easybuild-framework/issues/5258
+    if arg in ['-v', '-V', '--version', '-dumpversion'] and cmd not in LINKER_COMMANDS:
         add_rpath_args = False
         cmd_args.append(arg)
 
