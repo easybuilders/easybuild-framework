@@ -832,6 +832,25 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, correct_url + fn, target)
         self.assertEqual(res, target)
         self.assertTrue(os.path.exists(target))
+        ft.remove_file(target)
+
+        # also test use of fallback URL when original URL returns 4xy HTTP status code;
+        # replace urlopen with function that raises HTTPError for specific URL,
+        # to see if fallback to ftp.gnu.org kicks in
+        test_url = wrong_url + fn
+        for status_code in (400, 404, 408, 410):
+            def fake_urllib_open(url, *args, **kwargs):
+                if url.full_url.startswith(wrong_url):
+                    raise ft.std_urllib.HTTPError(url, status_code, "nope", "", StringIO())
+                else:
+                    return self.orig_filetools_std_urllib_urlopen(url, *args, **kwargs)
+
+            ft.std_urllib.urlopen = fake_urllib_open
+
+            res = ft.download_file(fn, test_url, target)
+            self.assertEqual(res, target)
+            self.assertTrue(os.path.exists(target))
+            ft.remove_file(target)
 
     def test_mkdir(self):
         """Test mkdir function."""
