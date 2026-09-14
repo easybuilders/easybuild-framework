@@ -845,7 +845,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         else:
             pattern = r"\s*extensions\("
 
-        self.assertNotRegex(pattern, desc, re)
+        self.assertNotRegex(pattern, desc)
 
         # check if the extensions is missing if 'module_extensions' is disabled
         init_config(build_options={'module_extensions': False})
