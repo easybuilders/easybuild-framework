@@ -832,7 +832,6 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, correct_url + fn, target)
         self.assertEqual(res, target)
         self.assertTrue(os.path.exists(target))
-        
         ft.remove_file(target)
 
         # also test use of fallback URL when original URL returns 4xy HTTP status code;
