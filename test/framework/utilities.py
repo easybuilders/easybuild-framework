@@ -39,7 +39,7 @@ import unittest
 from contextlib import contextmanager
 from importlib import reload
 from pathlib import Path
-from typing import List, Union
+from typing import List, Pattern, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
 from easybuild.base import fancylogger
@@ -450,7 +450,7 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs: List[Union[str, re.Pattern]], txt: str,
+    def assert_multi_regex(self, regexs: List[Union[str, Pattern]], txt: str,
                            assert_match: bool = True, multi_line: bool = True) -> None:
         """Helper function to assert presence/absence of list of regex patterns in a text
         param: regexs: list of regex patterns to check for
