@@ -939,10 +939,11 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
                 _log.warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)")
                 wait = True
             elif 400 <= status_code <= 499:
-                _log.warning("URL %s was not found (HTTP response code %s), not trying again" % (url, status_code))
-                break
+                _log.warning(f"URL {url} was not found (HTTP response code {status_code}), not trying again")
+                # avoid trying again, so straight to trying fallback URL (if available)
+                attempt_cnt = max_attempts
             else:
-                _log.warning("HTTPError occurred while trying to download %s to %s: %s" % (url, path, err))
+                _log.warning(f"HTTPError occurred while trying to download {url} to {path}: {err}")
         except IOError as err:
             exception_raised = True
             _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
