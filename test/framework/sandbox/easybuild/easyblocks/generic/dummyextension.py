@@ -48,8 +48,8 @@ class DummyExtension(ExtensionEasyBlock):
         super().__init__(*args, **kwargs)
 
         # use lowercase name as default load name, and replace '-' with '_'
-        if 'load_name' not in self.options and 'extension_name' not in self.options:
-            self.options['load_name'] = self.name.lower().replace('-', '_')
+        if self.cfg.get('load_name') is None and self.cfg.get('extension_name') is None:
+            self.cfg['load_name'] = self.name.lower().replace('-', '_')
 
     def install_extension(self, unpack_src=False):
         """Install the dummy extension."""
