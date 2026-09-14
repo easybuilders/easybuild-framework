@@ -1849,27 +1849,26 @@ class EasyBlockTest(EnhancedTestCase):
             toolchain = SYSTEM
         """)
 
-        # note: use a separate easyconfig file for each test case,
-        # since process_easyconfig caches parsed easyconfigs per file path
-
         test_cases = [
             # native 'load_name' easyconfig parameter
             ("load_name = 'top_pi'", "top_pi"),
-            # 'load_name' in 'options' is still supported as well
-            ("options = {'load_name': 'opt_pi'}", "opt_pi"),
             # Extension name used as default for load_name
             ("extension_name = 'ext_pi'", "ext_pi"),
             # Can be overwritten
             ("extension_name = 'ext_pi'\nload_name = 'top_pi'", "top_pi"),
-            ("extension_name = 'ext_pi'\noptions = {'load_name': 'opt_pi'}", "opt_pi"),
         ]
         for i, (add_txt, expected_name) in enumerate(test_cases):
             with self.subTest(add_txt=add_txt):
+                # note: use a separate easyconfig file for each test case,
+                # since process_easyconfig caches parsed easyconfigs per file path
                 ec_fn = os.path.join(self.test_prefix, f'test_load_name_{i}.eb')
                 write_file(ec_fn, test_ec_base + f"\n{add_txt}")
                 eb = get_easyblock_instance(process_easyconfig(ec_fn)[0])
+                # Accessing the deprecated 'options' attribute should emit a deprecation warning
                 if 'load_name' in add_txt:
-                    self.assertEqual(eb.options['load_name'], expected_name)
+                    with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+                        self.assertEqual(eb.options['load_name'], expected_name)
+                        self.assertIn("The 'options' attribute of Extension is deprecated", self.get_stderr())
                 self.assertEqual(get_load_names(eb), [expected_name])
                 self.assertEqual(construct_exts_filter_cmds(('run %(ext_name)s', None), eb),
                                  [(f'run {expected_name}', None)])
@@ -1878,8 +1877,10 @@ class EasyBlockTest(EnhancedTestCase):
         # specifying 'load_name' both as easyconfig parameter and in 'options' is not allowed
         ec_fn = os.path.join(self.test_prefix, 'test_load_name_error.eb')
         write_file(ec_fn, test_ec_base + "\nload_name = 'real_pi'\noptions = {'load_name': 'other_pi'}")
-        error_msg = "'load_name' easyconfig parameter and 'load_name' in 'options' are both specified for pi"
-        self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
+        error_msg = "'load_name' should be specified as a top-level parameter not in 'options'"
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            self.assertErrorRegex(EasyBuildError, error_msg, get_easyblock_instance, process_easyconfig(ec_fn)[0])
+            self.assertIn("Easyconfig parameter 'options' is deprecated", self.get_stderr())
 
     def test_extension_options_deprecated_modulename_access(self):
         """Test transparent handling of deprecated access to 'modulename' in extension options."""
