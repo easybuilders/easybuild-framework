@@ -32,30 +32,23 @@ Authors:
 * Alexander Grund (TU Dresden)
 """
 
-from typing import Dict, Optional, Tuple, Type
+from typing import Callable, Dict, Optional, Tuple, Type
 
 from easybuild.base import fancylogger
 
 _log = fancylogger.getLogger('DeprecatedDict', fname=False)
 
 
-def make_deprecated_dict_class(deprecated_keys: Optional[Dict[str, Tuple[str, str]]] = None,
-                               alternative_keys: Optional[Dict[str, str]] = None,
-                               key_description: Optional[str] = None) -> Type[dict]:
-    """Factory function to create a DeprecatedDict class with specific deprecated and alternative constants
-
-    :param: deprecated_keys: Dictionary mapping deprecated keys to a tuple of (new_key, version)
-    :param: alternative_keys: Dictionary mapping alternative keys to their corresponding new keys
-    :param: key_description: Description of the type of keys (for logging purposes)
-    """
+def make_deprecated_key_accessor(deprecated_keys: Optional[Dict[str, Tuple[str, str]]] = None,
+                                 alternative_keys: Optional[Dict[str, str]] = None,
+                                 key_description: Optional[str] = "Key") -> Callable:
+    """Factory to create a decorator that handles deprecated and replaced keys for dict-like class methods"""
     if not deprecated_keys and not alternative_keys:
         raise ValueError("At least one of 'deprecated_keys' or 'alternative_keys' must be provided")
     if deprecated_keys is None:
         deprecated_keys = {}
     if alternative_keys is None:
         alternative_keys = {}
-    if key_description is None:
-        key_description = "Key"
 
     def handle_deprecated_keys(method):
         """Decorator to handle deprecated/replaced keys"""
@@ -69,6 +62,37 @@ def make_deprecated_dict_class(deprecated_keys: Optional[Dict[str, Tuple[str, st
                 key = new_key
             return method(self, key, *args, **kwargs)
         return wrapper
+    return handle_deprecated_keys
+
+
+def dict_update_to_setitem(self, *args, **kwargs):
+    """Replacement for dict.update that redirects to __setitem__"""
+    if args:
+        if len(args) > 1:
+            raise TypeError(f"{type(self).name}.update expected at most 1 argument, got {len(args)}")
+        other = args[0]
+        if isinstance(other, dict):
+            for key, value in other.items():
+                self[key] = value
+        else:
+            for key, value in other:
+                self[key] = value
+    for key, value in kwargs.items():
+        self[key] = value
+
+
+def make_deprecated_dict_class(deprecated_keys: Optional[Dict[str, Tuple[str, str]]] = None,
+                               alternative_keys: Optional[Dict[str, str]] = None,
+                               key_description: Optional[str] = None) -> Type[dict]:
+    """Factory function to create a DeprecatedDict class with specific deprecated and alternative constants
+
+    :param: deprecated_keys: Dictionary mapping deprecated keys to a tuple of (new_key, version)
+    :param: alternative_keys: Dictionary mapping alternative keys to their corresponding new keys
+    :param: key_description: Description of the type of keys (for logging purposes)
+    """
+    handle_deprecated_keys = make_deprecated_key_accessor(deprecated_keys=deprecated_keys,
+                                                          alternative_keys=alternative_keys,
+                                                          key_description=key_description)
 
     class DeprecatedDict(dict):
         """Custom dictionary that handles deprecated/replaced keys gracefully"""
