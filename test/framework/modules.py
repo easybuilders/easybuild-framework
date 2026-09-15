@@ -166,7 +166,7 @@ class ModulesTest(EnhancedTestCase):
             r"^os.environ\[.EBROOTOPENBLAS.\]\s*=\s*./prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28.",
             r"^os.environ\[.LOADEDMODULES.\]\s*=.*OpenBLAS/0.2.20-GCC-6.4.0-2.28",
         ]
-        self.assertMultiRegex(patterns, stdout, multi_line=True)
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # OpenBLAS module did *not* get loaded
         self.assertNotIn('EBROOTOPENBLAS', os.environ)
@@ -182,7 +182,7 @@ class ModulesTest(EnhancedTestCase):
             r"setenv\W+EBROOTOPENBLAS.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28",
             r"prepend[_-]path\W+LD_LIBRARY_PATH.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28/lib",
         ]
-        self.assertMultiRegex(patterns, stdout, multi_line=True)
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
         self.assertNotRegex(out, re.compile(r'^os\.environ\[', re.M))
@@ -500,7 +500,7 @@ class ModulesTest(EnhancedTestCase):
             r"setenv\W+EBROOTGCC.+prefix/software/GCC/7.3.0-2.30",
             r"^prepend[_-]path\W+PATH.+/prefix/software/GCC/7.3.0-2.30/bin",
         ]
-        self.assertMultiRegex(patterns, stdout, multi_line=True)
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
         self.assertNotRegex(out, re.compile(r'^os\.environ\[', re.M))
@@ -1471,7 +1471,7 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/2.1.2-GCC-6.4.0-2.28'])
 
         # default action is to print a clear warning message
-        stderr = check_loaded_modules()
+        out = check_loaded_modules()
         patterns = [
             r"^WARNING: Found one or more non-allowed loaded \(EasyBuild-generated\) modules in current environment:",
             r"^\* GCC/6.4.0-2.28",
@@ -1482,7 +1482,7 @@ class ModulesTest(EnhancedTestCase):
             "To specify action to take when loaded modules are detected, use "
             "--detect-loaded-modules={error,ignore,purge,unload,warn}",
         ]
-        self.assertMultiRegex(patterns, stdout, multi_line=True)
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # reconfigure EasyBuild to ignore loaded modules for GCC & hwloc & error out when loaded modules are detected
         options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=error'])

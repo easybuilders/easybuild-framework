@@ -73,6 +73,8 @@ GITHUB_REPO = "testrepository"
 # branch to test
 GITHUB_BRANCH = 'main'
 
+COMMIT_SHA_PATTERN = '^[0-9a-f]{40}$'
+
 
 def requires_github_access():
     """Silently skip for pull requests unless $FORCE_EB_GITHUB_TESTS is set
@@ -583,10 +585,10 @@ class GithubTest(EnhancedTestCase):
             return
 
         sha = gh.fetch_latest_commit_sha('easybuild-framework', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT)
-        self.assertRegex(sha, '^[0-9a-f]{40}$')
+        self.assertRegex(sha, COMMIT_SHA_PATTERN)
         sha = gh.fetch_latest_commit_sha('easybuild-easyblocks', 'easybuilders', github_user=GITHUB_TEST_ACCOUNT,
                                          branch='develop')
-        self.assertRegex(sha, '^[0-9a-f]{40}$')
+        self.assertRegex(sha, COMMIT_SHA_PATTERN)
 
     def test_github_download_repo(self):
         """Test download_repo function."""
@@ -602,7 +604,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertExists(repodir)
         shafile = os.path.join(repodir, 'latest-sha')
-        self.assertRegex(read_file(shafile), '^[0-9a-f]{40}$')
+        self.assertRegex(read_file(shafile), COMMIT_SHA_PATTERN)
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyconfigs', 'f', 'foss', 'foss-2024a.eb'))
 
         # current directory should not have changed after calling download_repo
@@ -627,7 +629,7 @@ class GithubTest(EnhancedTestCase):
                                 github_user=GITHUB_TEST_ACCOUNT)
         self.assertTrue(os.path.samefile(path, repodir))
         self.assertIn('easybuild', os.listdir(repodir))
-        self.assertRegex(read_file(shafile), '^[0-9a-f]{40}$')
+        self.assertRegex(read_file(shafile), COMMIT_SHA_PATTERN)
         self.assertExists(os.path.join(repodir, 'easybuild', 'easyblocks', '__init__.py'))
 
     def test_github_download_repo_commit(self):
