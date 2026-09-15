@@ -2015,7 +2015,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertRegex(logtxt, "INFO Installing extensions sequentially")
 
             patterns = [f"INFO installing extension {x}" for x in ('ls', 'bar', 'barbar', 'toy')]
-            self.assert_multi_regex(patterns, logtxt)
+            self.assertMultiRegex(patterns, logtxt)
 
             # check how many time fake module is loaded;
             # should be 6 times:
@@ -2062,7 +2062,7 @@ class ToyBuildTest(EnhancedTestCase):
                 r"INFO skipping extension barbar$",
                 r"INFO skipping extension toy$",
             ]
-            self.assert_multi_regex(patterns, logtxt)
+            self.assertMultiRegex(patterns, logtxt, multi_line=True)
 
     def test_toy_exts_parallel(self):
         """
@@ -2081,7 +2081,7 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO 3 out of 4 extensions installed \(0 queued, 1 running: toy\)$",
             r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
         ]
-        self.assert_multi_regex(patterns, logtxt)
+        self.assertMultiRegex(patterns, logtxt, multi_line=True)
 
         # check how many time fake module is loaded;
         # should be 4 times:
@@ -2123,7 +2123,7 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO skipping extension barbar$",
             r"INFO skipping extension toy$",
         ]
-        self.assert_multi_regex(patterns, logtxt)
+        self.assertMultiRegex(patterns, logtxt, multi_line=True)
 
         # check behaviour when using Toy_Extension easyblock that doesn't implement required_deps method;
         # framework should fall back to installing extensions sequentially
@@ -2147,7 +2147,7 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
             '',
         ]
-        self.assert_multi_regex(patterns, logtxt)
+        self.assertMultiRegex(patterns, logtxt, multi_line=True)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
@@ -3609,7 +3609,7 @@ class ToyBuildTest(EnhancedTestCase):
             r"  >> command completed: exit 0, ran in .*",
             r"^== creating module\.\.\.\n  >> generating module file @ .*/modules/all/toy/0\.0(?:\.lua)?$",
         ]
-        self.assert_multi_regex(patterns, stdout)
+        self.assertMultiRegex(patterns, stdout, multi_line=True)
         expected_stdout = textwrap.dedent("""
             == sanity checking...
               >> loading modules: toy/0.0...

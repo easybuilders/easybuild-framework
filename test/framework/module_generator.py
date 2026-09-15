@@ -830,7 +830,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
             ]
 
-        self.assert_multi_regex(patterns, desc)
+        self.assertMultiRegex(patterns, desc, multi_line=True)
 
         # check if the extensions is missing if there are no extensions
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
@@ -856,7 +856,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         modgen = self.MODULE_GENERATOR_CLASS(eb)
         desc = modgen.get_description()
 
-        self.assert_multi_regex(patterns, desc, assert_match=False)
+        self.assertNotMultiRegex(patterns, desc)
 
     def test_module_extensions_extension_name(self):
         """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""

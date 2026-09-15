@@ -3317,7 +3317,7 @@ class EasyConfigTest(EnhancedTestCase):
             r"^\s*toy -> intel",
             r"^\s*toy -> \"GCC/6\.4\.0-2\.28 \(EXT\)\"",
         ]
-        self.assert_multi_regex(patterns, dottxt)
+        self.assertMultiRegex(patterns, dottxt, multi_line=True)
 
     def test_dep_graph_multi_deps(self):
         """
