@@ -450,21 +450,25 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs: List[Union[str, Pattern]], txt: str,
-                           assert_match: bool = True, multi_line: bool = True) -> None:
-        """Helper function to assert presence/absence of list of regex patterns in a text
+    def assertMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
+                         multi_line: bool = False) -> None:
+        """Helper function to assert presence of list of regex patterns in a text
         param: regexs: list of regex patterns to check for
         param: txt: text to check for regex patterns
-        param: assert_match: Whether all regex patterns should match or not match
+        param: multi_line: if True, match ^/$ at the beginning/end of each line
+        """
+        for regex in regexs:
+            self.assertRegex(txt, re.compile(regex, re.M) if multi_line else regex)
+
+    def assertNotMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
+                            multi_line: bool = True) -> None:
+        """Helper function to assert absence of list of regex patterns in a text
+        param: regexs: list of regex patterns to check for
+        param: txt: text to check for regex patterns
         param: multi_line: if False, match ^/$ only at the beginning/end of the whole string
         """
         for regex in regexs:
-            if multi_line:
-                regex = re.compile(regex, re.M)
-            if assert_match:
-                self.assertRegex(txt, regex)
-            else:
-                self.assertNotRegex(txt, regex)
+            self.assertNotRegex(txt, re.compile(regex, re.M) if multi_line else regex)
 
 
 class TestLoaderFiltered(unittest.TestLoader):

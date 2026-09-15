@@ -355,7 +355,7 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % module_syntax)
 
-        self.assert_multi_regex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # Repeat this but using an alternative envvars (instead of $HOME)
         list_of_envvars = ['SITE_INSTALLS', 'USER_INSTALLS']
@@ -401,7 +401,7 @@ class EasyBlockTest(EnhancedTestCase):
             else:
                 self.fail("Unknown module syntax: %s" % module_syntax)
 
-            self.assert_multi_regex(regexs, txt)
+            self.assertMultiRegex(regexs, txt, multi_line=True)
             os.unsetenv(envvar)
 
         # Check behaviour when directories do and do not exist
@@ -775,14 +775,14 @@ class EasyBlockTest(EnhancedTestCase):
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
-        self.assert_multi_regex(expected_patterns, txt)
+        self.assertMultiRegex(expected_patterns, txt, multi_line=True)
 
         non_expected_patterns = [
             r"^append[-_]path.*TEST_VAR_APPEND.*root.*baz",
             r"^prepend[-_]path.*CPATH.*root.*include/bar.*",
             r"^prepend[-_]path.*TEST_VAR.*root.*baz",
         ]
-        self.assert_multi_regex(non_expected_patterns, txt, assert_match=False)
+        self.assertNotMultiRegex(non_expected_patterns, txt)
 
         # cleanup
         eb.close_log()
@@ -1724,13 +1724,13 @@ class EasyBlockTest(EnhancedTestCase):
             modfile = os.path.join(eb.make_module_step(), 'toy',
                                    '0.0' + eb.module_generator.MODULE_FILE_EXTENSION)
         modtxt = read_file(modfile)
-        self.assert_multi_regex([
+        self.assertMultiRegex([
             'Included extensions',
             r'^\s*extra-0.0\s*$',
             r'Extensions: extra',
             r'EBEXTSLISTTOY.*extra',
             ],
-            modtxt)
+            modtxt, multi_line=True)
 
     def test_skip_extensions_step(self):
         """Test the skip_extensions_step"""
@@ -1767,7 +1767,7 @@ class EasyBlockTest(EnhancedTestCase):
             stdout = self.get_stdout()
         logtxt = read_file(eb.logfile)
         regexs = [r'Running shell command in .*:\n\sif \[ %s' % ext for ext in ['ext1', 'ext_2', 'real_ext']]
-        self.assert_multi_regex(regexs, logtxt)
+        self.assertMultiRegex(regexs, logtxt)
         # modulename: False skips the check
         self.assertNotRegex(logtxt, r"Running shell command .* in .*:\n\sif \[ (False|ext4)")
 
@@ -1777,7 +1777,7 @@ class EasyBlockTest(EnhancedTestCase):
             r"^== installing extension ext1  \(1/2\)\.\.\.",
             r"^== installing extension ext4 0.2 \(2/2\)\.\.\.",
         ]
-        self.assert_multi_regex(patterns, stdout)
+        self.assertMultiRegex(patterns, stdout, multi_line=True)
 
         # 'ext1' should be in eb.ext_instances
         eb_exts = [x.name for x in eb.ext_instances]
