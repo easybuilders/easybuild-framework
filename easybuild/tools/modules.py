@@ -2279,13 +2279,15 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, testing=False) -> ModulesTool:
+def modules_tool(mod_paths=None, testing=False, modules_tool_name=None) -> ModulesTool:
     """
     Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
-    modules_tool = get_modules_tool()
-    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    if modules_tool_name is None:
+        modules_tool_name = get_modules_tool()
+
+    modules_tool_class = avail_modules_tools().get(modules_tool_name, NoModulesTool)
     return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 

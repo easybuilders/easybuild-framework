@@ -59,7 +59,7 @@ from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, mkdir, read_file
 from easybuild.tools.filetools import remove_dir, remove_file, symlink, verify_checksum, write_file
 from easybuild.tools.module_generator import module_generator
-from easybuild.tools.modules import EnvironmentModules, Lmod, reset_module_caches
+from easybuild.tools.modules import EnvironmentModules, Lmod, NoModulesTool, reset_module_caches
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL
 from easybuild.tools.run import RunShellCmdError
 from easybuild.tools.version import get_git_revision, this_is_easybuild
@@ -1316,6 +1316,63 @@ class EasyBlockTest(EnhancedTestCase):
             ])
         self.assertTrue(os.path.samefile(eb.src[0]['path'], expected_path_src))
         self.assertTrue(os.path.samefile(eb.patches[0]['path'], expected_path_patch))
+
+    def test_fetch_step_source_deps(self):
+        """Test fetching sources with source dependencies."""
+
+        mod_tool_name = self.modtool.__class__.__name__
+
+        init_config([f'--sourcepath={self.test_prefix}', '--fetch'])
+
+        url = 'https://dummy-url-for-testing'
+        source_fn = 'mysource.tar.gz'
+        self.contents = textwrap.dedent(f"""
+            easyblock = "ConfigureMake"
+            name = "Uniq_1"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test"
+            toolchain = SYSTEM
+            source_urls = ['{url}']
+            sources = ['{source_fn}']
+            source_deps = [('foo', '1.2.3')]
+        """)
+        self.writeEC()
+
+        eb = EasyBlock(EasyConfig(self.eb_file))
+
+        # --fetch is used, fake modules tool instance is used
+        self.assertTrue(isinstance(eb.modules_tool, NoModulesTool))
+
+        def fake_download_file(_filename, _url, path, *_args, **_kwargs):
+            write_file(path, 'content')
+            return True
+
+        mods = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(mods, 'foo', '1.2.3'), '#%Module')
+        self.modtool.use(mods)
+
+        mocked_modtool = unittest.mock.MagicMock()
+
+        with unittest.mock.patch(
+            'easybuild.framework.easyblock.modules_tool',
+            return_value=mocked_modtool,
+        ) as mocked_modules_tool, unittest.mock.patch(
+            'easybuild.framework.easyblock.download_file',
+            side_effect=fake_download_file,
+        ):
+            eb.fetch_step()
+
+        # verify that real modules tool instance was created, and that source deps got loaded
+        mocked_modules_tool.assert_called_once_with(modules_tool_name=mod_tool_name)
+        mocked_modtool.load.assert_called_once_with(['foo/1.2.3'])
+
+        # check that source file was actually "downloaded"
+        self.assertEqual(len(eb.src), 1)
+        self.assertEqual(eb.src[0]['name'], source_fn)
+        full_path = os.path.join(self.test_prefix, 'u', 'Uniq_1', source_fn)
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], full_path))
+        self.assertTrue(os.path.exists(eb.src[0]['path']))
 
     def test_test_cases_step(self):
         """Test test_cases_step"""

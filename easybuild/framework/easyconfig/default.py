@@ -179,6 +179,7 @@ DEFAULT_CONFIG = {
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
     'moddependpaths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
+    'source_deps': [[], "List of dependencies that are required to download or create the sources", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
