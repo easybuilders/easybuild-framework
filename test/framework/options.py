@@ -59,7 +59,7 @@ from easybuild.tools.filetools import read_file, remove_dir, remove_file, which,
 from easybuild.tools.github import GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import URL_SEPARATOR, fetch_github_token
 from easybuild.tools.module_generator import ModuleGeneratorTcl
-from easybuild.tools.modules import Lmod
+from easybuild.tools.modules import Lmod, avail_modules_tools
 from easybuild.tools.options import EasyBuildOptions, opts_dict_to_eb_opts, parse_external_modules_metadata
 from easybuild.tools.options import set_up_configuration, set_tmpdir, use_color
 from easybuild.tools.toolchain.utilities import TC_CONST_PREFIX
@@ -5557,12 +5557,14 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_fetch(self):
         """Test use of --fetch"""
-        options = EasyBuildOptions(go_args=['--fetch', '--modules-tool=Lmod'])
+        options = EasyBuildOptions(go_args=['--fetch'])
+
+        known_mod_tools = avail_modules_tools().keys()
 
         self.assertTrue(options.options.fetch)
         self.assertEqual(options.options.stop, 'fetch')
         self.assertEqual(options.options.modules_tool, None)
-        self.assertEqual(options.original_modules_tool, 'Lmod')
+        self.assertIn(options.orig_modules_tool, known_mod_tools)
         self.assertTrue(options.options.ignore_locks)
         self.assertTrue(options.options.ignore_osdeps)
 
@@ -5646,7 +5648,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             pattern = r"WARNING: FAILED: File toy-1.2.3.4.5.6.tar.gz not found from NO_SOURCE_URLS_PROVIDED."
             self.assertRegex(stderr, pattern)
 
-    def test_fetch_original_modules_tool(self):
+    def test_fetch_orig_modules_tool(self):
         """Test preserving the original modules tool with --fetch."""
         set_up_configuration(
             args=['--fetch', '--modules-tool=Lmod'],
@@ -5654,7 +5656,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             reconfigure=True,
         )
 
-        self.assertEqual(build_option('original_modules_tool'), 'Lmod')
+        self.assertEqual(build_option('orig_modules_tool'), 'Lmod')
         self.assertEqual(ConfigurationVariables()['modules_tool'], None)
 
     def test_parse_external_modules_metadata(self):

@@ -1319,10 +1319,10 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_fetch_step_source_deps(self):
         """Test fetching sources with source dependencies."""
-        init_config(
-            [f'--sourcepath={self.test_prefix}'],
-            build_options={'original_modules_tool': 'Lmod'},
-        )
+
+        mod_tool_name = self.modtool.__class__.__name__
+
+        init_config([f'--sourcepath={self.test_prefix}', '--fetch'])
 
         url = 'https://dummy-url-for-testing'
         source_fn = 'mysource.tar.gz'
@@ -1340,11 +1340,17 @@ class EasyBlockTest(EnhancedTestCase):
         self.writeEC()
 
         eb = EasyBlock(EasyConfig(self.eb_file))
-        eb.modules_tool = NoModulesTool(testing=True)
 
-        def create_file(_filename, _url, path, *_args, **_kwargs):
+        # --fetch is used, fake modules tool instance is used
+        self.assertTrue(isinstance(eb.modules_tool, NoModulesTool))
+
+        def fake_download_file(_filename, _url, path, *_args, **_kwargs):
             write_file(path, 'content')
             return True
+
+        mods = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(mods, 'foo', '1.2.3'), '#%Module')
+        self.modtool.use(mods)
 
         mocked_modtool = unittest.mock.MagicMock()
 
@@ -1353,12 +1359,20 @@ class EasyBlockTest(EnhancedTestCase):
             return_value=mocked_modtool,
         ) as mocked_modules_tool, unittest.mock.patch(
             'easybuild.framework.easyblock.download_file',
-            side_effect=create_file,
+            side_effect=fake_download_file,
         ):
             eb.fetch_step()
 
-        mocked_modules_tool.assert_called_once_with(modules_tool_name='Lmod')
+        # verify that real modules tool instance was created, and that source deps got loaded
+        mocked_modules_tool.assert_called_once_with(modules_tool_name=mod_tool_name)
         mocked_modtool.load.assert_called_once_with(['foo/1.2.3'])
+
+        # check that source file was actually "downloaded"
+        self.assertEqual(len(eb.src), 1)
+        self.assertEqual(eb.src[0]['name'], source_fn)
+        full_path = os.path.join(self.test_prefix, 'u', 'Uniq_1', source_fn)
+        self.assertTrue(os.path.samefile(eb.src[0]['path'], full_path))
+        self.assertTrue(os.path.exists(eb.src[0]['path']))
 
     def test_test_cases_step(self):
         """Test test_cases_step"""

@@ -2870,10 +2870,12 @@ class EasyBlock:
             pre_fetch_env = copy.deepcopy(os.environ)
 
             if isinstance(self.modules_tool, NoModulesTool):
-                self.modules_tool = modules_tool(modules_tool_name=build_option('original_modules_tool'))
+                mod_tool = modules_tool(modules_tool_name=build_option('orig_modules_tool'))
+            else:
+                mod_tool = self.modules_tool
 
             source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
-            self.modules_tool.load(source_deps_mod_names)
+            mod_tool.load(source_deps_mod_names)
 
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
@@ -2962,6 +2964,7 @@ class EasyBlock:
 
         stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
 
+        # revert back to environment before fetching sources, if source deps were loaded
         if pre_fetch_env:
             restore_env(pre_fetch_env)
 

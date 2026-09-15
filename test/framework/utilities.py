@@ -520,6 +520,7 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
         'show_progress_bar': False,
+        'orig_modules_tool': eb_go.orig_modules_tool,
         'output_style': 'no_color',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,
