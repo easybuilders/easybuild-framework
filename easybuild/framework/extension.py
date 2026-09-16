@@ -37,73 +37,197 @@ Authors:
 """
 import copy
 import os
+from collections import namedtuple
+from logging import Logger
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
+from easybuild.tools.deprecated_dict import make_deprecated_key_accessor, dict_update_to_setitem
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.utilities import trace_msg
 
+_log = fancylogger.getLogger('extension', fname=False)
 
-def get_modulenames(ext, use_name_for_false):
-    """Return a list of modulenames for the extension
-    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :param use_name_for_false: Whether to return a list with the name or an empty list when the modulename is False
+
+class _ExtensionOptions:
     """
-    if not isinstance(ext, dict):
-        ext = {'name': ext.name, 'options': ext.options}
+    Options for an extension, exposed as a (deprecated) view over the easyconfig parameters.
 
-    try:
-        modulenames = ext['options']['modulename']
-    except KeyError:
-        modulenames = [ext['name']]
-    else:
-        if isinstance(modulenames, list):
-            if not modulenames:
-                raise EasyBuildError(f"Empty modulename list for {ext['name']} is not supported."
-                                     "Use `False` to skip checking for module existence!")
-        elif modulenames is False:
-            return [ext['name']] if use_name_for_false else []
-        elif not isinstance(modulenames, str):
-            raise EasyBuildError(f"Invalid type for modulename of {ext['name']}. "
-                                 f"Expected False, str, or list, but got {type(modulenames).__name__}: {modulenames}")
+    Keys that are known easyconfig parameters are read from and written to the owning
+    extension's easyconfig any other key is stored in this dictionary itself.
+
+    Accessing this object, typically via the deprecated `Extension.options` attribute,
+    should be replaced by using the corresponding easyconfig parameter(s) directly.
+    """
+
+    _decorator = make_deprecated_key_accessor(key_description="Extension option key", deprecated_keys={
+        'modulename': ('load_name', '6.0'),
+        'parallel': ('max_parallel', '6.0'),
+    })
+
+    def __init__(self, extension: 'Extension'):
+        super().__init__()
+        self._ext = extension
+        self._unknown_opts: dict[str, Any] = {}
+
+    @property
+    def _cfg(self):
+        return self._ext.cfg
+
+    def _check_is_param(self, key: str) -> bool:
+        """Check whether the key is a known easyconfig parameter."""
+        if key in self._cfg:
+            return True
+        self._ext.log.deprecated(
+            f"Extension option '{key}' for {self._ext.name}/{self._ext.version} is not a known easyconfig parameter; "
+            f"declare it as an easyconfig parameter for {type(self._ext).name}", '6.0')
+        return False
+
+    @_decorator
+    def __contains__(self, key) -> bool:
+        try:
+            self[key]  # Reuse logic below
+            return True
+        except KeyError:
+            return False
+
+    @_decorator
+    def __getitem__(self, key):
+        if self._check_is_param(key):
+            value = self._cfg.get(key)
+            # A parameter is considered set when it was given a value other than None.
+            # None may not be the default value in general but is OK for the (previously) known extension options
+            if value is None:
+                raise KeyError(key)
+            return value
+        return self._unknown_opts[key]
+
+    @_decorator
+    def __setitem__(self, key, value):
+        if self._check_is_param(key):
+            self._cfg[key] = value
         else:
-            modulenames = [modulenames]
-    return modulenames
+            self._unknown_opts[key] = value
+
+    @_decorator
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    @_decorator
+    def setdefault(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            self[key] = default
+            return default
+
+    @_decorator
+    def pop(self, key, *args):
+        if self._check_is_param(key):
+            # a parameter cannot really be removed, so reset it to None
+            value = self._cfg[key]
+            self._cfg[key] = None
+            return value
+        return self._unknown_opts.pop(key, *args)
+
+    update = dict_update_to_setitem
 
 
-def construct_exts_filter_cmds(exts_filter, ext):
+def get_load_names(ext: 'Extension') -> List[str]:
+    """Return a list of load names for the extension"""
+    cfg = ext.cfg
+    load_names = cfg.get('load_name')
+    if load_names is None:
+        load_names = cfg.get('extension_name')
+        if load_names is None:
+            load_names = cfg.name
+
+    if load_names is False:
+        return []
+    if not load_names:
+        raise EasyBuildError(f"Empty load_name for {ext.name} is not supported."
+                             "Use `False` to skip checking for module existence!")
+    if isinstance(load_names, list):
+        return load_names
+    elif isinstance(load_names, str):
+        return [load_names]
+    raise EasyBuildError(f"Invalid type for load_name of {ext.name}. "
+                         f"Expected False, str, or list, but got {type(load_names).__name__}: {load_names}")
+
+
+def _dict_to_ExtensionLike(ext: Dict[str, Any]):
+    """Convert a dictionary to a named tuple similar enough to an extension for get_load_names
+
+    Handles modulename to load_name transition.
+    """
+    if 'modulename' in ext:
+        if 'load_name' in ext:
+            raise EasyBuildError("Both 'load_name' and deprecated 'modulename' "
+                                 f"are specified for extension {ext['name']}")
+        _log.deprecated("Extension option 'modulename' is deprecated, "
+                        "use the 'load_name' easyconfig parameter instead", '6.0')
+        ext['load_name'] = ext.pop('modulename')
+
+    ExtensionLike = namedtuple('ExtensionLike', ('cfg'))
+    return ExtensionLike(ext)
+
+
+def get_modulenames(ext: Union['Extension', Dict[str, Any]], use_name_for_false: bool):
+    """[DEPRECATED] Return a list of load names for the extension, see get_load_names()
+    :param ext: Instance of Extension or dictionary with 'name' and optionally 'options', 'version', 'src' keys
+    :param use_name_for_false: Whether to return a list with the name or an empty list when the load_name is False
+    """
+    _log.deprecated("get_modulenames() is deprecated, use get_load_names() instead", '6.0')
+    if isinstance(ext, dict):
+        _log.deprecated("Extension instance should be passed to get_modulenames instead of dict", '6.0')
+        ext = _dict_to_ExtensionLike(ext)
+    result = get_load_names(ext)
+    if not result and use_name_for_false:
+        result = ext.name
+    return result
+
+
+def construct_exts_filter_cmds(exts_filter: Union[str, Tuple[str, str]], ext: Union['Extension', Dict[str, Any]],
+                               log: Logger = _log) -> List[Tuple[str, Optional[str]]]:
     """
     Resolve the exts_filter tuple by replacing the template values using the extension
     :param exts_filter: Tuple of (command, input) using template values (ext_name, ext_version, src)
-    :param ext: Instance of Extension or dictionary like with 'name' and optionally 'options', 'version', 'source' keys
-    :return: (cmd, input) as a tuple of strings for each modulename. Might be empty if no filtering is intented
+    :param ext: Instance of Extension or (DEPRECATED): dictionary with 'name' and opt. 'options', 'version', 'src' keys
+    :return: (cmd, input) as a tuple of strings for each load name. Might be empty if no filtering is intented
     """
 
     if isinstance(exts_filter, str) or len(exts_filter) != 2:
-        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input"), '
+                             f"got: {exts_filter} (type {type(exts_filter)})")
 
     cmd, cmdinput = exts_filter
 
-    if not isinstance(ext, dict):
-        ext = {'name': ext.name, 'version': ext.version, 'src': ext.src, 'options': ext.options}
+    if isinstance(ext, dict):
+        log.deprecated("Extension instance should be passed to construct_exts_filter_cmds instead of dict", '6.0')
+        ext = _dict_to_ExtensionLike(ext)
 
-    modulenames = get_modulenames(ext, use_name_for_false=False)
+    load_names = get_load_names(ext)
 
     result = []
-    for modulename in modulenames:
-        tmpldict = {
-            'ext_name': modulename,
-            'ext_version': ext.get('version'),
-            'src': ext.get('src'),
+    for load_name in load_names:
+        tmpl_dict = {
+            'ext_name': load_name,
+            'ext_version': ext.version,
+            'src': ext.src,
         }
         try:
-            result.append((cmd % tmpldict,
-                           cmdinput % tmpldict if cmdinput else None))
+            result.append((cmd % tmpl_dict,
+                           cmdinput % tmpl_dict if cmdinput else None))
         except KeyError as err:
-            raise EasyBuildError(f"KeyError occurred on completing extension filter template: {err}")
+            raise EasyBuildError(f"KeyError occurred on completing extension filter template '{exts_filter}': {err}")
     return result
 
 
@@ -126,6 +250,10 @@ class Extension:
         self.ext = copy.deepcopy(ext)
         self.dry_run = self.master.dry_run
 
+        # Make extra params known
+        if extra_params:
+            self.cfg.extend_params(extra_params, overwrite=False)
+
         if 'name' not in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
 
@@ -135,6 +263,7 @@ class Extension:
         restore_options = (
             'checksums',
             'data_sources',
+            'extension_name',
             'patches',
             'postinstallcmds',
             'sanity_check_commands',
@@ -166,29 +295,23 @@ class Extension:
         self.src_extract_cmd = self.ext.get('extract_cmd', None)
         self.patches = resolve_template(self.ext.get('patches', []), self.cfg.template_values)
         # Some options may not be resolvable yet
-        self.options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
-                                        self.cfg.template_values,
-                                        expect_resolved=False)
-        if 'parallel' in self.options:
-            # Replace value and issue better warning for easyconfig parameters,
-            # as opposed to warnings meant for easyblocks
-            self.log.deprecated("Easyconfig parameter 'parallel' is deprecated, use 'max_parallel' instead.", '6.0')
-            self.options['max_parallel'] = self.options.pop('parallel')
-
-        if extra_params:
-            self.cfg.extend_params(extra_params, overwrite=False)
-
-        # custom easyconfig parameters for extension are included in self.options
+        options = resolve_template(copy.deepcopy(self.ext.get('options', {})),
+                                   self.cfg.template_values,
+                                   expect_resolved=False)
+        # Custom easyconfig parameters for extension are included in self.options
         # make sure they are merged into self.cfg so they can be queried;
-        # unknown easyconfig parameters are ignored since self.options may include keys only there for extensions;
         # this allows to specify custom easyconfig parameters on a per-extension basis
-        for key, value in self.options.items():
+        self._options = _ExtensionOptions(self)
+        self._options.update(options)
+        for key, value in options.items():
             if key in self.cfg:
-                self.cfg[key] = value
+                # Log only for now, setting done by _options.update
                 self.log.debug("Customising known easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
             else:
-                self.log.debug("Skipping unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
+                # TODO: Error out when removing self.options
+                # Deprecation warning triggered by _options.update
+                self.log.debug("Unknown custom easyconfig parameter '%s' for extension %s/%s: %s",
                                key, name, version, value)
 
         # If parallelism has been set already take potentially new limitation into account
@@ -216,6 +339,22 @@ class Extension:
         Shortcut the get the extension version.
         """
         return self.ext.get('version', None)
+
+    @property
+    def options(self) -> Dict[str, Any]:
+        """[DEPRECATED] Dictionary with options for this extension"""
+        self.log.deprecated("The 'options' attribute of Extension is deprecated, "
+                            "use the corresponding easyconfig parameter(s) instead", '6.0', exception=None)
+        return self._options
+
+    @options.setter
+    def options(self, value: Dict[str, Any]):
+        self.log.deprecated("Setting the 'options' attribute of Extension is deprecated, "
+                            "use the corresponding easyconfig parameter(s) instead", '6.0')
+        if not isinstance(value, dict):
+            raise EasyBuildError(f"Extension options should be a dict, got {type(value).__name__}")
+        self._options.clear()
+        self._options.update(value)
 
     def prerun(self):
         """
@@ -342,13 +481,12 @@ class Extension:
             self.log.debug("no exts_filter setting found, skipping sanitycheck")
             return res
 
-        exts_filer_cmds = construct_exts_filter_cmds(exts_filter, self)
-        # allow skipping of sanity check by setting module name to False
-        if not exts_filer_cmds:
-            self.log.info("modulename set to False for '%s' extension, so skipping sanity check", self.name)
+        exts_filter_cmds = construct_exts_filter_cmds(exts_filter, self)
+        if not exts_filter_cmds:
+            self.log.info("load_name set to False for '%s' extension, so skipping sanity check", self.name)
         else:
             fail_msgs = []
-            for cmd, stdin in exts_filer_cmds:
+            for cmd, stdin in exts_filter_cmds:
                 cmd_res = run_shell_cmd(cmd, fail_on_error=False, stdin=stdin, hidden=True)
 
                 msg = f"Extension sanity check command '{cmd}': "
