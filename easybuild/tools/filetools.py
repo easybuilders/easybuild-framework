@@ -62,7 +62,7 @@ import zlib
 from functools import partial
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Tuple, Union
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
@@ -1798,8 +1798,9 @@ def apply_patch(patch_file, dest, fn=None, copy=False, level=None, use_git=False
     return True
 
 
-def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
-                              on_missing_match=None, match_all=False, single_line=True):
+def apply_regex_substitutions(paths: Union[PathOrStr, List[PathOrStr]], regex_subs: List[Tuple[str, str]],
+                              backup='.orig.eb', on_missing_match: Optional[str] = None,
+                              match_all=False, single_line=True):
     """
     Apply specified list of regex substitutions.
 
@@ -1822,7 +1823,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
         raise ValueError('Invalid value passed to on_missing_match: %s (allowed: %s)',
                          on_missing_match, ', '.join(allowed_values))
 
-    if isinstance(paths, str):
+    if isinstance(paths, (str, Path)):
         paths = [paths]
     if (not isinstance(regex_subs, (list, tuple)) or
             not all(isinstance(sub, (list, tuple)) and len(sub) == 2 for sub in regex_subs)):
@@ -1861,7 +1862,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
                     write_file(path, txt_utf8)
 
                 if backup:
-                    copy_file(path, path + backup)
+                    copy_file(path, str(path) + backup)
                 replacement_msgs = []
                 replaced = [False] * len(compiled_regex_subs)
                 with open_file(path, 'w') as out_file:
@@ -1895,7 +1896,7 @@ def apply_regex_substitutions(paths, regex_subs, backup='.orig.eb',
                 if (match_all and not all(replaced)) or (not match_all and not any(replaced)):
                     errors = ["Nothing found to replace '%s'" % regex.pattern
                               for cur_replaced, (regex, _) in zip(replaced, compiled_regex_subs) if not cur_replaced]
-                    replacement_failed_msgs.append(', '.join(errors) + ' in ' + path)
+                    replacement_failed_msgs.append(', '.join(errors) + f' in {path}')
             except (IOError, OSError) as err:
                 raise EasyBuildError("Failed to patch %s: %s", path, err)
             if replacement_failed_msgs:
@@ -2304,7 +2305,7 @@ def find_backup_name_candidate(src_file):
     return dst_file
 
 
-def back_up_file(src_file, backup_extension='bak', hidden=False, strip_fn=None):
+def back_up_file(src_file: PathOrStr, backup_extension='bak', hidden=False, strip_fn=None):
     """
     Backs up a file appending a backup extension and timestamp to it (if there is already an existing backup).
 
@@ -2405,7 +2406,7 @@ def encode_string(name):
     It has been inspired by the concepts seen at, but in lowercase style:
     * http://fossies.org/dox/netcdf-4.2.1.1/escapes_8c_source.html
     * http://celldesigner.org/help/CDH_Species_01.html
-    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java  # noqa
+    * http://research.cs.berkeley.edu/project/sbp/darcsrepo-no-longer-updated/src/edu/berkeley/sbp/misc/ReflectiveWalker.java  # noqa, pylint: disable=line-too-long
     and can be extended freely as per ISO/IEC 10646:2012 / Unicode 6.1 names:
     * http://www.unicode.org/versions/Unicode6.1.0/
     For readability of >2 words, it is suggested to use _CamelCase_ style.

@@ -1632,8 +1632,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_file(backup)
         ft.write_file(testfile, testtxt)
 
-        # extension of backed up file can be controlled
-        ft.apply_regex_substitutions(testfile, regex_subs, backup='.backup')
+        # extension of backed up file can be controlled and pathlib type is accepted
+        ft.apply_regex_substitutions(Path(testfile), regex_subs, backup='.backup')
 
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
