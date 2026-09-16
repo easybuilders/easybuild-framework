@@ -160,7 +160,8 @@ class ToyBuildTest(EnhancedTestCase):
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                         raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True, trace=True):
+                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True, trace=True,
+                        return_error=False):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -186,9 +187,11 @@ class ToyBuildTest(EnhancedTestCase):
             args.append('--dump-test-report=%s' % test_report)
         args.extend(extra_args)
         myerr = None
+        outtxt = ''
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error, testing=testing, raise_systemexit=raise_systemexit)
+                                  raise_error=raise_error or return_error,
+                                  testing=testing, raise_systemexit=raise_systemexit)
         except Exception as err:
             myerr = err
             if raise_error:
@@ -229,6 +232,8 @@ class ToyBuildTest(EnhancedTestCase):
                 msg = "Pattern %s found in full test report: %s" % (regex.pattern, test_report_txt)
                 self.assertTrue(regex.search(test_report_txt), msg)
 
+        if return_error:
+            return outtxt, myerr
         return outtxt
 
     def run_test_toy_build_with_output(self, *args, **kwargs):
@@ -3334,6 +3339,46 @@ class ToyBuildTest(EnhancedTestCase):
             missing_ptx_str += "%s" % missing_ptx
             assert_in_log_and_stdout(missing_ptx_str)
 
+        # Test case 10a: Additional device code present, missing PTX for highest arch
+        args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
+                '--cuda-sanity-check-strict']
+        write_file(cuobjdump_file, cuobjdump_txt_shebang)
+        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
+        write_file(cuobjdump_file, cuobjdump_txt_sm80_ptx, append=True)
+        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+
+        additional_code_error = "Files with additional CUDA device code: 3."
+        missing_code_error = "Files missing CUDA device code: 3"
+        missing_ptx_error = "Files missing CUDA PTX code: 3"
+        test_cases = (
+            ('',
+             [missing_code_error, additional_code_error, missing_ptx_error], []),
+            ('cuda_sanity_check_strict=False',
+             [missing_code_error, missing_ptx_error], [additional_code_error]),
+            ('cuda_sanity_check_accept_ptx_as_devcode=True',
+             [additional_code_error, missing_ptx_error], [missing_code_error]),
+            ('cuda_sanity_check_strict=False\ncuda_sanity_check_accept_ptx_as_devcode=True',
+             [missing_ptx_error], [additional_code_error, missing_code_error]),
+            ('cuda_sanity_check_error_on_failed_checks=False',
+             [], [missing_code_error, additional_code_error, missing_ptx_error]),
+        )
+        modified_toy_ec = os.path.join(self.test_prefix, 'toy-0.0-modified.eb')
+        for extra_code, expected_errors, unexpected_errors in test_cases:
+            with self.subTest('Extra EC params: ' + extra_code):
+                write_file(modified_toy_ec, toy_ec_txt + f'\n{extra_code}')
+                with self.mocked_stdout_stderr():
+                    _, error = self._test_toy_build(ec_file=modified_toy_ec, extra_args=args, raise_error=False,
+                                                    verify=False, return_error=True)
+                if expected_errors:
+                    self.assertIsInstance(error, EasyBuildError)
+                    error_str = str(error)
+                else:
+                    error_str = ''
+                for msg in expected_errors:
+                    self.assertIn(msg, error_str)
+                for msg in unexpected_errors:
+                    self.assertNotIn(msg, error_str)
+
         # Test case 1a: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
         # 8.0 device code
         # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
@@ -3453,7 +3498,6 @@ class ToyBuildTest(EnhancedTestCase):
             "dependencies = [('CUDA', '5.5.22', '', SYSTEM)]",
             "cuda_sanity_ignore_files = ['bin/toy']",
         ])
-        write_file(toy_ec_cuda, toy_ec_txt)
         write_file(toy_whitelist_ec, toy_ec_txt)
 
         args = ['--cuda-compute-capabilities=9.0', '--cuda-sanity-check-error-on-failed-checks',
