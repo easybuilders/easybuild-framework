@@ -97,6 +97,13 @@ class Toy_Extension(ExtensionEasyBlock):
         return thread_pool.submit(run_shell_cmd, cmd, asynchronous=True, env=os.environ.copy(),
                                   fail_on_error=False, task_id=task_id, work_dir=os.getcwd())
 
+    def async_cmd_check(self):
+        """Show success"""
+        res = super().async_cmd_check()
+        if res:
+            print(f"Async toy extension build done, exit code: {res.exit_code}")
+        return res
+
     def post_install_extension(self):
         """
         Wrap up installation of toy extension.
