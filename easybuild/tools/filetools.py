@@ -455,13 +455,13 @@ def clean_dir(path):
         empty_dir(path)
 
 
-def remove(paths):
+def remove(paths: Union[PathOrStr, List[PathOrStr]]):
     """
     Remove single file/directory or list of files and directories
 
     :param paths: path(s) to remove
     """
-    if isinstance(paths, str):
+    if isinstance(paths, (str, Path)):
         paths = [paths]
 
     _log.info("Removing %d files & directories", len(paths))
@@ -1624,7 +1624,7 @@ def guess_patch_level(patched_files, parent_dir):
     return patch_level
 
 
-def create_patch_info(patch_spec):
+def create_patch_info(patch_spec: Union[list, tuple, str, dict]):
     """
     Create info dictionary from specified patch spec.
     """
@@ -1643,7 +1643,6 @@ def create_patch_info(patch_spec):
         # note that 'isinstance(..., int)' returns True for True/False values...
         if isinstance(patch_arg, int) and not isinstance(patch_arg, bool):
             patch_info['level'] = patch_arg
-
         # string value as patch argument can be either path where patch should be applied,
         # or path to where a non-patch file should be copied
         elif isinstance(patch_arg, str):
@@ -1657,7 +1656,6 @@ def create_patch_info(patch_spec):
                 "Wrong patch spec '%s', only int/string are supported as 2nd element", str(patch_spec),
                 exit_code=EasyBuildExit.EASYCONFIG_ERROR
             )
-
     elif isinstance(patch_spec, str):
         validate_patch_spec(patch_spec)
         patch_info = {'name': patch_spec}
