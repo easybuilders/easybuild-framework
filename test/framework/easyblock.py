@@ -1332,7 +1332,7 @@ class EasyBlockTest(EnhancedTestCase):
             toolchain = SYSTEM
             source_urls = ['{url}']
             sources = ['{source_fn}']
-            source_deps = [('foo', '1.2.3')]
+            source_deps = [('some-tool-that-helps-with-creating-source-tarballs', '1.2.3')]
         """)
         self.writeEC()
 
@@ -1341,13 +1341,18 @@ class EasyBlockTest(EnhancedTestCase):
         # --fetch is used, fake modules tool instance is used
         self.assertTrue(isinstance(eb.modules_tool, NoModulesTool))
 
+        # first check what happens when module for source dep is not available
+        expected_error = "Module for one or more source dependencies is not available yet"
+        self.assertErrorRegex(EasyBuildError, expected_error, eb.fetch_step)
+
+        # put fake module in place for source dep
+        mods = os.path.join(self.test_prefix, 'modules')
+        write_file(os.path.join(mods, 'some-tool-that-helps-with-creating-source-tarballs', '1.2.3'), '#%Module')
+        self.modtool.use(mods)
+
         def fake_download_file(_filename, _url, path, *_args, **_kwargs):
             write_file(path, 'content')
             return True
-
-        mods = os.path.join(self.test_prefix, 'modules')
-        write_file(os.path.join(mods, 'foo', '1.2.3'), '#%Module')
-        self.modtool.use(mods)
 
         mocked_modtool = unittest.mock.MagicMock()
 
@@ -1362,7 +1367,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # verify that real modules tool instance was created, and that source deps got loaded
         mocked_modules_tool.assert_called_once_with(modules_tool_name=mod_tool_name)
-        mocked_modtool.load.assert_called_once_with(['foo/1.2.3'])
+        mocked_modtool.load.assert_called_once_with(['some-tool-that-helps-with-creating-source-tarballs/1.2.3'])
 
         # check that source file was actually "downloaded"
         self.assertEqual(len(eb.src), 1)

@@ -2898,7 +2898,11 @@ class EasyBlock:
                 mod_tool = self.modules_tool
 
             source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
-            mod_tool.load(source_deps_mod_names)
+            if all(mod_tool.exist(source_deps_mod_names)):
+                mod_tool.load(source_deps_mod_names)
+            else:
+                raise EasyBuildError("Module for one or more source dependencies is not available yet: %s",
+                                     ', '.join(source_deps_mod_names))
 
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
