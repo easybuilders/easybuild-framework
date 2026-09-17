@@ -458,7 +458,10 @@ class EnhancedTestCase(TestCase):
         param: multi_line: if True, match ^/$ at the beginning/end of each line
         """
         for regex in regexs:
-            self.assertRegex(txt, re.compile(regex, re.M) if multi_line else regex)
+            if multi_line:
+                self.assertRegex(txt, re.compile(regex, re.M))
+            else:
+                self.assertRegex(txt, regex)
 
     def assertNotMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
                             multi_line: bool = True) -> None:
@@ -468,7 +471,10 @@ class EnhancedTestCase(TestCase):
         param: multi_line: if False, match ^/$ only at the beginning/end of the whole string
         """
         for regex in regexs:
-            self.assertNotRegex(txt, re.compile(regex, re.M) if multi_line else regex)
+            if multi_line:
+                self.assertNotRegex(txt, re.compile(regex, re.M))
+            else:
+                self.assertNotRegex(txt, regex)
 
 
 class TestLoaderFiltered(unittest.TestLoader):
