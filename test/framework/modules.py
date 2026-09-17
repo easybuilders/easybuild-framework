@@ -166,9 +166,7 @@ class ModulesTest(EnhancedTestCase):
             r"^os.environ\[.EBROOTOPENBLAS.\]\s*=\s*./prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28.",
             r"^os.environ\[.LOADEDMODULES.\]\s*=.*OpenBLAS/0.2.20-GCC-6.4.0-2.28",
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # OpenBLAS module did *not* get loaded
         self.assertNotIn('EBROOTOPENBLAS', os.environ)
@@ -184,13 +182,10 @@ class ModulesTest(EnhancedTestCase):
             r"setenv\W+EBROOTOPENBLAS.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28",
             r"prepend[_-]path\W+LD_LIBRARY_PATH.+/prefix/software/OpenBLAS/0.2.20-GCC-6.4.0-2.28/lib",
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
-        regex = re.compile(r'^os\.environ\[', re.M)
-        self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
+        self.assertNotRegex(out, re.compile(r'^os\.environ\[', re.M))
 
     def test_list(self):
         """
@@ -505,13 +500,10 @@ class ModulesTest(EnhancedTestCase):
             r"setenv\W+EBROOTGCC.+prefix/software/GCC/7.3.0-2.30",
             r"^prepend[_-]path\W+PATH.+/prefix/software/GCC/7.3.0-2.30/bin",
         ]
-        for pattern in patterns:
-            regex = re.compile(pattern, re.M)
-            self.assertTrue(regex.search(out), "Pattern '%s' should be found in: %s" % (regex.pattern, out))
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # show method only returns user-facing output (obtained via stderr), not changes to the environment
-        regex = re.compile(r'^os\.environ\[', re.M)
-        self.assertFalse(regex.search(out), "Pattern '%s' should not be found in: %s" % (regex.pattern, out))
+        self.assertNotRegex(out, re.compile(r'^os\.environ\[', re.M))
 
     def test_curr_module_paths(self):
         """Test for curr_module_paths function."""
@@ -660,11 +652,11 @@ class ModulesTest(EnhancedTestCase):
 
         # load module and check that previous LD_LIBRARY_PATH is still there, at the end
         self.modtool.load(['GCC/4.6.3'])
-        self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
+        self.assertRegex(os.environ['LD_LIBRARY_PATH'], "%s$" % testpath)
         self.modtool.purge()
 
         # check that previous LD_LIBRARY_PATH is still there, at the end
-        self.assertTrue(re.search("%s$" % testpath, os.environ['LD_LIBRARY_PATH']))
+        self.assertRegex(os.environ['LD_LIBRARY_PATH'], "%s$" % testpath)
         self.modtool.purge()
 
     def test_purge(self):
@@ -1479,7 +1471,7 @@ class ModulesTest(EnhancedTestCase):
         self.modtool.load(['OpenMPI/2.1.2-GCC-6.4.0-2.28'])
 
         # default action is to print a clear warning message
-        stderr = check_loaded_modules()
+        out = check_loaded_modules()
         patterns = [
             r"^WARNING: Found one or more non-allowed loaded \(EasyBuild-generated\) modules in current environment:",
             r"^\* GCC/6.4.0-2.28",
@@ -1490,8 +1482,7 @@ class ModulesTest(EnhancedTestCase):
             "To specify action to take when loaded modules are detected, use "
             "--detect-loaded-modules={error,ignore,purge,unload,warn}",
         ]
-        for pattern in patterns:
-            self.assertTrue(re.search(pattern, stderr, re.M), "Pattern '%s' found in: %s" % (pattern, stderr))
+        self.assertMultiRegex(patterns, out, multi_line=True)
 
         # reconfigure EasyBuild to ignore loaded modules for GCC & hwloc & error out when loaded modules are detected
         options = init_config(args=['--allow-loaded-modules=GCC,hwloc', '--detect-loaded-modules=error'])

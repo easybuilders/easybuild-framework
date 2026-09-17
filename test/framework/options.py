@@ -2041,7 +2041,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertRegex(outtxt, re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
-            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
+            self.assertIn(f"Extended list of robot search paths with ['{pr_tmpdir}']:", outtxt)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
@@ -2190,7 +2190,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r"^== COMPLETED: Installation ended successfully \(took .* secs?\)",
             ]
 
-            self.assertMultiRegex(msg_regexs, stdout)
+            self.assertMultiRegex(msg_regexs, stdout, multi_line=True)
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr_x" % err)
@@ -2233,7 +2233,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
+            self.assertIn(f"Extended list of robot search paths with ['{pr_tmpdir}']:", outtxt)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
             shutil.rmtree(tmpdir)
@@ -2276,7 +2276,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            self.assertRegex(outtxt, r"Extended list of robot search paths with \['%s'\]:" % pr_tmpdir)
+            self.assertIn(f"Extended list of robot search paths with ['{pr_tmpdir}']:", outtxt)
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
 
@@ -4518,7 +4518,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== copying files to .*/easybuild-easyconfigs\.\.\.",
             r"^== pushing branch '[0-9]{14}_new_pr_toy00' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # test easyblocks
         test_ebs = os.path.join(topdir, 'sandbox', 'easybuild', 'easyblocks')
@@ -4606,7 +4606,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^ 1 file changed, [0-9]+ insertions\(\+\)$",
             r"^\* overview of changes:\n  easybuild/easyconfigs/t/toy/toy-0\.0\.eb | [0-9]+",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
     def test_update_branch_github(self):
         """Test --update-branch-github."""
@@ -4636,7 +4636,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^Overview of changes:\n.*/easyconfigs/t/toy/toy-0.0.eb \| [0-9]+",
             r"== pushed updated branch 'develop' to boegel/easybuild-easyconfigs \[DRY RUN\]",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
     def test_github_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
@@ -4696,7 +4696,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r".*/toy-0.0-gompi-2018a-test.eb\s*\|",
             r"^\s*1 file(s?) changed",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # Commit message must not be specified for only new ECs
         args_new_pr = args + ['--pr-commit-msg=just a test']
@@ -4749,7 +4749,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         regexs.append(r"^\* title: \"just a test\"")
         regexs.append(rf".*/{ec_name}\s*\|")
         regexs.append(r".*[0-9]+ deletions\(-\)")
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         GITHUB_TEST_ORG = 'test-organization'
         args.extend([
@@ -4777,7 +4777,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\s*2 files changed",
             r".*[0-9]+ deletions\(-\)",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # should also work with a patch
         args.append(toy_patch)
@@ -4841,7 +4841,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== pushed updated branch 'develop' to easybuilders/easybuild-easyconfigs \[DRY RUN\]",
             r"^== updated https://github.com/easybuilders/easybuild-easyconfigs/pull/2237 \[DRY RUN\]",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # also check behaviour under --extended-dry-run/-x
         args.remove('-D')
@@ -4854,7 +4854,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\+\+\+\s*.*toy-0.0-gompi-2018a-test.eb",
             r"^\+name = 'toy'",
         ])
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # check whether comments/buildstats get filtered out
         regexs = [
@@ -5030,7 +5030,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             rf'title: "delete {ec_name}"',
             r"1 file(s?) changed,( 0 insertions\(\+\),)? [0-9]+ deletions\(-\)",
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
     def test_github_new_pr_dependencies(self):
         """Test use of --new-pr with automatic dependency lookup."""
@@ -5078,7 +5078,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^\s*2 files changed",
         ]
 
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
     def test_github_new_pr_easyblock(self):
         """
@@ -5103,7 +5103,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         patterns = [
             r'target: easybuilders/easybuild-easyblocks:develop',
-            r'from: easybuild_test/easybuild-easyblocks:[0-9]+_new_pr_toy',
+            fr'from: {GITHUB_TEST_ACCOUNT}/easybuild-easyblocks:[0-9]+_new_pr_toy',
             r'title: "new easyblock for toy"',
             r'easybuild/easyblocks/t/toy.py',
         ]
