@@ -918,14 +918,14 @@ class DocsTest(EnhancedTestCase):
         self.assertRegex(txt, re.compile(r'^\* GCC', re.M))
         self.assertRegex(txt, re.compile(r'^\s*\* GCC v4.6.3: system', re.M))
         self.assertNotRegex(txt, re.compile(r'^\* gzip', re.M))
-        self.assertNotRegex(txt, r'gzip v1\.')
+        self.assertNotIn("gzip v1.", txt)
 
         txt = list_software(output_format='rst', detailed=True, only_installed=True)
         self.assertRegex(txt, re.compile(r'^\*GCC\*', re.M))
         self.assertRegex(txt, r'4\.6\.3.*system')
         self.assertNotRegex(txt, re.compile(r'^\*gzip\*', re.M))
-        self.assertNotRegex(txt, r'1\.4')
-        self.assertNotRegex(txt, r'1\.5')
+        self.assertNotIn("1.4", txt)
+        self.assertNotIn("1.5", txt)
 
         # check for specific patterns in output for larger set of test easyconfigs
         build_options = {

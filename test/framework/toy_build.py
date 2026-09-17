@@ -963,7 +963,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
-        self.assertFalse(re.search("module load", modtxt))
+        self.assertNotIn("module load", modtxt)
         os.remove(toy_module_path)
         # test module path with GCC/6.4.0-2.28 build, pretend to be an MPI lib by setting moduleclass
         extra_args = [
@@ -1023,7 +1023,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # no dependencies or toolchain => no module load statements in module file
         modtxt = read_file(toy_module_path)
-        self.assertFalse(re.search("module load", modtxt))
+        self.assertNotIn("module load", modtxt)
         os.remove(toy_module_path)
 
         # test module path with system/system build, pretend to be a compiler by setting moduleclass
@@ -1194,7 +1194,7 @@ class ToyBuildTest(EnhancedTestCase):
         # verify that bug that leads to duplicating values of environment variable is not re-introduced,
         # see https://github.com/easybuilders/easybuild-framework/issues/4948
         logfile = read_file(self.logfile)
-        self.assertNotRegex(logfile, r'mpicxx mpicxx')
+        self.assertNotIn("mpicxx mpicxx", logfile)
 
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-gompi-2018a-test')
         if get_module_syntax() == 'Lua':

@@ -666,7 +666,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertNotRegex(txt, r"\nprepend-path\s+NONPATH\s+\$root/non_path\n")
         elif get_module_syntax() == 'Lua':
             self.assertIn('\nprepend_path("PATH", pathJoin(root, "bin"))\n', txt)
-            self.assertNotRegex(txt, r'\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n')
+            self.assertNotIn('\nprepend_path("NONPATH", pathJoin(root, "non_path"))\n', txt)
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 

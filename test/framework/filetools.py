@@ -2606,7 +2606,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
-        self.assertTrue("running shell command" in stdout)
+        self.assertIn("running shell command", stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
