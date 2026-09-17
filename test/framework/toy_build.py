@@ -2016,7 +2016,7 @@ class ToyBuildTest(EnhancedTestCase):
 
             logtxt = self._test_toy_exts_common(args=args)[1]
 
-            self.assertRegex(logtxt, "INFO Installing extensions sequentially")
+            self.assertIn("INFO Installing extensions sequentially", logtxt)
 
             patterns = [f"INFO installing extension {x}" for x in ('ls', 'bar', 'barbar', 'toy')]
             self.assertMultiRegex(patterns, logtxt)

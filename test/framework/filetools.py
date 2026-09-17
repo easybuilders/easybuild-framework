@@ -2846,7 +2846,7 @@ class FileToolsTest(EnhancedTestCase):
             stdout = self.get_stdout()
         self.assertIsNone(index)
         self.assertFalse(stdout)
-        self.assertRegex(stderr, r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % ecs_dir)
+        self.assertIn(f"WARNING: Index for {ecs_dir} is no longer valid (too old), so ignoring it", stderr)
 
         # check whether load_index takes into account --ignore-index
         init_config(build_options={'ignore_index': True})

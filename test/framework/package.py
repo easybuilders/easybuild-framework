@@ -246,7 +246,7 @@ class PackageTest(EnhancedTestCase):
         toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
         write_file(toy_file, toy_txt)
 
-        self.assertRegex(toy_txt, r"""`backticks'""")
+        self.assertIn("`backticks'", toy_txt)
         ec_desc = EasyConfig(toy_file, validate=False)
         easyblock_desc = EB_toy(ec_desc)
         easyblock_desc.run_all_steps(False)

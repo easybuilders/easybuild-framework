@@ -5349,7 +5349,7 @@ class EasyConfigTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, testing=False, raise_error=True, clear_caches=False)
             stdout = self.get_stdout()
 
-        self.assertRegex(stdout, r"libtoy/0\.0 is already installed")
+        self.assertIn("libtoy/0.0 is already installed", stdout)
 
     def test_templates(self):
         """

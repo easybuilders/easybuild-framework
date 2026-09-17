@@ -156,7 +156,7 @@ class ParallelBuildTest(EnhancedTestCase):
             if ec['hidden']:
                 self.assertRegex(jobs[i].script, "eb %s.* --hidden" % ec['spec'])
             else:
-                self.assertRegex(jobs[i].script, "eb %s" % ec['spec'])
+                self.assertIn(f"eb {ec['spec']}", jobs[i].script)
 
         for job in jobs:
             self.assertEqual(job.cores, build_options['job_cores'])
@@ -324,7 +324,7 @@ class ParallelBuildTest(EnhancedTestCase):
         # test again with custom EasyBuild command to use in jobs
         update_build_option('job_eb_cmd', "/just/testing/bin/eb --debug")
         cmd = submit_jobs(toy_ec, eb_go.generate_cmd_line(), testing=True)
-        self.assertRegex(cmd, r" && /just/testing/bin/eb --debug %\(spec\)s ")
+        self.assertIn(" && /just/testing/bin/eb --debug %(spec)s ", cmd)
 
     def test_build_easyconfigs_in_parallel_slurm(self):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""

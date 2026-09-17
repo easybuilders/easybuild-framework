@@ -584,7 +584,7 @@ class EasyBlockTest(EnhancedTestCase):
         if get_module_syntax() == 'Tcl':
             self.assertRegex(txt, r"\nprepend-path\s+PATH\s+\$root/bin\n")
         elif get_module_syntax() == 'Lua':
-            self.assertRegex(txt, r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n')
+            self.assertIn('\nprepend_path("PATH", pathJoin(root, "bin"))\n', txt)
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
 
@@ -665,7 +665,7 @@ class EasyBlockTest(EnhancedTestCase):
             self.assertRegex(txt, r"\nprepend-path\s+PATH\s+\$root/bin\n")
             self.assertNotRegex(txt, r"\nprepend-path\s+NONPATH\s+\$root/non_path\n")
         elif get_module_syntax() == 'Lua':
-            self.assertRegex(txt, r'\nprepend_path\("PATH", pathJoin\(root, "bin"\)\)\n')
+            self.assertIn('\nprepend_path("PATH", pathJoin(root, "bin"))\n', txt)
             self.assertNotRegex(txt, r'\nprepend_path\("NONPATH", pathJoin\(root, "non_path"\)\)\n')
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
