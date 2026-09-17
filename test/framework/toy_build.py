@@ -2141,7 +2141,7 @@ class ToyBuildTest(EnhancedTestCase):
         toy_ext_eb_txt = toy_ext_eb_txt.replace('def required_deps', 'def xxx_required_deps')
         write_file(toy_ext_eb, toy_ext_eb_txt)
 
-        args[-1] = '--include-easyblocks=%s' % toy_ext_eb
+        args[-1] = f'--include-easyblocks={toy_ext_eb}'
 
         logtxt = self._test_toy_exts_common(args=args)[1]
 
@@ -2173,7 +2173,7 @@ class ToyBuildTest(EnhancedTestCase):
             r"INFO 3 out of 4 extensions installed \(1 queued, 0 running: \)$",
             r"INFO 4 out of 4 extensions installed \(0 queued, 0 running: \)$",
         ]
-        self.assert_multi_regex(patterns, logtxt)
+        self.assertMultiRegex(patterns, logtxt, multi_line=True)
 
     def test_backup_modules(self):
         """Test use of backing up of modules with --module-only."""
