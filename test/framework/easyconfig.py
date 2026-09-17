@@ -879,10 +879,8 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(tweaked_openmpi_2))
         tweaked_openmpi_content_1 = read_file(tweaked_openmpi_1)
         tweaked_openmpi_content_2 = read_file(tweaked_openmpi_2)
-        self.assertTrue('moduleclass = "debugger"' in tweaked_openmpi_content_1,
-                        "Tweaked value not found in " + tweaked_openmpi_content_1)
-        self.assertTrue('moduleclass = "debugger"' in tweaked_openmpi_content_2,
-                        "Tweaked value not found in " + tweaked_openmpi_content_2)
+        self.assertIn('moduleclass = "debugger"', tweaked_openmpi_content_1)
+        self.assertIn('moduleclass = "debugger"', tweaked_openmpi_content_2)
         self.assertEqual(tweak_map, {tweaked_openmpi_1: untweaked_openmpi_1, tweaked_openmpi_2: untweaked_openmpi_2})
 
     def test_installversion(self):
@@ -1158,19 +1156,19 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.dependencies(), parsed_deps)
 
         # hidden dependencies are filtered from list of (build)dependencies
-        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertNotIn('test/3.2.1-GCC-4.8.3', [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertIn('test/.3.2.1-GCC-4.8.3', [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertNotIn('testbuildonly/4.9.3-2.25-GCC-4.8.3', [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertIn('testbuildonly/.4.9.3-2.25-GCC-4.8.3', [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # hidden dependencies are also filtered from list of dependencies when validation is skipped
         res = obtain_ec_for(specs, [self.test_prefix], None)
         ec = EasyConfig(res[1], validate=False)
-        self.assertFalse('test/3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['dependencies']])
-        self.assertTrue('test/.3.2.1-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
-        self.assertFalse('testbuildonly/4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['builddependencies']])
-        self.assertTrue('testbuildonly/.4.9.3-2.25-GCC-4.8.3' in [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertNotIn('test/3.2.1-GCC-4.8.3', [d['full_mod_name'] for d in ec['dependencies']])
+        self.assertIn('test/.3.2.1-GCC-4.8.3', [d['full_mod_name'] for d in ec['hiddendependencies']])
+        self.assertNotIn('testbuildonly/4.9.3-2.25-GCC-4.8.3', [d['full_mod_name'] for d in ec['builddependencies']])
+        self.assertIn('testbuildonly/.4.9.3-2.25-GCC-4.8.3', [d['full_mod_name'] for d in ec['hiddendependencies']])
         os.remove(res[1])
 
         # verify append functionality for lists
@@ -3355,8 +3353,7 @@ class EasyConfigTest(EnhancedTestCase):
         # don't bother doing full output check
         # (different order for fields depending on Python version makes that tricky)
         for gccver in ['4.6.3', '4.8.3', '7.3.0-2.30']:
-            self.assertTrue('"GCC/%s"' % gccver in dottxt)
-            self.assertTrue('"toy/0.0" -> "GCC/%s"' % gccver in dottxt)
+            self.assertIn(f'"toy/0.0" -> "GCC/{gccver}"', dottxt)
 
     def test_ActiveMNS_singleton(self):
         """Make sure ActiveMNS is a singleton class."""
