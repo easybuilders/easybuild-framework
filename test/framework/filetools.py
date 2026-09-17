@@ -75,9 +75,6 @@ class FileToolsTest(EnhancedTestCase):
         super().setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
-        if ft.HAVE_REQUESTS:
-            self.orig_filetools_requests_get = ft.requests.get
-        self.orig_filetools_HAVE_REQUESTS = ft.HAVE_REQUESTS
 
         self.orig_filetools_fallback_source_urls = ft.FALLBACK_SOURCE_URLS[:]
 
@@ -86,9 +83,6 @@ class FileToolsTest(EnhancedTestCase):
         super().tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
-        ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS
-        if ft.HAVE_REQUESTS:
-            ft.requests.get = self.orig_filetools_requests_get
 
         ft.FALLBACK_SOURCE_URLS = self.orig_filetools_fallback_source_urls
 
@@ -551,15 +545,6 @@ class FileToolsTest(EnhancedTestCase):
             fh = request.urlopen(test_url)
             self.assertEqual(ft.det_file_size(fh.info()), expected_size)
             fh.close()
-
-            # also try using requests, which is used as a fallback in download_file
-            try:
-                import requests
-                res = requests.get(test_url)
-                self.assertEqual(ft.det_file_size(res.headers), expected_size)
-                res.close()
-            except ImportError:
-                pass
         except request.URLError:
             print("Skipping online test for det_file_size (working offline)")
 
@@ -675,48 +660,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(target_location)
         self.assertTrue(os.path.samefile(path, target_location))
 
-    def test_download_file_requests_fallback(self):
-        """Test fallback to requests in download_file function."""
-        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
-        fn = 'README.rst'
-        target = os.path.join(self.test_prefix, fn)
-
-        # replaceurlopen with function that raises SSL error
-        def fake_urllib_open(*args, **kwargs):
-            error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
-            error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
-            raise IOError(error_msg)
-
-        ft.std_urllib.urlopen = fake_urllib_open
-
-        # if requests is available, file is downloaded
-        if ft.HAVE_REQUESTS:
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target)
-            self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuild.io", ft.read_file(res))
-
-        # without requests being available, error is raised
-        ft.HAVE_REQUESTS = False
-        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
-
-        # replaceurlopen with function that raises HTTP error 403
-        def fake_urllib_open(*args, **kwargs):
-            raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
-
-        ft.std_urllib.urlopen = fake_urllib_open
-
-        # if requests is available, file is downloaded
-        if ft.HAVE_REQUESTS:
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target)
-            self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuild.io", ft.read_file(res))
-
-        # without requests being available, error is raised
-        ft.HAVE_REQUESTS = False
-        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
-
     def test_download_file_insecure(self):
         """
         Test downloading of file via insecure URL
@@ -756,43 +699,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(res)
         with self.mocked_stdout_stderr():
             self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
-
-        # also test insecure download via requests fallback
-        if ft.HAVE_REQUESTS:
-
-            # need to use actual URL here, requests doesn't like file:// URLs
-            url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
-            fn = os.path.basename(url)
-            target_path = os.path.join(self.test_prefix, fn)
-
-            # replace urlopen with function that raises HTTP error 403
-            def fake_urllib_open(url, *args, **kwargs):
-                raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
-
-            ft.std_urllib.urlopen = fake_urllib_open
-
-            def fake_requests_get(url, *args, **kwargs):
-                verify = kwargs.get('verify')
-                if verify:
-                    raise IOError("failing SSL certificate!")
-
-                return self.orig_filetools_requests_get(url, *args, **kwargs)
-
-            ft.requests.get = fake_requests_get
-
-            update_build_option('insecure_download', False)
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target_path)
-            self.assertEqual(res, None)
-
-            update_build_option('insecure_download', True)
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target_path)
-                stderr = self.get_stderr()
-
-            self.assertIn("WARNING: Not checking server certificates while downloading README.rst", stderr)
-            self.assertExists(res)
-            self.assertIn("https://easybuild.io", ft.read_file(res))
 
     def test_download_file_fallback_source_urls(self):
         """
