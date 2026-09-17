@@ -515,9 +515,9 @@ class RobotTest(EnhancedTestCase):
         })
 
         impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertTrue(re.search("^toolchain = SYSTEM", impi_txt, re.M))
+        self.assertRegex(impi_txt, re.compile("^toolchain = SYSTEM", re.M))
         gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
-        self.assertTrue(re.search("^toolchain = SYSTEM", gzip_txt, re.M))
+        self.assertRegex(gzip_txt, re.compile("^toolchain = SYSTEM", re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-foss-2018a.eb')
         barec_lines = [
@@ -650,8 +650,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
         # test using archived easyconfigs
         args = [
@@ -666,8 +666,8 @@ class RobotTest(EnhancedTestCase):
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt,
+                         re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M))
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
@@ -680,11 +680,10 @@ class RobotTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
-        regex = re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt,
+                         re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M))
         for ec in ('toy-0.0.eb', 'toy-0.0-gompi-2018a-test.eb'):
-            regex = re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M)
-            self.assertFalse(regex.search(outtxt), "%s should be fitered in %s" % (ec, outtxt))
+            self.assertNotRegex(outtxt, re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M))
 
     def test_search_paths(self):
         """Test search_paths command line argument."""
@@ -708,8 +707,7 @@ class RobotTest(EnhancedTestCase):
             outtxt = self.get_stdout()
 
         # Make sure we found the copied file
-        regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt, re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M))
 
     def test_github_det_easyconfig_paths_from_commit(self):
         """Test det_easyconfig_paths function in combination with --from-commit."""
@@ -748,8 +746,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
@@ -810,8 +808,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
     def test_get_toolchain_hierarchy(self):
         """Test get_toolchain_hierarchy function."""
@@ -1634,8 +1632,7 @@ class RobotTest(EnhancedTestCase):
                     path = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs', 'b', 'binutils', ec_fn)
                 pattern.append(r"^ \* .*%s$" % path)
 
-            regex = re.compile('\n'.join(pattern), re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+            self.assertRegex(stdout, re.compile('\n'.join(pattern), re.M))
 
 
 def suite(loader=None):
