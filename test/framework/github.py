@@ -1243,9 +1243,10 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
 
+        pat_tmpl = fr"^\[DRY RUN\] Adding comment to easybuild-%s issue #1234: 'Test report by @{GITHUB_TEST_ACCOUNT}"
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyconfigs",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
 
@@ -1256,8 +1257,8 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyblocks",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
 
@@ -1271,8 +1272,8 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyconfigs",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
