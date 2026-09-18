@@ -21,7 +21,7 @@ description = "gzip (GNU zip) is a popular data compression program as a replace
 toolchain = {'name': 'GCC', 'version': '4.9.2'}
 
 # http://ftp.gnu.org/gnu/gzip/gzip-1.6.tar.gz
-source_urls = [GNU_SOURCE]
+source_urls = GNU_FTP_URLS
 sources = ['%(name)s-%(version)s.tar.gz']
 
 # make sure the gzip, gunzip and compress binaries are available after installation

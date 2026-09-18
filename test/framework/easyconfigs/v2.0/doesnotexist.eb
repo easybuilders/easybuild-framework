@@ -20,7 +20,8 @@ software_license_urls = ['http://localhost/my_license']
 sources = ['%(name)s-%(version)s.tar.gz']
 
 # download location for source files
-source_urls = ['http://ftpmirror.gnu.org/gzip']
+source_urls = ['http://ftpmirror.gnu.org/gzip',
+               'https://ftp.gnu.org/gnu/gzip']
 
 # make sure the gzip and gunzip binaries are available after installation
 sanity_check_paths = {'files': ["bin/gunzip", "bin/gzip"], 'dirs': []}

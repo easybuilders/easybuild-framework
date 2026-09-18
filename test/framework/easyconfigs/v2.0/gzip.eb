@@ -26,7 +26,7 @@ docurls = ["http://www.gnu.org/software/gzip/manual/gzip.html"]
 software_license = GPLv3
 software_license_urls = ['http://www.gnu.org/software/gzip/']
 
-source_urls = [GNU_SOURCE]
+source_urls = GNU_FTP_URLS
 sources = [SOURCE_TAR_GZ]
 
 sanity_check_paths = {
