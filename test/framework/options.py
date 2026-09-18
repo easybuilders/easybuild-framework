@@ -1958,9 +1958,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
-            self.assertRegex(outtxt,
-                             re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name),
-                                        re.M))
+            regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertRegex(outtxt, regex)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -2002,9 +2001,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
-            self.assertRegex(outtxt,
-                             re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name),
-                                        re.M))
+            regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertRegex(outtxt, regex)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -2038,7 +2036,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                self.assertRegex(outtxt, re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, regex)
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
             self.assertIn(f"Extended list of robot search paths with ['{pr_tmpdir}']:", outtxt)
@@ -2067,7 +2066,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                self.assertRegex(outtxt, re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, regex)
 
             for pr in ('22227', '19834'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
@@ -2149,8 +2149,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
-                self.assertRegex(outtxt,
-                                 re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+                self.assertRegex(outtxt, regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
@@ -2226,7 +2226,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                self.assertRegex(outtxt, re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
@@ -2269,7 +2270,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                self.assertRegex(outtxt, re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M))
+                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
@@ -2346,7 +2348,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_msg1 += "I'm all out of ideas."
         # error message when template is found
         error_msg2 = "ERROR Unable to find an easyconfig for the given specifications"
-        self.assertRegex(outtxt, re.compile("(%s|%s)" % (error_msg1, error_msg2)))
+        self.assertRegex(outtxt, "(%s|%s)" % (error_msg1, error_msg2))
 
     def test_header_footer(self):
         """Test specifying a module header/footer."""
@@ -2586,7 +2588,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except easybuild.tools.build_log.EasyBuildError as err:
             self.fail("Deprecated logging should work: %s" % err)
 
-        self.assertRegex(stderr, re.compile("^\nWARNING: Deprecated functionality, will no longer work in"))
+        self.assertRegex(stderr, "^\nWARNING: Deprecated functionality, will no longer work in")
 
         # force it to current version, which should result in deprecation
         EasyBuildOptions(
@@ -6980,10 +6982,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --cuda-compute-capabilities configuration option."""
         args = ['--cuda-compute-capabilities=3.5,6.2,7.0,9.0a,10.0f', '--show-config']
         txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, strip=True)
-
-        self.assertRegex(txt,
-                         re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0, 9\.0a, 10\.0f$",
-                                    re.M))
+        regex = re.compile(r"^cuda-compute-capabilities\s*\(C\)\s*=\s*3\.5, 6\.2, 7\.0, 9\.0a, 10\.0f$", re.M)
+        self.assertRegex(txt, regex)
 
     def test_create_index(self):
         """Test --create-index option."""
