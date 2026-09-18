@@ -42,6 +42,7 @@ import os
 import re
 import shlex
 from enum import Enum
+from pathlib import Path
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -1228,6 +1229,8 @@ class ModulesTool:
         if args[0] in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             opts.append(self.TERSE_OPTION)
+        elif args[0] in ('use', 'unuse'):
+            args = [str(arg) if isinstance(arg, Path) else arg for arg in args]
 
         # inject options at specified location
         for idx, opt in opts:
