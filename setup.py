@@ -77,7 +77,6 @@ easybuild_packages = [
     "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
     "easybuild.tools.py2vs3", "easybuild.tools.repository",
     "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli", "easybuild.tools._toml_writer",
-    "test.framework", "test",
 ]
 
 # Verify the above list is complete, if setuptools is installed
@@ -86,7 +85,7 @@ try:
 except ImportError:
     pass
 else:
-    packages = set(setuptools.find_packages())
+    packages = set(setuptools.find_packages(exclude=["test", "test.*"]))
     easybuild_packages_set = set(easybuild_packages)
     if easybuild_packages_set != packages:
         # Warning only
