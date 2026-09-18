@@ -35,6 +35,8 @@ import functools
 from collections import OrderedDict
 import sys
 
+from typing import Any, Dict, Optional
+
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 
@@ -76,7 +78,7 @@ STATUS_BAR = 'status'
 _progress_bar_cache = {}
 
 
-def colorize(txt, color):
+def colorize(txt: str, color: str) -> str:
     """
     Colorize given text, with specified color.
     """
@@ -91,7 +93,7 @@ def colorize(txt, color):
     return coltxt
 
 
-def escape_for_rich(txt):
+def escape_for_rich(txt: str) -> str:
     """Make sure the text can be printed with rich if that is used"""
     if use_rich():
         txt = rich.markup.escape(txt)
@@ -105,42 +107,42 @@ class DummyRich:
     """
 
     # __enter__ and __exit__ must be implemented to allow use as context manager
-    def __enter__(self, *args, **kwargs):
+    def __enter__(self, *args, **kwargs) -> None:
         pass
 
-    def __exit__(self, *args, **kwargs):
+    def __exit__(self, *args, **kwargs) -> None:
         pass
 
     # dummy implementations for methods supported by rich.progress.Progress class
-    def add_task(self, *args, **kwargs):
+    def add_task(self, *args, **kwargs) -> None:
         pass
 
-    def stop_task(self, *args, **kwargs):
+    def stop_task(self, *args, **kwargs) -> None:
         pass
 
-    def update(self, *args, **kwargs):
+    def update(self, *args, **kwargs) -> None:
         pass
 
     # internal Rich methods
-    def __rich_console__(self, *args, **kwargs):
+    def __rich_console__(self, *args, **kwargs) -> None:
         pass
 
 
-def use_rich():
+def use_rich() -> bool:
     """
     Return whether or not to use Rich to produce rich output.
     """
     return get_output_style() == OUTPUT_STYLE_RICH
 
 
-def show_progress_bars():
+def show_progress_bars() -> bool:
     """
     Return whether or not to show progress bars.
     """
     return use_rich() and build_option('show_progress_bar') and not build_option('extended_dry_run')
 
 
-def rich_live_cm():
+def rich_live_cm() -> object:
     """
     Return Live instance to use as context manager.
     """
@@ -165,7 +167,7 @@ def progress_bar_cache(func):
     Function decorator to cache created progress bars for easy retrieval.
     """
     @functools.wraps(func)
-    def new_func(ignore_cache=False):
+    def new_func(ignore_cache: bool = False) -> object:
         if hasattr(func, 'cached') and not ignore_cache:
             progress_bar = func.cached
         elif use_rich() and build_option('show_progress_bar'):
@@ -180,7 +182,7 @@ def progress_bar_cache(func):
 
 
 @progress_bar_cache
-def status_bar():
+def status_bar() -> object:
     """
     Get progress bar to display overall progress.
     """
@@ -193,7 +195,7 @@ def status_bar():
 
 
 @progress_bar_cache
-def easyconfig_progress_bar():
+def easyconfig_progress_bar() -> object:
     """
     Get progress bar to display progress for installing a single easyconfig file.
     """
@@ -209,7 +211,7 @@ def easyconfig_progress_bar():
 
 
 @progress_bar_cache
-def download_all_progress_bar():
+def download_all_progress_bar() -> object:
     """
     Get progress bar to show progress on downloading of all source files.
     """
@@ -224,7 +226,7 @@ def download_all_progress_bar():
 
 
 @progress_bar_cache
-def download_one_progress_bar():
+def download_one_progress_bar() -> object:
     """
     Get progress bar to show progress for downloading a file of known size.
     """
@@ -240,7 +242,7 @@ def download_one_progress_bar():
 
 
 @progress_bar_cache
-def download_one_progress_bar_unknown_size():
+def download_one_progress_bar_unknown_size() -> object:
     """
     Get progress bar to show progress for downloading a file of unknown size.
     """
@@ -254,7 +256,7 @@ def download_one_progress_bar_unknown_size():
 
 
 @progress_bar_cache
-def extensions_progress_bar():
+def extensions_progress_bar() -> object:
     """
     Get progress bar to show progress for installing extensions.
     """
@@ -267,7 +269,7 @@ def extensions_progress_bar():
     return progress_bar
 
 
-def get_progress_bar(bar_type, ignore_cache=False, size=None):
+def get_progress_bar(bar_type: str, ignore_cache: bool = False, size: Optional[int] = None) -> object:
     """
     Get progress bar of given type.
     """
@@ -282,7 +284,7 @@ def get_progress_bar(bar_type, ignore_cache=False, size=None):
     return pbar
 
 
-def start_progress_bar(bar_type, size, label=None):
+def start_progress_bar(bar_type: str, size: Optional[int], label: Optional[str] = None) -> None:
     """
     Start progress bar of given type.
 
@@ -303,7 +305,8 @@ def start_progress_bar(bar_type, size, label=None):
         pbar.update(task_id, description=label)
 
 
-def update_progress_bar(bar_type, label=None, progress_size=1, total=None):
+def update_progress_bar(bar_type: str, label: Optional[str] = None, progress_size: int = 1,
+                        total: Optional[int] = None) -> None:
     """
     Update progress bar of given type (if it was started), add progress of given size.
 
@@ -321,7 +324,7 @@ def update_progress_bar(bar_type, label=None, progress_size=1, total=None):
             pbar.update(task_id, total=total)
 
 
-def stop_progress_bar(bar_type, visible=False):
+def stop_progress_bar(bar_type: str, visible: bool = False) -> None:
     """
     Stop progress bar of given type.
     """
@@ -334,7 +337,7 @@ def stop_progress_bar(bar_type, visible=False):
         raise EasyBuildError("Failed to stop %s progress bar, since it was never started?!", bar_type)
 
 
-def print_checks(checks_data):
+def print_checks(checks_data: Dict[str, Any]) -> None:
     """Print overview of checks that were made."""
 
     col_titles = checks_data.pop('col_titles', ('name', 'info', 'description'))

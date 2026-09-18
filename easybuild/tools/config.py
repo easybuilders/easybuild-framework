@@ -46,6 +46,7 @@ import tempfile
 import time
 from abc import ABCMeta
 from string import ascii_letters
+from typing import Any, Dict, Optional
 
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
@@ -216,7 +217,7 @@ class Singleton(ABCMeta):
 
 
 # utility function for obtaining default paths
-def mk_full_default_path(name, prefix=DEFAULT_PREFIX):
+def mk_full_default_path(name: str, prefix: str = DEFAULT_PREFIX) -> str:
     """Create full path, avoid '/' at the end."""
     args = [prefix]
     path = DEFAULT_PATH_SUBDIRS[name]
@@ -582,12 +583,12 @@ class BuildOptions(BaseBuildOptions):
     KNOWN_KEYS = [k for kss in [BUILD_OPTIONS_CMDLINE, BUILD_OPTIONS_OTHER] for ks in kss.values() for k in ks]
 
 
-def get_pretend_installpath():
+def get_pretend_installpath() -> str:
     """Get the installpath when --pretend option is used"""
     return os.path.join(os.path.expanduser('~'), 'easybuildinstall')
 
 
-def init(options, config_options_dict):
+def init(options, config_options_dict: dict) -> None:
     """
     Gather all variables and check if they're valid
     Variables are read in this order of preference: generaloption > legacy environment > legacy config file
@@ -679,7 +680,7 @@ def init_build_options(build_options=None, cmdline_options=None):
     return BuildOptions(bo)
 
 
-def build_option(key, **kwargs):
+def build_option(key: str, **kwargs) -> Any:
     """Obtain value specified build option."""
 
     # return build option value if BuildOptions has been initialised and it's a known build option
@@ -700,7 +701,7 @@ def build_option(key, **kwargs):
         raise EasyBuildError(error_msg, exit_code=EasyBuildExit.OPTION_ERROR)
 
 
-def update_build_option(key, value):
+def update_build_option(key: str, value: Any) -> Any:
     """
     Update build option with specified name to given value.
 
@@ -716,7 +717,7 @@ def update_build_option(key, value):
     return orig_value
 
 
-def update_build_options(key_value_dict):
+def update_build_options(key_value_dict: Dict[str, Any]) -> Dict[str, Any]:
     """
     Update build options as specified by the given dictionary (where keys are assumed to be build option names).
     Returns dictionary with original values for the updated build options.
@@ -730,33 +731,33 @@ def update_build_options(key_value_dict):
     return orig_key_value_dict
 
 
-def build_path():
+def build_path() -> Any:
     """
     Return the build path
     """
     return ConfigurationVariables()['buildpath']
 
 
-def source_paths():
+def source_paths() -> Any:
     """
     Return the list of source paths for software
     """
     return ConfigurationVariables()['sourcepath']
 
 
-def source_paths_data():
+def source_paths_data() -> Any:
     """
     Return the list of source paths for data
     """
     return ConfigurationVariables()['sourcepath_data']
 
 
-def source_path():
+def source_path() -> None:
     """NO LONGER SUPPORTED: use source_paths instead"""
     _log.nosupport("source_path() is replaced by source_paths()", '2.0')
 
 
-def install_path(typ=None):
+def install_path(typ: Optional[str] = None) -> str:
     """
     Returns the install path
     - subdir 'software' for actual software installation (default)
@@ -789,42 +790,42 @@ def install_path(typ=None):
     return res
 
 
-def get_repository():
+def get_repository() -> Any:
     """
     Return the repository (git, svn or file)
     """
     return ConfigurationVariables()['repository']
 
 
-def get_repositorypath():
+def get_repositorypath() -> Any:
     """
     Return the repository path
     """
     return ConfigurationVariables()['repositorypath']
 
 
-def get_package_naming_scheme():
+def get_package_naming_scheme() -> Any:
     """
     Return the package naming scheme
     """
     return ConfigurationVariables()['package_naming_scheme']
 
 
-def package_path():
+def package_path() -> Any:
     """
     Return the path where built packages are copied to
     """
     return ConfigurationVariables()['packagepath']
 
 
-def container_path():
+def container_path() -> Any:
     """
     Return the path for container recipes & images
     """
     return ConfigurationVariables()['containerpath']
 
 
-def get_modules_tool():
+def get_modules_tool() -> Optional[Any]:
     """
     Return modules tool (EnvironmentModules, Lmod, ...)
     """
@@ -832,14 +833,14 @@ def get_modules_tool():
     return ConfigurationVariables().get('modules_tool', None)
 
 
-def get_module_naming_scheme():
+def get_module_naming_scheme() -> Any:
     """
     Return module naming scheme (EasyBuildMNS, HierarchicalMNS, ...)
     """
     return ConfigurationVariables()['module_naming_scheme']
 
 
-def get_job_backend():
+def get_job_backend() -> Optional[Any]:
     """
     Return job execution backend (PBS, GC3Pie, ...)
     """
@@ -847,14 +848,14 @@ def get_job_backend():
     return ConfigurationVariables().get('job_backend', None)
 
 
-def get_module_syntax():
+def get_module_syntax() -> Any:
     """
     Return module syntax (Lua, Tcl)
     """
     return ConfigurationVariables()['module_syntax']
 
 
-def get_output_style():
+def get_output_style() -> str:
     """Return output style to use."""
 
     output_style = build_option('output_style', default=OUTPUT_STYLE_BASIC)
@@ -874,7 +875,8 @@ def get_output_style():
     return output_style
 
 
-def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
+def log_file_format(return_directory: bool = False, ec: Optional[Dict[str, Any]] = None,
+                    date: Optional[str] = None, timestamp: Optional[str] = None) -> str:
     """
     Return the format for the logfile or the directory
 
@@ -910,7 +912,7 @@ def log_file_format(return_directory=False, ec=None, date=None, timestamp=None):
     return res
 
 
-def log_format(ec=None):
+def log_format(ec: Optional[Dict[str, Any]] = None) -> str:
     """
     Return the logfilename format
     """
@@ -918,7 +920,7 @@ def log_format(ec=None):
     return log_file_format(return_directory=False, ec=ec)
 
 
-def log_path(ec=None):
+def log_path(ec: Optional[Dict[str, Any]] = None) -> str:
     """
     Return the log path
     """
@@ -927,7 +929,7 @@ def log_path(ec=None):
     return log_file_format(return_directory=True, ec=ec, date=date, timestamp=timestamp)
 
 
-def get_failed_install_build_dirs_path(ec):
+def get_failed_install_build_dirs_path(ec: Dict[str, Any]) -> Optional[str]:
     """
     Return the location where the build directory is copied to if installation failed
 
@@ -945,7 +947,7 @@ def get_failed_install_build_dirs_path(ec):
     return os.path.join(base_path, f'{name}-{version}')
 
 
-def get_failed_install_logs_path(ec):
+def get_failed_install_logs_path(ec: Dict[str, Any]) -> Optional[str]:
     """
     Return the location where log files are copied to if installation failed
 
@@ -963,7 +965,7 @@ def get_failed_install_logs_path(ec):
     return os.path.join(base_path, f'{name}-{version}')
 
 
-def get_build_log_path():
+def get_build_log_path() -> str:
     """
     Return (temporary) directory for build log
     """
@@ -975,7 +977,8 @@ def get_build_log_path():
     return res
 
 
-def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
+def get_log_filename(name: str, version: str, add_salt: bool = False, date: Optional[str] = None,
+                     timestamp: Optional[str] = None) -> str:
     """
     Generate a filename to be used for logging
 
@@ -1009,7 +1012,7 @@ def get_log_filename(name, version, add_salt=False, date=None, timestamp=None):
     return filepath
 
 
-def find_last_log(curlog):
+def find_last_log(curlog: str) -> Optional[str]:
     """
     Find location to last log file that is still available.
 
@@ -1059,13 +1062,13 @@ def find_last_log(curlog):
     return res
 
 
-def module_classes():
+def module_classes() -> Any:
     """
     Return list of module classes specified in config file.
     """
     return ConfigurationVariables()['moduleclasses']
 
 
-def read_environment(env_vars, strict=False):
+def read_environment(env_vars, strict: bool = False) -> None:
     """NO LONGER SUPPORTED: use read_environment from easybuild.tools.environment instead"""
     _log.nosupport("read_environment has moved to easybuild.tools.environment", '2.0')

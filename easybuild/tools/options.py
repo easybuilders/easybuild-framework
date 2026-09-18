@@ -46,6 +46,7 @@ import sys
 import tempfile
 import pwd
 from collections import OrderedDict
+from typing import Any, Dict, Tuple
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -157,7 +158,7 @@ def cleanup_and_exit(tmpdir):
     sys.exit(0)
 
 
-def pretty_print_opts(opts_dict):
+def pretty_print_opts(opts_dict: Dict[str, Tuple[Any, Any]]) -> None:
     """
     Pretty print options dict.
 
@@ -194,7 +195,7 @@ def pretty_print_opts(opts_dict):
     print('\n'.join(lines))
 
 
-def use_color(colorize, stream=sys.stdout):
+def use_color(colorize, stream: Any = sys.stdout) -> bool:
     """
     Return ``True`` or ``False`` depending on whether ANSI color
     escapes are to be used when printing to `stream`.

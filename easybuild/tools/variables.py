@@ -33,6 +33,7 @@ Authors:
 """
 import copy
 import os
+from typing import Any, Dict, Iterable, List, Optional
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -41,7 +42,7 @@ from easybuild.tools.build_log import EasyBuildError
 _log = fancylogger.getLogger('variables', fname=False)
 
 
-def get_class(name, default_class, map_class=None):
+def get_class(name: Optional[str], default_class: type, map_class: Optional[Dict[Any, Any]] = None) -> type:
     """Return class based on default
         map_class
              if key == str -> value = class
@@ -63,7 +64,7 @@ def get_class(name, default_class, map_class=None):
     return klass
 
 
-def join_map_class(map_classes):
+def join_map_class(map_classes: Iterable[Dict[Any, Any]]) -> Dict[Any, Any]:
     """Join all class_maps into single class_map"""
     res = {}
     for map_class in map_classes:
@@ -100,27 +101,27 @@ class StrList(list):
 
     JOIN_BEGIN_END = False
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.log = fancylogger.getLogger(self.__class__.__name__, fname=False)
 
-    def str_convert(self, x):
+    def str_convert(self, x) -> str:
         """Convert members of list to string (no prefix of begin and end)"""
         return ''.join([str(y) for y in [self.PREFIX, str(x), self.SUFFIX] if y is not None])
 
-    def _str_ok(self, x):
+    def _str_ok(self, x) -> bool:
         """Test if x can be added to returned string"""
         test = x is not None and len(str(x)) > 0
         return test
 
-    def _str_self(self):
+    def _str_self(self) -> List[str]:
         """Main part of __str__"""
         return [self.str_convert(x) for x in self if self._str_ok(x)]
 
-    def sanitize(self):
+    def sanitize(self) -> None:
         """Sanitize self"""
 
-    def __str__(self):
+    def __str__(self) -> str:
         """_str_self and support for BEGIN/END"""
         self.sanitize()
         xs = [self.BEGIN] + self._str_self() + [self.END]
@@ -135,11 +136,11 @@ class StrList(list):
         else:
             return super().__getattribute__(attr_name)
 
-    def copy(self):
+    def copy(self) -> Any:
         """Return copy of self"""
         return copy.deepcopy(self)
 
-    def try_remove(self, values):
+    def try_remove(self, values: Iterable[Any]) -> None:
         """Remove without ValueError in case of missing element"""
         for value in values:
             try:
@@ -206,9 +207,9 @@ class AbsPathList(StrList):
 class ListOfLists(list):
     """List of lists"""
     DEFAULT_CLASS = StrList
-    PROTECTED_CLASSES = []  # classes that are not converted to DEFAULT_CLASS
+    PROTECTED_CLASSES: List[type] = []  # classes that are not converted to DEFAULT_CLASS
     # PROTECTED_INSTANCES = [AbsPathList, LibraryList]
-    PROTECTED_INSTANCES = []
+    PROTECTED_INSTANCES: List[type] = []
     PROTECT_CLASS_SELF = True  # don't convert values that are same class as DEFAULT_CLASS
     PROTECT_INSTANCE_SELF = True  # don't convert values that are instance of DEFAULT_CLASS
 
@@ -451,10 +452,11 @@ class Variables(dict):
             but are in different classes
     """
     DEFAULT_LISTCLASS = ListOfLists
-    MAP_LISTCLASS = {}  # map between variable name and ListOfList classes (ie not the (default) class for the variable)
-
+    # map between variable name and ListOfList classes (ie not the (default) class for the variable)
+    MAP_LISTCLASS: Dict[str, type] = {}
     DEFAULT_CLASS = StrList
-    MAP_CLASS = {}  # predefined map to specify (default) mapping between variables and classes
+    # predefined map to specify (default) mapping between variables and classes
+    MAP_CLASS: Dict[str, type] = {}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
