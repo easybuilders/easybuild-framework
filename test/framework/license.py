@@ -60,10 +60,10 @@ class LicenseTest(EnhancedTestCase):
     def test_licenses(self):
         """Test format of available licenses."""
         lics = what_licenses()
-        for lic in lics:
+        for lic, lic_class in lics.items():
             self.assertIsInstance(lic, str)
             self.assertTrue(lic.startswith('License'))
-            self.assertTrue(issubclass(lics[lic], License))
+            self.assertTrue(issubclass(lic_class, License))
 
 
 def suite(loader=None):

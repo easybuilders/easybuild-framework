@@ -162,7 +162,7 @@ class ContainersTest(EnhancedTestCase):
 
         # osversion is not required when %{OSVERSION} is nost used in mirror URL
         args[-1] = 'bootstrap=yum,mirrorurl=https://example.com,include=test123'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
 
         txt = read_file(test_container_recipe)
         expected = '\n'.join([
@@ -187,7 +187,7 @@ class ContainersTest(EnhancedTestCase):
 
             args[-1] += ',from=%s' % from_spec
             remove_file(test_container_recipe)
-            stdout, stderr = self.run_main(args, raise_error=True)
+            self.run_main(args, raise_error=True)
 
             txt = read_file(test_container_recipe)
             expected = '\n'.join([
@@ -207,7 +207,7 @@ class ContainersTest(EnhancedTestCase):
 
         # commands to install EasyBuild can be customized via 'eb_install' keyword
         args[-1] = 'bootstrap=yum,osversion=7.6.1810,install_eb=easy_install easybuild'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
         txt = read_file(test_container_recipe)
 
         for pattern in pip_patterns:
@@ -220,7 +220,7 @@ class ContainersTest(EnhancedTestCase):
 
         # post commands be be customized via 'post_commands' keyword
         args[-1] = 'bootstrap=yum,osversion=7.6.1810,post_commands=id easybuild'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
         txt = read_file(test_container_recipe)
 
         for pattern in post_commands_patterns:
@@ -233,7 +233,7 @@ class ContainersTest(EnhancedTestCase):
 
         # options can be passed to 'eb' command in recipe via 'eb_args' keyword
         args[-1] = 'bootstrap=yum,osversion=7.6.1810,eb_args=--debug -l'
-        stdout, stderr = self.run_main(args, raise_error=True)
+        self.run_main(args, raise_error=True)
         txt = read_file(test_container_recipe)
 
         self.assertRegex(txt, re.compile(r"^eb toy-0.0.eb --robot --debug -l", re.M))
