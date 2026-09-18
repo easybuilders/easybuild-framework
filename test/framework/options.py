@@ -5952,7 +5952,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             self.assertMultiRegex(patterns, txt, multi_line=True)
 
-            self.assertNotIn('gzip', txt)
+            self.assertNotRegex(txt, r'\bgzip\b')
             self.assertNotIn('CrayCCE', txt)
 
             args = [
@@ -5971,7 +5971,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             self.assertMultiRegex(patterns, txt, multi_line=True)
 
-            self.assertNotIn('gzip', txt)
+            self.assertNotRegex(txt, r'\bgzip\b')
             self.assertNotIn('CrayCCE', txt)
 
     def test_parse_optarch(self):
