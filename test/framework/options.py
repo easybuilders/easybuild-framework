@@ -1958,8 +1958,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
-            regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
-            self.assertRegex(outtxt, regex)
+            mod_regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertRegex(outtxt, mod_regex)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -2001,8 +2001,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ("gzip-1.5-foss-2018a.eb", "MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/tools", "gzip/1.5", ' '),
         ]
         for ec, mod_subdir, mod_name, mark in ecs_mods:
-            regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
-            self.assertRegex(outtxt, regex)
+            mod_regex = re.compile(r"^ \* \[%s\] \S+%s \(module: %s \| %s\)$" % (mark, ec, mod_subdir, mod_name), re.M)
+            self.assertRegex(outtxt, mod_regex)
 
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
@@ -2036,8 +2036,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
-                self.assertRegex(outtxt, regex)
+                mod_regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, mod_regex)
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
             self.assertIn(f"Extended list of robot search paths with ['{pr_tmpdir}']:", outtxt)
@@ -2066,8 +2066,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
-                self.assertRegex(outtxt, regex)
+                mod_regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, mod_regex)
 
             for pr in ('22227', '19834'):
                 pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr%s' % pr)
@@ -2149,8 +2149,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
-                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-                self.assertRegex(outtxt, regex)
+                mod_regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
+                self.assertRegex(outtxt, mod_regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
@@ -2226,8 +2226,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
-                self.assertRegex(outtxt, regex)
+                mod_regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, mod_regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
@@ -2270,8 +2270,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
                 path = '.*%s' % os.path.dirname(path_prefix)
-                regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
-                self.assertRegex(outtxt, regex)
+                mod_regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path, ec_fn, module), re.M)
+                self.assertRegex(outtxt, mod_regex)
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
