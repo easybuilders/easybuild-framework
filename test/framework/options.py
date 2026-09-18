@@ -5789,17 +5789,17 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug_lmod(self):
         """Test use of --debug-lmod."""
-        if isinstance(self.modtool, Lmod):
-            init_config(build_options={'debug_lmod': True})
-            out = self.modtool.run_module('avail', return_output=True)
-
-            self.assertMultiRegex(
-                [
-                    r"^Lmod version", r"^lmod\(--terse -D avail\)\{",
-                    ":avail",
-                ], out, multi_line=True)
-        else:
-            print("Skipping test_debug_lmod, requires Lmod as modules tool")
+        if not isinstance(self.modtool, Lmod):
+            if os.environ.get('TEST_EASYBUILD_MODULES_TOOL') != 'Lmod':
+                return  # Treat as success as nothing to do
+            self.skipTest("requires Lmod as modules tool")
+        init_config(build_options={'debug_lmod': True})
+        out = self.modtool.run_module('avail', return_output=True)
+        self.assertMultiRegex(
+            [
+                r"^Lmod version", r"^lmod\(--terse -D avail\)\{",
+                ":avail",
+            ], out, multi_line=True)
 
     def test_debug_module_cmds(self):
         """Test use of --debug-module-cmds."""
