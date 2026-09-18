@@ -43,7 +43,7 @@ function checkModule {
         printError "=== Did not find new EC $ec_filename"
     elif [[ ! -e "$ec_new" ]]; then
         printError "=== Found multiple new ECs: $ec_new"
-    elif ! out=$(diff -u "$ec_installed" "$ec_new"); then
+    elif ! out=$(diff -B -u <(sed '/^# Build statistics/,$d' $ec_installed | grep -v "# Built with") "$ec_new"); then
         if ((short == 1)); then
             basename "$ec_installed"
         else
