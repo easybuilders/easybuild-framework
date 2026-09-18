@@ -57,6 +57,7 @@ import os
 import stat
 import sys
 import tempfile
+from typing import Any, Dict, List, Optional
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
@@ -196,7 +197,7 @@ class Toolchain:
         """
         self.base_init()
 
-        self.dependencies = []
+        self._dependencies: Optional[List[Dict[str, Any]]] = None
         self.toolchain_dep_mods = []
         self.cached_compilers = set()
 
@@ -244,6 +245,23 @@ class Toolchain:
                 self.mod_full_name = self.mns.det_full_module_name(tc_dict)
                 self.mod_short_name = self.mns.det_short_module_name(tc_dict)
                 self.init_modpaths = self.mns.det_init_modulepaths(tc_dict)
+
+    @property
+    def dependencies(self) -> List[Dict[str, Any]]:
+        """Dependency info of the EasyConfig for which this toolchain was prepared"""
+        if self._dependencies is None:
+            raise EasyBuildError('toolchain.dependencies must not be accessed before it is prepared, '
+                                 'usually in prepare_step')
+        return self._dependencies
+
+    @dependencies.setter
+    def dependencies(self, deps):
+        self.log.deprecated(
+            "Setting toolchain.dependencies should only be done by the toolchain instance and "
+            "through self._dependencies.",
+            '6.0',
+        )
+        self._dependencies = deps
 
     @property
     def search_path_vars_headers(self):
@@ -904,7 +922,7 @@ class Toolchain:
         # do all dependencies have a toolchain version?
         if deps is None:
             deps = []
-        self.dependencies = self._check_dependencies(deps, check_modules=loadmod)
+        self._dependencies = self._check_dependencies(deps, check_modules=loadmod)
         if not len(deps) == len(self.dependencies):
             self.log.debug("dep %s (%s)" % (len(deps), deps))
             self.log.debug("tc.dep %s (%s)" % (len(self.dependencies), self.dependencies))
