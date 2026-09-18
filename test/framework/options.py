@@ -1767,7 +1767,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             os.remove(dummylogfn)
 
         # cleanup
-        shutil.rmtree(tmpdir)
         sys.path[:] = orig_sys_path
 
     def test_try_robot_force(self):
@@ -2433,10 +2432,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         msg = "modules footer '%s' is present in '%s'" % (modules_footer_txt, toy_module_txt)
         self.assertRegex(toy_module_txt, regex, msg)
 
-        # cleanup
-        os.remove(modules_footer)
-        os.remove(modules_header)
-
     def test_recursive_module_unload(self):
         """Test generating recursively unloading modules."""
 
@@ -2497,11 +2492,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         tempfile_tmpdir = tempfile.mkdtemp()
         self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
         fd, tempfile_tmpfile = tempfile.mkstemp()
-        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
-
-        # cleanup
         os.close(fd)
-        shutil.rmtree(tmpdir)
+        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
 
     def test_ignore_osdeps(self):
         """Test ignoring of listed OS dependencies."""
@@ -3302,9 +3294,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
         not_expected = [testdoval, testdonthdr, testdontval]
         run_and_assert(args, expected, not_expected)
-
-        # cleanup downloads
-        shutil.rmtree(tmpdir)
 
     def test_test_report_env_filter(self):
         """Test use of --test-report-env-filter."""
