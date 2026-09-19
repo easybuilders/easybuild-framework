@@ -642,7 +642,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(repo_path))
 
         setup_py_txt = read_file(os.path.join(repo_path, 'setup.py'))
-        self.assertTrue("VERSION = '4.9.0'" in setup_py_txt)
+        self.assertIn("VERSION = '4.9.0'", setup_py_txt)
 
         # also check downloading non-default forked repo
         test_commit = '434151c3dbf88b2382e8ead8655b4b2c01b92617'
@@ -651,7 +651,7 @@ class GithubTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(repo_path))
 
         release_notes_txt = read_file(os.path.join(repo_path, 'RELEASE_NOTES'))
-        self.assertTrue("v4.9.0 (30 December 2023)" in release_notes_txt)
+        self.assertIn("v4.9.0 (30 December 2023)", release_notes_txt)
 
         # short commit doesn't work, must be full commit ID
         self.assertErrorRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
@@ -1243,9 +1243,10 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual(stderr, '')
 
+        pat_tmpl = fr"^\[DRY RUN\] Adding comment to easybuild-%s issue #1234: 'Test report by @{GITHUB_TEST_ACCOUNT}"
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyconfigs",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
 
@@ -1256,8 +1257,8 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyblocks issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyblocks",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
 
@@ -1271,8 +1272,8 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(stderr, '')
 
         patterns = [
-            r"^\[DRY RUN\] Adding comment to easybuild-easyconfigs issue #1234: 'Test report by @easybuild_test",
-            r"^See https://gist.github.com/%s/DRY_RUN for a full test report.'" % GITHUB_TEST_ACCOUNT,
+            pat_tmpl % "easyconfigs",
+            fr"^See https://gist.github.com/{GITHUB_TEST_ACCOUNT}/DRY_RUN for a full test report.'",
             r"Using easyblocks from PR\(s\) https://github.com/easybuilders/easybuild-easyblocks/pull/6789",
         ]
         self.assertMultiRegex(patterns, stdout, multi_line=True)
