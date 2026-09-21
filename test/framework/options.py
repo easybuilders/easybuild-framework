@@ -37,6 +37,7 @@ import sys
 import tempfile
 import textwrap
 from importlib import reload
+from typing import List, Optional
 from unittest import TextTestRunner
 from urllib.request import URLError
 
@@ -676,7 +677,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
-        def run_test(custom=None, extra_params=[], fmt=None):
+        def run_test(custom: Optional[str] = None, extra_params: Optional[List[str]] = None,
+                     fmt: Optional[str] = None):
             """Inner function to run actual test in current setting."""
 
             fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -719,7 +721,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
                 ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
                 params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
-                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+                                           'exts_list', 'moduleclass', 'buildstats']
+                if extra_params:
+                    params.extend(extra_params)
 
                 # check a couple of easyconfig parameters
                 param_start = 0
