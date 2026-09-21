@@ -1106,11 +1106,8 @@ class ToyBuildTest(EnhancedTestCase):
         toy_modtxt = read_file(toy_mod)
 
         # No math libs in original toolchain, --try-toolchain is too clever to upgrade it beyond necessary
-        for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK']:
-            self.assertNotRegex(toy_modtxt, re.compile('load.*' + modname, re.M))
-
-        for modname in ['GCC', 'OpenMPI']:
-            self.assertNotRegex(toy_modtxt, re.compile('load.*' + modname, re.M))
+        for modname in ['FFTW', 'OpenBLAS', 'ScaLAPACK', 'GCC', 'OpenMPI']:
+            self.assertNotRegex(toy_modtxt, 'load.*' + modname)
 
         # also check with Lua GCC/OpenMPI modules in case of Lmod
         if isinstance(self.modtool, Lmod):
@@ -2594,7 +2591,7 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr(), self.log_to_testlogfile() as logfile:
             self._test_toy_build(ec_file=test_ec, raise_error=True)
             logtxt = read_file(logfile)
-        self.assertRegex(logtxt, 'sanity check command .*Run-Custom-Cmd for barbar.*ran successfully',)
+        self.assertRegex(logtxt, 'sanity check command .*Run-Custom-Cmd for barbar.*ran successfully')
         self.assertEqual(logtxt.count(check_bin_msg), 1, "Check for 'bin' folder should only be done once")
 
     def test_sanity_check_paths_lib64(self):
@@ -3917,7 +3914,7 @@ class ToyBuildTest(EnhancedTestCase):
             "This module is compatible with the following modules, one of each line is required:",
             "* GCC/4.6.3, GCC/7.3.0-2.30",
         ])
-        self.assertIn(expected_descr_no_default, toy_mod_txt,)
+        self.assertIn(expected_descr_no_default, toy_mod_txt)
 
         if get_module_syntax() == 'Lua':
             expected_whatis_no_default = "whatis([==[Compatible modules: GCC/4.6.3, GCC/7.3.0-2.30]==])"
