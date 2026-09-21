@@ -107,9 +107,9 @@ class IntelFFTW(Fftw):
 
         fftw_mt_libs = fftw_libs + [x % self.BLAS_LIB_MAP for x in self.BLAS_LIB_MT]
 
-        self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
+        self.log.debug('fftw_libs %s', fftw_libs)
         fftw_libs.extend(self.variables['LIBBLAS'].flatten())  # add BLAS libs (contains dft)
-        self.log.debug('fftw_libs %s' % fftw_libs.__repr__())
+        self.log.debug('fftw_libs %s', fftw_libs)
 
         # building the FFTW interfaces is optional,
         # so make sure libraries are there before FFT_LIB is set

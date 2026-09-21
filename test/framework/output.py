@@ -161,13 +161,11 @@ class OutputTest(EnhancedTestCase):
         """
         update_build_option('output_style', 'basic')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        print_error(msg)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            print_error(msg)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+
         self.assertEqual(stdout, '')
         expected = '\n\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
         self.assertEqual(stderr, expected)
@@ -182,13 +180,11 @@ class OutputTest(EnhancedTestCase):
             self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        print_error(msg)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            print_error(msg)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+
         self.assertEqual(stdout, '')
         expected = '\n\nThis is yellow: a banana\n\n'
         self.assertEqual(stderr, expected)

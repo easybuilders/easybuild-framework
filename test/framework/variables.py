@@ -66,10 +66,10 @@ class VariablesTest(EnhancedTestCase):
         self.assertEqual(str(v['FOO']), "0,1,2")
 
         v['BARSTR'] = 'XYZ'
-        self.assertEqual(v['BARSTR'].__repr__(), "[['XYZ']]")
+        self.assertEqual(repr(v['BARSTR']), "[['XYZ']]")
 
         v['BARINT'] = 0
-        self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
+        self.assertEqual(repr(v['BARINT']), "[[0]]")
 
         v.join('BAR2', 'FOO', 'BARINT')
         self.assertEqual(str(v['BAR2']), "0,1,2 0")

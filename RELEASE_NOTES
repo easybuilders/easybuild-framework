@@ -3,6 +3,33 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
+v5.4.0 (9 Aug 2026)
+--------------------
+
+feature release
+
+- enhancements:
+  - improve --bwrap to work with r/o filesystems (overlayfs) and --subdir-{modules,software} (#5173)
+  - format extension names in module files with `exts_formatter` function (#5186)
+  - use bounded "git rev-list" for version detection (#5201)
+  - reduce number of "module load" commands used to set up build environment (#5211, #5230)
+  - prefer bsdtar for unpacking ISO files, keep 7z as fallback (#5213)
+  - enhance download_file to fallback to https://ftp.gnu.org if downloading from https://ftpmirror.gnu.org fails (#5224)
+- bug fixes:
+  - do not duplicate sanity checks in each extension (#5184)
+  - use correct module in sanity check of extensions (#5185)
+  - fix `lfbf` toolchain description (#5217)
+  - don't check for lib and bin paths in sanity check step for each extension (#5221)
+  - fix format string in log message in `EasyBlock.sanity_check_cuda` (#5226)
+- other changes
+  - deprecate passing `extension` option to `sanity_check_step` & `sanity_check_load_module` methods in `EasyBlock` class (#5220)
+- enhancements and fixes for test suite:
+  - remove CI workflow for Hound style checker (#5175)
+  - cater for Python 3.8 deprecation in cryptography package (#5204)
+  - split running test suite with Python 3.9 and Lmod 8.x with Lua/Tcl module syntax in two jobs, only use GitHub token with Lua module syntax (#5208)
+  - update actions used in CI workflows to latest versions (#5209, #5210)
+
+
 v5.3.1 (19 Jun 2026)
 --------------------
 

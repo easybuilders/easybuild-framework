@@ -38,6 +38,7 @@ from unittest import TextTestRunner
 from easybuild.base import fancylogger
 from easybuild.tools import modules, LooseVersion
 from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod
 from test.framework.utilities import init_config
@@ -123,8 +124,7 @@ class ModulesToolTest(EnhancedTestCase):
 
         mt = MockModulesTool(testing=True)
         logtxt = read_file(self.logfile)
-        warn_regex = re.compile("WARNING .*pattern .* not found in defined 'module' function")
-        self.assertTrue(warn_regex.search(logtxt), "Found pattern '%s' in: %s" % (warn_regex.pattern, logtxt))
+        self.assertRegex(logtxt, "WARNING .*pattern .* not found in defined 'module' function")
 
         # redefine 'module' function with correct module command
         os.environ['module'] = "() {  eval `/bin/echo $*`\n}"
@@ -135,8 +135,7 @@ class ModulesToolTest(EnhancedTestCase):
         del os.environ['module']
         mt = MockModulesTool(testing=True)
         logtxt = read_file(self.logfile)
-        warn_regex = re.compile("WARNING No 'module' function defined, can't check if it matches .*")
-        self.assertTrue(warn_regex.search(logtxt), "Pattern %s found in %s" % (warn_regex.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile("WARNING No 'module' function defined, can't check if it matches .*"))
 
         fancylogger.logToFile(self.logfile, enable=False)
 
@@ -162,7 +161,7 @@ class ModulesToolTest(EnhancedTestCase):
                 spider_cand_path = os.path.join(path, 'spider')
                 if not os.path.isfile(lmod_cand_path) and not os.path.isfile(spider_cand_path):
                     new_paths.append(path)
-            os.environ['PATH'] = os.pathsep.join(new_paths)
+            os.environ['PATH'] = join_path_var(new_paths)
 
             # make sure $MODULEPATH contains path that provides some modules
             os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))

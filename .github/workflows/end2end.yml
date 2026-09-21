@@ -1,5 +1,8 @@
 name: End-to-end test of EasyBuild in different distros
 on: [push, pull_request]
+env:
+  EASYBUILD_DOWNLOAD_TIMEOUT: 100
+
 jobs:
   build_publish:
     name: End-to-end test

@@ -38,7 +38,10 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from importlib import reload
+from pathlib import Path
+from typing import List, Pattern, Union
 
+from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
 from easybuild.base import fancylogger
 from easybuild.base.testing import TestCase
 import easybuild.tools.build_log as eb_build_log
@@ -121,10 +124,8 @@ class EnhancedTestCase(TestCase):
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-
-        self.test_sourcepath = os.path.join(testdir, 'sandbox', 'sources')
-        self.test_sourcepath_data = os.path.join(testdir, 'sandbox', 'data_sources')
+        self.test_sourcepath = os.path.join(TEST_DIR, 'sandbox', 'sources')
+        self.test_sourcepath_data = os.path.join(TEST_DIR, 'sandbox', 'data_sources')
         os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
         os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
         os.environ['EASYBUILD_PREFIX'] = self.test_prefix
@@ -134,7 +135,7 @@ class EnhancedTestCase(TestCase):
         os.environ['EASYBUILD_INSTALLPATH'] = self.test_installpath
 
         # make sure that the tests only pick up easyconfigs provided with the tests
-        os.environ['EASYBUILD_ROBOT_PATHS'] = os.path.join(testdir, 'easyconfigs', 'test_ecs')
+        os.environ['EASYBUILD_ROBOT_PATHS'] = str(TEST_ECS_DIR)
 
         # make sure that the EasyBuild installation is still known even if we purge an EB module
         if os.getenv('EB_SCRIPT_PATH') is None:
@@ -169,7 +170,7 @@ class EnhancedTestCase(TestCase):
             pass
 
         # add sandbox to Python search path, update namespace packages
-        testdir_sandbox = os.path.join(testdir, 'sandbox')
+        testdir_sandbox = os.path.join(TEST_DIR, 'sandbox')
         sys.path.append(testdir_sandbox)
 
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
@@ -214,7 +215,7 @@ class EnhancedTestCase(TestCase):
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool: ModulesTool = modules_tool()
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
+        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
         reset_module_caches()
 
     def disallow_deprecated_behaviour(self):
@@ -316,7 +317,7 @@ class EnhancedTestCase(TestCase):
 
         # always run main in unit testing mode (which for example allows for using deprecated toolchains);
         # note: don't change 'args' value, which is passed by reference!
-        main_args = args + ['--unit-testing-mode']
+        main_args = [str(arg) if isinstance(arg, Path) else arg for arg in args] + ['--unit-testing-mode']
 
         myerr = False
         if logfile is None:
@@ -383,7 +384,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules', mod_subdir)
+            src_mod_path = os.path.join(TEST_MODULES_DIR, mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
@@ -428,8 +429,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                        'modules', 'CategorizedHMNS', mod_subdir)
+            src_mod_path = os.path.join(TEST_MODULES_DIR, 'CategorizedHMNS', mod_subdir)
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')
@@ -450,12 +450,29 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def assert_multi_regex(self, regexs, txt, assert_true=True):
-        """Helper function to assert presence/absence of list of regex patterns in a text"""
+    def assertMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
+                         multi_line: bool = False) -> None:
+        """Helper function to assert presence of list of regex patterns in a text
+        param: regexs: list of regex patterns to check for
+        param: txt: text to check for regex patterns
+        param: multi_line: if True, match ^/$ at the beginning/end of each line
+        """
         for regex in regexs:
-            regex = re.compile(regex, re.M)
-            if assert_true:
+            if multi_line:
+                self.assertRegex(txt, re.compile(regex, re.M))
+            else:
                 self.assertRegex(txt, regex)
+
+    def assertNotMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
+                            multi_line: bool = True) -> None:
+        """Helper function to assert absence of list of regex patterns in a text
+        param: regexs: list of regex patterns to check for
+        param: txt: text to check for regex patterns
+        param: multi_line: if False, match ^/$ only at the beginning/end of the whole string
+        """
+        for regex in regexs:
+            if multi_line:
+                self.assertNotRegex(txt, re.compile(regex, re.M))
             else:
                 self.assertNotRegex(txt, regex)
 
@@ -521,6 +538,7 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
         'external_modules_metadata': ConfigObj(),
         'local_var_naming_check': 'error',
         'show_progress_bar': False,
+        'orig_modules_tool': eb_go.orig_modules_tool,
         'output_style': 'no_color',
         'silence_deprecation_warnings': eb_go.options.silence_deprecation_warnings,
         'suffix_modules_path': GENERAL_CLASS,

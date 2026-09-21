@@ -46,6 +46,7 @@ import textwrap
 import time
 import types
 from io import StringIO
+from pathlib import Path
 from test.framework.github import requires_github_access
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -74,9 +75,6 @@ class FileToolsTest(EnhancedTestCase):
         super().setUp()
 
         self.orig_filetools_std_urllib_urlopen = ft.std_urllib.urlopen
-        if ft.HAVE_REQUESTS:
-            self.orig_filetools_requests_get = ft.requests.get
-        self.orig_filetools_HAVE_REQUESTS = ft.HAVE_REQUESTS
 
         self.orig_filetools_fallback_source_urls = ft.FALLBACK_SOURCE_URLS[:]
 
@@ -85,9 +83,6 @@ class FileToolsTest(EnhancedTestCase):
         super().tearDown()
 
         ft.std_urllib.urlopen = self.orig_filetools_std_urllib_urlopen
-        ft.HAVE_REQUESTS = self.orig_filetools_HAVE_REQUESTS
-        if ft.HAVE_REQUESTS:
-            ft.requests.get = self.orig_filetools_requests_get
 
         ft.FALLBACK_SOURCE_URLS = self.orig_filetools_fallback_source_urls
 
@@ -477,17 +472,23 @@ class FileToolsTest(EnhancedTestCase):
     def test_normalize_path(self):
         """Test normalize_path"""
         self.assertEqual(ft.normalize_path(''), '')
-        self.assertEqual(ft.normalize_path('/'), '/')
-        self.assertEqual(ft.normalize_path('//'), '//')
-        self.assertEqual(ft.normalize_path('///'), '/')
-        self.assertEqual(ft.normalize_path('/foo/bar/baz'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('foo//bar/././baz/'), 'foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//foo//bar/././baz/'), '//foo/bar/baz')
-        self.assertEqual(ft.normalize_path('///foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('////foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('/././foo//bar/././baz/'), '/foo/bar/baz')
-        self.assertEqual(ft.normalize_path('//././foo//bar/././baz/'), '//foo/bar/baz')
+        test_cases = [
+            ('/', '/'),
+            ('//', '//'),
+            ('///', '/'),
+            ('/foo/bar/baz', '/foo/bar/baz'),
+            ('/foo//bar/././baz/', '/foo/bar/baz'),
+            ('foo//bar/././baz/', 'foo/bar/baz'),
+            ('//foo//bar/././baz/', '//foo/bar/baz'),
+            ('///foo//bar/././baz/', '/foo/bar/baz'),
+            ('////foo//bar/././baz/', '/foo/bar/baz'),
+            ('/././foo//bar/././baz/', '/foo/bar/baz'),
+            ('//././foo//bar/././baz/', '//foo/bar/baz'),
+        ]
+        for in_path, expected in test_cases:
+            with self.subTest(in_path=in_path):
+                self.assertEqual(ft.normalize_path(in_path), expected)
+                self.assertEqual(ft.normalize_path(Path(in_path)), expected)
 
     def test_is_parent_path(self):
         """Test is_parent_path"""
@@ -544,15 +545,6 @@ class FileToolsTest(EnhancedTestCase):
             fh = request.urlopen(test_url)
             self.assertEqual(ft.det_file_size(fh.info()), expected_size)
             fh.close()
-
-            # also try using requests, which is used as a fallback in download_file
-            try:
-                import requests
-                res = requests.get(test_url)
-                self.assertEqual(ft.det_file_size(res.headers), expected_size)
-                res.close()
-            except ImportError:
-                pass
         except request.URLError:
             print("Skipping online test for det_file_size (working offline)")
 
@@ -626,8 +618,8 @@ class FileToolsTest(EnhancedTestCase):
         # make sure specified timeout is parsed correctly (as a float, not a string)
         opts = init_config(args=['--download-timeout=5.3'])
         init_config(build_options={'download_timeout': opts.download_timeout})
-        target_location = os.path.join(self.test_prefix, 'jenkins_robots.txt')
-        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
+        url = 'https://sources.easybuild.io/icons/blank.gif'
+        target_location = os.path.join(self.test_prefix, os.path.basename(url))
         try:
             request.urlopen(url)
             with self.mocked_stdout_stderr():
@@ -655,61 +647,18 @@ class FileToolsTest(EnhancedTestCase):
         if os.path.exists(target_location):
             shutil.rmtree(target_location)
 
-        self.mock_stdout(True)
-        path = ft.download_file(fn, source_url, target_location)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            path = ft.download_file(fn, source_url, target_location)
+            txt = self.get_stdout()
 
         self.assertEqual(path, target_location)
         self.assertNotExists(target_location)
-        self.assertTrue(re.match("file written: .*/foo", txt))
+        self.assertRegex(txt, "file written: .*/foo")
 
         with self.mocked_stdout_stderr():
             ft.download_file(fn, source_url, target_location, forced=True)
         self.assertExists(target_location)
         self.assertTrue(os.path.samefile(path, target_location))
-
-    def test_download_file_requests_fallback(self):
-        """Test fallback to requests in download_file function."""
-        url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
-        fn = 'README.rst'
-        target = os.path.join(self.test_prefix, fn)
-
-        # replaceurlopen with function that raises SSL error
-        def fake_urllib_open(*args, **kwargs):
-            error_msg = "<urlopen error [Errno 1] _ssl.c:510: error:12345:"
-            error_msg += "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>"
-            raise IOError(error_msg)
-
-        ft.std_urllib.urlopen = fake_urllib_open
-
-        # if requests is available, file is downloaded
-        if ft.HAVE_REQUESTS:
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target)
-            self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuild.io", ft.read_file(res))
-
-        # without requests being available, error is raised
-        ft.HAVE_REQUESTS = False
-        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
-
-        # replaceurlopen with function that raises HTTP error 403
-        def fake_urllib_open(*args, **kwargs):
-            raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
-
-        ft.std_urllib.urlopen = fake_urllib_open
-
-        # if requests is available, file is downloaded
-        if ft.HAVE_REQUESTS:
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target)
-            self.assertTrue(res and os.path.exists(res))
-            self.assertIn("https://easybuild.io", ft.read_file(res))
-
-        # without requests being available, error is raised
-        ft.HAVE_REQUESTS = False
-        self.assertErrorRegex(EasyBuildError, "SSL issues with urllib2", ft.download_file, fn, url, target)
 
     def test_download_file_insecure(self):
         """
@@ -742,57 +691,14 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(res, None)
 
         update_build_option('insecure_download', True)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = ft.download_file(fn, url, target_path)
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = ft.download_file(fn, url, target_path)
+            stderr = self.get_stderr()
 
         self.assertIn("WARNING: Not checking server certificates while downloading toy-0.0.eb", stderr)
         self.assertExists(res)
         with self.mocked_stdout_stderr():
             self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
-
-        # also test insecure download via requests fallback
-        if ft.HAVE_REQUESTS:
-
-            # need to use actual URL here, requests doesn't like file:// URLs
-            url = 'https://raw.githubusercontent.com/easybuilders/easybuild-framework/master/README.rst'
-            fn = os.path.basename(url)
-            target_path = os.path.join(self.test_prefix, fn)
-
-            # replace urlopen with function that raises HTTP error 403
-            def fake_urllib_open(url, *args, **kwargs):
-                raise ft.std_urllib.HTTPError(url, 403, "Forbidden", "", StringIO())
-
-            ft.std_urllib.urlopen = fake_urllib_open
-
-            def fake_requests_get(url, *args, **kwargs):
-                verify = kwargs.get('verify')
-                if verify:
-                    raise IOError("failing SSL certificate!")
-
-                return self.orig_filetools_requests_get(url, *args, **kwargs)
-
-            ft.requests.get = fake_requests_get
-
-            update_build_option('insecure_download', False)
-            with self.mocked_stdout_stderr():
-                res = ft.download_file(fn, url, target_path)
-            self.assertEqual(res, None)
-
-            update_build_option('insecure_download', True)
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            res = ft.download_file(fn, url, target_path)
-            stderr = self.get_stderr()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-
-            self.assertIn("WARNING: Not checking server certificates while downloading README.rst", stderr)
-            self.assertExists(res)
-            self.assertIn("https://easybuild.io", ft.read_file(res))
 
     def test_download_file_fallback_source_urls(self):
         """
@@ -832,15 +738,36 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.download_file(fn, correct_url + fn, target)
         self.assertEqual(res, target)
         self.assertTrue(os.path.exists(target))
+        ft.remove_file(target)
+
+        # also test use of fallback URL when original URL returns 4xy HTTP status code;
+        # replace urlopen with function that raises HTTPError for specific URL,
+        # to see if fallback to ftp.gnu.org kicks in
+        test_url = wrong_url + fn
+        for status_code in (400, 404, 408, 410):
+            def fake_urllib_open(url, *args, **kwargs):
+                if url.full_url.startswith(wrong_url):
+                    raise ft.std_urllib.HTTPError(url, status_code, "nope", "", StringIO())
+                else:
+                    return self.orig_filetools_std_urllib_urlopen(url, *args, **kwargs)
+
+            ft.std_urllib.urlopen = fake_urllib_open
+
+            res = ft.download_file(fn, test_url, target)
+            self.assertEqual(res, target)
+            self.assertTrue(os.path.exists(target))
+            ft.remove_file(target)
 
     def test_mkdir(self):
         """Test mkdir function."""
 
-        def check_mkdir(path, error=None, **kwargs):
+        def check_mkdir(path, error=None, expected_path=None, **kwargs):
             """Create specified directory with mkdir, and check for correctness."""
             if error is None:
+                if expected_path is None:
+                    expected_path = path
                 ft.mkdir(path, **kwargs)
-                self.assertTrue(os.path.exists(path) and os.path.isdir(path), "Directory %s exists" % path)
+                self.assertTrue(os.path.isdir(expected_path), "Directory %s exists" % expected_path)
             else:
                 self.assertErrorRegex(EasyBuildError, error, ft.mkdir, path, **kwargs)
 
@@ -861,7 +788,7 @@ class FileToolsTest(EnhancedTestCase):
         check_mkdir(giddir, set_gid=True)
         self.assertTrue(os.stat(giddir).st_mode & stat.S_ISGID, "gid bit set %s" % giddir)
         self.assertFalse(os.stat(giddir).st_mode & stat.S_ISVTX, "no sticky bit %s" % giddir)
-        # setting stciky bit works
+        # setting sticky bit works
         stickydir = os.path.join(barfoodir, 'sticky')
         check_mkdir(stickydir, sticky=True)
         self.assertFalse(os.stat(stickydir).st_mode & stat.S_ISGID, "no gid bit %s" % stickydir)
@@ -878,6 +805,11 @@ class FileToolsTest(EnhancedTestCase):
         # existing parent dirs are untouched, no sticky/group ID bits set
         self.assertFalse(os.stat(foodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % foodir)
         self.assertFalse(os.stat(barfoodir).st_mode & (stat.S_ISGID | stat.S_ISVTX), "no gid/sticky bit %s" % barfoodir)
+        # Relative path works
+        ft.change_dir(foodir)
+        check_mkdir(os.path.join('relative', 'subdir'), expected_path=os.path.join(foodir, 'relative'), parents=True)
+        # pathlib paths works
+        check_mkdir(Path(self.test_prefix) / 'pathlibdir')
 
     def test_path_matches(self):
         """Test path_matches function."""
@@ -943,6 +875,12 @@ class FileToolsTest(EnhancedTestCase):
                               "Trying to symlink %s to %s, but the symlink already exists and points to %s." %
                               (test_file2, link, test_file),
                               ft.symlink, test_file2, link)
+
+        # Test when symlink is an existing file
+        self.assertErrorRegex(EasyBuildError,
+                              "Trying to symlink %s to %s, but there already is a file at %s." %
+                              (test_file2, test_file, test_file),
+                              ft.symlink, test_file2, test_file)
 
         # test resolve_path
         self.assertEqual(test_dir, ft.resolve_path(link_dir))
@@ -1027,12 +965,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.read_file(backup2), 'foo')
 
         # tese use of 'verbose' to make write_file print location of backed up file
-        self.mock_stdout(True)
-        ft.write_file(fp, 'foo', backup=True, verbose=True)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
-        regex = re.compile("^== Backup of .*/test.txt created at .*/test.txt.bak_[0-9]*")
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        with self.mocked_stdout():
+            ft.write_file(fp, 'foo', backup=True, verbose=True)
+            stdout = self.get_stdout()
+        self.assertRegex(stdout, "^== Backup of .*/test.txt created at .*/test.txt.bak_[0-9]*")
 
         # by default, write_file will just blindly overwrite an already existing file
         self.assertExists(fp)
@@ -1063,13 +999,12 @@ class FileToolsTest(EnhancedTestCase):
 
         foo = os.path.join(self.test_prefix, 'foo.txt')
 
-        self.mock_stdout(True)
-        ft.write_file(foo, 'bar')
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.write_file(foo, 'bar')
+            txt = self.get_stdout()
 
         self.assertNotExists(foo)
-        self.assertTrue(re.match("^file written: .*/foo.txt$", txt))
+        self.assertRegex(txt, "^file written: .*/foo.txt$")
 
         ft.write_file(foo, 'bar', forced=True)
         self.assertExists(foo)
@@ -1725,7 +1660,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \* regex pattern '= 5', replacement string '= 4'",
             '',
         ])
-        self.assertTrue(re.search(regex, stdout), "Pattern '%s' should be found in: %s" % (regex, stdout))
+        self.assertRegex(stdout, regex)
 
     def test_find_flexlm_license(self):
         """Test find_flexlm_license function."""
@@ -1831,14 +1766,10 @@ class FileToolsTest(EnhancedTestCase):
         eb340_url += '93/41/574d01f352671fbc8589a436167e15a7f3e27ac0aa635d208eb29ee8fd4e/'
         eb340_url += 'easybuild-3.4.0.tar.gz#sha256=d870b27211f2224aab89bfd3279834ffb89ff00ad849a0dc2bf5cc1691efa9d2'
         self.assertIn(eb340_url, res)
-        pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/'
-        pattern_md5 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#md5=[a-f0-9]{32}$'
-        pattern_sha256 = pattern + 'easybuild-[0-9a-z.]+.tar.gz#sha256=[a-f0-9]{64}$'
-        regex_md5 = re.compile(pattern_md5)
-        regex_sha256 = re.compile(pattern_sha256)
+        pattern = '^https://pypi.python.org/packages/[a-f0-9]{2}/[a-f0-9]{2}/[a-f0-9]{60}/easybuild-[0-9a-z.]+.tar.gz#'
+        pattern += '(md5=[a-f0-9]{32}|sha256=[a-f0-9]{64})$'
         for url in res:
-            error_msg = "Pattern '%s' or '%s' matches for '%s'" % (regex_md5.pattern, regex_sha256.pattern, url)
-            self.assertTrue(regex_md5.match(url) or regex_sha256.match(url), error_msg)
+            self.assertRegex(url, pattern)
 
         # more than 50 releases at time of writing test, which always stay there
         self.assertTrue(len(res) > 50)
@@ -2090,19 +2021,17 @@ class FileToolsTest(EnhancedTestCase):
         # make sure target file is not there, it shouldn't get copied under dry run
         self.assertNotExists(target_path)
 
-        self.mock_stdout(True)
-        ft.copy_file(toy_ec, target_path)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.copy_file(toy_ec, target_path)
+            txt = self.get_stdout()
 
         self.assertNotExists(target_path)
-        self.assertTrue(re.search("^copied file .*/toy-0.0.eb to .*/toy.eb", txt))
+        self.assertRegex(txt, "^copied file .*/toy-0.0.eb to .*/toy.eb")
 
         # forced copy, even in dry run mode
-        self.mock_stdout(True)
-        ft.copy_file(toy_ec, target_path, force_in_dry_run=True)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.copy_file(toy_ec, target_path, force_in_dry_run=True)
+            txt = self.get_stdout()
 
         self.assertExists(target_path)
         self.assertTrue(ft.read_file(toy_ec) == ft.read_file(target_path))
@@ -2114,11 +2043,10 @@ class FileToolsTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target)
         # Test that copying a non-existing file in 'dry_run' mode does noting
         update_build_option('extended_dry_run', True)
-        self.mock_stdout(True)
-        ft.copy_file(src, target, force_in_dry_run=False)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
-        self.assertTrue(re.search("^copied file %s to %s" % (src, target), txt))
+        with self.mocked_stdout():
+            ft.copy_file(src, target, force_in_dry_run=False)
+            txt = self.get_stdout()
+        self.assertRegex(txt, "^copied file %s to %s" % (src, target))
         # However, if we add 'force_in_dry_run=True' it should throw an exception
         self.assertErrorRegex(EasyBuildError, "Could not copy *", ft.copy_file, src, target, force_in_dry_run=True)
 
@@ -2239,27 +2167,19 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_dir(target)
 
         # test enabling verbose mode
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.copy_files([toy_ec], target, verbose=True)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.copy_files([toy_ec], target, verbose=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
         self.assertEqual(stderr, '')
-        regex = re.compile(r"^1 file\(s\) copied to .*/target")
-        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, r"^1 file\(s\) copied to .*/target")
 
         ft.remove_dir(target)
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.copy_files([toy_ec], target, target_single_file=True, verbose=True)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.copy_files([toy_ec], target, target_single_file=True, verbose=True)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
         self.assertEqual(stderr, '')
-        regex = re.compile(r"/.*/toy-0\.0\.eb copied to .*/target")
-        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, r"^/.*/toy-0\.0\.eb copied to .*/target")
 
         ft.remove_file(target)
 
@@ -2267,32 +2187,24 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options={'extended_dry_run': True})
         self.assertNotExists(os.path.join(target, 'test.eb'))
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.copy_files(['test.eb'], target)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.copy_files(['test.eb'], target)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertNotExists(os.path.join(target, 'test.eb'))
         self.assertEqual(stderr, '')
 
-        regex = re.compile("^copied test.eb to .*/target")
-        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, "^copied test.eb to .*/target")
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        ft.copy_files(['bar.eb', 'foo.eb'], target)
-        stderr, stdout = self.get_stderr(), self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            ft.copy_files(['bar.eb', 'foo.eb'], target)
+            stderr, stdout = self.get_stderr(), self.get_stdout()
 
         self.assertNotExists(os.path.join(target, 'bar.eb'))
         self.assertNotExists(os.path.join(target, 'foo.eb'))
         self.assertEqual(stderr, '')
 
-        regex = re.compile("^copied 2 files to .*/target")
-        self.assertTrue(regex.match(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, "^copied 2 files to .*/target")
 
     def test_has_recursive_symlinks(self):
         """Test has_recursive_symlinks function"""
@@ -2425,19 +2337,17 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(target_dir)
 
         # no actual copying in dry run mode, unless forced
-        self.mock_stdout(True)
-        ft.copy_dir(to_copy, target_dir)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.copy_dir(to_copy, target_dir)
+            txt = self.get_stdout()
 
         self.assertNotExists(target_dir)
-        self.assertTrue(re.search("^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir), txt))
+        self.assertRegex(txt, "^copied directory .*/GCC to .*/%s" % os.path.basename(target_dir))
 
         # forced copy, even in dry run mode
-        self.mock_stdout(True)
-        ft.copy_dir(to_copy, target_dir, force_in_dry_run=True)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.copy_dir(to_copy, target_dir, force_in_dry_run=True)
+            txt = self.get_stdout()
 
         self.assertExists(target_dir)
         self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
@@ -2462,6 +2372,14 @@ class FileToolsTest(EnhancedTestCase):
         ft.copy(toy_file, os.path.join(self.test_prefix, 'foo'))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', 'toy-0.0.eb')))
 
+        # Test using Path instance
+        toy_patch_path = Path(toy_patch)
+        ft.copy(toy_patch_path, os.path.join(self.test_prefix, 'foo'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo', toy_patch_path.name)))
+        # And as list
+        ft.copy([toy_patch_path], os.path.join(self.test_prefix, 'foo2'))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'foo2', toy_patch_path.name)))
+
         # also test behaviour of copy under --dry-run
         build_options = {
             'extended_dry_run': True,
@@ -2470,22 +2388,20 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         # no actual copying in dry run mode, unless forced
-        self.mock_stdout(True)
-        to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
-        ft.copy(to_copy, self.test_prefix)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
+            ft.copy(to_copy, self.test_prefix)
+            txt = self.get_stdout()
 
         self.assertNotExists(os.path.join(self.test_prefix, 'toy'))
         self.assertNotExists(os.path.join(self.test_prefix, 'GCC-4.6.3.eb'))
-        self.assertTrue(re.search("^copied directory .*/toy to .*/toy", txt, re.M))
-        self.assertTrue(re.search("^copied file .*/GCC-4.6.3.eb to .*/GCC-4.6.3.eb", txt, re.M))
+        self.assertRegex(txt, re.compile("^copied directory .*/toy to .*/toy", re.M))
+        self.assertRegex(txt, re.compile("^copied file .*/GCC-4.6.3.eb to .*/GCC-4.6.3.eb", re.M))
 
         # forced copy, even in dry run mode
-        self.mock_stdout(True)
-        ft.copy(to_copy, self.test_prefix, force_in_dry_run=True)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.copy(to_copy, self.test_prefix, force_in_dry_run=True)
+            txt = self.get_stdout()
 
         self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'toy')))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
@@ -2564,15 +2480,15 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            path = ft.extract_file(toy_tarball, self.test_prefix, change_into_dir=False)
+            txt = self.get_stdout()
+
         self.assertTrue(os.path.samefile(os.getcwd(), cwd))
 
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0'))
-        self.assertTrue(re.search('running shell command "tar xzf .*/toy-0.0.tar.gz"', txt))
+        self.assertRegex(txt, 'running shell command "tar xzf .*/toy-0.0.tar.gz"')
 
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tarball, self.test_prefix, forced=True, change_into_dir=False)
@@ -2596,7 +2512,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(path, self.test_prefix))
         self.assertTrue(os.path.samefile(os.getcwd(), self.test_prefix))
         self.assertFalse(stderr)
-        self.assertTrue("running shell command" in stdout)
+        self.assertIn("running shell command", stdout)
 
         # check whether disabling trace output works
         with self.mocked_stdout_stderr():
@@ -2632,14 +2548,12 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        ft.mkdir(test_dir)
-        ft.empty_dir(test_dir)
-        txt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            ft.mkdir(test_dir)
+            ft.empty_dir(test_dir)
+            txt = self.get_stdout()
 
-        regex = re.compile("^directory [^ ]* emptied$")
-        self.assertTrue(regex.match(txt), f"Pattern '{regex.pattern}' found in: {txt}")
+        self.assertRegex(txt, "^directory [^ ]* emptied$")
 
     def test_remove(self):
         """Test remove_file, remove_dir and join remove functions."""
@@ -2698,22 +2612,18 @@ class FileToolsTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         for remove_file_function in (ft.remove_file, ft.remove):
-            self.mock_stdout(True)
-            remove_file_function(testfile)
-            txt = self.get_stdout()
-            self.mock_stdout(False)
+            with self.mocked_stdout():
+                remove_file_function(testfile)
+                txt = self.get_stdout()
 
-            regex = re.compile("^file [^ ]* removed$")
-            self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            self.assertRegex(txt, "^file [^ ]* removed$")
 
         for remove_dir_function in (ft.remove_dir, ft.remove):
-            self.mock_stdout(True)
-            remove_dir_function(test_dir)
-            txt = self.get_stdout()
-            self.mock_stdout(False)
+            with self.mocked_stdout():
+                remove_dir_function(test_dir)
+                txt = self.get_stdout()
 
-            regex = re.compile("^directory [^ ]* removed$")
-            self.assertTrue(regex.match(txt), "Pattern '%s' found in: %s" % (regex.pattern, txt))
+            self.assertRegex(txt, "^directory [^ ]* removed$")
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
@@ -2791,21 +2701,16 @@ class FileToolsTest(EnhancedTestCase):
         ]
         index_txt = ft.read_file(index_fp)
         for fn in expected_header + expected:
-            regex = re.compile('^%s$' % fn, re.M)
-            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+            self.assertRegex(index_txt, re.compile('^%s$' % fn, re.M))
 
         # test load_index function
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        index = ft.load_index(ecs_dir)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            index = ft.load_index(ecs_dir)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
-        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout.strip(), r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
 
         self.assertEqual(len(index), 31)
         for fn in expected:
@@ -2822,20 +2727,15 @@ class FileToolsTest(EnhancedTestCase):
         index_txt = ft.read_file(index_fp)
         expected_header[1] = r"# valid until: 9999-12-31 23:59:59\.9+"
         for fn in expected_header + expected:
-            regex = re.compile('^%s$' % fn, re.M)
-            self.assertTrue(regex.search(index_txt), "Pattern '%s' found in: %s" % (regex.pattern, index_txt))
+            self.assertRegex(index_txt, re.compile('^%s$' % fn, re.M))
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        index = ft.load_index(ecs_dir)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            index = ft.load_index(ecs_dir)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
 
         self.assertFalse(stderr)
-        regex = re.compile(r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
-        self.assertTrue(regex.match(stdout.strip()), "Pattern '%s' matches with: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout.strip(), r"^== found valid index for %s, so using it\.\.\.$" % ecs_dir)
 
         self.assertEqual(len(index), 31)
         for fn in expected:
@@ -2846,17 +2746,13 @@ class FileToolsTest(EnhancedTestCase):
         # test creating index file that's only valid for a (very) short amount of time
         index_fp = ft.dump_index(ecs_dir, max_age_sec=1)
         time.sleep(3)
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        index = ft.load_index(ecs_dir)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            index = ft.load_index(ecs_dir)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
         self.assertIsNone(index)
         self.assertFalse(stdout)
-        regex = re.compile(r"WARNING: Index for %s is no longer valid \(too old\), so ignoring it" % ecs_dir)
-        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertIn(f"WARNING: Index for {ecs_dir} is no longer valid (too old), so ignoring it", stderr)
 
         # check whether load_index takes into account --ignore-index
         init_config(build_options={'ignore_index': True})
@@ -2944,7 +2840,7 @@ class FileToolsTest(EnhancedTestCase):
         # to avoid accidental matches in other files already present (log files, etc.)
         ec_dir = tempfile.mkdtemp()
         test_ec = os.path.join(ec_dir, 'netCDF-C++-4.2-foss-2019a.eb')
-        ft.write_file(test_ec, ''),
+        ft.write_file(test_ec, '')
         for pattern in ['netCDF-C++', 'CDF', 'C++', '^netCDF']:
             var_defs, hits = ft.search_file([ec_dir], pattern, terse=True, filename_only=True)
             self.assertEqual(var_defs, [], msg='For pattern ' + pattern)
@@ -2982,6 +2878,42 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(dir_w_dir_and_file, 'file.h'), '')
         self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file))
         self.assertTrue(ft.dir_contains_files(dir_w_dir_and_file, recursive=False))
+
+        # Folder that is a symlink or contains a symlink to a folder
+        symlink_dir = makedirs_in_test('symlink_dir')
+        symlink_empty_folder = os.path.join(symlink_dir, 'to_empty')
+        ft.symlink(empty_dir, symlink_empty_folder)
+        self.assertFalse(ft.dir_contains_files(symlink_dir))
+        self.assertFalse(ft.dir_contains_files(symlink_dir, recursive=False))
+        self.assertFalse(ft.dir_contains_files(symlink_empty_folder))
+        self.assertFalse(ft.dir_contains_files(symlink_empty_folder, recursive=False))
+        symlink_full_folder = os.path.join(symlink_dir, 'to_full')
+        ft.symlink(dir_w_file, symlink_full_folder)
+        self.assertTrue(ft.dir_contains_files(symlink_dir))
+        self.assertFalse(ft.dir_contains_files(symlink_dir, recursive=False))
+        self.assertTrue(ft.dir_contains_files(symlink_full_folder))
+        self.assertTrue(ft.dir_contains_files(symlink_full_folder, recursive=False))
+
+        dir_w_symlinked_file = makedirs_in_test('dir_w_symlinked_file')
+        ft.symlink(os.path.join(dir_w_file, 'file.h'), os.path.join(dir_w_symlinked_file, 'file.h'))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file, recursive=False))
+
+        dir_w_symlinked_file_in_subdir = makedirs_in_test('dir_w_symlinked_file_in_subdir', 'subdir')
+        subdir = os.path.join(dir_w_symlinked_file_in_subdir, 'subdir')
+        ft.symlink(os.path.join(dir_w_file, 'file.h'),
+                   os.path.join(subdir, 'file.h'))
+        self.assertTrue(ft.dir_contains_files(dir_w_symlinked_file_in_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir, recursive=False))
+        self.assertTrue(ft.dir_contains_files(subdir))
+        self.assertTrue(ft.dir_contains_files(subdir, recursive=False))
+
+        # Broken symlink is not considered a file
+        ft.remove_file(os.path.join(dir_w_file, 'file.h'))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir))
+        self.assertFalse(ft.dir_contains_files(dir_w_symlinked_file_in_subdir, recursive=False))
+        self.assertFalse(ft.dir_contains_files(subdir))
+        self.assertFalse(ft.dir_contains_files(subdir, recursive=False))
 
     def test_find_eb_script(self):
         """Test find_eb_script function."""
@@ -3041,17 +2973,13 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        ft.move_file(test_file, new_test_file)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            ft.move_file(test_file, new_test_file)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
 
         # informative message printed, but file was not actually moved
-        regex = re.compile(r"^moved file .*/test\.txt to .*/new_test\.txt$")
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, r"^moved file .*/test\.txt to .*/new_test\.txt$")
         self.assertEqual(stderr, '')
 
         self.assertExists(test_file)
@@ -3069,7 +2997,7 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.find_backup_name_candidate(test_file)
         self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
         fn = os.path.basename(res)
-        self.assertTrue(regex.match(fn), "'%s' matches pattern '%s'" % (fn, regex.pattern))
+        self.assertRegex(fn, regex)
 
         # create expected next backup location to (try and) see if it's handled well
         timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
@@ -3078,7 +3006,7 @@ class FileToolsTest(EnhancedTestCase):
         res = ft.find_backup_name_candidate(test_file)
         self.assertTrue(os.path.samefile(os.path.dirname(res), self.test_prefix))
         fn = os.path.basename(res)
-        self.assertTrue(regex.match(fn), "'%s' matches pattern '%s'" % (fn, regex.pattern))
+        self.assertRegex(fn, regex)
 
     def test_diff_files(self):
         """Test for diff_files function"""
@@ -3113,8 +3041,7 @@ class FileToolsTest(EnhancedTestCase):
         ])
         res = ft.diff_files(foo, bar)
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
-        regex = re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M)
-        self.assertTrue(regex.search(res), "Pattern '%s' found in: %s" % (regex.pattern, res))
+        self.assertRegex(res, re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M))
 
     @requires_github_access()
     def test_github_get_source_tarball_from_git(self):
@@ -3137,8 +3064,7 @@ class FileToolsTest(EnhancedTestCase):
                 stdout = self.get_stdout()
                 stderr = self.get_stderr()
             self.assertEqual(stderr, '')
-            regex = re.compile(expected)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+            self.assertRegex(stdout, expected)
 
             self.assertEqual(os.path.dirname(res), target_dir)
             self.assertEqual(os.path.basename(res), 'test.tar.xz')
@@ -3266,9 +3192,9 @@ class FileToolsTest(EnhancedTestCase):
 
             regex = re.compile("Can not create reproducible archive.*")
             if test_filename in bad_filenames:
-                self.assertTrue(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
+                self.assertRegex(stderr, regex)
             else:
-                self.assertFalse(regex.search(stderr), f"Pattern '{regex.pattern}' found in: {stderr}")
+                self.assertNotRegex(stderr, regex)
 
             ref_filename = f"{test_filename}.tar.xz" if test_filename in noext_filename else test_filename
             self.assertTrue(res.endswith(ref_filename))
@@ -3470,12 +3396,9 @@ class FileToolsTest(EnhancedTestCase):
         os.remove(unreprod_tar)
 
         # custom .tar.gz
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=True)
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=True)
+            stderr = self.get_stderr()
 
         warning_msg = "WARNING: Can not create reproducible archive due to unsupported file compression (gz)"
         self.assertIn(warning_msg, stderr)
@@ -3484,12 +3407,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(custom_tgz, "custom_name.tar.gz")
         self.assertExists(custom_tgz)
         os.remove(custom_tgz)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=False)
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            custom_tgz = ft.make_archive(tardir, archive_file="custom_name.tar.gz", reproducible=False)
+            stderr = self.get_stderr()
 
         self.assertNotIn(warning_msg, stderr)
 
@@ -3535,24 +3455,20 @@ class FileToolsTest(EnhancedTestCase):
 
         ft.install_fake_vsc()
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        try:
-            import vsc  # noqa
-            self.fail("'import vsc' results in an error")
-        except SystemExit:
-            pass
+        with self.mocked_stdout_stderr():
+            try:
+                import vsc  # noqa
+                self.fail("'import vsc' results in an error")
+            except SystemExit:
+                pass
 
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
 
         self.assertEqual(stdout, '')
 
         error_pattern = r"Detected import from 'vsc' namespace in .*test/framework/filetools.py \(line [0-9]+\)"
-        regex = re.compile(r"^\nERROR: %s" % error_pattern)
-        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertRegex(stderr, r"^\nERROR: %s" % error_pattern)
 
         # also test with import from another module
         test_python_mod = os.path.join(self.test_prefix, 'test_fake_vsc', 'import_vsc.py')
@@ -3561,22 +3477,18 @@ class FileToolsTest(EnhancedTestCase):
 
         sys.path.insert(0, self.test_prefix)
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        try:
-            from test_fake_vsc import import_vsc  # noqa
-            self.fail("'import vsc' results in an error")
-        except SystemExit:
-            pass
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            try:
+                from test_fake_vsc import import_vsc  # noqa
+                self.fail("'import vsc' results in an error")
+            except SystemExit:
+                pass
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
 
         self.assertEqual(stdout, '')
         error_pattern = r"Detected import from 'vsc' namespace in .*/test_fake_vsc/import_vsc.py \(line 1\)"
-        regex = re.compile(r"^\nERROR: %s" % error_pattern)
-        self.assertTrue(regex.search(stderr), "Pattern '%s' found in: %s" % (regex.pattern, stderr))
+        self.assertRegex(stderr, r"^\nERROR: %s" % error_pattern)
 
         # no error if import was detected from pkgutil.py or pkg_resources/__init__.py,
         # since that may be triggered by a system-wide vsc-base installation
@@ -3630,6 +3542,23 @@ class FileToolsTest(EnhancedTestCase):
 
         toy_eb = os.path.join(test_ebs, 't', 'toy.py')
         self.assertEqual(ft.get_easyblock_class_name(toy_eb), 'EB_toy')
+
+        bad_py = os.path.join(self.test_prefix, 'bad_easyblock.py')
+
+        # test with syntax error in easyblock file
+        ft.write_file(bad_py, "def foo(:\n    pass\n")
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 1\)$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
+
+        # test with import error in easyblock file
+        ft.write_file(bad_py, "import non_existent_module_xyz\n")
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': No module named 'non_existent_module_xyz'$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
+
+        # Both
+        ft.write_file(bad_py, "def foo(:\n    pass\n", append=True)
+        err = r"^Failed to load easyblock file '/.*/bad_easyblock\.py': .* \(line 2\)$"
+        self.assertRaisesRegex(EasyBuildError, err, ft.get_easyblock_class_name, bad_py)
 
     def test_copy_easyblocks(self):
         """Test for copy_easyblocks function."""
@@ -3726,7 +3655,7 @@ class FileToolsTest(EnhancedTestCase):
         # (it's straight in the easybuild-framework directory)
         setup_py = 'setup.py'
         if os.path.exists(os.path.join(topdir, setup_py)):
-            test_files.append(os.path.join(setup_py))
+            test_files.append(setup_py)
             expected_entries.append(setup_py)
             expected_new.append(True)
 

@@ -189,7 +189,7 @@ class Mpi(Toolchain):
         self._set_mpi_compiler_variables()
         self._set_mpi_variables()
 
-        self.log.devel('set_variables: compiler variables %s', self.variables)
+        self.log.devel('set_variables: MPI compiler variables %s', self.variables)
         super().set_variables()
 
     def _set_mpi_compiler_variables(self):

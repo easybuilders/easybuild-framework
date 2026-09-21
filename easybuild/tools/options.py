@@ -245,6 +245,8 @@ class EasyBuildOptions(GeneralOption):
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
 
+        self.orig_modules_tool = None
+
         # set up constants to seed into config files parser, by section
         try:
             user = pwd.getpwuid(os.geteuid()).pw_name
@@ -1393,11 +1395,16 @@ class EasyBuildOptions(GeneralOption):
         if self.options.fetch_all:
             self.options.fetch = True
 
+        # keep track of original modules tool, we may need it
+        # (for example when --fetch is used for an easyconfig that includes source_deps)
+        self.orig_modules_tool = self.options.modules_tool
+
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
             self.options.ignore_locks = True
             self.options.ignore_osdeps = True
+            # don't require modules tool when we're only fetching sources
             self.options.modules_tool = None
 
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
@@ -1941,6 +1948,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'extra_ec_paths': extra_ec_paths,
+        'orig_modules_tool': eb_go.orig_modules_tool,
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,

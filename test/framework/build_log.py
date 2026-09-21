@@ -67,8 +67,7 @@ class BuildLogTest(EnhancedTestCase):
             self.assertErrorRegex(EasyBuildError, 'BOOM', raise_easybuilderror, 'BOOM')
             logtxt = read_file(logfile)
 
-        log_re = re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M)
-        self.assertTrue(log_re.match(logtxt), "%s matches %s" % (log_re.pattern, logtxt))
+        self.assertRegex(logtxt, re.compile(r"^fancyroot ::.* BOOM \(at .*:[0-9]+ in [a-z_]+\)$", re.M))
 
         # test formatting of message
         self.assertErrorRegex(EasyBuildError, 'BOOMBAF', raise_easybuilderror, 'BOOM%s', 'BAF')
@@ -93,7 +92,7 @@ class BuildLogTest(EnhancedTestCase):
              r'\s+easybuild/tools/filetools\.py:\d+ in read_file',
              r'\s+easybuild/framework/easyconfig/tweak\.py:\d+ in tweak_one',
              r'\s+easybuild/base/testing\.py:\d+ in assertErrorRegex',
-             )), re.M)
+             )))
 
     def test_easybuildlog(self):
         """Tests for EasyBuildLog."""
@@ -111,19 +110,18 @@ class BuildLogTest(EnhancedTestCase):
         # test basic log methods
         logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
-        self.mock_stderr(True)
-        log.setLevelName('DEBUG')
-        log.debug("123 debug")
-        log.info("foobar info")
-        log.warning("justawarning")
-        log.deprecated("anotherwarning", newer_ver)
-        log.deprecated("onemorewarning", '1.0', '2.0')
-        log.deprecated("lastwarning", '1.0', max_ver='2.0')
-        log.deprecated("thisisnotprinted", '1.0', max_ver='2.0', silent=True)
-        log.error("kaput")
-        log.error("err: %s", 'msg: %s')
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            log.setLevelName('DEBUG')
+            log.debug("123 debug")
+            log.info("foobar info")
+            log.warning("justawarning")
+            log.deprecated("anotherwarning", newer_ver)
+            log.deprecated("onemorewarning", '1.0', '2.0')
+            log.deprecated("lastwarning", '1.0', max_ver='2.0')
+            log.deprecated("thisisnotprinted", '1.0', max_ver='2.0', silent=True)
+            log.error("kaput")
+            log.error("err: %s", 'msg: %s')
+            stderr = self.get_stderr()
 
         more_info = "see https://docs.easybuild.io/deprecated-functionality/ for more information"
         common_warning = "\nWARNING: Deprecated functionality, will no longer work in"
@@ -154,8 +152,7 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: .*EasyBuild encountered an exception \(at .* in .*\): oops",
             '',
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: kaput", log.deprecated, "kaput", older_ver)
         self.assertErrorRegex(EasyBuildError, r"DEPRECATED \(since .*: 2>1", log.deprecated, "2>1", '2.0', '1.0')
@@ -181,16 +178,14 @@ class BuildLogTest(EnhancedTestCase):
             r"fancyroot.test_easybuildlog \[ERROR\] :: EasyBuild encountered an error \(at .* in .*\): foo baz baz",
             '',
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
         write_file(tmplog, '')
         logToFile(tmplog, enable=True)
 
         # also test use of 'more_info' named argument for log.deprecated
-        self.mock_stderr(True)
-        log.deprecated("\nthis is just a test\n", newer_ver, more_info="(see URLGOESHERE for more information)")
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            log.deprecated("\nthis is just a test\n", newer_ver, more_info="(see URLGOESHERE for more information)")
         logtxt = read_file(tmplog)
         expected_logtxt = '\n'.join([
             "[WARNING] :: Deprecated functionality, will no longer work in EasyBuild v10000001: ",
@@ -211,18 +206,17 @@ class BuildLogTest(EnhancedTestCase):
         logToFile(tmplog, enable=True)
         log = getLogger('test_easybuildlog')
 
-        self.mock_stderr(True)  # avoid that some log statement spit out stuff to stderr while tests are running
-        for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
-            log.setLevelName(level)
-            log.raiseError = False
-            log.error('kaput')
-            log.deprecated('almost kaput', '10000000000000')
-            log.raiseError = True
-            log.warning('this is a warning')
-            log.info('fyi')
-            log.debug('gdb')
-            log.devel('tmi')
-        self.mock_stderr(False)
+        with self.mocked_stderr():  # avoid that some log statement spit out stuff to stderr while tests are running
+            for level in ['ERROR', 'WARNING', 'INFO', 'DEBUG', 'DEVEL']:
+                log.setLevelName(level)
+                log.raiseError = False
+                log.error('kaput')
+                log.deprecated('almost kaput', '10000000000000')
+                log.raiseError = True
+                log.warning('this is a warning')
+                log.info('fyi')
+                log.debug('gdb')
+                log.devel('tmi')
 
         logToFile(tmplog, enable=False)
         logtxt = read_file(tmplog)
@@ -242,20 +236,16 @@ class BuildLogTest(EnhancedTestCase):
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg,
             error_msg, deprecated_msg, warning_msg, info_msg, debug_msg, devel_msg,
         ])
-        logtxt_regex = re.compile(r'^%s' % expected_logtxt, re.M)
-        self.assertTrue(logtxt_regex.search(logtxt), "Pattern '%s' found in %s" % (logtxt_regex.pattern, logtxt))
+        self.assertRegex(logtxt, rf'^{expected_logtxt}')
 
     def test_print_warning(self):
         """Test print_warning"""
         def run_check(args, silent=False, expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_warning."""
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            print_warning(*args, silent=silent, **kwargs)
-            stderr = self.get_stderr()
-            stdout = self.get_stdout()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                print_warning(*args, silent=silent, **kwargs)
+                stderr = self.get_stderr()
+                stdout = self.get_stdout()
             self.assertEqual(stdout, '')
             self.assertEqual(stderr, expected_stderr)
 
@@ -308,13 +298,10 @@ class BuildLogTest(EnhancedTestCase):
         """Test print_msg"""
         def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_msg."""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            print_msg(msg, *args, **kwargs)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                print_msg(msg, *args, **kwargs)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(stdout, expected_stdout)
             self.assertEqual(stderr, expected_stderr)
 
@@ -347,13 +334,10 @@ class BuildLogTest(EnhancedTestCase):
 
         def run_check(msg, args, expected_stdout='', expected_stderr='', **kwargs):
             """Helper function to check stdout/stderr produced via print_msg."""
-            self.mock_stdout(True, force_tty=True)
-            self.mock_stderr(True, force_tty=True)
-            print_msg(msg, *args, **kwargs)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr(force_tty=True):
+                print_msg(msg, *args, **kwargs)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             # Check that the expected output stdout/stderr is being colorized
             # In order to allow using more styles/schemes (or even to account to changes in the rich default)
             # We only check for \x1b[0m which is the ANSI reset code that should be present in the output to undo
@@ -386,13 +370,10 @@ class BuildLogTest(EnhancedTestCase):
         """Test dry_run_msg"""
         def run_check(msg, args, expected_stdout='', **kwargs):
             """Helper function to check stdout/stderr produced via dry_run_msg."""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            dry_run_msg(msg, *args, **kwargs)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                dry_run_msg(msg, *args, **kwargs)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(stdout, expected_stdout)
             self.assertEqual(stderr, '')
 
@@ -407,13 +388,10 @@ class BuildLogTest(EnhancedTestCase):
         """Test dry_run_warningmsg"""
         def run_check(msg, args, expected_stdout='', **kwargs):
             """Helper function to check stdout/stderr produced via dry_run_warningmsg."""
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            dry_run_warning(msg, *args, **kwargs)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                dry_run_warning(msg, *args, **kwargs)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(stdout, expected_stdout)
             self.assertEqual(stderr, '')
 
@@ -458,10 +436,9 @@ class BuildLogTest(EnhancedTestCase):
         stop_logging(logfile)
 
         # by default, path to tmp log file is printed
-        self.mock_stdout(True)
-        log, logfile = init_logging(None)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            log, logfile = init_logging(None)
+            stdout = self.get_stdout()
         self.assertExists(logfile)
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertIsInstance(log, EasyBuildLog)
@@ -470,9 +447,8 @@ class BuildLogTest(EnhancedTestCase):
         stop_logging(logfile)
 
         # logging to stdout implies no log file
-        self.mock_stdout(True)
-        log, logfile = init_logging(None, logtostdout=True)
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            log, logfile = init_logging(None, logtostdout=True)
         self.assertEqual(logfile, None)
         self.assertIsInstance(log, EasyBuildLog)
 

@@ -29,6 +29,7 @@ Unit tests for eb command line options.
 """
 import os
 import sys
+from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -53,7 +54,7 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks(self):
         """Test include_easyblocks()."""
-        test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         # put a couple of custom easyblocks in place, to test
         myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
@@ -119,7 +120,7 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks_priority(self):
         """Test whether easyblocks included via include_easyblocks() get priority over others."""
-        test_easyblocks = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         # make sure that test 'foo' easyblock is there
         import easybuild.easyblocks.foo
@@ -288,8 +289,7 @@ class IncludeTest(EnhancedTestCase):
 
         self.assertErrorRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-        test_easyblocks = os.path.join(testdir, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
 
         self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 'g', 'gcc.py')))
         self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 't', 'toy.py')))

@@ -37,13 +37,15 @@ Authors:
 """
 import copy
 import os
+from concurrent.futures import Future
+from typing import Optional
 
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 from easybuild.tools.filetools import change_dir
-from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.run import run_shell_cmd, RunShellCmdResult
 from easybuild.tools.utilities import trace_msg
 
 
@@ -125,6 +127,7 @@ class Extension:
         self.cfg = self.master.cfg.copy(validate=False)
         self.ext = copy.deepcopy(ext)
         self.dry_run = self.master.dry_run
+        self.async_cmd_task: Optional[Future[RunShellCmdResult]] = None
 
         if 'name' not in self.ext:
             raise EasyBuildError("'name' is missing in supplied class instance 'ext'.")
@@ -145,6 +148,9 @@ class Extension:
         for opt_name in restore_options:
             self.cfg[opt_name] = get_easyconfig_parameter_default(opt_name)
 
+        # Update name and version
+        self.cfg['name'] = name
+        self.cfg['version'] = version
         # construct dict with template values that can be used
         self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
 
@@ -198,8 +204,6 @@ class Extension:
         self.sanity_check_module_loaded = False
         self.fake_mod_data = None
 
-        self.async_cmd_task = None
-
     @property
     def name(self):
         """
@@ -252,6 +256,21 @@ class Extension:
         Asynchronous installation of an extension.
         """
         raise NotImplementedError
+
+    def async_cmd_check(self) -> Optional[RunShellCmdResult]:
+        """
+        Check progress of installation command that was started asynchronously.
+        :return: True if command completed, False otherwise
+        """
+        if self.async_cmd_task is None:
+            raise EasyBuildError(f"async_cmd_check was called, but no asynchronous command running for {self.name}")
+
+        if not self.async_cmd_task.done():
+            return None
+
+        res: RunShellCmdResult = self.async_cmd_task.result()
+        self.log.info(f"Asynchronous command for {self.name} finished with exit code {res.exit_code}")
+        return res
 
     def postrun(self):
         """

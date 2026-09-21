@@ -95,11 +95,10 @@ class EasyBuildLibTest(TestCase):
         self.configure()
 
         # runworks fine if set_up_configuration was called first
-        self.mock_stdout(True)
-        res = run_shell_cmd("echo hello")
-        self.mock_stdout(False)
-        self.assertEqual(res.exit_code, 0)
-        self.assertEqual(res.output, 'hello\n')
+        with self.mocked_stdout():
+            res = run_shell_cmd("echo hello")
+            self.assertEqual(res.exit_code, 0)
+            self.assertEqual(res.output, 'hello\n')
 
     def test_mkdir(self):
         """Test use of mkdir function in the context of using EasyBuild framework as a library."""

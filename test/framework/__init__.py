@@ -27,3 +27,13 @@ Declares the test.framework namespace.
 
 @author: Toon Willems (Ghent University)
 """
+
+from pathlib import Path
+from easybuild.tools.filetools import read_file
+
+TEST_DIR = Path(__file__).parent
+REPO_ROOT = TEST_DIR.parent.parent
+TEST_MODULES_DIR = TEST_DIR / 'modules'
+TEST_ECS_DIR = TEST_DIR / 'easyconfigs' / 'test_ecs'
+TOY_EC = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0.eb'
+TOY_EC_TXT: str = read_file(TOY_EC)

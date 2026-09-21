@@ -515,9 +515,9 @@ class RobotTest(EnhancedTestCase):
         })
 
         impi_txt = read_file(os.path.join(test_easyconfigs, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertTrue(re.search("^toolchain = SYSTEM", impi_txt, re.M))
+        self.assertRegex(impi_txt, re.compile("^toolchain = SYSTEM", re.M))
         gzip_txt = read_file(os.path.join(test_easyconfigs, 'g', 'gzip', 'gzip-1.4.eb'))
-        self.assertTrue(re.search("^toolchain = SYSTEM", gzip_txt, re.M))
+        self.assertRegex(gzip_txt, re.compile("^toolchain = SYSTEM", re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-foss-2018a.eb')
         barec_lines = [
@@ -650,8 +650,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
         # test using archived easyconfigs
         args = [
@@ -666,8 +666,8 @@ class RobotTest(EnhancedTestCase):
 
         args.append('--consider-archived-easyconfigs')
         outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        regex = re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt,
+                         re.compile(r"^ \* \[.\] .*/__archive__/.*/intel-2012a.eb \(module: intel/2012a\)", re.M))
 
         args = [
             os.path.join(test_ecs_path, 't', 'toy', 'toy-0.0.eb'),
@@ -680,11 +680,10 @@ class RobotTest(EnhancedTestCase):
         ]
         outtxt = self.eb_main(args, raise_error=True)
 
-        regex = re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt,
+                         re.compile(r"^ \* \[.\] .*/toy-0.0-gompi-2018a.eb \(module: toy/0.0-gompi-2018a\)", re.M))
         for ec in ('toy-0.0.eb', 'toy-0.0-gompi-2018a-test.eb'):
-            regex = re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M)
-            self.assertFalse(regex.search(outtxt), "%s should be fitered in %s" % (ec, outtxt))
+            self.assertNotRegex(outtxt, re.compile(r"^ \* \[.\] .*/%s \(module:" % ec, re.M))
 
     def test_search_paths(self):
         """Test search_paths command line argument."""
@@ -703,14 +702,12 @@ class RobotTest(EnhancedTestCase):
             '--search',
             'toy',
         ]
-        self.mock_stdout(True)
-        self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        outtxt = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            self.eb_main(args, logfile=dummylogfn, raise_error=True)
+            outtxt = self.get_stdout()
 
         # Make sure we found the copied file
-        regex = re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M)
-        self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+        self.assertRegex(outtxt, re.compile(r"^ \* %s$" % os.path.join(self.test_prefix, test_ec), re.M))
 
     def test_github_det_easyconfig_paths_from_commit(self):
         """Test det_easyconfig_paths function in combination with --from-commit."""
@@ -733,10 +730,9 @@ class RobotTest(EnhancedTestCase):
             '--tmpdir=%s' % self.test_prefix,
         ]
 
-        self.mock_stderr(True)
-        outtxt = self.eb_main(args, raise_error=True)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            outtxt = self.eb_main(args, raise_error=True)
+            stderr = self.get_stderr()
 
         self.assertFalse(stderr)
 
@@ -750,8 +746,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
     def test_github_det_easyconfig_paths_from_pr(self):
         """Test det_easyconfig_paths function, with --from-pr enabled as well."""
@@ -795,11 +791,8 @@ class RobotTest(EnhancedTestCase):
             '--tmpdir=%s' % self.test_prefix,
         ]
 
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
 
         # full path doesn't matter (helps to avoid failing tests due to resolved symlinks)
         test_ecs_path = os.path.join('.*', 'test', 'framework', 'easyconfigs', 'test_ecs')
@@ -815,8 +808,8 @@ class RobotTest(EnhancedTestCase):
         ]
         for path_prefix, module in modules:
             ec_fn = "%s.eb" % '-'.join(module.split('/'))
-            regex = re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M)
-            self.assertTrue(regex.search(outtxt), "Found pattern %s in %s" % (regex.pattern, outtxt))
+            self.assertRegex(outtxt,
+                             re.compile(r"^ \* \[.\] %s.*%s \(module: %s\)$" % (path_prefix, ec_fn, module), re.M))
 
     def test_get_toolchain_hierarchy(self):
         """Test get_toolchain_hierarchy function."""
@@ -1418,10 +1411,10 @@ class RobotTest(EnhancedTestCase):
         non_conflict_ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
-        self.mock_stderr(True)
-        conflicts = check_conflicts(non_conflict_ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(non_conflict_ecs, self.modtool)
+            stderr = self.get_stderr()
+
         self.assertFalse(conflicts)
         self.assertEqual(stderr, '')
 
@@ -1433,10 +1426,9 @@ class RobotTest(EnhancedTestCase):
         ecs, _ = parse_easyconfigs([(new_gompi_ec, False), (gzip_ec, False)])
 
         # conflicts are found and reported to stderr
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict found for dependencies of foss-2018a: GCC-4.6.4 vs GCC-6.4.0-2.28", stderr)
@@ -1455,10 +1447,9 @@ class RobotTest(EnhancedTestCase):
             (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-6.4.0-2.28.eb'), False),
             (os.path.join(test_easyconfigs, 'g', 'GCC', 'GCC-4.9.3-2.25.eb'), False),
         ])
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.3-2.25 vs GCC-6.4.0-2.28", stderr)
@@ -1468,10 +1459,9 @@ class RobotTest(EnhancedTestCase):
             (os.path.join(test_easyconfigs, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
             (os.path.join(test_easyconfigs, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'), False),
         ])
-        self.mock_stderr(True)
-        conflicts = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            conflicts = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
 
         self.assertTrue(conflicts)
         self.assertIn("Conflict between (dependencies of) easyconfigs: GCC-4.9.2 vs GCC-6.4.0-2.28", stderr)
@@ -1519,10 +1509,10 @@ class RobotTest(EnhancedTestCase):
         write_file(wrapper_ec, wrapper_ec_txt)
 
         ecs, _ = parse_easyconfigs([(toy_ec, False), (wrapper_ec, False)])
-        self.mock_stderr(True)
-        res = check_conflicts(ecs, self.modtool)
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            res = check_conflicts(ecs, self.modtool)
+            stderr = self.get_stderr()
+
         self.assertEqual(stderr, '')
         self.assertFalse(res)
 
@@ -1625,15 +1615,12 @@ class RobotTest(EnhancedTestCase):
 
         # test use of print_result (enabled by default)
         for filename_only in [None, False, True]:
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            kwargs = {'consider_extra_paths': False}
-            if filename_only is not None:
-                kwargs['filename_only'] = filename_only
-            search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
-            stderr, stdout = self.get_stderr(), self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
+            with self.mocked_stdout_stderr():
+                kwargs = {'consider_extra_paths': False}
+                if filename_only is not None:
+                    kwargs['filename_only'] = filename_only
+                search_easyconfigs('binutils-.*-GCCcore-4.9.3', **kwargs)
+                stderr, stdout = self.get_stderr(), self.get_stdout()
 
             self.assertFalse(stderr)
             self.assertEqual(len(stdout.splitlines()), 2)
@@ -1645,8 +1632,7 @@ class RobotTest(EnhancedTestCase):
                     path = os.path.join('test', 'framework', 'easyconfigs', 'test_ecs', 'b', 'binutils', ec_fn)
                 pattern.append(r"^ \* .*%s$" % path)
 
-            regex = re.compile('\n'.join(pattern), re.M)
-            self.assertTrue(regex.search(stdout), "Pattern '%s' should be found in: %s" % (regex.pattern, stdout))
+            self.assertRegex(stdout, re.compile('\n'.join(pattern), re.M))
 
 
 def suite(loader=None):

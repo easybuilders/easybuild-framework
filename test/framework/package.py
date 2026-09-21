@@ -33,6 +33,7 @@ import stat
 import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
+from test.framework import TEST_ECS_DIR
 from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
@@ -45,7 +46,7 @@ from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 FPM_OUTPUT_FILE = 'fpm_mocked.out'
 
 # purposely using non-bash script, to detect issues with shebang line being ignored (run_shell_cmd with use_bash=False)
-MOCKED_FPM = """#!/usr/bin/env python
+MOCKED_FPM = """#!/usr/bin/env python3
 import os, sys
 
 def verbose(msg):
@@ -181,9 +182,7 @@ class PackageTest(EnhancedTestCase):
             os.environ['EASYBUILD_PACKAGE_NAMING_SCHEME'] = pns_type
             init_config(build_options={'silent': True})
 
-            topdir = os.path.dirname(os.path.abspath(__file__))
-            test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-            test_ec = os.path.join(test_easyconfigs, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+            test_ec = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
             ec = EasyConfig(test_ec, validate=False)
 
             pns = ActivePNS()
@@ -206,9 +205,7 @@ class PackageTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        test_easyconfigs = os.path.join(topdir, 'easyconfigs', 'test_ecs')
-        ec = EasyConfig(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
 
         mock_fpm(self.test_prefix)
 
@@ -235,26 +232,21 @@ class PackageTest(EnhancedTestCase):
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)
 
         # check whether extra packaging options were passed down
-        regex = re.compile("^got an unhandled option: --foo bar$", re.M)
-        self.assertTrue(regex.search(fpm_output), "Pattern '%s' found in: %s" % (regex.pattern, fpm_output))
+        self.assertRegex(fpm_output, re.compile("^got an unhandled option: --foo bar$", re.M))
 
         pkgtxt = read_file(pkgfile)
-        pkgtxt_regex = re.compile("STARTCONTENTS of installdir %s" % easyblock.installdir)
-        self.assertTrue(pkgtxt_regex.search(pkgtxt), "Pattern '%s' found in: %s" % (pkgtxt_regex.pattern, pkgtxt))
+        self.assertIn("STARTCONTENTS of installdir %s" % easyblock.installdir, pkgtxt)
 
-        no_logfiles_regex = re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.MULTILINE)
-        res = no_logfiles_regex.search(pkgtxt)
-        self.assertFalse(res, "Pattern not '%s' found in: %s" % (no_logfiles_regex.pattern, pkgtxt))
+        self.assertNotRegex(pkgtxt, re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.M))
 
-        toy_txt = read_file(os.path.join(test_easyconfigs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
+        toy_txt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
         toy_file = os.path.join(self.test_prefix, 'toy-test-description.eb')
         write_file(toy_file, toy_txt)
 
-        regex = re.compile(r"""`backticks'""")
-        self.assertTrue(regex.search(toy_txt), "Pattern '%s' found in: %s" % (regex.pattern, toy_txt))
+        self.assertIn("`backticks'", toy_txt)
         ec_desc = EasyConfig(toy_file, validate=False)
         easyblock_desc = EB_toy(ec_desc)
         easyblock_desc.run_all_steps(False)
@@ -262,11 +254,8 @@ class PackageTest(EnhancedTestCase):
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-2018a-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
         self.assertTrue(os.path.isfile(pkgfile))
         pkgtxt = read_file(pkgfile)
-        regex_pkg = re.compile(r"""DESCRIPTION:.*`backticks'.*""")
-        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
-        regex_pkg = re.compile(r"""DESCRIPTION:.*\nand newlines""", re.MULTILINE)
-        self.assertTrue(regex_pkg.search(pkgtxt), "Pattern '%s' not found in: %s" % (regex_pkg.pattern, pkgtxt))
-        self.mock_stdout(False)
+        self.assertRegex(pkgtxt, r"""DESCRIPTION:.*`backticks'.*""")
+        self.assertRegex(pkgtxt, r"""DESCRIPTION:.*\nand newlines""")
 
 
 def suite(loader=None):
