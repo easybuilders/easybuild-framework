@@ -108,6 +108,8 @@ class ExtensionEasyBlock(EasyBlock, Extension):
                                     "set the values at the top-level instead", '6.0')
                 if 'load_name' in options:
                     raise EasyBuildError("'load_name' should be specified as a top-level parameter not in 'options'")
+                elif 'modulename' in options and self.cfg.get('load_name') is not None:
+                    raise EasyBuildError(f"Both 'load_name' and deprecated 'modulename' are specified for {self.name}")
                 self._options.update(copy.deepcopy(options))
 
         self.ext_dir = None  # dir where extension source was unpacked

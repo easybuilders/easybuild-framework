@@ -614,7 +614,7 @@ class EasyConfigTest(EnhancedTestCase):
             # use hacky prebuildopts that is picked up by 'EB_Toy' easyblock, to check whether templates are resolved
             '       "prebuildopts": "gcc -O2 %(name)s.c -o toy-%(version_minor_patch)s &&' +
             ' mv toy-%(version_minor_patch)s toy # echo installdir is %(installdir)s #",',
-            '        "postbuildopts": "echo postbuild step for %(name)s-%(version)s",',
+            '        "buildopts": " && echo postbuild step for %(name)s-%(version)s",',
             '   }),',
             ']',
         ])
@@ -645,11 +645,12 @@ class EasyConfigTest(EnhancedTestCase):
         expected = {
             'patches': ['toy-0.0_fix-silly-typo-in-printf-statement.patch'],
             'prebuildopts': expected_prebuildopts,
-            'postbuildopts': "echo postbuild step for toy-0.0.1",
+            'buildopts': " && echo postbuild step for toy-0.0.1",
             'source_tmpl': 'toy-0.0-py3-test.tar.gz',
             'source_urls': ['https://pypi.python.org/packages/source/t/toy'],
         }
-        self.assertEqual(toy_ext.options, expected)
+        for key, value in expected.items():
+            self.assertEqual(toy_ext.cfg[key], value)
 
         # also .cfg of Extension instance was updated correctly
         self.assertEqual(toy_ext.cfg['source_urls'], ['https://pypi.python.org/packages/source/t/toy'])
@@ -4754,12 +4755,22 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_construct_exts_filter_cmds(self):
         """Test for construct_exts_filter_cmds function."""
+        class TestCfg(dict):
+            def __init__(self, values: dict):
+                options = values.pop('options', {})
+                super().__init__(values)
+                self.update(options)
+                self.name = values['name']
+                self.version = values.get('version')
+                for k, v in options.items():
+                    setattr(self, k, v)
+
         class TestExtension:
-            def __init__(self, values):
+            def __init__(self, values: dict):
                 self.name = values['name']
                 self.version = values.get('version')
                 self.src = values.get('src')
-                self.options = values.get('options', {})
+                self.cfg = TestCfg(values)
 
         error_msg = 'exts_filter should be a list or tuple'
         self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds,
@@ -4787,13 +4798,13 @@ class EasyConfigTest(EnhancedTestCase):
              ),
             # options dict is accepted
             (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
-             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'dummy': 'value'}},
-             ('foo-42-bar.tgz', '>foo-42-bar.tgz'),
+             {'name': 'foo', 'version': 43, 'src': 'bar.tgz', 'options': {'dummy': 'value'}},
+             ('foo-43-bar.tgz', '>foo-43-bar.tgz'),
              ),
             # load_name overwrites name
             (['%(ext_name)s-%(ext_version)s-%(src)s', '>%(ext_name)s-%(ext_version)s-%(src)s'],
-             {'name': 'foo', 'version': 42, 'src': 'bar.tgz', 'options': {'load_name': 'baz'}},
-             ('baz-42-bar.tgz', '>baz-42-bar.tgz'),
+             {'name': 'foo', 'version': 44, 'src': 'bar.tgz', 'options': {'load_name': 'baz'}},
+             ('baz-44-bar.tgz', '>baz-44-bar.tgz'),
              ),
         ]
         for exts_filter, ext, expected_value in test_cases:
@@ -4813,7 +4824,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(value, [('run name', None), ('run alt', None)])
 
         # deprecated 'modulename' in options is still supported (and replaced by 'load_name')
-        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
             value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': 'baz'}})
             self.assertEqual(value, [('run baz', None)])
             value = construct_exts_filter_cmds(exts_filter, {'name': 'foo', 'options': {'modulename': False}})
@@ -4822,9 +4833,11 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(value, [('run a', None), ('run b', None)])
 
         # specifying 'load_name' and 'modulename' in options is not allowed
+        # Only relevant for dict inputs as `Extension`
         error_msg = "Both 'load_name' and deprecated 'modulename' are specified for extension"
-        self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds, exts_filter,
-                              TestExtension({'name': 'foo', 'options': {'load_name': 'a', 'modulename': 'b'}}))
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            self.assertErrorRegex(EasyBuildError, error_msg, construct_exts_filter_cmds, exts_filter,
+                                  {'name': 'foo', 'options': {'load_name': 'a', 'modulename': 'b'}})
 
     def test_cuda_compute_capabilities(self):
         """Tests that the cuda_compute_capabilities templates are correct"""
