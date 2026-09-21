@@ -220,23 +220,23 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 outtxt = self.eb_main(args)
 
             for log_msg_type in ['INFO', 'ERROR']:
-                self.assertIn(log_msg_type, outtxt)
+                self.assertIn(f' {log_msg_type} ', outtxt)
 
             for log_msg_type in ['DEBUG']:
-                self.assertNotIn(log_msg_type, outtxt)
+                self.assertNotIn(f' {log_msg_type} ', outtxt)
 
     def test_quiet(self):
         """Test enabling quiet logging (errors only)."""
         for quiet_arg in ['--quiet']:
             args = ['nosuchfile.eb', quiet_arg]
             with self.mocked_stdout_stderr():
-                out = self.eb_main(args)
+                outtxt = self.eb_main(args)
 
             for log_msg_type in ['ERROR']:
-                self.assertIn(log_msg_type, out)
+                self.assertIn(f' {log_msg_type} ', outtxt)
 
             for log_msg_type in ['DEBUG', 'INFO']:
-                self.assertNotIn(log_msg_type, out)
+                self.assertNotIn(f' {log_msg_type} ', outtxt)
 
     def test_force(self):
         """Test forcing installation even if the module is already available."""
