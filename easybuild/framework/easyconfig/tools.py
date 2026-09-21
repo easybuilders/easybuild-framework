@@ -61,7 +61,7 @@ from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
 from easybuild.tools.filetools import locate_files, read_file, resolve_path, which, write_file
-from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, CategorizedPaths
+from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
 from easybuild.tools.github import fetch_easyconfigs_from_pr, fetch_pr_data
 from easybuild.tools.github import fetch_files_from_commit, fetch_files_from_pr
@@ -70,6 +70,11 @@ from easybuild.tools.toolchain.toolchain import is_system_toolchain
 from easybuild.tools.toolchain.utilities import search_toolchain
 from easybuild.tools.utilities import only_if_module_is_available, quote_str
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
+
+# Belongs in this file and should be imported from here
+# but needs to be defined in the github module to avoid cyclic imports
+from easybuild.tools.github import CategorizedPaths
+
 
 # optional Python packages, these might be missing
 # failing imports are just ignored
