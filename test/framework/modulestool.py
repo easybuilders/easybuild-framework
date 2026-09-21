@@ -165,7 +165,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['PATH'] = join_path_var(new_paths)
 
             # make sure $MODULEPATH contains path that provides some modules
-            os.environ['MODULEPATH'] = os.path.abspath(TEST_MODULES_DIR)
+            os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
             fake_path = os.path.join(self.test_installpath, 'lmod')
