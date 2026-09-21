@@ -2614,7 +2614,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         toy_ec_txt = TOY_EC_TXT + cleandoc("""
             extension_name = "custom_ext"
-            load_name = "custom_ext"
+            options = {"modulename": "custom_ext"}
             build_opts = "&& touch toy_custom_ext.md"
             exts_filter = ('ls -l bin/toy_%(ext_name)s.md', '')
         """)
@@ -2645,7 +2645,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertIn('ls -l bin/toy_custom_ext.md', read_file(self.logfile))
 
         write_file(self.logfile, '')
-        write_file(toy_ec, '\nload_name = "wrong_load_name"', append=True)
+        write_file(toy_ec, '\noptions = {"modulename": "wrong_load_name"}', append=True)
         self.assertRaisesRegex(EasyBuildError,
                                'Sanity check failed: command "ls -l bin/toy_wrong_load_name.md" failed',
                                self.eb_main, args, do_build=True, raise_error=True)
