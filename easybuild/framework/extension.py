@@ -149,7 +149,7 @@ def get_load_names(ext: 'Extension') -> List[str]:
     if load_names is None:
         load_names = cfg.get('extension_name')
         if load_names is None:
-            load_names = cfg.name
+            load_names = ext.name
 
     if load_names is False:
         return []
@@ -169,16 +169,20 @@ def _dict_to_ExtensionLike(ext: Dict[str, Any]):
 
     Handles modulename to load_name transition.
     """
-    if 'modulename' in ext:
-        if 'load_name' in ext:
+    options = ext.get('options', {})
+    if 'modulename' in options:
+        if 'load_name' in options:
             raise EasyBuildError("Both 'load_name' and deprecated 'modulename' "
                                  f"are specified for extension {ext['name']}")
         _log.deprecated("Extension option 'modulename' is deprecated, "
                         "use the 'load_name' easyconfig parameter instead", '6.0')
-        ext['load_name'] = ext.pop('modulename')
+        options = copy.deepcopy(options)
+        options['load_name'] = options.pop('modulename')
 
-    ExtensionLike = namedtuple('ExtensionLike', ('cfg'))
-    return ExtensionLike(ext)
+    ExtensionLike = namedtuple('ExtensionLike', ('name', 'version', 'cfg', 'src'))
+    cfg = copy.deepcopy(ext)
+    cfg.update(options)
+    return ExtensionLike(ext['name'], ext.get('version'), cfg, ext.get('src'))
 
 
 def get_modulenames(ext: Union['Extension', Dict[str, Any]], use_name_for_false: bool):
@@ -353,7 +357,7 @@ class Extension:
                             "use the corresponding easyconfig parameter(s) instead", '6.0')
         if not isinstance(value, dict):
             raise EasyBuildError(f"Extension options should be a dict, got {type(value).__name__}")
-        self._options.clear()
+        self._options = _ExtensionOptions(self)
         self._options.update(value)
 
     def prerun(self):
