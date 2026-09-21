@@ -820,7 +820,6 @@ class ToyBuildTest(EnhancedTestCase):
         ]
 
         for group in [group_name, (group_name, "Hey, you're not in the '%s' group!" % group_name)]:
-
             if isinstance(group, str):
                 write_file(test_ec, TOY_EC_TXT + "\ngroup = '%s'\n" % group)
             else:
@@ -829,48 +828,42 @@ class ToyBuildTest(EnhancedTestCase):
             with self.mocked_stdout():
                 outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
 
+            if isinstance(group, tuple):
+                group_name = group[0]
+                error_msg = f"Hey, you're not in the '{group_name}' group!"
+            else:
+                group_name = group
+                error_msg = f"You are not part of '{group_name}' group of users"
+
+            pattern: str = None
+            module_filename: str = None
             if get_module_syntax() == 'Tcl':
+                module_filename = '0.0'
                 module_version = LooseVersion(self.modtool.version)
                 if isinstance(self.modtool, EnvironmentModules) and module_version >= LooseVersion('4.6.0'):
-                    toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
-                    toy_mod_txt = read_file(toy_mod)
-
-                    if isinstance(group, tuple):
-                        group_name = group[0]
-                        error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
-                    else:
-                        group_name = group
-                        error_msg_pattern = "You are not part of '%s' group of users" % group_name
-
                     pattern = '\n'.join([
                         r'^if \{ \!\[ module-info usergroups %s \] \} \{' % group_name,
-                        r'    error "%s[^"]*"' % error_msg_pattern,
+                        r'    error "%s[^"]*"' % error_msg,
                         r'\}$',
                     ])
-                    self.assertRegex(outtxt, re.compile(pattern, re.M))
                 else:
-                    pattern = "Can't generate robust check in Tcl modules for users belonging to group %s." % group_name
-                    self.assertRegex(outtxt, re.compile(pattern, re.M))
-
+                    self.assertIn("Can't generate robust check in Tcl modules "
+                                  f"for users belonging to group {group_name}.",
+                                  outtxt)
+                    continue
             elif get_module_syntax() == 'Lua':
-                toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0.lua')
-                toy_mod_txt = read_file(toy_mod)
-
-                if isinstance(group, tuple):
-                    group_name = group[0]
-                    error_msg_pattern = "Hey, you're not in the '%s' group!" % group_name
-                else:
-                    group_name = group
-                    error_msg_pattern = "You are not part of '%s' group of users" % group_name
-
+                module_filename = '0.0.lua'
                 pattern = '\n'.join([
                     r'^if not \( userInGroup\("%s"\) \) then' % group_name,
-                    r'    LmodError\("%s[^"]*"\)' % error_msg_pattern,
+                    r'    LmodError\("%s[^"]*"\)' % error_msg,
                     r'end$',
                 ])
-                self.assertRegex(toy_mod_txt, re.compile(pattern, re.M))
             else:
                 self.fail("Unknown module syntax: %s" % get_module_syntax())
+
+            toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', module_filename)
+            toy_mod_txt = read_file(toy_mod)
+            self.assertRegex(toy_mod_txt, re.compile(pattern, re.M))
 
         write_file(test_ec, TOY_EC_TXT + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
         self.assertErrorRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
