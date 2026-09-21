@@ -33,7 +33,6 @@ import copy
 import glob
 import os
 import re
-import shutil
 import stat
 import sys
 import tempfile
@@ -1210,7 +1209,7 @@ class EasyConfigTest(EnhancedTestCase):
         # only run this test if the TEMPLATE.eb file is available
         # TODO: use unittest.skip for this (but only works from Python 2.7)
         if tpl_full_path:
-            shutil.copy2(tpl_full_path, self.test_prefix)
+            copy_file(tpl_full_path, self.test_prefix)
             specs.update({'name': 'nosuchsoftware'})
             res = obtain_ec_for(specs, [self.test_prefix], None)
             self.assertEqual(res[0], True)
@@ -1942,7 +1941,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ec_file = os.path.join(self.test_prefix, 'test.eb')
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'), ec_file)
+        copy_file(TEST_ECS_DIR / 'o' / 'OpenMPI' / 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb', ec_file)
 
         ec_txt = read_file(ec_file)
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
@@ -3500,7 +3499,7 @@ class EasyConfigTest(EnhancedTestCase):
         ecs_to_copy = []
         for (src_ec, target_ec) in test_ecs:
             ecs_to_copy.append(os.path.join(self.test_prefix, target_ec))
-            shutil.copy2(os.path.join(TEST_ECS_DIR, src_ec), ecs_to_copy[-1])
+            copy_file(TEST_ECS_DIR / src_ec, ecs_to_copy[-1])
 
         res = copy_easyconfigs(ecs_to_copy, target_dir)
         self.assertEqual(sorted(res.keys()), ['ecs', 'new', 'new_file_in_existing_folder',
@@ -3746,7 +3745,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
+        copy_file(os.path.join(TEST_ECS_DIR, 'p', 'Python', 'Python-2.7.10-intel-2018a.eb'), pyec)
         write_file(pyec, "\ntoolchain = {'name': 'foss', 'version': '2018a'}", append=True)
 
         ec_txt = '\n'.join([
