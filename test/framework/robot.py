@@ -411,7 +411,7 @@ class RobotTest(EnhancedTestCase):
             'minimal_toolchains': True,
             'use_existing_modules': True,
             'external_modules_metadata': ConfigObj(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
             'valid_module_classes': module_classes(),
             'validate': False,
         })
@@ -509,7 +509,7 @@ class RobotTest(EnhancedTestCase):
             'minimal_toolchains': True,
             'add_system_to_minimal_toolchains': True,
             'external_modules_metadata': ConfigObj(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
             'valid_module_classes': module_classes(),
             'validate': False,
         })
@@ -551,7 +551,7 @@ class RobotTest(EnhancedTestCase):
         self.install_mock_module()
         MockModule.avail_modules = []
 
-        init_config(build_options={'robot_path': [str(TEST_ECS_DIR), self.test_prefix]})
+        init_config(build_options={'robot_path': [TEST_ECS_DIR, self.test_prefix]})
 
         ec = {
             'ec': {
@@ -806,7 +806,7 @@ class RobotTest(EnhancedTestCase):
         """Test get_toolchain_hierarchy function."""
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
 
         fosscuda_hierarchy = get_toolchain_hierarchy({'name': 'fosscuda', 'version': '2018a'})
@@ -837,7 +837,7 @@ class RobotTest(EnhancedTestCase):
         # test also --try-toolchain* case, where we want more detailed information
         init_config(build_options={
             'valid_module_classes': module_classes(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
 
         get_toolchain_hierarchy.clear()
@@ -953,7 +953,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'add_system_to_minimal_toolchains': True,
             'valid_module_classes': module_classes(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
 
         get_toolchain_hierarchy.clear()
@@ -985,7 +985,7 @@ class RobotTest(EnhancedTestCase):
         build_options = {
             'add_system_to_minimal_toolchains': True,
             'external_modules_metadata': ConfigObj(),
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
             'valid_module_classes': module_classes(),
         }
         init_config(build_options=build_options)
@@ -1177,7 +1177,7 @@ class RobotTest(EnhancedTestCase):
         #
         init_config(build_options={
             'add_system_to_minimal_toolchains': True,
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
         # specify alternative parent toolchain
         gompi_1410 = {'name': 'gompi', 'version': '2018a'}
@@ -1245,7 +1245,7 @@ class RobotTest(EnhancedTestCase):
         # check with --minimal-toolchains enabled
         init_config(build_options={
             'minimal_toolchains': True,
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
         bar = EasyConfig(barec)
 
@@ -1279,7 +1279,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'minimal_toolchains': True,
             'use_existing_modules': True,
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
         })
 
         # Check gompi is now being picked up
@@ -1302,7 +1302,7 @@ class RobotTest(EnhancedTestCase):
         """
 
         # include both test easyconfig files and test directory in robot search path
-        build_options = {'robot_path': [str(TEST_ECS_DIR), self.test_prefix]}
+        build_options = {'robot_path': [TEST_ECS_DIR, self.test_prefix]}
         init_config(build_options=build_options)
 
         test_mods_dir = os.path.join(self.test_prefix, 'modules')
@@ -1386,7 +1386,7 @@ class RobotTest(EnhancedTestCase):
         init_config(build_options={
             'force': True,
             'retain_all_deps': True,
-            'robot_path': str(TEST_ECS_DIR),
+            'robot_path': TEST_ECS_DIR,
             'valid_module_classes': module_classes(),
             'validate': False,
         })

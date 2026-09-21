@@ -2647,7 +2647,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # create index for test easyconfigs;
         # test with specified path with and without trailing '/'s
-        for path in [TEST_ECS_DIR, str(TEST_ECS_DIR), str(TEST_ECS_DIR) + '/', str(TEST_ECS_DIR) + '//']:
+        for path in [TEST_ECS_DIR, str(TEST_ECS_DIR), str(TEST_ECS_DIR) + os.path.sep, str(TEST_ECS_DIR) + os.path.sep * 2]:
             index = ft.create_index(path)
             self.assertEqual(len(index), num_files)
 
