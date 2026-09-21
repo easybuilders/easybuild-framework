@@ -6612,8 +6612,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get rid of checksums for extensions, should result in different error message
         # because of missing checksum for source of 'bar' extension
-        test_ec_txt = re.sub("^.*'checksums':.*$", '', read_file(test_ec))
-        self.assertNotIn("'checksums':", test_ec_txt, re.M)
+        test_ec_txt = re.sub("^.*'checksums':.*$", '', read_file(test_ec), re.M)
+        self.assertNotIn("'checksums':", test_ec_txt)
         write_file(test_ec, test_ec_txt)
         error_pattern = r"Missing checksum for bar-0\.0\.tar\.gz"
         with self.mocked_stdout_stderr():
