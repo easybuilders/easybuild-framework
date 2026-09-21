@@ -322,7 +322,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
         test_ec_txt = re.sub(r"sanity_check_paths = \{(.|\n)*\}",
-                             "sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+                             "sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}",
+                             test_ec_txt)
         write_file(test_ec, test_ec_txt)
         args = [
             test_ec,
@@ -367,8 +368,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that sanity check is *NOT* skipped
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
-        regex = re.compile(r"sanity_check_paths = \{(.|\n)*\}")
-        test_ec_txt = regex.sub("sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}", test_ec_txt)
+        test_ec_txt = re.sub(r"sanity_check_paths = \{(.|\n)*\}",
+                             "sanity_check_paths = {'files': ['bin/nosuchfile'], 'dirs': []}",
+                             test_ec_txt)
         write_file(test_ec, test_ec_txt)
         args = [
             test_ec,
@@ -3162,8 +3164,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         gzip_ec = os.path.join(test_ecs_dir, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
         gzip_ec_txt = read_file(gzip_ec)
-        regex = re.compile('^source_urls = .*', re.M)
-        test_ec_txt = regex.sub("source_urls = ['https://sources.easybuild.io/g/gzip']", gzip_ec_txt)
+        test_ec_txt = re.sub('^source_urls = .*',
+                             "source_urls = ['https://sources.easybuild.io/g/gzip']",
+                             gzip_ec_txt,
+                             re.M)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
         common_args = [
@@ -6375,8 +6379,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec_txt = read_file(toy_ec)
 
         # get rid of existing checksums
-        regex = re.compile(r'^checksums(?:.|\n)*?\]\s*$', re.M)
-        toy_ec_txt = regex.sub('', toy_ec_txt)
+        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, re.M)
         self.assertNotIn('checksums = ', toy_ec_txt)
 
         write_file(test_ec, toy_ec_txt)
@@ -6416,8 +6419,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check whether empty list of checksums is stripped out by --inject-checksums
         toy_ec_txt = read_file(toy_ec)
 
-        regex = re.compile(r'^checksums(?:.|\n)*?\]\s*$', re.M)
-        toy_ec_txt = regex.sub('', toy_ec_txt)
+        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, re.M)
 
         toy_ec_txt += "\nchecksums = []"
 
@@ -6610,9 +6612,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get rid of checksums for extensions, should result in different error message
         # because of missing checksum for source of 'bar' extension
-        regex = re.compile("^.*'checksums':.*$", re.M)
-        test_ec_txt = regex.sub('', read_file(test_ec))
-        self.assertNotIn("'checksums':", test_ec_txt)
+        test_ec_txt = re.sub("^.*'checksums':.*$", '', read_file(test_ec))
+        self.assertNotIn("'checksums':", test_ec_txt, re.M)
         write_file(test_ec, test_ec_txt)
         error_pattern = r"Missing checksum for bar-0\.0\.tar\.gz"
         with self.mocked_stdout_stderr():
@@ -6836,8 +6837,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertNotIn('self.build_in_installdir = True', toy_eb_txt)
 
-        regex = re.compile(r'^(\s+)(super\(\).__init__.*)\n', re.M)
-        toy_eb_txt = regex.sub(r'\1\2\n\1self.build_in_installdir = True', toy_eb_txt)
+        toy_eb_txt = re.sub(r'^(\s+)(super\(\).__init__.*)\n',
+                            r'\1\2\n\1self.build_in_installdir = True',
+                            toy_eb_txt,
+                            re.M)
         self.assertIn('self.build_in_installdir = True', toy_eb_txt)
 
         toy_eb = os.path.join(self.test_prefix, 'toy.py')
