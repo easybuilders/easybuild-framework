@@ -3167,7 +3167,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         test_ec_txt = re.sub('^source_urls = .*',
                              "source_urls = ['https://sources.easybuild.io/g/gzip']",
                              gzip_ec_txt,
-                             re.M)
+                             flags=re.M)
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, test_ec_txt)
         common_args = [
@@ -6379,7 +6379,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_ec_txt = read_file(toy_ec)
 
         # get rid of existing checksums
-        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, re.M)
+        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, flags=re.M)
         self.assertNotIn('checksums = ', toy_ec_txt)
 
         write_file(test_ec, toy_ec_txt)
@@ -6419,7 +6419,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check whether empty list of checksums is stripped out by --inject-checksums
         toy_ec_txt = read_file(toy_ec)
 
-        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, re.M)
+        toy_ec_txt = re.sub(r'^checksums(?:.|\n)*?\]\s*$', '', toy_ec_txt, flags=re.M)
 
         toy_ec_txt += "\nchecksums = []"
 
@@ -6612,7 +6612,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # get rid of checksums for extensions, should result in different error message
         # because of missing checksum for source of 'bar' extension
-        test_ec_txt = re.sub("^.*'checksums':.*$", '', read_file(test_ec), re.M)
+        test_ec_txt = re.sub("^.*'checksums':.*$", '', read_file(test_ec), flags=re.M)
         self.assertNotIn("'checksums':", test_ec_txt)
         write_file(test_ec, test_ec_txt)
         error_pattern = r"Missing checksum for bar-0\.0\.tar\.gz"
@@ -6840,7 +6840,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_eb_txt = re.sub(r'^(\s+)(super\(\).__init__.*)\n',
                             r'\1\2\n\1self.build_in_installdir = True',
                             toy_eb_txt,
-                            re.M)
+                            flags=re.M)
         self.assertIn('self.build_in_installdir = True', toy_eb_txt)
 
         toy_eb = os.path.join(self.test_prefix, 'toy.py')
