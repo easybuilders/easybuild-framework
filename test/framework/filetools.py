@@ -678,9 +678,8 @@ class FileToolsTest(EnhancedTestCase):
 
             return self.orig_filetools_std_urllib_urlopen(url, *args, **kwargs)
 
-        fn = 'toy-0.0.eb'
-        toy_dir = os.path.join(TEST_ECS_DIR, 't', 'toy')
-        url = 'file://%s/%s' % (toy_dir, fn)
+        fn = TOY_EC.name
+        url = f'file://{TOY_EC.parent}/{fn}'
 
         ft.std_urllib.urlopen = fake_urllib_open
 
@@ -706,9 +705,8 @@ class FileToolsTest(EnhancedTestCase):
         Test use of fallback source URLs in download_file function
         """
 
-        fn = 'toy-0.0.eb'
-        toy_dir = os.path.join(TEST_ECS_DIR, 't', 'toy')
-        correct_url = f'file://{toy_dir}/'
+        fn = TOY_EC.name
+        correct_url = f'file://{TOY_EC.parent}/'
 
         wrong_url = f'file://{self.test_prefix}/easyconfigs/'
 
