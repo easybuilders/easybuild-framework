@@ -3457,7 +3457,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # create test easyconfig from which checksums have been stripped
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        ectxt = TOY_EC_TXT
+        ectxt = read_file(toy_ec)
         regex = re.compile(r"'?checksums'?\s*[=:]\s*\[[^]]+\].*", re.M)
         ectxt = regex.sub('', ectxt)
         write_file(test_ec, ectxt)
