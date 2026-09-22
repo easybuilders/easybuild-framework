@@ -915,17 +915,17 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
         except std_urllib.HTTPError as err:
             exception_raised = True
             if err.code == 429:  # too many requests
-                _log.warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)")
+                print_warning(f"Downloading of {url} failed with HTTP status code 429 (Too many requests)", log=_log)
                 wait = True
             elif 400 <= err.code <= 499:
-                _log.warning(f"URL {url} was not found (HTTP response code {err.code}), not trying again")
+                print_warning(f"URL {url} was not found (HTTP response code {err.code}), not trying again", log=_log)
                 # avoid trying again, so straight to trying fallback URL (if available)
                 attempt_cnt = max_attempts
             else:
-                _log.warning(f"HTTPError occurred while trying to download {url} to {path}: {err}")
+                print_warning(f"HTTPError occurred while trying to download {url} to {path}: {err}", log=_log)
         except IOError as err:
             exception_raised = True
-            _log.warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err))
+            print_warning("IOError occurred while trying to download %s to %s: %s" % (url, path, err), log=_log)
             error_re = re.compile(r"<urlopen error \[Errno 1\] _ssl.c:.*: error:.*:"
                                   "SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure>")
             if error_re.match(str(err)):
@@ -938,13 +938,14 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
 
         if not downloaded:
             if attempt_cnt < max_attempts:
-                _log.info("Attempt {attempt_cnt} of downloading {url} to {path} failed, trying again...")
-
+                msg = f"Attempt {attempt_cnt} of downloading {url} to {path} failed"
                 if wait:
-                    _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
+                    print_msg(f"{msg}. Waiting for {wait_time} seconds before trying again...", log=_log, stderr=True)
                     time.sleep(wait_time)
                     # exponential backoff
                     wait_time *= 2
+                else:
+                    print_msg(f"{msg}, trying again...", log=_log, stderr=True)
 
             # if we're about to give up, consider automatic fallback URL, and reset number of attemps...
             elif attempt_cnt == max_attempts and exception_raised:
@@ -964,7 +965,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
             trace_msg("download succeeded: %s" % url)
         return path
     else:
-        _log.warning("Download of %s to %s failed, done trying" % (url, path))
+        print_warning("Download of %s to %s failed, done trying" % (url, path), log=_log)
         if trace:
             trace_msg("download failed: %s" % url)
         return None
