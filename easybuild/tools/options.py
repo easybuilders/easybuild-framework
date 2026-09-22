@@ -46,6 +46,7 @@ import sys
 import tempfile
 import pwd
 from collections import OrderedDict
+from typing import Set
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -1777,14 +1778,15 @@ def handle_include_easyblocks_from(options, log):
     if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
         terse = build_option('terse')
         if options.include_easyblocks:
-            included_easyblocks = {os.path.basename(eb) for eb in expand_glob_paths(options.include_easyblocks)}
+            included_easyblocks: Set[str] = {os.path.basename(eb)
+                                             for eb in expand_glob_paths(options.include_easyblocks)}
         else:
-            included_easyblocks = set()
+            included_easyblocks: Set[str] = set()
 
         def check_and_log_include(additional_easyblocks: list, source: str):
             """Check whether easyblock is being included multiple times and log its inclusion"""
-            additional_easyblocks = {os.path.basename(eb) for eb in additional_easyblocks}
-            included_multiple = include_easyblocks & additional_easyblocks
+            additional_easyblocks: Set[str] = {os.path.basename(eb) for eb in additional_easyblocks}
+            included_multiple: Set[str] = included_easyblocks & additional_easyblocks
             if included_multiple:
                 warning_msg = "One or more easyblocks included from multiple locations: %s " \
                             % ', '.join(included_multiple)
