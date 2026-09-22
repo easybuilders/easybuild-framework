@@ -877,7 +877,8 @@ class EasyConfigTest(EnhancedTestCase):
         tweaked_openmpi_content_2 = read_file(tweaked_openmpi_2)
         self.assertIn('moduleclass = "debugger"', tweaked_openmpi_content_1)
         self.assertIn('moduleclass = "debugger"', tweaked_openmpi_content_2)
-        self.assertEqual(tweak_map, {tweaked_openmpi_1: str(untweaked_openmpi_1), tweaked_openmpi_2: str(untweaked_openmpi_2)})
+        self.assertEqual(tweak_map, {tweaked_openmpi_1: str(untweaked_openmpi_1),
+                                     tweaked_openmpi_2: str(untweaked_openmpi_2)})
 
     def test_installversion(self):
         """Test generation of install version."""
