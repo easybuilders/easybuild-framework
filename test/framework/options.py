@@ -6244,7 +6244,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # checksums are injected in existing easyconfig, so test with a copy
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        copy_file(toy_ec, test_ec)
+        # Add deprecated use of unknow param
+        write_file(test_ec,
+                   re.sub('(toy_ext_param.*\n)',
+                          "\\1'unknowneasyconfigparameterthatshouldbeignored': 'foo',\n",
+                          read_file(toy_ec)))
+        orig_ec = test_ec + '.orig'
+        copy_file(test_ec, orig_ec)
 
         # if existing checksums are found, --force is required
         args = [test_ec, '--inject-checksums']
@@ -6349,7 +6355,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # backup of easyconfig was created
         ec_backups = glob.glob(test_ec + '.bak_*')
         self.assertEqual(len(ec_backups), 1)
-        self.assertEqual(read_file(toy_ec), read_file(ec_backups[0]))
+        self.assertEqual(read_file(orig_ec), read_file(ec_backups[0]))
 
         self.assertIn("injecting sha256 checksums in", stdout)
         self.assertEqual(stderr, warning_msg)
