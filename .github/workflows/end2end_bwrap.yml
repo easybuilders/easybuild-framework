@@ -67,18 +67,11 @@ jobs:
             eb --show-config --prefix /tmp | grep "bwrap-installpath [ ]* \(C\) = /tmp/bwrap"
 
             # test installation of UnZip + bzip2 dependency
-            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
+            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath \
+                --bwrap-options=--die-with-parent --filter-deps=binutils
 
-            # no module files should be created in configured install path (default: $HOME/.local/easybuild),
-            # not for UnZip, nor for bzip2 dependency
-            (test -d $HOME/.local/easybuild/modules/all/UnZip || echo 'no UnZip module dir found: OK') > /tmp/out-UnZip-mod
-            (test -d $HOME/.local/easybuild/modules/all/bzip2 || echo 'no bzip2 module dir found: OK') > /tmp/out-bzip2-mod
+            $GITHUB_WORKSPACE/.github/scripts/check_bwrap_install.sh
 
-            # software subdirectories in configured install path should be empty
-            (test -e $HOME/.local/easybuild/software/UnZip/6.0/* || echo 'UnZip software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-UnZip-sw-dir
-            (test -e $HOME/.local/easybuild/software/bzip2/1.0.8/* || echo 'bzip2 software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-bzip2-sw-dir
-
-            grep 'no UnZip module dir found: OK' /tmp/out-UnZip-mod && grep 'no bzip2 module dir found: OK' /tmp/out-bzip2-mod && grep 'UnZip software dir in .* is empty' /tmp/out-UnZip-sw-dir && grep 'bzip2 software dir in .* is empty' /tmp/out-bzip2-sw-dir && ls -l /tmp/bwrap-installpath/modules/all/{bzip2/1.0.8.lua,UnZip/6.0.lua} && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/bin/* && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/easybuild/*log*
           EOF
 
       - name: End-to-end test of installing UnZip with EasyBuild in bwrap namespace with overlay
@@ -98,16 +91,9 @@ jobs:
             chmod -w $HOME/.local/easybuild/software
 
             # test installation of UnZip + bzip2 dependency
-            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath --filter-deps=binutils
+            eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath \
+                --bwrap-options=--die-with-parent --filter-deps=binutils
 
-            # no module files should be created in configured install path (default: $HOME/.local/easybuild),
-            # not for UnZip, nor for bzip2 dependency
-            (test -d $HOME/.local/easybuild/modules/all/UnZip || echo 'no UnZip module dir found: OK') > /tmp/out-UnZip-mod
-            (test -d $HOME/.local/easybuild/modules/all/bzip2 || echo 'no bzip2 module dir found: OK') > /tmp/out-bzip2-mod
+            $GITHUB_WORKSPACE/.github/scripts/check_bwrap_install.sh
 
-            # software subdirectories in configured install path should be empty
-            (test -e $HOME/.local/easybuild/software/UnZip/6.0/* || echo 'UnZip software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-UnZip-sw-dir
-            (test -e $HOME/.local/easybuild/software/bzip2/1.0.8/* || echo 'bzip2 software dir in $HOME/.local/easybuild is empty: OK') > /tmp/out-bzip2-sw-dir
-
-            grep 'no UnZip module dir found: OK' /tmp/out-UnZip-mod && grep 'no bzip2 module dir found: OK' /tmp/out-bzip2-mod && grep 'UnZip software dir in .* is empty' /tmp/out-UnZip-sw-dir && grep 'bzip2 software dir in .* is empty' /tmp/out-bzip2-sw-dir && ls -l /tmp/bwrap-installpath/modules/all/{bzip2/1.0.8.lua,UnZip/6.0.lua} && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/bin/* && ls -l /tmp/bwrap-installpath/software/{UnZip,bzip2}/*/easybuild/*log*
           EOF
