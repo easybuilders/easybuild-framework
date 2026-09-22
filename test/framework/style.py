@@ -28,7 +28,6 @@ Style tests for easyconfig files.
 :author: Ward Poelmans (Ghent University)
 """
 
-import glob
 import sys
 from test.framework import TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
@@ -38,7 +37,7 @@ from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa, pylint: disable=unused-import
 except ImportError:
     pass
 
@@ -53,8 +52,8 @@ class StyleTest(EnhancedTestCase):
             return
 
         # all available easyconfig files
-        specs = glob.glob(f'{TEST_ECS_DIR}/*.eb')
-        specs = sorted(specs)
+        specs = sorted(TEST_ECS_DIR.rglob('*.eb'))
+        self.assertNotEqual(specs, [])
 
         result = check_easyconfigs_style(specs)
 
