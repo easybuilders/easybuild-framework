@@ -1080,10 +1080,11 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                 ec_paths.append(path)
 
         if non_existing_paths:
-            raise EasyBuildError(
-                "One or more non-existing paths specified: %s", ', '.join(non_existing_paths),
-                exit_code=EasyBuildExit.OPTION_ERROR
-            )
+            msg = "One or more non-existing paths specified: " + ', '.join(non_existing_paths)
+            found_ecs = {ec['spec'] for ec in ecs if os.path.basename(ec['spec']) in non_existing_paths}
+            if found_ecs:
+                msg += '\nDid you mean: ' + ', '.join(found_ecs)
+            raise EasyBuildError(msg, exit_code=EasyBuildExit.OPTION_ERROR)
 
     if not any(paths.values()):
         raise EasyBuildError("No paths specified", exit_code=EasyBuildExit.OPTION_ERROR)
