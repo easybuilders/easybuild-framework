@@ -729,9 +729,8 @@ class ToolchainTest(EnhancedTestCase):
                 'intel-compilers@new-oneapi-false': ('2022.2.0', intel_generic_flags_classic, {'oneapi': False}),
             }
             for tcopt_optarch in [False, True]:
-                for key in tcs:
-                    tcname = key.split('@')[0]
-                    tcversion, generic_flags, custom_tcopts = tcs[key]
+                for key, (tcversion, generic_flags, custom_tcopts) in tcs.items():
+                    tcname = key.split('@', maxsplit=1)[0]
                     tc = self.get_toolchain(tcname, version=tcversion)
 
                     tcopts = {'optarch': tcopt_optarch}
@@ -960,19 +959,19 @@ class ToolchainTest(EnhancedTestCase):
             "include_paths": ["C_INCLUDE_PATH", "CPLUS_INCLUDE_PATH", "OBJC_INCLUDE_PATH"],
         }
         # test without toolchain option
-        for build_opt in cpp_headers_mode:
+        for build_opt, header_env_vars in cpp_headers_mode.items():
             init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
             tc = self.get_toolchain("foss", version="2018a")
             with self.mocked_stdout_stderr():
                 tc.prepare()
-                for env_var in cpp_headers_mode[build_opt]:
+                for env_var in header_env_vars:
                     assert_fail_msg = (
                         f"Variable {env_var} required by search-path-cpp-headers build option '{build_opt}' "
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
                 # check return of tc.search_path_vars_headers
-                expected_search_path_vars = cpp_headers_mode[build_opt]
+                expected_search_path_vars = header_env_vars
                 if build_opt == 'flags':
                     expected_search_path_vars = []
                 self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
@@ -980,19 +979,19 @@ class ToolchainTest(EnhancedTestCase):
         # test with toolchain option
         for build_opt in cpp_headers_mode:
             init_config(build_options={"search_path_cpp_headers": build_opt, "silent": True})
-            for tc_opt in cpp_headers_mode:
+            for tc_opt, header_env_vars in cpp_headers_mode.items():
                 tc = self.get_toolchain("foss", version="2018a")
                 tc.set_options({"search-path-cpp-headers": tc_opt})
                 with self.mocked_stdout_stderr():
                     tc.prepare()
-                    for env_var in cpp_headers_mode[tc_opt]:
+                    for env_var in header_env_vars:
                         assert_fail_msg = (
                             f"Variable {env_var} required by search-path-cpp-headers toolchain option '{tc_opt}' "
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
                     # check return of tc.search_path_vars_headers
-                    expected_search_path_vars = cpp_headers_mode[tc_opt]
+                    expected_search_path_vars = header_env_vars
                     if tc_opt == 'flags':
                         expected_search_path_vars = []
                     self.assertCountEqual(tc.search_path_vars_headers, expected_search_path_vars)
@@ -1012,19 +1011,19 @@ class ToolchainTest(EnhancedTestCase):
             "library_path": ["LIBRARY_PATH"],
         }
         # test without toolchain option
-        for build_opt in linker_mode:
+        for build_opt, linker_env_vars in linker_mode.items():
             init_config(build_options={"search_path_linker": build_opt, "silent": True})
             tc = self.get_toolchain("foss", version="2018a")
             with self.mocked_stdout_stderr():
                 tc.prepare()
-                for env_var in linker_mode[build_opt]:
+                for env_var in linker_env_vars:
                     assert_fail_msg = (
                         f"Variable {env_var} required by search-path-linker build option '{build_opt}' "
                         "not found in toolchain environment"
                     )
                     self.assertIn(env_var, tc.variables, assert_fail_msg)
                 # check return of tc.search_path_vars_linker
-                expected_search_path_vars = linker_mode[build_opt]
+                expected_search_path_vars = linker_env_vars
                 if build_opt == 'flags':
                     expected_search_path_vars = []
                 self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
@@ -1032,19 +1031,19 @@ class ToolchainTest(EnhancedTestCase):
         # test with toolchain option
         for build_opt in linker_mode:
             init_config(build_options={"search_path_linker": build_opt, "silent": True})
-            for tc_opt in linker_mode:
+            for tc_opt, linker_env_vars in linker_mode.items():
                 tc = self.get_toolchain("foss", version="2018a")
                 tc.set_options({"search-path-linker": tc_opt})
                 with self.mocked_stdout_stderr():
                     tc.prepare()
-                    for env_var in linker_mode[tc_opt]:
+                    for env_var in linker_env_vars:
                         assert_fail_msg = (
                             f"Variable {env_var} required by search-path-linker toolchain option '{tc_opt}' "
                             "not found in toolchain environment"
                         )
                         self.assertIn(env_var, tc.variables, assert_fail_msg)
                     # check return of tc.search_path_vars_linker
-                    expected_search_path_vars = linker_mode[tc_opt]
+                    expected_search_path_vars = linker_env_vars
                     if tc_opt == 'flags':
                         expected_search_path_vars = []
                     self.assertCountEqual(tc.search_path_vars_linker, expected_search_path_vars)
@@ -3335,13 +3334,13 @@ class ToolchainTest(EnhancedTestCase):
 
         # $TMPDIR is left untouched with OpenMPI 2.x if $TMPDIR is sufficiently short
         os.environ['TMPDIR'] = orig_tmpdir
-        tc, stdout, stderr = prep()
+        tc, _stdout, stderr = prep()
         self.assertEqual(stderr, '')
         self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
 
         # warning is printed and $TMPDIR is set to shorter path if existing $TMPDIR is too long
         os.environ['TMPDIR'] = long_tmpdir
-        tc, stdout, stderr = prep()
+        tc, _stdout, stderr = prep()
         self.assertRegex(stderr,
                          r"WARNING: Long \$TMPDIR .* problems with OpenMPI 2.x, using shorter path: /tmp/.{8}$")
 
@@ -3370,13 +3369,13 @@ class ToolchainTest(EnhancedTestCase):
         self.modtool.use(tmp_modules)
 
         # $TMPDIR is left untouched with OpenMPI 1.6.4
-        tc, stdout, stderr = prep()
+        tc, _stdout, stderr = prep()
         self.assertEqual(stderr, '')
         self.assertEqual(os.environ.get('TMPDIR'), orig_tmpdir)
 
         # ... even with long $TMPDIR
         os.environ['TMPDIR'] = long_tmpdir
-        tc, stdout, stderr = prep()
+        tc, _stdout, stderr = prep()
         self.assertEqual(stderr, '')
         self.assertEqual(os.environ.get('TMPDIR'), long_tmpdir)
         os.environ['TMPDIR'] = orig_tmpdir
