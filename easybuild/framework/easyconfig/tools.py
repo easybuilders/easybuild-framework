@@ -46,6 +46,8 @@ import re
 import sys
 import tempfile
 from collections import OrderedDict
+from pathlib import Path
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
@@ -58,7 +60,7 @@ from easybuild.tools.entrypoints import EntrypointEasyblock
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
-from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, get_cwd, find_easyconfigs, is_patch_file
+from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, PathOrStr, get_cwd, find_easyconfigs, is_patch_file
 from easybuild.tools.filetools import locate_files, read_file, resolve_path, which, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO
 from easybuild.tools.github import det_pr_labels, det_pr_title, download_repo, fetch_easyconfigs_from_commit
@@ -620,7 +622,7 @@ def dump_env_script(easyconfigs):
         dump_env_easyblock(app, orig_env=orig_env, ec_path=ec.path, script_path=script_path)
 
 
-def categorize_files_by_type(paths):
+def categorize_files_by_type(paths: List[PathOrStr]):
     """
     Splits list of filepaths into a 4 separate lists: easyconfigs, files to delete, patch files and
     files with extension .py
@@ -633,6 +635,8 @@ def categorize_files_by_type(paths):
     }
 
     for path in paths:
+        if isinstance(path, Path):
+            path = str(path)
         if path.startswith(':'):
             res['files_to_delete'].append(path[1:])
         elif path.endswith('.py'):
