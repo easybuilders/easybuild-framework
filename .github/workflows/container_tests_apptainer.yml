@@ -94,7 +94,7 @@ jobs:
           # see https://docs.easybuild.io/en/latest/Containers.html
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/f/flex/flex-2.6.4.eb
           export EASYBUILD_CONTAINERPATH=$PWD
-          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/rockylinux-8.10-amd64'
+          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/rockylinux-8.10-amd64,eb_args=--download-timeout=1000'
           export EASYBUILD_CONTAINER_TYPE='apptainer'
           eb flex-2.6.4.eb --containerize --experimental --container-build-image
           apptainer exec flex-2.6.4.sif command -v flex | grep '/app/software/flex/2.6.4/bin/flex' || (echo "Path to flex '$which_flex' is not correct" && exit 1)
