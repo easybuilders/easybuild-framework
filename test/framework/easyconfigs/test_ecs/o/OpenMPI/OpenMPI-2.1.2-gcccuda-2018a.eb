@@ -26,7 +26,8 @@ configopts += '--with-cuda=$CUDA_HOME '             # CUDA-aware build; N.B. --d
 # needed for --with-verbs
 osdependencies = [('libibverbs-dev', 'libibverbs-devel')]
 
-local_libs = ["mpi_cxx", "mpi_mpifh", "mpi", "ompitrace", "open-pal", "open-rte", "vt", "vt-hyb", "vt-mpi", "vt-mpi-unify"]
+local_libs = ["mpi_cxx", "mpi_mpifh", "mpi", "ompitrace", "open-pal", "open-rte",
+              "vt", "vt-hyb", "vt-mpi", "vt-mpi-unify"]
 sanity_check_paths = {
     'files': ["bin/%s" % f for f in ["ompi_info", "opal_wrapper", "orterun"]] +
              ["lib/lib%s.%s" % (l, SHLIB_EXT) for l in local_libs] +

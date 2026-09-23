@@ -19,7 +19,7 @@ local_blasver = '0.2.20'
 
 versionsuffix = "-%s-%s-broken" % (local_blaslib, local_blasver)
 
-builddependencies = [('CMake','2.8.10')]
+builddependencies = [('CMake', '2.8.10')]
 dependencies = [(local_blaslib, local_blasver, '')]
 
 # parallel build tends to fail, so disabling it
