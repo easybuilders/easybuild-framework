@@ -1537,8 +1537,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_file(backup)
         ft.write_file(testfile, testtxt)
 
-        # extension of backed up file can be controlled
-        ft.apply_regex_substitutions(testfile, regex_subs, backup='.backup')
+        # extension of backed up file can be controlled and pathlib type is accepted
+        ft.apply_regex_substitutions(Path(testfile), regex_subs, backup='.backup')
 
         new_testtxt = ft.read_file(testfile)
         self.assertEqual(new_testtxt, expected_testtxt)
@@ -2561,29 +2561,30 @@ class FileToolsTest(EnhancedTestCase):
         test_dir = os.path.join(self.test_prefix, 'test123')
         test_link = os.path.join(self.test_prefix, 'foolink')
 
-        for remove_file_function in (ft.remove_file, ft.remove):
-            ft.write_file(testfile, 'bar')
-            self.assertExists(testfile)
-            # remove symlink
-            ft.symlink(testfile, test_link)
-            self.assertTrue(os.path.islink(test_link))
-            remove_file_function(test_link)
-            self.assertNotExists(test_link)
-            # remove file
-            remove_file_function(testfile)
-            self.assertNotExists(testfile)
-            # remove broken symlink
-            ft.symlink(testfile, test_link)
-            self.assertTrue(os.path.islink(test_link))
-            remove_file_function(test_link)
-            self.assertNotExists(test_link)
+        for path_type in (str, Path):
+            for remove_file_function in (ft.remove_file, ft.remove):
+                ft.write_file(testfile, 'bar')
+                self.assertExists(testfile)
+                # remove symlink
+                ft.symlink(testfile, test_link)
+                self.assertTrue(os.path.islink(test_link))
+                remove_file_function(path_type(test_link))
+                self.assertNotExists(test_link)
+                # remove file
+                remove_file_function(path_type(testfile))
+                self.assertNotExists(testfile)
+                # remove broken symlink
+                ft.symlink(testfile, test_link)
+                self.assertTrue(os.path.islink(test_link))
+                remove_file_function(path_type(test_link))
+                self.assertNotExists(test_link)
 
-        for remove_dir_function in (ft.remove_dir, ft.remove):
-            ft.mkdir(test_dir)
-            self.assertExists(test_dir)
-            self.assertTrue(os.path.isdir(test_dir))
-            remove_dir_function(test_dir)
-            self.assertNotExists(test_dir)
+            for remove_dir_function in (ft.remove_dir, ft.remove):
+                ft.mkdir(test_dir)
+                self.assertExists(test_dir)
+                self.assertTrue(os.path.isdir(test_dir))
+                remove_dir_function(path_type(test_dir))
+                self.assertNotExists(test_dir)
 
         # remove also takes a list of paths
         ft.write_file(testfile, 'bar')
@@ -2591,7 +2592,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertExists(testfile)
         self.assertExists(test_dir)
         self.assertTrue(os.path.isdir(test_dir))
-        ft.remove([testfile, test_dir])
+        ft.remove([testfile, Path(test_dir)])
         self.assertNotExists(testfile)
         self.assertNotExists(test_dir)
 
@@ -2611,19 +2612,18 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        for remove_file_function in (ft.remove_file, ft.remove):
-            with self.mocked_stdout():
-                remove_file_function(testfile)
-                txt = self.get_stdout()
+        for path_type in (str, Path):
+            for remove_file_function in (ft.remove_file, ft.remove):
+                with self.mocked_stdout():
+                    remove_file_function(path_type(testfile))
+                    txt = self.get_stdout()
+                    self.assertRegex(txt, "^file [^ ]* removed$")
 
-            self.assertRegex(txt, "^file [^ ]* removed$")
-
-        for remove_dir_function in (ft.remove_dir, ft.remove):
-            with self.mocked_stdout():
-                remove_dir_function(test_dir)
-                txt = self.get_stdout()
-
-            self.assertRegex(txt, "^directory [^ ]* removed$")
+            for remove_dir_function in (ft.remove_dir, ft.remove):
+                with self.mocked_stdout():
+                    remove_dir_function(path_type(test_dir))
+                    txt = self.get_stdout()
+                    self.assertRegex(txt, "^directory [^ ]* removed$")
 
         ft.adjust_permissions(self.test_prefix, stat.S_IWUSR, add=True)
 
