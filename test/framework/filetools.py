@@ -715,7 +715,9 @@ class FileToolsTest(EnhancedTestCase):
         target = os.path.join(self.test_prefix, fn)
 
         # expected failure when wrong URL is used
-        res = ft.download_file(fn, wrong_url + fn, target)
+        with self.mocked_stderr():
+            res = ft.download_file(fn, wrong_url + fn, target)
+            self.assertIn("IOError occurred while trying to download", self.get_stderr())
         self.assertEqual(res, None)
         self.assertFalse(os.path.exists(target))
 
@@ -728,7 +730,9 @@ class FileToolsTest(EnhancedTestCase):
 
         # inject extra fallback URL, see if its actually being used
         ft.FALLBACK_SOURCE_URLS.append((wrong_url, correct_url))
-        res = ft.download_file(fn, wrong_url + fn, target)
+        with self.mocked_stderr():
+            res = ft.download_file(fn, wrong_url + fn, target)
+            self.assertIn("IOError occurred while trying to download file", self.get_stderr())
         self.assertEqual(res, target)
         self.assertTrue(os.path.exists(target))
 
@@ -753,7 +757,9 @@ class FileToolsTest(EnhancedTestCase):
 
             ft.std_urllib.urlopen = fake_urllib_open
 
-            res = ft.download_file(fn, test_url, target)
+            with self.mocked_stderr():
+                res = ft.download_file(fn, test_url, target)
+                self.assertRegex(self.get_stderr(), rf'URL file://.*was not found.*code {status_code}')
             self.assertEqual(res, target)
             self.assertTrue(os.path.exists(target))
             ft.remove_file(target)

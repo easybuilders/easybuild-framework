@@ -657,8 +657,10 @@ class GithubTest(EnhancedTestCase):
         self.assertErrorRegex(EasyBuildError, "Specified commit SHA bdcc586 .* is not valid", gh.download_repo,
                               path=self.test_prefix, commit='bdcc586')
 
-        self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
-                              path=self.test_prefix, commit='0000000000000000000000000000000000000000')
+        with self.mocked_stderr():
+            self.assertErrorRegex(EasyBuildError, "Failed to download tarball .* commit", gh.download_repo,
+                                  path=self.test_prefix, commit='0000000000000000000000000000000000000000')
+            self.assertIn("/0000000000000000000000000000000000000000.tar.gz was not found", self.get_stderr())
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
