@@ -29,8 +29,8 @@ Style tests for easyconfig files.
 """
 
 import glob
-import os
 import sys
+from test.framework import TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -53,8 +53,7 @@ class StyleTest(EnhancedTestCase):
             return
 
         # all available easyconfig files
-        test_easyconfigs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
-        specs = glob.glob('%s/*.eb' % test_easyconfigs_path)
+        specs = glob.glob('%s/*.eb' % TEST_ECS_DIR)
         specs = sorted(specs)
 
         result = check_easyconfigs_style(specs)
