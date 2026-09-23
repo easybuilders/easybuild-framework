@@ -31,9 +31,11 @@ Authors:
 * Kenneth Hoste (Ghent University)
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+from easybuild.base import fancylogger
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
+from easybuild.tools.systemtools import CPU_ARCHITECTURES, CPU_FAMILIES, CPU_VECTOR_EXTS
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -48,6 +50,8 @@ OPTARCH_GENERIC = 'GENERIC'
 OPTARCH_SEP = ';'
 OPTARCH_MAP_CHAR = ':'
 
+_log = fancylogger.getLogger('compiler', fname=False)
+
 
 def mk_infix(prefix):
     """Create an infix based on the given prefix."""
@@ -55,6 +59,99 @@ def mk_infix(prefix):
     if prefix is not None:
         infix = '%s_' % prefix
     return infix
+
+
+def parse_optarch_string(optarch, include_compiler):
+    """
+    Parse an optarch string into a dict if multiple options are found, else keeps it as a string
+
+    Format: optarch := <string>|<map>
+            map     := <entry>(;<space>*<entry>)*
+            include_compiler is True:
+              entry := <compiler>(,<cpu-arch>(,<cpu-family>?(,<vector-ext>)?)?)?:<flag-string>
+            include_compiler is False:
+              entry := <cpu-arch>(,<cpu-family>(,<vector-ext>)?)?:<flag-string>
+    Example values:
+        "GENERIC"
+        "-march=native"
+        "Intel,x86:-xHost; Intel,x86,AMD,AVX2:-mavx2 -fma; GCC:-march=native"
+    """
+    # Split into entries, and each entry into key-value pairs
+    optarch_parts = [i.strip().split(OPTARCH_MAP_CHAR) for i in optarch.split(OPTARCH_SEP)]
+
+    # We should either have a single value or a list of key-value pairs, and nothing else
+    is_single_value = len(optarch_parts) == 1 and len(optarch_parts[0]) == 1
+    if not is_single_value and any(len(i) != 2 for i in optarch_parts):
+        raise EasyBuildError("The optarch option has an incorrect syntax: %s", optarch)
+
+    # if there are options for different compilers, we set up a dict
+    if is_single_value:
+        # if optarch is not in mapping format, we do nothing and just keep the string
+        _log.info("Keeping optarch raw: %s", optarch)
+    else:
+        optarch_dict = {}
+        for key, compiler_opt in optarch_parts:
+            # key can be either a compiler (only) or compiler and archspec(s)
+            key_parts = key.split(',')
+            if include_compiler:
+                compiler = key_parts.pop(0)
+            elif not key:
+                # When no compiler is present an empty key is the default fallback
+                key_parts = None
+            if key_parts:
+                # Validate
+                allowed_values_list = (CPU_ARCHITECTURES, CPU_FAMILIES, CPU_VECTOR_EXTS)
+                if len(key_parts) > len(allowed_values_list):
+                    raise EasyBuildError("The optarch option has an incorrect syntax: %s\n"
+                                         "'%s' should be of the format: <cpu-arch>,<cpu-family>,<vector-ext> "
+                                         "where trailing elements can be ommitted.",
+                                         optarch, key_parts)
+                for i, (part, allowed_values) in enumerate(zip(key_parts, allowed_values_list)):
+                    if part not in allowed_values:
+                        # Try again fixing up casing
+                        try:
+                            idx = [value.lower() for value in allowed_values].index(part.lower())
+                        except ValueError:  # Thrown when item does not exist
+                            raise EasyBuildError("The optarch option has an incorrect syntax: %s\n"
+                                                 "'%s' of '%s' is not in allowed values: %s",
+                                                 optarch, part, key, allowed_values)
+                        key_parts[i] = allowed_values[idx]
+                arch_specs = tuple(key_parts) if len(key_parts) > 1 else key_parts[0]
+            else:
+                arch_specs = None
+            # If we include the compiler, the optarch dict has it as the first level
+            # Else we use the optarch dict directly
+            if include_compiler:
+                try:
+                    compiler_dict = optarch_dict[compiler]
+                except KeyError:
+                    # Keep the dict flat when no archspecs are given
+                    if arch_specs is None:
+                        optarch_dict[compiler] = compiler_opt
+                    else:
+                        optarch_dict[compiler] = {arch_specs: compiler_opt}
+                    # All done
+                    continue
+                # Convert single entry to dict if required
+                if not isinstance(compiler_dict, dict):
+                    compiler_dict = {None: compiler_dict}
+                    optarch_dict[compiler] = compiler_dict
+            else:
+                compiler_dict = optarch_dict
+            # Disallow duplicates
+            if arch_specs in compiler_dict:
+                if arch_specs is None:
+                    raise EasyBuildError("The optarch option contains a duplicated entry for compiler %s: %s",
+                                         compiler, optarch)
+                else:
+                    raise EasyBuildError("The optarch option contains a duplicated entry %s "
+                                         "for compiler %s: %s",
+                                         arch_specs, compiler, optarch)
+            else:
+                compiler_dict[arch_specs] = compiler_opt
+        _log.info("Transforming optarch into a dict: %s", optarch_dict)
+        optarch = optarch_dict
+    return optarch
 
 
 class Compiler(Toolchain):
@@ -155,11 +252,28 @@ class Compiler(Toolchain):
     def __init__(self, *args, **kwargs):
         """Compiler constructor."""
         Toolchain.base_init(self)
-        self.arch = systemtools.get_cpu_architecture()
-        self.cpu_family = systemtools.get_cpu_family()
+        self._arch, self._cpu_family, self._cpu_vector_exts = (None, None, None)
         # list of compiler prefixes
         self.prefixes = []
         super().__init__(*args, **kwargs)
+
+    @property
+    def arch(self):
+        if self._arch is None:
+            self._arch = systemtools.get_cpu_architecture()
+        return self._arch
+
+    @property
+    def cpu_family(self):
+        if self._cpu_family is None:
+            self._cpu_family = systemtools.get_cpu_family()
+        return self._cpu_family
+
+    @property
+    def cpu_vector_exts(self):
+        if self._cpu_vector_exts is None:
+            self._cpu_vector_exts = systemtools.get_cpu_vector_exts()
+        return self._cpu_vector_exts
 
     def set_options(self, options):
         """Process compiler toolchain options."""
@@ -332,6 +446,14 @@ class Compiler(Toolchain):
                     raise EasyBuildError("toolchainopts %s: '%s' must start with a '-'." % (extra, extraflags))
                 self.variables.nappend_el(var, extraflags)
 
+    def _pick_optarch_entry(self, optarch_value):
+        """
+        Get the best matching entry from optarch_value when it is a dict, else return it unchanged
+        """
+        if isinstance(optarch_value, dict):
+            optarch_value = systemtools.pick_opt_arch(optarch_value, self.arch, self.cpu_family, self.cpu_vector_exts)
+        return optarch_value
+
     def _set_optimal_architecture(self, default_optarch=None):
         """
         Get options for the current architecture
@@ -339,33 +461,31 @@ class Compiler(Toolchain):
         :param default_optarch: default value to use for optarch, rather than using default value based on architecture
                                 (--optarch and --optarch=GENERIC still override this value)
         """
-        ec_optarch = self.options.get('optarch', False)
+        ec_optarch = self.options.get('optarch')
         if isinstance(ec_optarch, str):
-            if OPTARCH_MAP_CHAR in ec_optarch:
-                error_msg = "When setting optarch in the easyconfig (found %s), " % ec_optarch
-                error_msg += "the <compiler%sflags> syntax is not allowed. " % OPTARCH_MAP_CHAR
-                error_msg += "Use <flags> (omitting the first dash) for the specific compiler."
-                raise EasyBuildError(error_msg)
-            else:
-                optarch = ec_optarch
+            optarch = parse_optarch_string(ec_optarch, include_compiler=False)
+            optarch = self._pick_optarch_entry(optarch)
         else:
+            # TODO: Maybe parse optarch from cmdline here?
             optarch = build_option('optarch')
 
-        # --optarch is specified with flags to use
-        if isinstance(optarch, dict):
-            # optarch has been validated as complex string with multiple compilers and converted to a dictionary
-            # first try module names, then the family in optarch
-            current_compiler_names = (getattr(self, 'COMPILER_MODULE_NAME', []) +
-                                      [getattr(self, 'COMPILER_FAMILY', None)])
-            for current_compiler in current_compiler_names:
-                if current_compiler in optarch:
-                    optarch = optarch[current_compiler]
-                    break
-            # still a dict: no option for this compiler
+            # --optarch is specified with flags to use
             if isinstance(optarch, dict):
-                optarch = None
-                self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
-                              current_compiler)
+                # optarch has been validated as complex string with multiple compilers and converted to a dictionary
+                # first try module names, then the family in optarch
+                current_compiler_names = self.COMPILER_MODULE_NAME or []
+                if self.COMPILER_FAMILY:
+                    # Create new list to NOT modify self.COMPILER_MODULE_NAME
+                    current_compiler_names = current_compiler_names + [self.COMPILER_FAMILY]
+                compiler_optarch = None
+                for current_compiler in current_compiler_names:
+                    if current_compiler in optarch:
+                        compiler_optarch = optarch[current_compiler]
+                        break
+                if compiler_optarch is None:
+                    self.log.info("_set_optimal_architecture: no optarch found for compiler %s. Ignoring option.",
+                                  current_compiler_names)
+                optarch = self._pick_optarch_entry(compiler_optarch)
 
         if isinstance(optarch, str):
             use_generic = (optarch == OPTARCH_GENERIC)
@@ -375,17 +495,16 @@ class Compiler(Toolchain):
             raise EasyBuildError("optarch is neither an string or a dict %s. This should never happen", optarch)
 
         if use_generic:
-            if (self.arch, self.cpu_family) in (self.COMPILER_GENERIC_OPTION or []):
-                optarch = self.COMPILER_GENERIC_OPTION[(self.arch, self.cpu_family)]
+            optarch = self._pick_optarch_entry(self.COMPILER_GENERIC_OPTION)
+        elif optarch is None:
+            # no --optarch specified or no option found for the current compiler
+            if default_optarch:
+                # Specified optarch default value
+                optarch = default_optarch
             else:
-                optarch = None
-        # Specified optarch default value
-        elif default_optarch and optarch is None:
-            optarch = default_optarch
-        # no --optarch specified, no option found for the current compiler, and no default optarch
-        elif optarch is None and (self.arch, self.cpu_family) in (self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION or []):
-            optarch = self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(self.arch, self.cpu_family)]
+                optarch = self._pick_optarch_entry(self.COMPILER_OPTIMAL_ARCHITECTURE_OPTION)
 
+        optarch_target = '%s/%s/%s' % (self.arch, self.cpu_family, self.cpu_vector_exts)
         if optarch is not None:
             if optarch and not optarch.startswith('-'):
                 self.log.deprecated(f'Specifying optarch "{optarch}" without initial dash is deprecated.', '6.0')
@@ -394,11 +513,11 @@ class Compiler(Toolchain):
 
             optarch_log_str = optarch or 'no flags'
             self.log.info("_set_optimal_architecture: using %s as optarch for %s/%s.",
-                          optarch_log_str, self.arch, self.cpu_family)
+                          optarch_log_str, optarch_target, self.cpu_family)
             self.options.options_map['optarch'] = optarch
         elif self.options.options_map.get('optarch', None) is None:
             optarch_flags_str = "%soptarch flags" % ('', 'generic ')[use_generic]
-            error_msg = "Don't know how to set %s for %s/%s! " % (optarch_flags_str, self.arch, self.cpu_family)
+            error_msg = "Don't know how to set %s for %s! " % (optarch_flags_str, optarch_target)
             error_msg += "Use --optarch='<flags>' to override (see "
             error_msg += "https://docs.easybuild.io/controlling-compiler-optimization-flags/ "
             error_msg += "for details) and consider contributing your settings back (see "
