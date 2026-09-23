@@ -402,7 +402,7 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     no_ec_opts = [options.aggregate_regtest, options.regtest, any_pr_option_set, search_query]
 
     # determine paths to easyconfigs
-    determined_paths = det_easyconfig_paths(categorized_paths['easyconfigs'])
+    determined_paths = det_easyconfig_paths(categorized_paths.easyconfigs)
 
     # only copy easyconfigs here if we're not using --try-* (that's handled below)
     copy_ec = options.copy_ec and not tweaked_ecs_paths
