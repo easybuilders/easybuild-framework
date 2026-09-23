@@ -122,7 +122,22 @@ then
     export FANCYLOGGER_IGNORE_MPI4PY=1
 fi
 
+# If a profile filename is given, run easybuild via cProfile
+if [ -z "${EB_PROFILE}" ]
+then
+    EB_PROFILE_FLAGS=()
+else
+    if [ "${pyver_min}" -lt "9" ]
+    then
+        echo "EB_PROFILE not supported for Python < 3.9"
+        EB_PROFILE=""
+    else
+        verbose "Writing profile output to: \"${EB_PROFILE}\""
+        EB_PROFILE_FLAGS=(-m cProfile -o "${EB_PROFILE}")
+    fi
+fi
+
 export EB_SCRIPT_PATH="${0}"
 
-verbose "${PYTHON} -m ${EASYBUILD_MAIN} ${*}"
-exec "${PYTHON}" -m "${EASYBUILD_MAIN}" "${@}"
+verbose "${PYTHON} ${EB_PROFILE_FLAGS[*]} -m ${EASYBUILD_MAIN} ${*}"
+exec "${PYTHON}" "${EB_PROFILE_FLAGS[@]}" -m "${EASYBUILD_MAIN}" "${@}"
