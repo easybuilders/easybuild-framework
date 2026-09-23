@@ -60,6 +60,7 @@ import tempfile
 import time
 import zlib
 from functools import partial
+from typing import Any, IO, List, Optional, Sequence, Union
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import List, Union
@@ -202,7 +203,7 @@ class ZlibChecksum:
     match the interface of the hashlib module
     """
 
-    def __init__(self, algorithm):
+    def __init__(self, algorithm) -> None:
         self.algorithm = algorithm
         self.checksum = algorithm(b'')  # use the same starting point as the module
         self.blocksize = 64  # The same as md5/sha1
@@ -216,7 +217,7 @@ class ZlibChecksum:
         return '0x%s' % (self.checksum & 0xffffffff)
 
 
-def is_readable(path):
+def is_readable(path: str) -> bool:
     """Return whether file at specified location exists and is readable."""
     try:
         return os.path.exists(path) and os.access(path, os.R_OK)
@@ -224,7 +225,7 @@ def is_readable(path):
         raise EasyBuildError("Failed to check whether %s is readable: %s", path, err)
 
 
-def open_file(path, mode):
+def open_file(path: str, mode: str) -> IO[Any]:
     """Open a (usually) text file. If mode is not binary, then utf-8 encoding will be used"""
     # This is required for text files in Python 3, especially until Python 3.7 which implements PEP 540.
     # This PEP opens files in UTF-8 mode if the C locale is used, see https://www.python.org/dev/peps/pep-0540
@@ -234,7 +235,7 @@ def open_file(path, mode):
         return open(path, mode)
 
 
-def read_file(path, log_error=True, mode='r'):
+def read_file(path: str, log_error: bool = True, mode: str = 'r') -> Optional[Union[str, bytes]]:
     """Read contents of file at given path, in a robust way."""
     txt = None
     try:
@@ -247,8 +248,9 @@ def read_file(path, log_error=True, mode='r'):
     return txt
 
 
-def write_file(path, data, append=False, forced=False, backup=False, always_overwrite=True, verbose=False,
-               show_progress=False, size=None):
+def write_file(path: str, data, append: bool = False, forced: bool = False, backup: bool = False,
+               always_overwrite: bool = True, verbose: bool = False, show_progress: bool = False,
+               size: Optional[int] = None) -> None:
     """
     Write given contents to file at given path;
     overwrites current file contents without backup by default!
@@ -319,14 +321,14 @@ def write_file(path, data, append=False, forced=False, backup=False, always_over
         raise EasyBuildError("Failed to write to %s: %s", path, err)
 
 
-def is_binary(contents):
+def is_binary(contents) -> bool:
     """
     Check whether given bytestring represents the contents of a binary file or not.
     """
     return isinstance(contents, bytes) and b'\00' in bytes(contents)
 
 
-def resolve_path(path):
+def resolve_path(path: str) -> str:
     """
     Return fully resolved path for given path.
 
@@ -340,7 +342,7 @@ def resolve_path(path):
     return resolved_path
 
 
-def symlink(source_path, symlink_path, use_abspath_source=True):
+def symlink(source_path: str, symlink_path: str, use_abspath_source: bool = True) -> None:
     """
     Create a symlink at the specified path to the given path.
 
@@ -371,7 +373,7 @@ def symlink(source_path, symlink_path, use_abspath_source=True):
             raise EasyBuildError("Symlinking %s to %s failed: %s", source_path, symlink_path, err)
 
 
-def remove_file(path):
+def remove_file(path: str) -> None:
     """Remove file at specified path."""
 
     # early exit in 'dry run' mode
@@ -387,7 +389,7 @@ def remove_file(path):
         raise EasyBuildError("Failed to remove file %s: %s", path, err)
 
 
-def empty_dir(path):
+def empty_dir(path: str) -> None:
     """Empty directory at specified path, keeping directory itself intact."""
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
@@ -407,7 +409,7 @@ def empty_dir(path):
             raise EasyBuildError(f"Failed to empty directory {path}: {err}")
 
 
-def remove_dir(path):
+def remove_dir(path: str) -> None:
     """Remove directory at specified path."""
     # early exit in 'dry run' mode
     if build_option('extended_dry_run'):
@@ -449,7 +451,7 @@ def clean_dir(path):
         empty_dir(path)
 
 
-def remove(paths):
+def remove(paths: Union[str, Sequence[str]]) -> None:
     """
     Remove single file/directory or list of files and directories
 
@@ -469,7 +471,7 @@ def remove(paths):
             raise EasyBuildError("Specified path to remove is not an existing file or directory: %s", path)
 
 
-def get_cwd(must_exist=True):
+def get_cwd(must_exist: bool = True) -> Optional[str]:
     """
     Retrieve current working directory
     """
@@ -485,7 +487,7 @@ def get_cwd(must_exist=True):
     return cwd
 
 
-def change_dir(path):
+def change_dir(path: str) -> Optional[str]:
     """
     Change to directory at specified location.
 
@@ -507,8 +509,9 @@ def change_dir(path):
     return prev_dir
 
 
-def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced=False, change_into_dir=False,
-                 trace=True):
+def extract_file(fn: str, dest: str, cmd: Optional[str] = None, extra_options: Optional[str] = None,
+                 overwrite: bool = False, forced: bool = False, change_into_dir: bool = False,
+                 trace: bool = True) -> str:
     """
     Extract file at given path to specified directory
     :param fn: path to file to extract
@@ -564,7 +567,7 @@ def extract_file(fn, dest, cmd=None, extra_options=None, overwrite=False, forced
     return base_dir
 
 
-def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
+def which(cmd: str, retain_all: bool = False, check_perms: bool = True, log_ok: bool = True, on_error=WARN):
     """
     Return (first) path in $PATH for specified command, or None if command is not found
 
@@ -577,7 +580,7 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
         raise EasyBuildError("Invalid value for 'on_error': %s", on_error)
 
     if retain_all:
-        res = []
+        res: List[str] = []
     else:
         res = None
 
@@ -608,7 +611,7 @@ def which(cmd, retain_all=False, check_perms=True, log_ok=True, on_error=WARN):
     return res
 
 
-def det_common_path_prefix(paths):
+def det_common_path_prefix(paths: List[str]) -> Optional[str]:
     """Determine common path prefix for a given list of paths."""
     if not isinstance(paths, list):
         raise EasyBuildError("det_common_path_prefix: argument must be of type list (got %s: %s)", type(paths), paths)
