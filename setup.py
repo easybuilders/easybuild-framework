@@ -119,6 +119,14 @@ implement support for installing particular (groups of) software packages.""",
         # utility scripts
         'easybuild/scripts/install_eb_dep.sh',
     ],
+    entry_points={
+        'easybuild.rich_theme': [
+            'default = easybuild.tools.output:default_theme',
+        ],
+        'easybuild.rich_highlighter': [
+            'default = easybuild.tools.output:default_highlights',
+        ],
+    },
     data_files=[
         ('easybuild/scripts', glob.glob('easybuild/scripts/*')),
         ('etc', glob.glob('etc/*')),

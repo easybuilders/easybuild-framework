@@ -314,7 +314,7 @@ def print_msg(msg, *args, **kwargs):
     :param newline: end message with newline
     :param stderr: print to stderr rather than stdout
     """
-    from easybuild.tools.output import use_rich  # avoid circular import
+    from easybuild.tools.output import use_rich, get_rich_highlighter, get_rich_theme  # avoid circular import
     if args:
         msg = msg % args
 
@@ -339,7 +339,7 @@ def print_msg(msg, *args, **kwargs):
             from rich.markup import escape
             from rich.console import Console
 
-            console = Console()
+            console = Console(highlighter=get_rich_highlighter(), theme=get_rich_theme())
             with console.capture() as capture:
                 console.print(escape(msg), end="")
 

@@ -35,11 +35,15 @@ import functools
 from collections import OrderedDict
 import sys
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools.build_log import EasyBuildError, EB_MSG_PREFIX
+from easybuild.tools.entrypoints import EntrypointRichTheme, EntrypointRichHighlighter
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
+from easybuild.tools.config import DEFAULT_THEME_NAME, DEFAULT_HIGHLIGHTS_NAME
 
 try:
     import rich.markup
+    from rich.theme import Theme
+    from rich.highlighter import Highlighter, RegexHighlighter, ReprHighlighter
     from rich.console import Console, Group
     from rich.live import Live
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -74,6 +78,35 @@ PROGRESS_BAR_EASYCONFIG = 'easyconfig'
 STATUS_BAR = 'status'
 
 _progress_bar_cache = {}
+
+DEFAULT_THEME_DCT = {
+    'easybuild.success': 'on green',
+    'easybuild.warning': 'on orange3',
+    'easybuild.error': 'on red',
+    'easybuild.prefix1': 'grey50',
+    'easybuild.prefix2': 'grey50',
+    'easybuild.installing': 'bold',
+    'easybuild.installed': 'bold',
+    'easybuild.timing': 'grey50',
+    'repr.path': 'bright_blue',
+    'repr.number': 'red',
+    'repr.ipv6': 'yellow',  # time
+    'repr.call': 'none',  # file(s)
+    'repr.ellipsis': 'grey50',
+    'repr.brace': 'none',
+}
+DEFAULT_HIGHLIGHTS = [
+    r'(?P<error>(ERROR)|(FAILED)|(FAIL))',
+    r'(?P<warning>WARNING)',
+    r'(?P<success>(COMPLETED)|(SUCCESS)|(PASSED)|(PASS)|(OK))',
+    fr'(?P<prefix1>{EB_MSG_PREFIX} )',
+    r'(?P<prefix2> >> )',
+    r'.* (?P<installing>(building and installing|installing extension|installing bundle component).*)\.\.\.',
+    r'(?P<timing>\(took .*\))',
+    r'\[SUCCESS\] (?P<installed>\S+)',
+]
+CACHED_THEME = None
+CACHED_HIGHLIGHTER = None
 
 
 def colorize(txt, color):
@@ -131,6 +164,108 @@ def use_rich():
     Return whether or not to use Rich to produce rich output.
     """
     return get_output_style() == OUTPUT_STYLE_RICH
+
+
+@EntrypointRichTheme()
+def default_theme():
+    """
+    Default Rich theme, used if no custom theme is specified or available.
+    """
+    return DEFAULT_THEME_DCT
+
+
+@EntrypointRichHighlighter()
+def default_highlights():
+    """
+    Default Rich highlighter, used if no custom highlighter is specified or available.
+    """
+    return DEFAULT_HIGHLIGHTS
+
+
+def get_rich_theme():
+    """
+    Get Rich theme to use for rich output.
+    """
+    global CACHED_THEME
+    if CACHED_THEME is not None:
+        return CACHED_THEME
+    if not use_rich():
+        class DummyTheme:
+            pass
+        res = DummyTheme()
+    else:
+        use_entrypoints = build_option('use_entrypoints', default=True)
+        output_theme = build_option('output_theme', default=DEFAULT_THEME_NAME)
+
+        if output_theme == DEFAULT_THEME_NAME:
+            theme_dct = default_theme()
+        else:
+            entrypoints = EntrypointRichTheme.get_loaded_entrypoints(name=output_theme)
+            if not entrypoints:
+                if use_entrypoints:
+                    available_themes = ', '.join([_.name for _ in EntrypointRichTheme.get_loaded_entrypoints()])
+                    msg = f"Unknown specified Rich theme '{output_theme}' (available: {available_themes})"
+                else:
+                    msg = f"Cannot use custom Rich theme '{output_theme}' without entry points support enabled"
+                raise EasyBuildError(msg)
+            theme_dct = entrypoints[0].wrapped()
+        res = Theme(theme_dct)
+
+    CACHED_THEME = res
+    return res
+
+
+def get_rich_highlighter():
+    """
+    Get Rich highlighter to use for rich output.
+    """
+    global CACHED_HIGHLIGHTER
+    if CACHED_HIGHLIGHTER is not None:
+        return CACHED_HIGHLIGHTER
+
+    if not use_rich():
+        class DummyHighlighter:
+            pass
+        res = DummyHighlighter()
+    else:
+        use_entrypoints = build_option('use_entrypoints', default=True)
+        output_hl = build_option('output_highlights', default=DEFAULT_HIGHLIGHTS_NAME)
+
+        if output_hl == DEFAULT_HIGHLIGHTS_NAME:
+            highlights_dct = default_highlights()
+        else:
+            entrypoints = EntrypointRichHighlighter.get_loaded_entrypoints(name=output_hl)
+            if not entrypoints:
+                if use_entrypoints:
+                    available_hls = ', '.join([_.name for _ in EntrypointRichHighlighter.get_loaded_entrypoints()])
+                    msg = f"Unknown specified Rich highlighter '{output_hl}' (available: {available_hls})"
+                else:
+                    msg = f"Cannot use custom Rich highlighter '{output_hl}' without entry points support enabled"
+                    msg += f" {EntrypointRichHighlighter.get_loaded_entrypoints()}"
+                raise EasyBuildError(msg)
+            highlights_dct = entrypoints[0].wrapped()
+
+        class EasybuildHighlighter(RegexHighlighter):
+            """Highlighter for EasyBuild messages, to highlight ERROR, WARNING, SUCCESS and similar lines."""
+            highlights = highlights_dct
+            base_style = "easybuild."
+
+        class CombinedHighlighter(Highlighter):
+            """Combined highlighter that applies both EasybuildHighlighter and ReprHighlighter."""
+            def __init__(self):
+                super().__init__()
+                self.easybuild_highlighter = EasybuildHighlighter()
+                self.repr_highlighter = ReprHighlighter()
+
+            def highlight(self, text):
+                self.repr_highlighter.highlight(text)
+                # easybuild_highlighter comes last to take priority
+                self.easybuild_highlighter.highlight(text)
+
+        res = CombinedHighlighter()
+
+    CACHED_HIGHLIGHTER = res
+    return res
 
 
 def show_progress_bars():
