@@ -796,10 +796,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported by Environment Modules for the moment
-        if isinstance(self.modtool, EnvironmentModules):
-            return
-
         # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
@@ -830,7 +826,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
             ]
 
-        self.assertMultiRegex(patterns, desc, multi_line=True)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and not self.modtool.supports_extensions:
+            # no extensions statement if modules tool does not support it (Environment Modules < 5.7.0)
+            self.assertNotMultiRegex(patterns, desc)
+        else:
+            self.assertMultiRegex(patterns, desc, multi_line=True)
 
         # check if the extensions is missing if there are no extensions
         test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
@@ -860,10 +860,6 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions_extension_name(self):
         """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""
-        # not supported by Environment Modules for the moment
-        if isinstance(self.modtool, EnvironmentModules):
-            return
-
         init_config(build_options={'module_extensions': True})
 
         test_dir = os.path.abspath(os.path.dirname(__file__))
@@ -888,7 +884,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 else:
                     pattern = r'\s*extensions\("extra/0\.0"\)'
 
-                if with_ext:
+                # no extensions statement if modules tool does not support it (Environment Modules < 5.7.0)
+                unsupported = self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and not self.modtool.supports_extensions
+                if with_ext and not unsupported:
                     self.assertRegex(desc, pattern)
                 else:
                     self.assertNotRegex(desc, pattern)
