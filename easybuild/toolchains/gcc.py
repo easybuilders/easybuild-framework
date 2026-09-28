@@ -31,7 +31,7 @@ Authors:
 """
 import re
 
-from easybuild.toolchains.gcccore import GCCcore
+from easybuild.toolchains.gcccore import GCCcore, GCCCORE_BANNED_LIBRARIES
 from easybuild.tools import LooseVersion
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 
@@ -42,6 +42,16 @@ class GccToolchain(GCCcore):
     COMPILER_MODULE_NAME = [NAME]
     SUBTOOLCHAIN = [GCCcore.NAME, SYSTEM_TOOLCHAIN_NAME]
     OPTIONAL = False
+
+    def banned_linked_shared_libs(self):
+        """
+        List of shared libraries (names, file names, paths) which are
+        not allowed to be linked in any installed binary/library.
+        """
+        banned_libs = super().banned_linked_shared_libs()
+
+        # Restore libraries that were banned at GCCcore level but ok for GCC
+        return list(set(banned_libs) - set(GCCCORE_BANNED_LIBRARIES))
 
     def is_deprecated(self):
         """Return whether or not this toolchain is deprecated."""
