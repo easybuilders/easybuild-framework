@@ -2859,6 +2859,10 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     repo_dir = os.path.join(tmpdir, repo_name)
 
+    if use_lfs:
+        lfs_install_cmd = [git_cmd, 'lfs', 'install', '--local', '--skip-repo']
+        run_shell_cmd(' '.join(lfs_install_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+
     # compose checkout command
     checkout_cmd = [git_cmd, 'checkout']
     # if a specific commit is asked for, check it out
