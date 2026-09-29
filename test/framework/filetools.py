@@ -3080,34 +3080,28 @@ class FileToolsTest(EnhancedTestCase):
             'test_prefix': self.test_prefix,
         }
 
-        expected = '\n'.join([
-            r'  running shell command "{git_clone_cmd} {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        lfs_check_tag = (
+            r'  running shell command "git grep -I -h filter=lfs refs/tags/tag_for_tests -- '
+            r"':\(glob\)\*\*/\.gitattributes'\""
+        )
 
-        git_config['lfs'] = True
         expected = '\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
-            r'  running shell command "git lfs install --local --skip-repo"',
+            lfs_check_tag,
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git lfs pull"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
         ]).format(**string_args, repo_name='testrepository')
         run_check()
-        del git_config['lfs']
 
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo} test123"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_tag,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
@@ -3119,6 +3113,8 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_tag,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive"',
@@ -3131,6 +3127,8 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_tag,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'"',
@@ -3144,9 +3142,15 @@ class FileToolsTest(EnhancedTestCase):
             'submodule."sha1".active=false',
         ]
         git_cmd_extra = 'git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
+        lfs_check_extra = (
+            r'  running shell command "{git_cmd_extra} grep -I -h filter=lfs refs/tags/tag_for_tests -- '
+            r"':\(glob\)\*\*/\.gitattributes'\""
+        )
         expected = '\n'.join([
             r'  running shell command "{git_cmd_extra} clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_extra,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "{git_cmd_extra} checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "{git_cmd_extra} submodule update --init --recursive --'
@@ -3160,9 +3164,15 @@ class FileToolsTest(EnhancedTestCase):
 
         del git_config['tag']
         git_config['commit'] = '8456f86'
+        lfs_check_commit = (
+            r'  running shell command "git grep -I -h filter=lfs 8456f86 -- '
+            r"':\(glob\)\*\*/\.gitattributes'\""
+        )
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive"',
@@ -3175,6 +3185,8 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'"',
@@ -3188,11 +3200,95 @@ class FileToolsTest(EnhancedTestCase):
         expected = '\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
         ]).format(**string_args, repo_name='testrepository')
         run_check()
+
+        # Check Git LFS handling when .gitattributes contains filter=lfs.
+        orig_run_shell_cmd = ft.run_shell_cmd
+
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            res = orig_run_shell_cmd(cmd, *args, **kwargs)
+            if ' grep -I -h filter=lfs ' in cmd:
+                res = types.SimpleNamespace(
+                    exit_code=0,
+                    output='*.bam filter=lfs diff=lfs merge=lfs -text\n',
+                )
+            return res
+
+        ft.run_shell_cmd = mock_run_shell_cmd
+        expected = '\n'.join([
+            r'  running shell command "git clone --no-checkout {git_repo}"',
+            r"  \(in .*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git lfs install --local --skip-repo"',
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git checkout 8456f86"',
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git lfs pull"',
+            r"  \(in .*/{repo_name}\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
+
+        try:
+            run_check()
+        finally:
+            ft.run_shell_cmd = orig_run_shell_cmd
+
+        # Ignore Git LFS attributes that are commented out.
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            res = orig_run_shell_cmd(cmd, *args, **kwargs)
+            if ' grep -I -h filter=lfs ' in cmd:
+                res = types.SimpleNamespace(
+                    exit_code=0,
+                    output='# *.bam filter=lfs diff=lfs merge=lfs -text\n',
+                )
+            return res
+
+        ft.run_shell_cmd = mock_run_shell_cmd
+        expected = '\n'.join([
+            r'  running shell command "git clone --no-checkout {git_repo}"',
+            r"  \(in .*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git checkout 8456f86"',
+            r"  \(in .*/{repo_name}\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
+
+        try:
+            run_check()
+        finally:
+            ft.run_shell_cmd = orig_run_shell_cmd
+
+        # Fail if checking for Git LFS attributes fails.
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            res = orig_run_shell_cmd(cmd, *args, **kwargs)
+            if ' grep -I -h filter=lfs ' in cmd:
+                res = types.SimpleNamespace(
+                    exit_code=2,
+                    output='fatal: bad revision\n',
+                )
+            return res
+
+        ft.run_shell_cmd = mock_run_shell_cmd
+        try:
+            with self.mocked_stdout_stderr():
+                self.assertErrorRegex(
+                    EasyBuildError,
+                    "Failed to determine whether Git repository uses Git LFS",
+                    ft.get_source_tarball_from_git,
+                    'test',
+                    target_dir,
+                    git_config,
+                )
+        finally:
+            ft.run_shell_cmd = orig_run_shell_cmd
 
         # tarball formats that are not reproducible
         bad_filenames = ['test.tar.gz', 'test.tar.bz2']
