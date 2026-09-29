@@ -17,7 +17,7 @@ For more information, please consult the [GitHub documentation on reporting a se
 
 We strive to respond to reports of a security vulnerability within 2-3 days.
 If your security issue is accepted, we will do what we can to fix it ASAP.
-If fixing the issue would take us longer than a couple of days, we will discuss timeline options with you.
+If fixing the issue would take us longer than a couple of days, we will discuss the expected timeline with you.
 
 If you feel you need to escalate the reported security issue,
 please contact one or more members of the [EasyBuild Steering Committee](https://docs.easybuild.io/governance/steering-committee/).
