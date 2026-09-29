@@ -2793,7 +2793,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     :param filename: name of the archive file to save the code to (including extension)
     :param target_dir: target directory where to save the archive to
-    :param git_config: dictionary containing url, repo_name, recursive, and one of tag or commit
+    :param git_config: dictionary containing url, repo_name, recursive, lfs, and one of tag or commit
     """
     # sanity check on git_config value being passed
     if not isinstance(git_config, dict):
@@ -2810,6 +2810,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     keep_git_dir = git_config.pop('keep_git_dir', False)
     extra_config_params = git_config.pop('extra_config_params', None)
     recurse_submodules = git_config.pop('recurse_submodules', None)
+    use_lfs = git_config.pop('lfs', False)
 
     # input validation of git_config dict
     if git_config:
@@ -2867,6 +2868,10 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
         checkout_cmd.append(f"refs/tags/{tag}")
 
     run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+
+    if use_lfs:
+        lfs_pull_cmd = [git_cmd, 'lfs', 'pull']
+        run_shell_cmd(' '.join(lfs_pull_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
     if recursive or recurse_submodules:
         submodule_cmd = [git_cmd, 'submodule', 'update', '--init']
