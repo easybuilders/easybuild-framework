@@ -2279,7 +2279,6 @@ class EasyBlockTest(EnhancedTestCase):
                     'repo_name': 'testrepository',
                     'url': 'https://github.com/easybuilders',
                     'tag': 'branch_tag_for_test',
-                    'lfs': True,
                 }
             }
         ]
@@ -2290,7 +2289,12 @@ class EasyBlockTest(EnhancedTestCase):
 
         def mocked_run_shell_cmd(cmd, *args, **kwargs):
             git_cmds.append(cmd)
-            if cmd.startswith('git lfs '):
+            if ' grep -I -h filter=lfs ' in cmd:
+                return unittest.mock.Mock(
+                    exit_code=0,
+                    output='*.bam filter=lfs diff=lfs merge=lfs -text\n',
+                )
+            elif cmd.startswith('git lfs '):
                 return None
             return orig_run_shell_cmd(cmd, *args, **kwargs)
 
@@ -2306,6 +2310,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertEqual(len(eb.src), 1)
         self.assertExists(eb.src[0]['path'])
+        self.addCleanup(remove_file, eb.src[0]['path'])
 
         lfs_install_cmd = 'git lfs install --local --skip-repo'
         checkout_cmd = 'git checkout refs/tags/branch_tag_for_test'
@@ -2317,9 +2322,6 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertLess(git_cmds.index(lfs_install_cmd), git_cmds.index(checkout_cmd))
         self.assertLess(git_cmds.index(checkout_cmd), git_cmds.index(lfs_pull_cmd))
-
-        # cleanup
-        remove_file(eb.src[0]['path'])
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
