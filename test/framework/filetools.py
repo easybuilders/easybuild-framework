@@ -3089,6 +3089,21 @@ class FileToolsTest(EnhancedTestCase):
         ]).format(**string_args, repo_name='testrepository')
         run_check()
 
+        git_config['lfs'] = True
+        expected = '\n'.join([
+            r'  running shell command "{git_clone_cmd} {git_repo}"',
+            r"  \(in .*/tmp.*\)",
+            r'  running shell command "git lfs install --local --skip-repo"',
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git checkout refs/tags/tag_for_tests"',
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git lfs pull"',
+            r"  \(in .*/{repo_name}\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+        ]).format(**string_args, repo_name='testrepository')
+        run_check()
+        del git_config['lfs']
+
         git_config['clone_into'] = 'test123'
         expected = '\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo} test123"',
