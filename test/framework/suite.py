@@ -147,4 +147,4 @@ if __name__ == '__main__':
         unittest.main()
     else:
         res = unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
-        sys.exit(0 if res.wasSuccessful() else 1)
+        sys.exit(not res.wasSuccessful())
