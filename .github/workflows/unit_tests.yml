@@ -293,7 +293,7 @@ jobs:
           python -m coverage xml -o coverage.xml
           python -m coverage html -d htmlcov
           # show total in job summary
-          echo "Code coverage (Python ${MATRIX_PYTHON}, ${MATRIX_MODULES_TOOL}, Lua syntax): $(tail -1 coverage.txt | awk '{print $NF}')" >> "$GITHUB_STEP_SUMMARY"
+          echo "Code coverage (Python ${MATRIX_PYTHON}, ${MATRIX_MODULES_TOOL}, Lua syntax): $(grep '^TOTAL' coverage.txt | awk '{print $NF}')" >> "$GITHUB_STEP_SUMMARY"
 
     - name: upload code coverage report
       if: ${{ !cancelled() && matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
