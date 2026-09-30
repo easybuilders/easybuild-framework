@@ -70,4 +70,4 @@ def suite(loader=None):
 
 if __name__ == '__main__':
     res = TextTestRunner(verbosity=1).run(suite())
-    sys.exit(len(res.failures))
+    sys.exit(not res.wasSuccessful())
