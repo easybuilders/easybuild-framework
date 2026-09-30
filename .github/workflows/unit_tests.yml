@@ -190,8 +190,13 @@ jobs:
       run: |
           . ~/init_pyenv
           # install from source distribution tarball, to test release as published on PyPI
-          pip install --upgrade build
-          python -m build --sdist
+          if python -c "import sys; sys.exit(sys.version_info < (3, 7))"; then
+            pip install --upgrade build
+            python -m build --sdist
+          else
+            # latest 'build' version that supports Python 3.6 requires typing.NoReturn (only in Python >= 3.6.2)
+            python setup.py sdist
+          fi
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
