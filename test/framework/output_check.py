@@ -56,6 +56,16 @@ ALLOWED_OUTPUT_PATTERNS = [
 ]
 ALLOWED_OUTPUT_REGEX = re.compile('|'.join(ALLOWED_OUTPUT_PATTERNS))
 
+# enabled when running the tests with pytest (see test/framework/conftest.py):
+# pytest captures output of each test itself, and the check is done on the output captured by pytest,
+# since capturing it here as well would also capture what pytest reports while a test is running (like subtests)
+CHECK_VIA_PYTEST = False
+
+
+def unexpected_output(output):
+    """Return list of lines in specified output that are not allowed to be printed by tests."""
+    return [line for line in output.splitlines() if line.strip() and not ALLOWED_OUTPUT_REGEX.search(line)]
+
 
 def _flush_std_streams():
     """Flush the (original and current) Python stdout/stderr streams."""
@@ -76,7 +86,7 @@ class OutputCheckMixin:
 
     def start_output_check(self):
         """Start capturing output written to stdout/stderr (at the file descriptor level)."""
-        if os.getenv(ALLOW_OUTPUT_ENV_VAR) == '1':
+        if CHECK_VIA_PYTEST or os.getenv(ALLOW_OUTPUT_ENV_VAR) == '1':
             return
 
         _flush_std_streams()
@@ -118,8 +128,7 @@ class OutputCheckMixin:
         # it's likely related (and the unittest runner may already have written its 'F'/'E' status character)
         test_failed = self._test_already_failed()
 
-        unexpected = [line for line in output.splitlines() if line.strip() and not ALLOWED_OUTPUT_REGEX.search(line)]
-        if unexpected and not test_failed:
+        if unexpected_output(output) and not test_failed:
             self.fail("Test %s printed unexpected output to stdout/stderr "
                       "(capture it via self.mocked_stdout_stderr(), or set $%s=1 to disable this check):\n%s"
                       % (self.id(), ALLOW_OUTPUT_ENV_VAR, output))

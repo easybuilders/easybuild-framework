@@ -265,7 +265,38 @@ jobs:
             sudo chmod o+w /tmp/file_to_overwrite_for_easybuild_test_copy_file.txt
             # run test suite;
             # tests that print unexpected output to stdout/stderr fail (see test/framework/output_check.py)
-            python -O -m test.framework.suite 2>&1 | tee test_framework_suite.log
+            # measure code coverage (informational) for a single matrix entry, with Lua module syntax
+            if [[ "${{matrix.python}}" == '3.12' ]] && [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${module_syntax}" == 'Lua' ]]; then
+              TEST_CMD="-m coverage run --rcfile=$GITHUB_WORKSPACE/.coveragerc -m test.framework.suite"
+            else
+              TEST_CMD="-m test.framework.suite"
+            fi
+            python -O ${TEST_CMD} 2>&1 | tee test_framework_suite.log
             # exit code of the test suite, not of 'tee'
             test "${PIPESTATUS[0]}" -eq 0 || (echo "ERROR: test suite failed with ${module_syntax} module syntax" && exit 1)
           done
+
+    - name: create code coverage report (informational)
+      if: ${{ !cancelled() && matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
+      continue-on-error: true
+      run: |
+          . ~/init_pyenv
+          cd $HOME
+          python -m coverage combine --rcfile=$GITHUB_WORKSPACE/.coveragerc
+          python -m coverage report --rcfile=$GITHUB_WORKSPACE/.coveragerc --sort=cover | tee coverage.txt
+          python -m coverage xml --rcfile=$GITHUB_WORKSPACE/.coveragerc -o coverage.xml
+          python -m coverage html --rcfile=$GITHUB_WORKSPACE/.coveragerc -d htmlcov
+          # show total in job summary
+          echo "Code coverage (Python ${{matrix.python}}, ${{matrix.modules_tool}}, Lua syntax): $(tail -1 coverage.txt | awk '{print $NF}')" >> $GITHUB_STEP_SUMMARY
+
+    - name: upload code coverage report
+      if: ${{ !cancelled() && matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
+      continue-on-error: true
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage-report
+        path: |
+          ~/coverage.txt
+          ~/coverage.xml
+          ~/htmlcov
+        if-no-files-found: ignore
