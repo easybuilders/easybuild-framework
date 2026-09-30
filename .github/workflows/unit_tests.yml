@@ -205,6 +205,8 @@ jobs:
       env:
         EB_VERBOSE: 1
         LC_ALL: ""
+        # only measure code coverage (informational) for a single matrix entry
+        MEASURE_COVERAGE: ${{ matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
       run: |
           # run tests *outside* of checked out easybuild-framework directory,
           # to ensure we're testing installed version (see previous step)
@@ -266,12 +268,12 @@ jobs:
             # run test suite;
             # tests that print unexpected output to stdout/stderr fail (see test/framework/output_check.py)
             # measure code coverage (informational) for a single matrix entry, with Lua module syntax
-            if [[ "${{matrix.python}}" == '3.12' ]] && [[ "${{matrix.modules_tool}}" =~ 'Lmod-8' ]] && [[ "${module_syntax}" == 'Lua' ]]; then
-              TEST_CMD="-m coverage run --rcfile=$GITHUB_WORKSPACE/.coveragerc -m test.framework.suite"
+            if [[ "${MEASURE_COVERAGE}" == 'true' ]] && [[ "${module_syntax}" == 'Lua' ]]; then
+              TEST_CMD=(-m coverage run --rcfile="$GITHUB_WORKSPACE/.coveragerc" -m test.framework.suite)
             else
-              TEST_CMD="-m test.framework.suite"
+              TEST_CMD=(-m test.framework.suite)
             fi
-            python -O ${TEST_CMD} 2>&1 | tee test_framework_suite.log
+            python -O "${TEST_CMD[@]}" 2>&1 | tee test_framework_suite.log
             # exit code of the test suite, not of 'tee'
             test "${PIPESTATUS[0]}" -eq 0 || (echo "ERROR: test suite failed with ${module_syntax} module syntax" && exit 1)
           done
@@ -279,15 +281,19 @@ jobs:
     - name: create code coverage report (informational)
       if: ${{ !cancelled() && matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
       continue-on-error: true
+      env:
+        COVERAGE_RCFILE: ${{ github.workspace }}/.coveragerc
+        MATRIX_PYTHON: ${{ matrix.python }}
+        MATRIX_MODULES_TOOL: ${{ matrix.modules_tool }}
       run: |
           . ~/init_pyenv
-          cd $HOME
-          python -m coverage combine --rcfile=$GITHUB_WORKSPACE/.coveragerc
-          python -m coverage report --rcfile=$GITHUB_WORKSPACE/.coveragerc --sort=cover | tee coverage.txt
-          python -m coverage xml --rcfile=$GITHUB_WORKSPACE/.coveragerc -o coverage.xml
-          python -m coverage html --rcfile=$GITHUB_WORKSPACE/.coveragerc -d htmlcov
+          cd "$HOME"
+          python -m coverage combine
+          python -m coverage report --sort=cover | tee coverage.txt
+          python -m coverage xml -o coverage.xml
+          python -m coverage html -d htmlcov
           # show total in job summary
-          echo "Code coverage (Python ${{matrix.python}}, ${{matrix.modules_tool}}, Lua syntax): $(tail -1 coverage.txt | awk '{print $NF}')" >> $GITHUB_STEP_SUMMARY
+          echo "Code coverage (Python ${MATRIX_PYTHON}, ${MATRIX_MODULES_TOOL}, Lua syntax): $(tail -1 coverage.txt | awk '{print $NF}')" >> "$GITHUB_STEP_SUMMARY"
 
     - name: upload code coverage report
       if: ${{ !cancelled() && matrix.python == '3.12' && contains(matrix.modules_tool, 'Lmod-8') }}
