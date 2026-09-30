@@ -2620,7 +2620,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_allow_modules_tool_mismatch(self):
         """Test allowing mismatch of modules tool with 'module' function."""
         # make sure MockModulesTool is available
-        from test.framework.modulestool import MockModulesTool  # noqa, pylint: disable=unused-import
+        from test.framework.modulestool import MockModulesTool  # noqa: F401  # pylint: disable=unused-import
 
         # trigger that main() creates new instance of ModulesTool
         self.modtool = None
