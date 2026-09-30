@@ -146,4 +146,5 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1].startswith('-'):
         unittest.main()
     else:
-        unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
+        res = unittest.TextTestRunner().run(EasyBuildFrameworkTestSuite(None))
+        sys.exit(0 if res.wasSuccessful() else 1)
