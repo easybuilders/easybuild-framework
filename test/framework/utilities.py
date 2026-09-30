@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import List, Pattern, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
+from test.framework.output_check import OutputCheckMixin
 
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
@@ -88,8 +89,11 @@ for key in list(os.environ):
         os.environ[newkey] = val
 
 
-class EnhancedTestCase(TestCase):
-    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+class EnhancedTestCase(OutputCheckMixin, TestCase):
+    """
+    Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method).
+    Tests fail when they print unexpected output, see test.framework.output_check.
+    """
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -98,6 +102,7 @@ class EnhancedTestCase(TestCase):
 
     def setUp(self):
         """Set up testcase."""
+        self.start_output_check()
         super().setUp()
 
         # make sure option parser doesn't pick up any cmdline arguments/options
