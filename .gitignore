@@ -14,3 +14,8 @@ dist/
 Dockerfile.*
 Singularity.*
 test-reports/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

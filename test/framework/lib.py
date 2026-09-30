@@ -33,6 +33,7 @@ import sys
 import tempfile
 from unittest import TextTestRunner
 
+from test.framework.output_check import OutputCheckMixin
 from test.framework.utilities import TestLoaderFiltered
 
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
@@ -46,11 +47,12 @@ from easybuild.tools.modules import modules_tool
 from easybuild.tools.run import run_shell_cmd, run_cmd
 
 
-class EasyBuildLibTest(TestCase):
+class EasyBuildLibTest(OutputCheckMixin, TestCase):
     """Test cases for using EasyBuild as a library."""
 
     def setUp(self):
         """Prepare for running test."""
+        self.start_output_check()
         super().setUp()
 
         # make sure BuildOptions instance is re-created

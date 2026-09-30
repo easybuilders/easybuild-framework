@@ -73,7 +73,8 @@ jobs:
     - name: install sources
       run: |
           # install from source distribution tarball, to test release as published on PyPI
-          python setup.py sdist
+          pip install --upgrade build
+          python -m build --sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz

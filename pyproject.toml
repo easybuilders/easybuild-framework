@@ -1,0 +1,20 @@
+# Only the build system is declared here; the package metadata stays in setup.py,
+# since declaring it in a [project] table requires setuptools >= 61 (so Python >= 3.7),
+# and easybuild-framework can still be installed with Python 3.6.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# configuration for running the test suite with pytest (optional, the official test runner is
+# 'python -O -m test.framework.suite'), see also test/framework/conftest.py;
+# use 'python -O -m pytest', since some tests rely on assert statements being disabled (like with the official runner);
+# for parallel runs via pytest-xdist, use 'python -O -m pytest -n auto'
+# (or '-n auto --dist loadfile' to run each test module in a single process, in the same order as the official runner)
+[tool.pytest.ini_options]
+testpaths = ["test/framework"]
+python_files = ["*.py"]
+# test classes are all unittest.TestCase subclasses (which pytest collects regardless of their name)
+python_classes = []
+# no assertion rewriting: tests use unittest's assert* methods, and pytest's import hook would show up
+# as the importing module in tests that check where imports are done from (see test_fake_vsc)
+addopts = "--assert=plain"

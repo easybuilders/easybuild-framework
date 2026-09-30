@@ -1,0 +1,15 @@
+# configuration for measuring code coverage of the test suite, see https://coverage.readthedocs.io;
+# for example: coverage run -m test.framework.suite && coverage combine && coverage report
+[run]
+source = easybuild
+omit =
+    # vendored copies of third party libraries
+    */easybuild/tools/tomllib/tomli/*
+    */easybuild/tools/_toml_writer/*
+# collect data per process (required for parallel runs with pytest-xdist and for subprocesses), see 'coverage combine'
+parallel = True
+branch = True
+
+[report]
+skip_empty = True
+precision = 1
