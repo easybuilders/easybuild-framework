@@ -2858,14 +2858,26 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     repo_dir = os.path.join(tmpdir, repo_name)
 
-    # compose checkout command
-    checkout_cmd = [git_cmd, 'checkout']
-    # if a specific commit is asked for, check it out
-    if commit:
-        checkout_cmd.append(f"{commit}")
-    elif tag:
-        checkout_cmd.append(f"refs/tags/{tag}")
+    # Git LFS functionality
+    git_ref = commit if commit else f"refs/tags/{tag}"
+    # Check whether the selected Git tree contains Git LFS attributes.
+    lfs_check_cmd = f"{git_cmd} grep -I -h filter=lfs {git_ref} -- ':(glob)**/.gitattributes' "
+    res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
+                        hidden=True, verbose_dry_run=True)
 
+    if res.exit_code not in (0, 1):
+        raise EasyBuildError(f"Failed to determine whether Git repository uses Git LFS: {res.output}")
+
+    use_lfs = any(
+        not line.lstrip().startswith('#') and 'filter=lfs' in line.split()
+        for line in res.output.splitlines()
+    )
+
+    if use_lfs:
+        lfs_install_cmd = [git_cmd, 'lfs', 'install', '--local', '--skip-repo']
+        run_shell_cmd(' '.join(lfs_install_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+
+    checkout_cmd = [git_cmd, 'checkout', git_ref]
     run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
     if recursive or recurse_submodules:
