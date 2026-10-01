@@ -312,7 +312,7 @@ class GithubTest(EnhancedTestCase):
             output = gh.list_prs(parameters, per_page=1, github_user=GITHUB_TEST_ACCOUNT)
             stdout = self.get_stdout()
 
-        self.assertTrue(stdout.startswith("== Listing PRs with parameters: "))
+        self.assertStartsWith(stdout, "== Listing PRs with parameters: ")
 
         self.assertEqual(expected, output)
 
@@ -530,7 +530,7 @@ class GithubTest(EnhancedTestCase):
         self.assertEqual(len(res), 1)
         ec_path = res[0]
         expected_path = 'ecs_commit_7c83a553950c233943c7b0189762f8c05cfea852/e/EasyBuild/EasyBuild-4.8.2.eb'
-        self.assertTrue(ec_path.endswith(expected_path))
+        self.assertEndsWith(ec_path, expected_path)
         self.assertTrue(os.path.exists(ec_path))
         self.assertIn("version = '4.8.2'", read_file(ec_path))
 
@@ -570,7 +570,7 @@ class GithubTest(EnhancedTestCase):
             if ec_path.endswith('.eb'):
                 self.assertIn("version =", read_file(ec_path))
             else:
-                self.assertTrue(ec_path.endswith('.patch'))
+                self.assertEndsWith(ec_path, '.patch')
 
         # merge commit for release of EasyBuild v4.9.0
         test_commit = 'bdcc586189fcb3e5a340cddebb50d0e188c63cdc'
