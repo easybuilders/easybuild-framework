@@ -234,7 +234,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.patch_perl_script_autoflush(fp)
         txt = ft.read_file(fp)
         self.assertTrue(len(txt.split('\n')) == len(perl_lines) + 4)
-        self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
+        self.assertStartsWith(txt, perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);")
         for line in perl_lines[1:]:
             self.assertIn(line, txt)
         os.remove(fp)
@@ -698,7 +698,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertIn("WARNING: Not checking server certificates while downloading toy-0.0.eb", stderr)
         self.assertExists(res)
         with self.mocked_stdout_stderr():
-            self.assertTrue(ft.read_file(res).startswith("name = 'toy'"))
+            self.assertStartsWith(ft.read_file(res), "name = 'toy'")
 
     def test_download_file_fallback_source_urls(self):
         """
@@ -1090,7 +1090,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(len(test_files), 2)
         new_file = [x for x in test_files if x not in known_files][0]
         self.assertTrue(os.path.samefile(res, os.path.join(self.test_prefix, 'sandbox', new_file)))
-        self.assertTrue(new_file.startswith('test.txt.bak_'))
+        self.assertStartsWith(new_file, 'test.txt.bak_')
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1101,7 +1101,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 3)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt.bak_'))
+        self.assertStartsWith(new_file, '.test.txt.bak_')
         first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1112,7 +1112,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 4)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt_'))
+        self.assertStartsWith(new_file, 'test.txt_')
         first_normal_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1123,7 +1123,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 5)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt_'))
+        self.assertStartsWith(new_file, '.test.txt_')
         first_hidden_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1134,7 +1134,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 6)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt.foobar_'))
+        self.assertStartsWith(new_file, 'test.txt.foobar_')
         first_bck_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1145,7 +1145,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 7)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt.bck_'))
+        self.assertStartsWith(new_file, '.test.txt.bck_')
         first_hidden_bck_backup = os.path.join(os.path.dirname(fp), new_file)
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), txt)
@@ -1160,7 +1160,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 8)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt.bak_'))
+        self.assertStartsWith(new_file, 'test.txt.bak_')
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(first_normal_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
@@ -1171,7 +1171,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 9)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt_'))
+        self.assertStartsWith(new_file, '.test.txt_')
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(first_hidden_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
@@ -1182,7 +1182,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 10)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('test.txt.bck_'))
+        self.assertStartsWith(new_file, 'test.txt.bck_')
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(first_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
@@ -1193,7 +1193,7 @@ class FileToolsTest(EnhancedTestCase):
         test_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(len(test_files), 11)
         new_file = [x for x in test_files if x not in known_files][0]
-        self.assertTrue(new_file.startswith('.test.txt.foobar_'))
+        self.assertStartsWith(new_file, '.test.txt.foobar_')
         known_files = os.listdir(os.path.dirname(fp))
         self.assertEqual(ft.read_file(first_hidden_bck_backup), txt)
         self.assertEqual(ft.read_file(os.path.join(os.path.dirname(fp), new_file)), new_txt)
@@ -1203,7 +1203,7 @@ class FileToolsTest(EnhancedTestCase):
         fp2 = fp + 'a.lua'
         ft.copy_file(fp, fp2)
         res = ft.back_up_file(fp2)
-        self.assertTrue(fp2.endswith('.lua'))
+        self.assertEndsWith(fp2, '.lua')
         self.assertIn('.lua', os.path.basename(res))
 
         res = ft.back_up_file(fp2, strip_fn='.lua')
@@ -1211,7 +1211,7 @@ class FileToolsTest(EnhancedTestCase):
         # strip_fn should not remove the first a in 'a.lua'
         expected = os.path.basename(fp) + 'a.bak_'
         res_fn = os.path.basename(res)
-        self.assertTrue(res_fn.startswith(expected), "'%s' should start with with '%s'" % (res_fn, expected))
+        self.assertStartsWith(res_fn, expected)
 
     def test_move_logs(self):
         """Test move_logs function."""
@@ -1263,22 +1263,22 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 %s- versionsuffix = '-deps'%s (1/2) toy-0.0-" % (red, endcol)))
-        self.assertTrue(lines[3].startswith("3 %s- versionsuffix = '-test'%s (1/2) toy-0.0-" % (red, endcol)))
+        self.assertStartsWith(lines[2], f"3 {red}- versionsuffix = '-deps'{endcol} (1/2) toy-0.0-")
+        self.assertStartsWith(lines[3], f"3 {red}- versionsuffix = '-test'{endcol} (1/2) toy-0.0-")
 
         # different toolchain in toy-0.0-gompi-1.3.12-test: '+' line (added line in green)
-        expected = "7 %(green)s+ toolchain = SYSTEM%(endcol)s"
+        expected = f"7 {green}+ toolchain = SYSTEM{endcol}"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
-        self.assertTrue(lines[7].startswith(expected))
+        self.assertStartsWith(lines[7], expected)
         # different toolchain in toy-0.0-gompi-1.3.12-test: '-' line (removed line in red)
-        expected = "8 %(red)s- toolchain = {'name': 'gompi', 'version': '2018a'}%(endcol)s"
+        expected = f"8 {red}- toolchain = {{'name': 'gompi', 'version': '2018a'}}{endcol}"
         expected = expected % {'endcol': endcol, 'green': green, 'red': red}
-        self.assertTrue(lines[8].startswith(expected))
+        self.assertStartsWith(lines[8], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
-        expected = "26 %s+ postinstallcmds = " % green
+        expected = f"26 {green}+ postinstallcmds = "
         self.assertTrue(any(line.startswith(expected) for line in lines))
-        expected = "27 %s+%s (1/2) toy-0.0" % (green, endcol)
+        expected = f"27 {green}+{endcol} (1/2) toy-0.0"
         self.assertTrue(any(line.startswith(expected) for line in lines), "Found '%s' in: %s" % (expected, lines))
         self.assertEqual(lines[-1], "=====")
 
@@ -1287,14 +1287,14 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(lines[1], "=====")
 
         # different versionsuffix
-        self.assertTrue(lines[2].startswith("3 - versionsuffix = '-deps' (1/2) toy-0.0-"))
-        self.assertTrue(lines[3].startswith("3 - versionsuffix = '-test' (1/2) toy-0.0-"))
+        self.assertStartsWith(lines[2], "3 - versionsuffix = '-deps' (1/2) toy-0.0-")
+        self.assertStartsWith(lines[3], "3 - versionsuffix = '-test' (1/2) toy-0.0-")
 
         # different toolchain in toy-0.0-gompi-2018a-test: '+' added line, '-' removed line
         expected = "7 + toolchain = SYSTEM (1/2) toy"
-        self.assertTrue(lines[7].startswith(expected))
+        self.assertStartsWith(lines[7], expected)
         expected = "8 - toolchain = {'name': 'gompi', 'version': '2018a'} (1/2) toy"
-        self.assertTrue(lines[8].startswith(expected))
+        self.assertStartsWith(lines[8], expected)
 
         # no postinstallcmds in toy-0.0-deps.eb
         expected = "26 + postinstallcmds = "
@@ -1627,8 +1627,8 @@ class FileToolsTest(EnhancedTestCase):
         ft.apply_regex_substitutions(testfile, [('foo', 'FOO')])
         txt = ft.read_file(testfile)
         # avoid checking problematic character itself, since it's treated differently in Python 2 vs 3
-        self.assertTrue(txt.startswith('FOO '))
-        self.assertTrue(txt.endswith(' bar'))
+        self.assertStartsWith(txt, 'FOO ')
+        self.assertEndsWith(txt, ' bar')
 
         # also test apply_regex_substitutions with a *list* of paths
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/3493
@@ -1777,7 +1777,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(isinstance(res, list) and res)
         prefix = 'https://pypi.python.org/packages'
         for entry in res:
-            self.assertTrue(entry.startswith(prefix), "'%s' should start with '%s'" % (entry, prefix))
+            self.assertStartsWith(entry, prefix)
             self.assertIn('ipython', entry)
 
     def test_derive_alt_pypi_url(self):
@@ -2084,7 +2084,7 @@ class FileToolsTest(EnhancedTestCase):
                     with self.mocked_stdout_stderr():
                         res = run_shell_cmd(cmd, fail_on_error=False)
                     self.assertEqual(res.exit_code, 0)
-                    self.assertTrue(res.output.endswith('\nbar\n'))
+                    self.assertEndsWith(res.output, '\nbar\n')
 
     def test_copy_files(self):
         """Test copy_files function."""
@@ -2751,11 +2751,11 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(var_defs, [])
         self.assertEqual(len(hits), 5)
         self.assertTrue(all(os.path.exists(p) for p in hits))
-        self.assertTrue(hits[0].endswith('/hwloc-1.6.2-GCC-4.9.3-2.26.eb'))
-        self.assertTrue(hits[1].endswith('/hwloc-1.8-gcccuda-2018a.eb'))
-        self.assertTrue(hits[2].endswith('/hwloc-1.11.8-GCC-4.6.4.eb'))
-        self.assertTrue(hits[3].endswith('/hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
-        self.assertTrue(hits[4].endswith('/hwloc-1.11.8-GCC-7.3.0-2.30.eb'))
+        self.assertEndsWith(hits[0], '/hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        self.assertEndsWith(hits[1], '/hwloc-1.8-gcccuda-2018a.eb')
+        self.assertEndsWith(hits[2], '/hwloc-1.11.8-GCC-4.6.4.eb')
+        self.assertEndsWith(hits[3], '/hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+        self.assertEndsWith(hits[4], '/hwloc-1.11.8-GCC-7.3.0-2.30.eb')
 
         # also test case-sensitive searching
         var_defs, hits_case_sensitive = ft.search_file([TEST_ECS_DIR], 'HWLOC', silent=True, case_sensitive=True)
@@ -3024,7 +3024,7 @@ class FileToolsTest(EnhancedTestCase):
             '',
         ])
         res = ft.diff_files(foo, bar)
-        self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
+        self.assertEndsWith(res, expected)
         self.assertRegex(res, re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M))
 
     @requires_github_access()
@@ -3181,7 +3181,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertNotRegex(stderr, regex)
 
             ref_filename = f"{test_filename}.tar.xz" if test_filename in noext_filename else test_filename
-            self.assertTrue(res.endswith(ref_filename))
+            self.assertEndsWith(res, ref_filename)
 
         # non-tarball formats are not supported
         with self.mocked_stdout_stderr():
@@ -3480,7 +3480,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.move_file(test_python_mod, os.path.join(os.path.dirname(test_python_mod), 'pkgutil.py'))
 
         from test_fake_vsc import pkgutil
-        self.assertTrue(pkgutil.__file__.endswith('/test_fake_vsc/pkgutil.py'))
+        self.assertEndsWith(pkgutil.__file__, '/test_fake_vsc/pkgutil.py')
 
         pkg_resources_init = os.path.join(os.path.dirname(test_python_mod), 'pkg_resources', '__init__.py')
         ft.write_file(pkg_resources_init, 'import vsc')
@@ -3489,7 +3489,7 @@ class FileToolsTest(EnhancedTestCase):
         del sys.modules['vsc']
 
         from test_fake_vsc import pkg_resources
-        self.assertTrue(pkg_resources.__file__.endswith('/test_fake_vsc/pkg_resources/__init__.py'))
+        self.assertEndsWith(pkg_resources.__file__, '/test_fake_vsc/pkg_resources/__init__.py')
 
     def test_is_generic_easyblock(self):
         """Test for is_generic_easyblock function."""
