@@ -236,7 +236,7 @@ class RunTest(EnhancedTestCase):
         # no reason echo hello could fail
         self.assertEqual(res.cmd, "echo hello")
         self.assertEqual(res.exit_code, 0)
-        self.assertTrue(isinstance(res.output, str))
+        self.assertIsInstance(res.output, str)
         self.assertEqual(res.stderr, None)
         self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
@@ -311,7 +311,7 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(res.cmd, cmd)
             self.assertEqual(res.exit_code, 0)
             self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
-            self.assertTrue(isinstance(res.output, str))
+            self.assertIsInstance(res.output, str)
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
     def test_run_shell_cmd_perl(self):
@@ -613,10 +613,10 @@ class RunTest(EnhancedTestCase):
                 self.assertEqual(err.work_dir, work_dir)
                 self.assertEqual(err.output, '')
                 self.assertEqual(err.stderr, None)
-                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertIsInstance(err.caller_info, tuple)
                 self.assertEqual(len(err.caller_info), 3)
                 self.assertEqual(err.caller_info[0], __file__)
-                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertIsInstance(err.caller_info[1], int)  # line number of calling site
                 self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
 
                 with self.mocked_stdout_stderr() as (_, stderr):
@@ -648,10 +648,10 @@ class RunTest(EnhancedTestCase):
                 self.assertEqual(err.work_dir, work_dir)
                 self.assertEqual(err.output, '')
                 self.assertEqual(err.stderr, '')
-                self.assertTrue(isinstance(err.caller_info, tuple))
+                self.assertIsInstance(err.caller_info, tuple)
                 self.assertEqual(len(err.caller_info), 3)
                 self.assertEqual(err.caller_info[0], __file__)
-                self.assertTrue(isinstance(err.caller_info[1], int))  # line number of calling site
+                self.assertIsInstance(err.caller_info[1], int)  # line number of calling site
                 self.assertEqual(err.caller_info[2], 'test_run_shell_cmd_fail')
 
                 with self.mocked_stdout_stderr() as (_, stderr):
@@ -815,8 +815,8 @@ class RunTest(EnhancedTestCase):
             res = run_shell_cmd(cmd)
         self.assertEqual(res.exit_code, 0)
         output_lines = res.output.split('\n')
-        self.assertTrue("ok" in output_lines)
-        self.assertTrue("warning" in output_lines)
+        self.assertIn("ok", output_lines)
+        self.assertIn("warning", output_lines)
         self.assertEqual(res.stderr, None)
 
         # cleanup of artifacts in between calls to run_shell_cmd
@@ -1874,7 +1874,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res['exit_code'], 0)
         self.assertEqual(len(res['output']), 435661)
         self.assertTrue(res['output'].startswith('start\nfoo11\nfoo12\n'))
-        self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res['output'])
+        self.assertIn('\nfoo49999\nfoo491000\nfoo501\n', res['output'])
         self.assertTrue(res['output'].endswith('\nfoo501000\ndone\n'))
 
     def test_run_shell_cmd_async(self):
@@ -1932,7 +1932,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(len(res.output), 435661)
         self.assertTrue(res.output.startswith('start\nfoo11\nfoo12\n'))
-        self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res.output)
+        self.assertIn('\nfoo49999\nfoo491000\nfoo501\n', res.output)
         self.assertTrue(res.output.endswith('\nfoo501000\ndone\n'))
 
     def test_check_log_for_errors(self):
