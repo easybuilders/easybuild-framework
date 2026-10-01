@@ -220,7 +220,8 @@ class RunTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 (out, ec) = run_cmd(cmd)
             self.assertEqual(ec, 0)
-            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertStartsWith(out, 'foo ')
+            self.assertEndsWith(out, ' bar')
             self.assertEqual(type(out), str)
 
     def test_run_shell_cmd_basic(self):
@@ -259,8 +260,8 @@ class RunTest(EnhancedTestCase):
             res = run_shell_cmd(f"source {env_script}; echo $USER; echo $FOOBAR; history")
         self.assertEqual(res.exit_code, 0)
         user = os.getenv('USER')
-        self.assertTrue(res.output.startswith(f'{user}\nfoobar\n'))
-        self.assertTrue(res.output.endswith("echo hello\n"))
+        self.assertStartsWith(res.output, f'{user}\nfoobar\n')
+        self.assertEndsWith(res.output, "echo hello\n")
 
         # check on cmd.sh script that can be used to create interactive shell environment for command
         cmd_script = os.path.join(cmd_tmpdir, 'cmd.sh')
@@ -310,7 +311,8 @@ class RunTest(EnhancedTestCase):
                 res = run_shell_cmd(cmd)
             self.assertEqual(res.cmd, cmd)
             self.assertEqual(res.exit_code, 0)
-            self.assertTrue(res.output.startswith('foo ') and res.output.endswith(' bar'))
+            self.assertStartsWith(res.output, 'foo ')
+            self.assertEndsWith(res.output, ' bar')
             self.assertTrue(isinstance(res.output, str))
             self.assertTrue(res.work_dir and isinstance(res.work_dir, str))
 
@@ -414,7 +416,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(f"{cmd_script} -c 'echo $FOOBAR; echo TEST123:$TEST123'", fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        self.assertTrue(res.output.endswith('\nfoobar\nTEST123:\n'))
+        self.assertEndsWith(res.output, '\nfoobar\nTEST123:\n')
 
     def test_fileprefix_from_cmd(self):
         """test simplifications from fileprefix_from_cmd."""
@@ -486,8 +488,8 @@ class RunTest(EnhancedTestCase):
         init_logging(logfile, silent=True, tmp_logdir=log_path)
         logfiles = os.listdir(log_path)
         self.assertEqual(len(logfiles), 1)
-        self.assertTrue(logfiles[0].startswith("easybuild"))
-        self.assertTrue(logfiles[0].endswith("log"))
+        self.assertStartsWith(logfiles[0], "easybuild")
+        self.assertEndsWith(logfiles[0], "log")
 
     def test_run_shell_cmd_log(self):
         """Test logging of executed commands with run_shell_cmd function."""
@@ -692,7 +694,7 @@ class RunTest(EnhancedTestCase):
         # a more 'complex' command to run, make sure all required output is there
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
-        self.assertTrue(out.startswith('hello\nhello\n'))
+        self.assertStartsWith(out, 'hello\nhello\n')
         self.assertEqual(len(out), len("hello\n" * 300))
         self.assertEqual(ec, 0)
 
@@ -701,7 +703,7 @@ class RunTest(EnhancedTestCase):
         # a more 'complex' command to run, make sure all required output is there
         with self.mocked_stdout_stderr():
             res = run_shell_cmd("for j in `seq 1 3`; do for i in `seq 1 100`; do echo hello; done; sleep 1.4; done")
-        self.assertTrue(res.output.startswith('hello\nhello\n'))
+        self.assertStartsWith(res.output, 'hello\nhello\n')
         self.assertEqual(len(res.output), len("hello\n" * 300))
         self.assertEqual(res.exit_code, 0)
 
@@ -777,13 +779,13 @@ class RunTest(EnhancedTestCase):
             (out, ec) = run_cmd("seq 1 100", log_output=True)
         self.assertEqual(ec, 0)
         self.assertEqual(type(out), str)
-        self.assertTrue(out.startswith("1\n2\n"))
-        self.assertTrue(out.endswith("99\n100\n"))
+        self.assertStartsWith(out, "1\n2\n")
+        self.assertEndsWith(out, "99\n100\n")
 
         run_cmd_logs = glob.glob(os.path.join(self.test_prefix, '*', 'easybuild-run_cmd*.log'))
         self.assertEqual(len(run_cmd_logs), 1)
         run_cmd_log_txt = read_file(run_cmd_logs[0])
-        self.assertTrue(run_cmd_log_txt.startswith("# output for command: seq 1 100\n\n"))
+        self.assertStartsWith(run_cmd_log_txt, "# output for command: seq 1 100\n\n")
         run_cmd_log_lines = run_cmd_log_txt.split('\n')
         self.assertEqual(run_cmd_log_lines[2:5], ['1', '2', '3'])
         self.assertEqual(run_cmd_log_lines[-4:-1], ['98', '99', '100'])
@@ -800,7 +802,8 @@ class RunTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 (out, ec) = run_cmd(cmd, log_output=True)
             self.assertEqual(ec, 0)
-            self.assertTrue(out.startswith('foo ') and out.endswith(' bar'))
+            self.assertStartsWith(out, 'foo ')
+            self.assertEndsWith(out, ' bar')
             self.assertEqual(type(out), str)
 
     def test_run_shell_cmd_split_stderr(self):
@@ -872,7 +875,7 @@ class RunTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         self.assertRegex(stdout, '\n'.join(pattern))
 
         update_build_option('trace', False)
@@ -882,7 +885,7 @@ class RunTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         self.assertEqual(stdout, '')
 
         # also test with command that is fed input via stdin
@@ -893,7 +896,7 @@ class RunTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         pattern.insert(3, r"\t\[input: hello\]")
         pattern[-2] = "\tcat"
         self.assertRegex(stdout, '\n'.join(pattern))
@@ -905,7 +908,7 @@ class RunTest(EnhancedTestCase):
             stderr = self.get_stderr()
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         self.assertEqual(stdout, '')
 
         # trace output can be disabled on a per-command basis
@@ -919,7 +922,7 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(out, 'hello\n')
             self.assertEqual(ec, 0)
             self.assertEqual(stdout, '')
-            self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+            self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
 
     def test_run_shell_cmd_trace(self):
         """Test run_shell_cmd function in trace mode, and with tracing disabled."""
@@ -1036,8 +1039,8 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd_qa(cmd, qa)
         self.assertEqual(ec, 0)
-        self.assertTrue(out.startswith("question\nanswer\nfoo "))
-        self.assertTrue(out.endswith('bar'))
+        self.assertStartsWith(out, "question\nanswer\nfoo ")
+        self.assertEndsWith(out, 'bar')
 
         # test handling of output that is not actually a question
         cmd = ';'.join([
@@ -1090,8 +1093,8 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, qa_patterns=qa)
         self.assertEqual(res.exit_code, 0)
-        self.assertTrue(res.output.startswith("question1\nanswer1\nquestion2\nanswer2\nfoo "))
-        self.assertTrue(res.output.endswith('bar'))
+        self.assertStartsWith(res.output, "question1\nanswer1\nquestion2\nanswer2\nfoo ")
+        self.assertEndsWith(res.output, 'bar')
 
         # check type check on qa_patterns
         error_pattern = "qa_patterns passed to run_shell_cmd should be a list of 2-tuples!"
@@ -1304,7 +1307,7 @@ class RunTest(EnhancedTestCase):
             (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
             stdout = self.get_stdout()
             stderr = self.get_stderr()
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         pattern = r"^  >> running interactive command:\n"
         pattern += r"\t\[started at: .*\]\n"
         pattern += r"\t\[working dir: .*\]\n"
@@ -1319,7 +1322,7 @@ class RunTest(EnhancedTestCase):
             stdout = self.get_stdout()
             stderr = self.get_stderr()
         self.assertEqual(stdout, '')
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
 
     def test_run_shell_cmd_qa_trace(self):
         """Test run_shell_cmd with qa_patterns under --trace"""
@@ -1688,7 +1691,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
 
-        self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Deprecated functionality")
         expected = [
             "== (streaming) output for command 'echo hello':",
             "hello",
@@ -1841,8 +1844,8 @@ class RunTest(EnhancedTestCase):
                 ec = proc.poll()
             out, ec = complete_cmd(*cmd_info, simple=False, output=output)
         self.assertEqual(ec, 0)
-        self.assertTrue(out.startswith('start\n'))
-        self.assertTrue(out.endswith('\ndone\n'))
+        self.assertStartsWith(out, 'start\n')
+        self.assertEndsWith(out, '\ndone\n')
 
         # also test use of check_async_cmd on verbose test command
         with self.mocked_stdout_stderr():
@@ -1864,7 +1867,7 @@ class RunTest(EnhancedTestCase):
             res = check_async_cmd(*cmd_info)
         self.assertEqual(res['done'], False)
         self.assertEqual(res['exit_code'], None)
-        self.assertTrue(res['output'].startswith('start\n'))
+        self.assertStartsWith(res['output'], 'start\n')
         self.assertFalse(res['output'].endswith('\ndone\n'))
         # keep checking until command is complete
         with self.mocked_stdout_stderr():
@@ -1873,9 +1876,9 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res['done'], True)
         self.assertEqual(res['exit_code'], 0)
         self.assertEqual(len(res['output']), 435661)
-        self.assertTrue(res['output'].startswith('start\nfoo11\nfoo12\n'))
+        self.assertStartsWith(res['output'], 'start\nfoo11\nfoo12\n')
         self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res['output'])
-        self.assertTrue(res['output'].endswith('\nfoo501000\ndone\n'))
+        self.assertEndsWith(res['output'], '\nfoo501000\ndone\n')
 
     def test_run_shell_cmd_async(self):
         """Test asynchronously running of a shell command via run_shell_cmd """
@@ -1931,9 +1934,9 @@ class RunTest(EnhancedTestCase):
 
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(len(res.output), 435661)
-        self.assertTrue(res.output.startswith('start\nfoo11\nfoo12\n'))
+        self.assertStartsWith(res.output, 'start\nfoo11\nfoo12\n')
         self.assertTrue('\nfoo49999\nfoo491000\nfoo501\n' in res.output)
-        self.assertTrue(res.output.endswith('\nfoo501000\ndone\n'))
+        self.assertEndsWith(res.output, '\nfoo501000\ndone\n')
 
     def test_check_log_for_errors(self):
         """Test for check_log_for_errors"""
@@ -2165,7 +2168,7 @@ class RunTest(EnhancedTestCase):
             "command was hidden: False",
             '',
         ])
-        self.assertTrue(stdout.endswith(expected_end), f"Stdout should end with '{expected_end}': {stdout}")
+        self.assertEndsWith(stdout, expected_end)
 
     def test_run_shell_cmd_delete_cwd(self):
         """
@@ -2221,7 +2224,7 @@ class RunTest(EnhancedTestCase):
 
         expected_warning = f"Changing back to initial working directory: {workdir}\n"
         logtxt = read_file(logfile)
-        self.assertTrue(logtxt.endswith(expected_warning))
+        self.assertEndsWith(logtxt, expected_warning)
 
         # 2. test destruction of CWD which is main working directory passed to run_shell_cmd
         cmd_workdir_rm = (
@@ -2257,8 +2260,8 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd("echo hello")
         self.assertEqual(ec, 0)
-        self.assertTrue(out.startswith("Hi there I am a fake /bin/bash in"))
-        self.assertTrue(out.endswith("\nhello\n"))
+        self.assertStartsWith(out, "Hi there I am a fake /bin/bash in")
+        self.assertEndsWith(out, "\nhello\n")
 
         # picking up on alternate sysroot is enabled by default, but can be disabled via with_sysroot=False
         with self.mocked_stdout_stderr():
