@@ -70,6 +70,7 @@ from easybuild.tools.systemtools import LINUX, get_os_type
 from easybuild.tools.toolchain.options import ToolchainOptions
 from easybuild.tools.toolchain.toolchainvariables import ToolchainVariables
 from easybuild.tools.utilities import nub, unique_ordered_extend, trace_msg
+from typing import Any, Dict
 
 
 _log = fancylogger.getLogger('tools.toolchain', fname=False)
@@ -166,7 +167,7 @@ class Toolchain:
 
     # list of class 'constants' that should be restored for every new instance of this class
     CLASS_CONSTANTS_TO_RESTORE = None
-    CLASS_CONSTANT_COPIES = {}
+    CLASS_CONSTANT_COPIES: Dict[str, Any] = {}
 
     @classmethod
     def _is_toolchain_for(cls, name):
