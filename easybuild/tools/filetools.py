@@ -2866,10 +2866,7 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
                         hidden=True, verbose_dry_run=True)
 
     if res.exit_code not in (0, 1):
-        raise EasyBuildError(
-            "Failed to determine whether Git repository uses Git LFS: %s",
-            res.output,
-        )
+        raise EasyBuildError(f"Failed to determine whether Git repository uses Git LFS: {res.output}")
 
     use_lfs = any(
         not line.lstrip().startswith('#') and 'filter=lfs' in line.split()
