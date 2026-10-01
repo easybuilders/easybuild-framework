@@ -459,7 +459,7 @@ class ToolchainTest(EnhancedTestCase):
         # without a reset, the value is wrong...
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertFalse(tc.get_variable('MPICC') == 'mpicc')
+        self.assertNotEqual(tc.get_variable('MPICC'), 'mpicc')
 
         tc.reset()
         with self.mocked_stdout_stderr():
