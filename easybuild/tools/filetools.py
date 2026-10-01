@@ -2861,23 +2861,9 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     # Git LFS functionality
     git_ref = commit if commit else f"refs/tags/{tag}"
     # Check whether the selected Git tree contains Git LFS attributes.
-    lfs_check_cmd = [
-        git_cmd,
-        'grep',
-        '-I',
-        '-h',
-        'filter=lfs',
-        git_ref,
-        '--',
-        "':(glob)**/.gitattributes'",
-    ]
-    res = run_shell_cmd(
-        ' '.join(lfs_check_cmd),
-        work_dir=repo_dir,
-        fail_on_error=False,
-        hidden=True,
-        verbose_dry_run=True,
-    )
+    lfs_check_cmd = f"{git_cmd} grep -I -h filter=lfs {git_ref} -- ':(glob)**/.gitattributes' "
+    res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
+                        hidden=True, verbose_dry_run=True)
 
     if res.exit_code not in (0, 1):
         raise EasyBuildError(
