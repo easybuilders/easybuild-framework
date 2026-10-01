@@ -2880,10 +2880,6 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     checkout_cmd = [git_cmd, 'checkout', git_ref]
     run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
-    if use_lfs:
-        lfs_pull_cmd = [git_cmd, 'lfs', 'pull']
-        run_shell_cmd(' '.join(lfs_pull_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
-
     if recursive or recurse_submodules:
         submodule_cmd = [git_cmd, 'submodule', 'update', '--init']
         if recursive:
