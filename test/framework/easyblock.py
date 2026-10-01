@@ -203,7 +203,7 @@ class EasyBlockTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             eb.prepare_step(start_dir=False)
             stderr = self.get_stderr()
-        self.assertTrue(stderr.strip().startswith("WARNING: Long $TMPDIR path may cause problems with OpenMPI 2.x"))
+        self.assertStartsWith(stderr.strip(), "WARNING: Long $TMPDIR path may cause problems with OpenMPI 2.x")
 
         # we expect $TMPDIR to be tweaked by the prepare step (OpenMPI 2.x doesn't like long $TMPDIR values)
         tweaked_tmpdir = os.environ.get('TMPDIR')
@@ -448,13 +448,13 @@ class EasyBlockTest(EnhancedTestCase):
         # Now create the directory for site modules
         mkdir(site_modules, parents=True)
         self.modtool.run_module('load', 'mytest')
-        self.assertTrue(os.environ['MODULEPATH'].startswith(site_modules))
+        self.assertStartsWith(os.environ['MODULEPATH'], site_modules)
         self.assertNotIn(user_modules, os.environ['MODULEPATH'])
         self.modtool.run_module('unload', 'mytest')
         # Now create the directory for user modules
         mkdir(user_modules, parents=True)
         self.modtool.run_module('load', 'mytest')
-        self.assertTrue(os.environ['MODULEPATH'].startswith(user_modules + ":" + site_modules))
+        self.assertStartsWith(os.environ['MODULEPATH'], user_modules + ":" + site_modules)
         self.modtool.run_module('unload', 'mytest')
 
     def test_make_module_req(self):
@@ -3070,7 +3070,7 @@ class EasyBlockTest(EnhancedTestCase):
             abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
             self.assertTrue(os.path.samefile(eb.cfg['start_dir'], abs_expected_start_dir))
             self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
-            self.assertTrue(eb.cfg['start_dir'].endswith(abs_expected_start_dir))
+            self.assertEndsWith(eb.cfg['start_dir'], abs_expected_start_dir)
             self.assertFalse(eb.cfg['start_dir'].endswith(os.path.sep))
 
         # default (no start_dir specified): use unpacked dir as start dir
@@ -3540,7 +3540,7 @@ class EasyBlockTest(EnhancedTestCase):
             expected = "Checksums missing for one or more sources/patches in toy-0.0-gompi-2018a-test.eb: "
             expected += "found 1 sources + 1 patches vs 1 checksums"
             self.assertEqual(res[0], expected)
-            self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz:"))
+            self.assertStartsWith(res[1], "Non-SHA256 checksum(s) found for toy-0.0.tar.gz:")
 
         ext_error_tmpl = "Checksums missing for one or more sources/patches of extension %s in "
 
@@ -3808,23 +3808,23 @@ class EasyBlockTest(EnhancedTestCase):
 
         foo = easyblocks['easybuild.easyblocks.foo']
         self.assertEqual(foo['class'], 'EB_foo')
-        self.assertTrue(foo['loc'].endswith('sandbox/easybuild/easyblocks/f/foo.py'))
+        self.assertEndsWith(foo['loc'], 'sandbox/easybuild/easyblocks/f/foo.py')
 
         bar = easyblocks['easybuild.easyblocks.generic.bar']
         self.assertEqual(bar['class'], 'bar')
-        self.assertTrue(bar['loc'].endswith('sandbox/easybuild/easyblocks/generic/bar.py'))
+        self.assertEndsWith(bar['loc'], 'sandbox/easybuild/easyblocks/generic/bar.py')
 
         toy = easyblocks['easybuild.easyblocks.toy']
         self.assertEqual(toy['class'], 'EB_toy')
-        self.assertTrue(toy['loc'].endswith('sandbox/easybuild/easyblocks/t/toy.py'))
+        self.assertEndsWith(toy['loc'], 'sandbox/easybuild/easyblocks/t/toy.py')
 
         gcc = easyblocks['easybuild.easyblocks.gcc']
         self.assertEqual(gcc['class'], 'EB_GCC')
-        self.assertTrue(gcc['loc'].endswith('sandbox/easybuild/easyblocks/g/gcc.py'))
+        self.assertEndsWith(gcc['loc'], 'sandbox/easybuild/easyblocks/g/gcc.py')
 
         hpl = easyblocks['easybuild.easyblocks.hpl']
         self.assertEqual(hpl['class'], 'EB_HPL')
-        self.assertTrue(hpl['loc'].endswith('sandbox/easybuild/easyblocks/h/hpl.py'))
+        self.assertEndsWith(hpl['loc'], 'sandbox/easybuild/easyblocks/h/hpl.py')
 
     def test_arch_specific_sanity_check(self):
         """Tests that the correct version is chosen for this architecture"""
@@ -3871,7 +3871,7 @@ class EasyBlockTest(EnhancedTestCase):
                 stderr, stdout = self.get_stderr(), self.get_stdout()
 
             self.assertFalse(stderr)
-            self.assertTrue(stdout.startswith("Sanity check paths"))
+            self.assertStartsWith(stdout, "Sanity check paths")
 
         # partial sanity_check_paths, only allowed when using enhance_sanity_check
         test_cases = [
