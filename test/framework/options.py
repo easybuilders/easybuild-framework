@@ -37,6 +37,7 @@ import sys
 import tempfile
 import textwrap
 from importlib import reload
+from typing import List, Optional
 from unittest import TextTestRunner
 from urllib.request import URLError
 
@@ -676,7 +677,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_avail_easyconfig_params(self):
         """Test listing available easyconfig parameters."""
 
-        def run_test(custom=None, extra_params=[], fmt=None):
+        def run_test(custom: Optional[str] = None, extra_params: Optional[List[str]] = None,
+                     fmt: Optional[str] = None):
             """Inner function to run actual test in current setting."""
 
             fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -719,7 +721,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
                 ordered_params = ['name', 'toolchain', 'version', 'versionsuffix']
                 params = ordered_params + ['buildopts', 'sources', 'start_dir', 'dependencies', 'group',
-                                           'exts_list', 'moduleclass', 'buildstats'] + extra_params
+                                           'exts_list', 'moduleclass', 'buildstats']
+                if extra_params:
+                    params.extend(extra_params)
 
                 # check a couple of easyconfig parameters
                 param_start = 0
@@ -3182,96 +3186,100 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # define header fields:values that should (not) show up in the logs, either
         # because they are secret or because they are not matched for the url
-        testdohdr = 'HeaderAPPLIED'
-        testdoval = 'SECRETvalue'
-        testdonthdr = 'HeaderIGNORED'
-        testdontval = 'BOGUSvalue'
+        header_field_inc = 'HeaderAPPLIED'
+        header_value_inc = 'SECRETvalue'
+        header_field_excl = 'HeaderIGNORED'
+        header_val_excl = 'BOGUSvalue'
 
         # header fields (or its values) could be files to be read instead of literals
-        testcmdfile = os.path.join(self.test_prefix, 'testhttpheaderscmdline.txt')
-        testincfile = os.path.join(self.test_prefix, 'testhttpheadersvalinc.txt')
-        testexcfile = os.path.join(self.test_prefix, 'testhttpheadersvalexc.txt')
-        testinchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrinc.txt')
-        testexchdrfile = os.path.join(self.test_prefix, 'testhttpheadershdrexc.txt')
-        testurlpatfile = os.path.join(self.test_prefix, 'testhttpheadersurlpat.txt')
+        cmd_file = os.path.join(self.test_prefix, 'test_http_headers_cmdline.txt')
+        inc_file = os.path.join(self.test_prefix, 'test_http_headers_valinc.txt')
+        excl_file = os.path.join(self.test_prefix, 'test_http_headers_valexc.txt')
+        inc_hdr_file = os.path.join(self.test_prefix, 'test_http_headers_hdrinc.txt')
+        excl_hdr_file = os.path.join(self.test_prefix, 'test_http_headers_hdrexc.txt')
+        url_patttern_file = os.path.join(self.test_prefix, 'test_http_headers_urlpat.txt')
 
         # log mention format upon header or file inclusion
-        mentionhdr = 'Custom HTTP header field set: %s'
-        mentionfile = 'File included in parse_http_header_fields_urlpat: %s'
+        hdr_mentioned_format = 'Custom HTTP header field set: %s'
+        file_mentioned_format = 'File included in parse_http_header_fields_urlpat: %s'
 
-        def run_and_assert(args, words_expected=None, words_unexpected=None):
+        def run_and_assert(args: list,
+                           words_expected: Optional[List[str]] = None,
+                           words_unexpected: Optional[List[str]] = None):
             stdout, _stderr = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
-            if words_expected is not None:
-                self.assertMultiRegex(words_expected, stdout)
-            if words_unexpected is not None:
-                self.assertNotMultiRegex(words_unexpected, stdout)
+            for word in words_expected or []:
+                self.assertIn(word, stdout)
+            for word in words_unexpected or []:
+                self.assertNotIn(word, stdout)
 
         # A: simple direct case (all is logged because passed directly via EasyBuild configuration options)
         args = list(common_args)
         args.extend([
-            '--http-header-fields-urlpat=easybuild.io::%s:%s' % (testdohdr, testdoval),
-            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (testdonthdr, testdontval),
+            '--http-header-fields-urlpat=easybuild.io::%s:%s' % (header_field_inc, header_value_inc),
+            '--http-header-fields-urlpat=nomatch.com::%s:%s' % (header_field_excl, header_val_excl),
         ])
         # expect to find everything passed on cmdline
-        expected = [mentionhdr % (testdohdr), testdoval, testdonthdr, testdontval]
+        expected = [hdr_mentioned_format % (header_field_inc), header_value_inc, header_field_excl, header_val_excl]
         run_and_assert(args, expected)
 
         # all subsequent tests share this argument list
         args = common_args
-        args.append('--http-header-fields-urlpat=%s' % (testcmdfile))
+        args.append('--http-header-fields-urlpat=%s' % (cmd_file))
 
         # B: simple file case (secrets in file are not logged)
         txt = '\n'.join([
-            'easybuild.io::%s: %s' % (testdohdr, testdoval),
-            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            'easybuild.io::%s: %s' % (header_field_inc, header_value_inc),
+            'nomatch.com::%s: %s' % (header_field_excl, header_val_excl),
             '',
         ])
-        write_file(testcmdfile, txt)
+        write_file(cmd_file, txt)
         # expect to find only the header key (not its value) and only for the appropriate url
-        expected = [mentionhdr % testdohdr, mentionfile % testcmdfile]
-        not_expected = [testdoval, testdonthdr, testdontval]
+        expected = [hdr_mentioned_format % header_field_inc, file_mentioned_format % cmd_file]
+        not_expected = [header_value_inc, header_field_excl, header_val_excl]
         run_and_assert(args, expected, not_expected)
 
         # C: recursion one: header value is another file
         txt = '\n'.join([
-            'easybuild.io::%s: %s' % (testdohdr, testincfile),
-            'nomatch.com::%s: %s' % (testdonthdr, testexcfile),
+            'easybuild.io::%s: %s' % (header_field_inc, inc_file),
+            'nomatch.com::%s: %s' % (header_field_excl, excl_file),
             '',
         ])
-        write_file(testcmdfile, txt)
-        write_file(testincfile, '%s\n' % (testdoval))
-        write_file(testexcfile, '%s\n' % (testdontval))
+        write_file(cmd_file, txt)
+        write_file(inc_file, '%s\n' % (header_value_inc))
+        write_file(excl_file, '%s\n' % (header_val_excl))
         # expect to find only the header key (not its value and not the filename) and only for the appropriate url
-        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
-                    mentionfile % (testincfile), mentionfile % (testexcfile)]
-        not_expected = [testdoval, testdonthdr, testdontval]
+        expected = [hdr_mentioned_format % (header_field_inc), file_mentioned_format % (cmd_file),
+                    file_mentioned_format % (inc_file), file_mentioned_format % (excl_file)]
+        not_expected = [header_value_inc, header_field_excl, header_val_excl]
         run_and_assert(args, expected, not_expected)
 
         # D: recursion two: header field+value is another file,
-        write_file(testcmdfile, '\n'.join([
-            'easybuild.io::%s' % (testinchdrfile),
-            'nomatch.com::%s' % (testexchdrfile),
+        write_file(cmd_file, '\n'.join([
+            'easybuild.io::%s' % (inc_hdr_file),
+            'nomatch.com::%s' % (excl_hdr_file),
             '',
         ]))
-        write_file(testinchdrfile, '%s: %s\n' % (testdohdr, testdoval))
-        write_file(testexchdrfile, '%s: %s\n' % (testdonthdr, testdontval))
+        write_file(inc_hdr_file, '%s: %s\n' % (header_field_inc, header_value_inc))
+        write_file(excl_hdr_file, '%s: %s\n' % (header_field_excl, header_val_excl))
         # expect to find only the header key (and the literal filename) and only for the appropriate url
-        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile),
-                    mentionfile % (testinchdrfile), mentionfile % (testexchdrfile)]
-        not_expected = [testdoval, testdonthdr, testdontval]
+        expected = [hdr_mentioned_format % (header_field_inc), file_mentioned_format % (cmd_file),
+                    file_mentioned_format % (inc_hdr_file), file_mentioned_format % (excl_hdr_file)]
+        not_expected = [header_value_inc, header_field_excl, header_val_excl]
         run_and_assert(args, expected, not_expected)
 
         # E: recursion three: url pattern + header field + value in another file
-        write_file(testcmdfile, '%s\n' % (testurlpatfile))
+        write_file(cmd_file, '%s\n' % (url_patttern_file))
         txt = '\n'.join([
-            'easybuild.io::%s: %s' % (testdohdr, testdoval),
-            'nomatch.com::%s: %s' % (testdonthdr, testdontval),
+            'easybuild.io::%s: %s' % (header_field_inc, header_value_inc),
+            'nomatch.com::%s: %s' % (header_field_excl, header_val_excl),
             '',
         ])
-        write_file(testurlpatfile, txt)
+        write_file(url_patttern_file, txt)
         # expect to find only the header key (but not the literal filename) and only for the appropriate url
-        expected = [mentionhdr % (testdohdr), mentionfile % (testcmdfile), mentionfile % (testurlpatfile)]
-        not_expected = [testdoval, testdonthdr, testdontval]
+        expected = [hdr_mentioned_format % (header_field_inc),
+                    file_mentioned_format % (cmd_file),
+                    file_mentioned_format % (url_patttern_file)]
+        not_expected = [header_value_inc, header_field_excl, header_val_excl]
         run_and_assert(args, expected, not_expected)
 
         # cleanup downloads
