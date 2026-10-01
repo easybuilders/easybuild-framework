@@ -788,7 +788,7 @@ class ModulesTest(EnhancedTestCase):
             res = modtool.modulefile_path('bzip2/.1.0.6')
             self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'bzip2', '.1.0.6.lua')))
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
-            self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
+            self.assertEndsWith(res, 'test/framework/modules/bzip2/.1.0.6')
 
         reset_module_caches()
 
@@ -1210,11 +1210,11 @@ class ModulesTest(EnhancedTestCase):
 
         self.assertNotIn(test_dir1, os.environ.get('MODULEPATH', ''))
         self.modtool.use(test_dir1)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir1))
+        self.assertStartsWith(os.environ['MODULEPATH'], '%s:' % test_dir1)
         self.modtool.use(test_dir2)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+        self.assertStartsWith(os.environ['MODULEPATH'], '%s:' % test_dir2)
         self.modtool.use(test_dir3)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir3))
+        self.assertStartsWith(os.environ['MODULEPATH'], '%s:' % test_dir3)
 
         # Adding an empty modulepath is not possible
         modulepath = os.environ.get('MODULEPATH', '')
@@ -1245,7 +1245,7 @@ class ModulesTest(EnhancedTestCase):
 
         # also test use with high priority
         self.modtool.use(test_dir2, priority=10000)
-        self.assertTrue(os.environ['MODULEPATH'].startswith('%s:' % test_dir2))
+        self.assertStartsWith(os.environ['MODULEPATH'], '%s:' % test_dir2)
 
         self.modtool.load(['test'])
         self.assertEqual(os.getenv('TEST123'), 'two')
@@ -1256,7 +1256,7 @@ class ModulesTest(EnhancedTestCase):
             # check whether prepend with priority actually works (priority is specific to Lmod)
             self.modtool.use(test_dir1, priority=100)
             self.modtool.use(test_dir3)
-            self.assertTrue(os.environ['MODULEPATH'].startswith('%s:%s:%s:' % (test_dir2, test_dir1, test_dir3)))
+            self.assertStartsWith(os.environ['MODULEPATH'], f'{test_dir2}:{test_dir1}:{test_dir3}:')
             self.modtool.load(['test'])
             self.assertEqual(os.getenv('TEST123'), 'two')
             self.modtool.unload(['test'])
