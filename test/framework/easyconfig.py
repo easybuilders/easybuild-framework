@@ -41,12 +41,11 @@ from collections import OrderedDict
 from unittest import TextTestRunner
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
-from test.framework.github import GITHUB_TEST_ACCOUNT
+from test.framework.github import requires_github_token
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
-import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
@@ -101,9 +100,6 @@ class EasyConfigTest(EnhancedTestCase):
         self.all_stops = [x[0] for x in EasyBlock.get_steps()]
         if os.path.exists(self.eb_file):
             os.remove(self.eb_file)
-
-        github_token = gh.fetch_github_token(GITHUB_TEST_ACCOUNT)
-        self.skip_github_tests = github_token is None and os.getenv('FORCE_EB_GITHUB_TESTS') is None
 
         self.orig_easyconfig_DEPRECATED_EASYCONFIG_PARAMETERS = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_PARAMETERS
         self.orig_easyconfig_DEPRECATED_EASYCONFIG_TEMPLATES = easyconfig.easyconfig.DEPRECATED_EASYCONFIG_TEMPLATES
@@ -4829,10 +4825,11 @@ class EasyConfigTest(EnhancedTestCase):
             self.assertEqual(paths, args[:-1])
             self.assertEqual(target_path, args[-1])
 
-        if self.skip_github_tests:
-            print("Skipping test_det_copy_ec_specs using --from-pr, no GitHub token available?")
-            return
+    @requires_github_token()
+    def test_det_copy_ec_specs_from_pr(self):
+        """Test det_copy_ec_specs function with --from-pr."""
 
+        cwd = os.getcwd()
         # use fixed PR (speeds up the test due to caching in fetch_files_from_pr;
         # see https://github.com/easybuilders/easybuild-easyconfigs/pull/22345
         from_pr = 22345
