@@ -673,7 +673,7 @@ def init_build_options(build_options=None, cmdline_options=None):
                 for opt in options:
                     bo[opt] = []
             else:
-                bo.update({opt: default for opt in options})
+                bo.update(dict.fromkeys(options, default))
     bo.update(active_build_options)
 
     # BuildOptions is a singleton, so any future calls to BuildOptions will yield the same instance
