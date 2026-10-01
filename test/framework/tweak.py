@@ -155,7 +155,7 @@ class TweakTest(EnhancedTestCase):
         # checksums should be reset to empty list, only version should be changed, nothing else
         self.assertEqual(tweaked_toy_ec_parsed['checksums'], [])
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
-        for key in [k for k in toy_ec_parsed.keys() if k not in ['checksums', 'version']]:
+        for key in [k for k in toy_ec_parsed if k not in ['checksums', 'version']]:
             val = toy_ec_parsed[key]
             self.assertIn(key, tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
             tweaked_val = tweaked_toy_ec_parsed.get(key)

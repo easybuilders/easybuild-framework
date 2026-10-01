@@ -1023,7 +1023,7 @@ class GeneralOption:
 
     def _set_default_loglevel(self):
         """Set the default loglevel if no logging options are set"""
-        loglevel_set = sum([getattr(self.options, name, False) for name in self._logopts.keys()])
+        loglevel_set = sum([getattr(self.options, name, False) for name in self._logopts])
         if not loglevel_set and self.DEFAULT_LOGLEVEL is not None:
             setLogLevel(self.DEFAULT_LOGLEVEL)
 

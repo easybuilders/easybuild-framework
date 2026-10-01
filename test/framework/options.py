@@ -70,7 +70,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, clean
 from test.framework.github import ignore_rate_limit_in_pr
 
 try:
-    import pycodestyle  # noqa
+    import pycodestyle  # noqa pylint:disable=unused-import
 except ImportError:
     pass
 
