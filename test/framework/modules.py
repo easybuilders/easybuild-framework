@@ -447,7 +447,7 @@ class ModulesTest(EnhancedTestCase):
         # GCC should be loaded, but should not be listed last (OpenMPI was loaded last)
         loaded_modules = self.modtool.loaded_modules()
         self.assertIn('GCC/6.4.0-2.28', loaded_modules)
-        self.assertFalse(loaded_modules[-1] == 'GCC/6.4.0-2.28')
+        self.assertNotEqual(loaded_modules[-1], 'GCC/6.4.0-2.28')
 
         # if GCC is loaded again, $EBROOTGCC should be set again, and GCC should be listed last
         self.modtool.load(['GCC/6.4.0-2.28'])
@@ -769,7 +769,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(len(modtool.mod_paths), 2)
         self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
         self.assertEqual(modtool.mod_paths[1], str(TEST_MODULES_DIR))
-        self.assertTrue(len(modtool.available()) > 0)
+        self.assertGreater(len(modtool.available()), 0)
 
     def test_modulefile_path(self):
         """Test modulefile_path method"""
@@ -1969,26 +1969,26 @@ class ModulesTest(EnhancedTestCase):
 
         # test removal of envars
         mod_load_env.REMOVABLE_VAR = test_contents
-        self.assertTrue('REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertIn('REMOVABLE_VAR', mod_load_env.vars)
         mod_load_env.remove('REMOVABLE_VAR')
-        self.assertFalse('REMOVABLE_VAR' in mod_load_env.vars)
-        self.assertFalse('NONEXISTENT' in mod_load_env.vars)
+        self.assertNotIn('REMOVABLE_VAR', mod_load_env.vars)
+        self.assertNotIn('NONEXISTENT', mod_load_env.vars)
         mod_load_env.remove('NONEXISTENT')
-        self.assertFalse('NONEXISTENT' in mod_load_env.vars)
+        self.assertNotIn('NONEXISTENT', mod_load_env.vars)
 
         # test removal with delattr
         mod_load_env.REMOVABLE_VAR = test_contents
-        self.assertTrue('REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertIn('REMOVABLE_VAR', mod_load_env.vars)
         delattr(mod_load_env, 'REMOVABLE_VAR')
-        self.assertFalse('REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertNotIn('REMOVABLE_VAR', mod_load_env.vars)
         mod_load_env._REMOVABLE_VAR = test_contents
-        self.assertTrue('_REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertIn('_REMOVABLE_VAR', mod_load_env.vars)
         delattr(mod_load_env, '_REMOVABLE_VAR')
-        self.assertFalse('_REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertNotIn('_REMOVABLE_VAR', mod_load_env.vars)
         mod_load_env.__REMOVABLE_VAR = test_contents
-        self.assertTrue('__REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertIn('__REMOVABLE_VAR', mod_load_env.vars)
         delattr(mod_load_env, '__REMOVABLE_VAR')
-        self.assertFalse('__REMOVABLE_VAR' in mod_load_env.vars)
+        self.assertNotIn('__REMOVABLE_VAR', mod_load_env.vars)
         self.assertRaises(EasyBuildError, delattr, mod_load_env, 'NONEXISTENT')
 
         # test replacing of env vars
@@ -2016,22 +2016,22 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(alias_load_env.alias_vars('ALIAS2'), ['ALIAS_VAR21'])
         # set a known alias
         alias_load_env.set_alias_vars('ALIAS1', 'alias1_path')
-        self.assertTrue('ALIAS_VAR11' in alias_load_env.vars)
+        self.assertIn('ALIAS_VAR11', alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertTrue('ALIAS_VAR12' in alias_load_env.vars)
+        self.assertIn('ALIAS_VAR12', alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR12.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR12.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertFalse('ALIAS_VAR21' in alias_load_env.vars)
+        self.assertNotIn('ALIAS_VAR21', alias_load_env.vars)
         for envar in alias_load_env.alias('ALIAS1'):
             self.assertEqual(envar.contents, ['alias1_path'])
             self.assertEqual(envar.type, mod.ModEnvVarType.PATH_WITH_FILES)
         # set a second known alias
         alias_load_env.set_alias_vars('ALIAS2', 'alias2_path')
-        self.assertTrue('ALIAS_VAR11' in alias_load_env.vars)
+        self.assertIn('ALIAS_VAR11', alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR11.contents, ['alias1_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR11.type, mod.ModEnvVarType.PATH_WITH_FILES)
-        self.assertTrue('ALIAS_VAR21' in alias_load_env.vars)
+        self.assertIn('ALIAS_VAR21', alias_load_env.vars)
         self.assertEqual(alias_load_env.ALIAS_VAR21.contents, ['alias2_path'])
         self.assertEqual(alias_load_env.ALIAS_VAR21.type, mod.ModEnvVarType.PATH_WITH_FILES)
         # add a new alias
