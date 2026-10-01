@@ -892,7 +892,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # footer
             '\n' + sep_line + '$',
         ]
-        self.assertMultiRegex(patterns, stdout)
+        self.assertMultiRegex(patterns, stdout, multi_line=True)
 
     def test_avail_lists(self):
         """Test listing available values of certain types."""
@@ -4545,7 +4545,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== copying files to .*/easybuild-easyblocks\.\.\.",
             r"^== pushing branch '[0-9]{14}_new_pr_toy' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # test framework with tweaked copy of test_module_naming_scheme.py
         test_mns_py = os.path.join(topdir, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
@@ -4572,7 +4572,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"^== copying files to .*/easybuild-framework\.\.\.",
             r"^== pushing branch '[0-9]{14}_new_pr_[A-Za-z]{10}' to remote '.*' \(%s\) \[DRY RUN\]" % remote,
         ]
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
     def test_github_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
@@ -4794,7 +4794,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         regexs[-2] = r"^\s*3 files changed"
         regexs.append(r".*_fix-silly-typo-in-printf-statement.patch\s*\|")
-        self.assertMultiRegex(regexs, txt)
+        self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # modifying an existing easyconfig requires a custom PR title;
         # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
@@ -4940,7 +4940,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"== merging 'develop' branch into PR branch 'develop'\.\.\.",
             r"== pushing branch 'develop' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % github_path,
         ])
-        self.assertRegex(txt, f"^{pattern}$")
+        self.assertRegex(txt, re.compile(f"^{pattern}$", re.M))
 
     def test_github_sync_branch_with_develop(self):
         """Test use of --sync-branch-with-develop (dry run only)."""
@@ -4969,7 +4969,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"== merging 'develop' branch into PR branch '%s'\.\.\." % test_branch,
             r"== pushing branch '%s' to remote '.*' \(git@github\.com:%s\) \[DRY RUN\]" % (test_branch, github_path),
         ])
-        self.assertRegex(stdout, f"^{pattern}$")
+        self.assertRegex(stdout, re.compile(f"^{pattern}$", re.M))
 
     def test_github_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
