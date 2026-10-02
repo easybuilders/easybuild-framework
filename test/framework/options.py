@@ -2042,7 +2042,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 self.assertRegex(outtxt, mod_regex)
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_pr22227')
-            self.assertRegex(outtxt, f"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
+            self.assertRegex(outtxt, rf"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
@@ -2236,7 +2236,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            self.assertRegex(outtxt, f"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
+            self.assertRegex(outtxt, rf"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
             shutil.rmtree(tmpdir)
@@ -2280,7 +2280,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertEqual(sorted(x[1] for x in regex.findall(outtxt)), sorted(x[1] for x in modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
-            self.assertRegex(outtxt, f"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
+            self.assertRegex(outtxt, rf"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_commit" % err)
 
