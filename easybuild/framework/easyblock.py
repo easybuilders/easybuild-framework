@@ -1167,6 +1167,20 @@ class EasyBlock:
         return self.cfg['version']
 
     @property
+    def extension_name(self) -> str:
+        """Determine a valid extension name for this software package.
+
+        Uses `extension_name` from the easyconfig if set falling back to `name`
+        """
+        ext_name = self.cfg['extension_name']
+        return self.name if ext_name is None else ext_name
+
+    @extension_name.setter
+    def extension_name(self, value: str):
+        """Set the extension name."""
+        self.cfg['extension_name'] = value
+
+    @property
     def toolchain(self):
         """
         Toolchain used to build this easyblock
