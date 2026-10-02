@@ -163,7 +163,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def _test_toy_build(self, extra_args=None, ec_file=None, tmpdir=None, verify=True, fails=False, verbose=True,
                         raise_error=False, test_report=None, name='toy', versionsuffix='', testing=True,
-                        raise_systemexit=False, force=True, test_report_regexs=None, debug=True, trace=True):
+                        force=True, test_report_regexs=None, debug=True, trace=True):
         """Perform a toy build."""
         if extra_args is None:
             extra_args = []
@@ -191,7 +191,7 @@ class ToyBuildTest(EnhancedTestCase):
         myerr = None
         try:
             outtxt = self.eb_main(args, logfile=self.dummylogfn, do_build=True, verbose=verbose,
-                                  raise_error=raise_error, testing=testing, raise_systemexit=raise_systemexit)
+                                  raise_error=raise_error, testing=testing)
         except Exception as err:
             myerr = err
             if raise_error:
@@ -589,8 +589,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # test specifying a non-existing group
         allargs = [test_ec] + args + ['--group=thisgroupdoesnotexist']
-        outtxt, _err = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True,
-                                                       return_error=True)
+        outtxt = self.run_eb_main_capture_output(allargs, logfile=self.dummylogfn, do_build=True)
         self.assertRegex(outtxt, "Failed to get group ID .* group does not exist")
 
         # determine current group name (at least we can use that)
@@ -817,7 +816,7 @@ class ToyBuildTest(EnhancedTestCase):
                 write_file(test_ec, TOY_EC_TXT + "\ngroup = %s\n" % str(group))
 
             with self.mocked_stdout():
-                outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True, raise_systemexit=True)
+                outtxt = self.eb_main(args, logfile=dummylogfn, do_build=True, raise_error=True)
 
             if isinstance(group, tuple):
                 group_name = group[0]
@@ -857,8 +856,7 @@ class ToyBuildTest(EnhancedTestCase):
             self.assertRegex(toy_mod_txt, re.compile(pattern, re.M))
 
         write_file(test_ec, TOY_EC_TXT + "\ngroup = ('%s', 'custom message', 'extra item')\n" % group_name)
-        self.assertRaisesRegex(SystemExit, '.*', self.eb_main, args, do_build=True,
-                               raise_error=True, raise_systemexit=True)
+        self.assertRaisesRegex(SystemExit, '.*', self.eb_main, args, do_build=True, raise_error=True)
 
     def test_allow_system_deps(self):
         """Test allow_system_deps easyconfig parameter."""
@@ -4338,8 +4336,8 @@ class ToyBuildTest(EnhancedTestCase):
 
                 with self.mocked_stdout_stderr():
                     self.assertRaisesRegex(exc, '.*', self._test_toy_build, ec_file=test_ec, verify=False,
-                                           extra_args=extra_args, raise_error=True, testing=False,
-                                           raise_systemexit=True)
+                                           extra_args=extra_args, raise_error=True, testing=False)
+
                     stderr = self.get_stderr().strip()
 
                 pattern = r"^WARNING: signal received \(%s\), " % int(signum)
