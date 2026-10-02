@@ -1630,6 +1630,38 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
         eb.fetch_step()
 
+    def test_extension_name(self):
+        """Test that the 'extension_name' option and property work."""
+        eb = EasyBlock(EasyConfig(TOY_EC))
+        self.assertEqual(eb.extension_name, 'toy')
+        eb.cfg['extension_name'] = 'extra'
+        self.assertEqual(eb.extension_name, 'extra')
+        eb.extension_name = 'extra2'
+        self.assertEqual(eb.extension_name, 'extra2')
+        self.assertEqual(eb.cfg['extension_name'], 'extra2')
+        eb.close_log()
+
+        self.contents = TOY_EC_TXT + cleandoc("""
+            easyblock = 'ConfigureMake'
+            name = 'toy'
+            version = '0.0'
+            homepage = 'https://example.com'
+            description = 'test'
+            toolchain = SYSTEM
+            extension_name = 'alias'
+            exts_defaultclass = 'DummyExtension'
+            exts_list = [
+                ('bar', '0.0', {'extension_name': 'bar-alias'}),
+                ('barbar', '1.2'),
+            ]
+        """)
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertEqual(eb.extension_name, 'alias')
+        eb.init_ext_instances()
+        self.assertEqual(eb.ext_instances[0].extension_name, 'bar-alias')
+        self.assertEqual(eb.ext_instances[1].extension_name, 'barbar')
+
     def test_make_extension_list(self):
         """Test make_extension_list method, incl. 'extension_name' easyconfig parameter & option."""
         self.contents = '\n'.join([
