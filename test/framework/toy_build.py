@@ -146,14 +146,12 @@ class ToyBuildTest(EnhancedTestCase):
         # make sure installation log file and easyconfig file are copied to install dir
         software_path = os.path.join(installpath, 'software', name, full_version)
         install_log_path_pattern = os.path.join(software_path, 'easybuild', 'easybuild-%s-%s*.log' % (name, version))
-        self.assertTrue(len(glob.glob(install_log_path_pattern)) >= 1,
-                        "Found  at least 1 file at %s" % install_log_path_pattern)
+        self.assertGreaterEqual(len(glob.glob(install_log_path_pattern)), 1, "At least 1 logfile should be found")
 
         # make sure test report is available
         report_name = 'easybuild-%s-%s*test_report.md' % (name, version)
         test_report_path_pattern = os.path.join(software_path, 'easybuild', report_name)
-        self.assertTrue(len(glob.glob(test_report_path_pattern)) >= 1,
-                        "Found  at least 1 file at %s" % test_report_path_pattern)
+        self.assertGreaterEqual(len(glob.glob(test_report_path_pattern)), 1, "At least 1 test report should be found")
 
         ec_file_path = os.path.join(software_path, 'easybuild', '%s-%s.eb' % (name, full_version))
         self.assertExists(ec_file_path)
@@ -266,11 +264,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         # make sure log file is retained, also for failed build
         log_path_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*.log')
-        self.assertTrue(len(glob.glob(log_path_pattern)) == 1, "Log file found at %s" % log_path_pattern)
+        self.assertEqual(len(glob.glob(log_path_pattern)), 1, f"Log file should be found at {log_path_pattern}")
 
         # make sure individual test report is retained, also for failed build
         test_report_fp_pattern = os.path.join(tmpdir, 'eb-*', 'easybuild-toy-0.0*test_report.md')
-        self.assertTrue(len(glob.glob(test_report_fp_pattern)) == 1, "Test report %s found" % test_report_fp_pattern)
+        self.assertEqual(len(glob.glob(test_report_fp_pattern)), 1,
+                         f"Test report {test_report_fp_pattern} should be found")
 
         # test dumping full test report (doesn't raise an exception)
         test_report_fp = os.path.join(self.test_buildpath, 'full_test_report.md')
@@ -310,15 +309,15 @@ class ToyBuildTest(EnhancedTestCase):
 
         # find path to temporary log file
         log_files = glob.glob(os.path.join(tmp_log_dir, '*.log'))
-        self.assertTrue(len(log_files) == 1, f"Expected exactly one log file, found {len(log_files)}: {log_files}")
+        self.assertEqual(len(log_files), 1, f"Expected exactly one log file, found: {log_files}")
         log_file = log_files[0]
 
         # check that log files were copied
         saved_log_files = glob.glob(os.path.join(failed_install_logs_path, log_file))
-        self.assertTrue(len(saved_log_files) == 1, f"Unique copy of log file '{log_file}' made")
+        self.assertEqual(len(saved_log_files), 1, f"Unique copy of log file '{log_file}' made")
         saved_log_file = saved_log_files[0]
         self.assertTrue(filecmp.cmp(log_file, saved_log_file, shallow=False),
-                        f"Log file '{log_file}' copied successfully")
+                        f"Log file '{log_file}' should be copied successfully")
 
         # check that build directories were copied
         build_dir = self.test_buildpath
@@ -330,12 +329,12 @@ class ToyBuildTest(EnhancedTestCase):
 
         # find path to toy.c
         toy_c_files = glob.glob(os.path.join(app_build_dir, '**', 'toy.c'))
-        self.assertTrue(len(toy_c_files) == 1, f"Exactly one toy.c file found: {toy_c_files}")
+        self.assertEqual(len(toy_c_files), 1, f"Should find exactly 1 toy.c file, found: {toy_c_files}")
         toy_c_file = toy_c_files[0]
 
         path = os.path.join(topdir, 'toy-0.0', subdir_pattern, 'toy-0.0', os.path.basename(toy_c_file))
         res = glob.glob(path)
-        self.assertTrue(len(res) == 1, f"Exactly one hit found for {path}: {res}")
+        self.assertEqual(len(res), 1, f"Exactly one hit should be found for {path}: {res}")
         copied_toy_c_file = res[0]
         self.assertTrue(filecmp.cmp(toy_c_file, copied_toy_c_file, shallow=False),
                         f"Copy of {toy_c_file} should be found under {topdir}")
@@ -2975,8 +2974,8 @@ class ToyBuildTest(EnhancedTestCase):
             # Get the filter and include arguments
             rpath_args_regex = re.compile(r"""^readarray -d '' -t CMD_ARGS .*"\$RPATH_ARGS_PY" "\$CMD" """
                                           r"'(?P<filter_paths>[^ ]*)' '(?P<include_paths>[^ ]*)'.*", re.M)
+            self.assertRegex(gcc_rpath_wrapper_txt, rpath_args_regex)
             res = rpath_args_regex.search(gcc_rpath_wrapper_txt)
-            self.assertTrue(res, "Pattern '%s' found in: %s" % (rpath_args_regex.pattern, gcc_rpath_wrapper_txt))
 
             shutil.rmtree(rpath_wrappers_dir)
 

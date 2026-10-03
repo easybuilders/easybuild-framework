@@ -117,7 +117,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test search_toolchain function for not available toolchains."""
         tc, all_tcs = search_toolchain("NOSUCHTOOLKIT")
         self.assertEqual(tc, None)
-        self.assertTrue(len(all_tcs) > 0)  # list of available toolchains
+        self.assertGreater(len(all_tcs), 0)  # list of available toolchains
 
     def test_system_toolchain(self):
         """Test for system toolchain."""
@@ -3061,7 +3061,7 @@ class ToolchainTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             tc.prepare()
         res = which('g++', retain_all=True)
-        self.assertTrue(len(res) >= 1)
+        self.assertGreaterEqual(len(res), 1)
         self.assertFalse(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[0], fake_gxx))
@@ -3074,7 +3074,7 @@ class ToolchainTest(EnhancedTestCase):
         # check that wrapper is indeed in place
         res = which('g++', retain_all=True)
         # there should be at least 2 hits: the RPATH wrapper, and our fake 'g++' command (there may be real ones too)
-        self.assertTrue(len(res) >= 2)
+        self.assertGreaterEqual(len(res), 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
         self.assertEqual(os.path.basename(res[0]), 'g++')
         self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'gxx_wrapper')
@@ -3092,7 +3092,7 @@ class ToolchainTest(EnhancedTestCase):
         # Check that the clang wrapper is indeed in place
         res = which('clang', retain_all=True)
         # there should be at least 2 hits: the RPATH wrapper, and our fake 'clang' command (there may be real ones too)
-        self.assertTrue(len(res) >= 2)
+        self.assertGreaterEqual(len(res), 2)
         self.assertTrue(tc_clang.is_rpath_wrapper(res[0]))
         self.assertEqual(os.path.basename(res[0]), 'clang')
         self.assertEqual(os.path.basename(os.path.dirname(res[0])), 'clang_wrapper')
@@ -3230,7 +3230,7 @@ class ToolchainTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             tc.prepare()
         res = which('g++', retain_all=True)
-        self.assertTrue(len(res) >= 2)
+        self.assertGreaterEqual(len(res), 2)
         self.assertTrue(tc.is_rpath_wrapper(res[0]))
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
