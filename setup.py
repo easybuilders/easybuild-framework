@@ -31,19 +31,23 @@ This script can be used to install easybuild-framework, e.g. using:
 import glob
 import os
 import logging
-try:
-    from distutils.core import setup
-except ImportError:
-    from setuptools import setup
+import sys
 
-from easybuild.tools.version import VERSION
+from setuptools import find_packages, setup
+
+# make sure easybuild.tools.version can be imported from the source tree,
+# since the setuptools.build_meta build backend does not add it to the Python search path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from easybuild.tools.version import VERSION  # noqa: E402
 
 API_VERSION = str(VERSION).split('.')[0]
 
 
 # Utility function to read README file
 def read(fname):
-    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+    with open(os.path.join(os.path.dirname(__file__), fname)) as fh:
+        return fh.read()
 
 
 log = logging.getLogger("EasyBuild")
@@ -68,33 +72,18 @@ def find_rel_test():
     return res
 
 
-easybuild_packages = [
-    "easybuild", "easybuild.base",
-    "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
-    "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
-    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
-    "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
-    "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.py2vs3", "easybuild.tools.repository",
-    "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli", "easybuild.tools._toml_writer",
-    "test.framework", "test",
-]
+# only include the 'test' and 'test.framework' test packages,
+# not the easyblocks/toolchains in test/framework/sandbox (which are test data, see find_rel_test)
+easybuild_packages = find_packages(include=['easybuild', 'easybuild.*', 'test', 'test.framework'])
 
-# Verify the above list is complete, if setuptools is installed
-try:
-    import setuptools
-except ImportError:
-    pass
-else:
-    packages = set(setuptools.find_packages())
-    easybuild_packages_set = set(easybuild_packages)
-    if easybuild_packages_set != packages:
-        # Warning only
-        print("="*80 + "\n"
-              "=== WARNING: Wrong list of easybuild_packages.\n"
-              f"Missing: {packages - easybuild_packages_set}\n"
-              f"Unneccessary: {easybuild_packages_set - packages}"
-              "\n" + "="*80 + "\n")
+# optional dependencies, see also EASYBUILD_OPTIONAL_DEPENDENCIES in easybuild/tools/systemtools.py
+extras_require = {
+    'archspec': ['archspec'],
+    'github': ['GitPython', 'keyring', 'keyrings.alt'],
+    'rich': ["rich<13; python_version < '3.7'", "rich; python_version >= '3.7'"],
+    'style': ['autopep8', 'pycodestyle'],
+    'yaml': ['PyYAML'],
+}
 
 setup(
     name="easybuild-framework",
@@ -104,6 +93,7 @@ setup(
     description="""The EasyBuild framework supports the creation of custom easyblocks that \
 implement support for installing particular (groups of) software packages.""",
     license="GPLv2",
+    python_requires='>=3.6',
     keywords="software build building installation installing compilation HPC scientific",
     url="https://easybuild.io",
     packages=easybuild_packages,
@@ -125,6 +115,7 @@ implement support for installing particular (groups of) software packages.""",
         ('contrib/hooks', glob.glob('contrib/hooks/*')),
     ],
     long_description=read('README.rst'),
+    extras_require=extras_require,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
