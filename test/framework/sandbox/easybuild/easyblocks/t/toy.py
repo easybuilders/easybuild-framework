@@ -89,9 +89,10 @@ class EB_toy(ExtensionEasyBlock):
         """
         Tweak iterative easyconfig parameters.
         """
-        if isinstance(self.cfg['buildopts'], list):
-            # inject list of values for prebuildopts, same length as buildopts
-            self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
+        with self.cfg.disable_templating():
+            if isinstance(self.cfg['buildopts'], list):
+                # inject list of values for prebuildopts, same length as buildopts
+                self.cfg['prebuildopts'] = ["echo hello && "] * len(self.cfg['buildopts'])
 
         return super().run_all_steps(*args, **kwargs)
 
@@ -130,7 +131,7 @@ class EB_toy(ExtensionEasyBlock):
         # we rely on this in test_toy_build_hooks
         res = run_shell_cmd(cmd, fail_on_error=False)
         if res.exit_code:
-            print_warning("Command '%s' failed, but we'll ignore it..." % cmd)
+            print_warning("Command '%s' failed, but we'll ignore it..." % cmd, log=self.log)
 
     def test_step(self, *args, **kwargs):
         """Test toy."""
