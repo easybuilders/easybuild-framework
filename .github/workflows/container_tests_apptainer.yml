@@ -49,7 +49,9 @@ jobs:
           # avoid downloading modules tool sources into easybuild-framework dir
           cd $HOME
           export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
-          # install Lmod
+          # install Lmod;
+          # not aligned (yet) with Lmod 8.x version used in other workflows (see unit_tests.yml),
+          # only bump after verifying that building the CentOS 7 container image still works
           source $INSTALL_DEP Lmod-8.4.27 $HOME
           # changes in environment are not passed to other steps, so need to create files...
           echo $MOD_INIT > mod_init
