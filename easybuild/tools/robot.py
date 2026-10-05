@@ -287,6 +287,10 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
         if return_install_subdirs:
             # use install subdir rather than module name, since they differ for some module naming schemes (e.g. HMNS)
             if ans != 'x' and spec['ec'] is not None:
+                # data is installed in a separate install path (or a custom one with Dataset's 'data_install_path')
+                if spec['ec']['data_sources']:
+                    raise EasyBuildError("Installing easyconfigs with 'data_sources' is not supported (yet) "
+                                         "with --bwrap: %s", spec['spec'])
                 install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
             continue
 
