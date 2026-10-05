@@ -272,8 +272,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)
         self.assertEqual(res.exit_code, 0)
-        regex = re.compile("pwd: .*\nbash_env: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, "pwd: .*\nbash_env: .*\nfoobar\n.*/echo-.*/out.txt\nhello$")
 
         # check whether working directory is what's expected
         matches = re.findall('^pwd: (.*)', res.output, re.M)
@@ -295,7 +294,7 @@ class RunTest(EnhancedTestCase):
         else:
             self.fail("Unknown modules tool used!")
 
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, regex)
 
         # test running command that emits non-UTF-8 characters
         # this is constructed to reproduce errors like:
@@ -370,8 +369,8 @@ class RunTest(EnhancedTestCase):
             self.assertEqual(res.output, 'foo:\nstdin: bar\n\n')
 
             error_pattern = "No matching questions found for current command output"
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, perl_script,
-                                  hidden=True, qa_patterns=[('bleh', 'blah')], qa_timeout=1)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, perl_script,
+                                   hidden=True, qa_patterns=[('bleh', 'blah')], qa_timeout=1)
         finally:
             # cleanup: disable the alarm + reset signal handler for SIGALRM
             signal.signal(signal.SIGALRM, orig_sigalrm_handler)
@@ -389,9 +388,9 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.cmd, cmd)
         self.assertEqual(res.exit_code, 0)
         self.assertIn("FOOBAR=foobar\n", res.output)
-        self.assertTrue(re.search("^_=.*/env$", res.output, re.M))
+        self.assertRegex(res.output, re.compile("^_=.*/env$", re.M))
         for var in ('HOME', 'USER'):
-            self.assertFalse(re.search('^' + var + '=.*', res.output, re.M))
+            self.assertNotRegex(res.output, re.compile('^' + var + '=.*', re.M))
 
         # check on helper scripts that were generated for this command
         paths = glob.glob(os.path.join(self.test_prefix, 'eb-*', 'run-shell-cmd-output', 'env-*'))
@@ -496,9 +495,9 @@ class RunTest(EnhancedTestCase):
         fd, logfile = tempfile.mkstemp(suffix='.log', prefix='eb-test-')
         os.close(fd)
 
-        regex_start_cmd = re.compile(r"Running shell command in .*:\n\techo hello", re.M)
+        regex_start_cmd = re.compile(r"Running shell command in .*:\n\techo hello")
         regex_cmd_exit = re.compile(r"Shell command completed successfully")
-        regex_cmd_output = re.compile(r"Output \(stdout \+ stderr\):\nhello", re.M)
+        regex_cmd_output = re.compile(r"Output \(stdout \+ stderr\):\nhello")
 
         # command output is logged
         init_logging(logfile, silent=True)
@@ -605,7 +604,7 @@ class RunTest(EnhancedTestCase):
 
             try:
                 run_shell_cmd(cmd)
-                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+                self.fail("This should never be reached, RunShellCmdError should occur!")
             except RunShellCmdError as err:
                 self.assertEqual(str(err), "Shell command 'kill' failed!")
                 self.assertEqual(err.cmd, "kill -9 $$")
@@ -635,14 +634,12 @@ class RunTest(EnhancedTestCase):
                     r"\s+output \(stdout \+ stderr\)\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/out.txt",
                     r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
-                for pattern in patterns:
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+                self.assertMultiRegex(patterns, stderr)
 
             # check error reporting output when stdout/stderr are collected separately
             try:
                 run_shell_cmd(cmd, split_stderr=True)
-                self.assertFalse("This should never be reached, RunShellCmdError should occur!")
+                self.fail("This should never be reached, RunShellCmdError should occur!")
             except RunShellCmdError as err:
                 self.assertEqual(str(err), "Shell command 'kill' failed!")
                 self.assertEqual(err.cmd, "kill -9 $$")
@@ -673,9 +670,7 @@ class RunTest(EnhancedTestCase):
                     r"\s+error/warnings \(stderr\)\s+ -> (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/err.txt",
                     r"\s+interactive shell script\s* ->  (.|\n)*/run-shell-cmd-output/kill-(.|\n)*/cmd.sh",
                 ]
-                for pattern in patterns:
-                    regex = re.compile(pattern, re.M)
-                    self.assertTrue(regex.search(stderr), "Pattern '%s' should be found in: %s" % (pattern, stderr))
+                self.assertMultiRegex(patterns, stderr)
 
             # no error reporting when fail_on_error is disabled
             with self.mocked_stdout_stderr() as (_, stderr):
@@ -851,8 +846,7 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             res = run_shell_cmd(cmd, fail_on_error=False)
 
-        regex = re.compile(".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' should be found in {res.output}")
+        self.assertRegex(res.output, ".*/echo-.*/out.txt\nok\n.*/echo-.*/err.txt\nwarning$")
 
     def test_run_cmd_trace(self):
         """Test run_cmd in trace mode, and with tracing disabled."""
@@ -872,27 +866,20 @@ class RunTest(EnhancedTestCase):
         ]
 
         # trace output is enabled by default (since EasyBuild v5.0)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello")
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         update_build_option('trace', False)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello")
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello")
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(out, 'hello\n')
         self.assertEqual(ec, 0)
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
@@ -900,29 +887,22 @@ class RunTest(EnhancedTestCase):
 
         # also test with command that is fed input via stdin
         update_build_option('trace', True)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd('cat', inp='hello')
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd('cat', inp='hello')
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         pattern.insert(3, r"\t\[input: hello\]")
         pattern[-2] = "\tcat"
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         update_build_option('trace', False)
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd('cat', inp='hello')
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd('cat', inp='hello')
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(out, 'hello')
         self.assertEqual(ec, 0)
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
@@ -932,13 +912,10 @@ class RunTest(EnhancedTestCase):
         for trace in (True, False):
             init_config(build_options={'trace': trace})
 
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            (out, ec) = run_cmd("echo hello", trace=False)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                (out, ec) = run_cmd("echo hello", trace=False)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(out, 'hello\n')
             self.assertEqual(ec, 0)
             self.assertEqual(stdout, '')
@@ -958,27 +935,20 @@ class RunTest(EnhancedTestCase):
             r"  >> command completed: exit 0, ran in .*",
         ]
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = run_shell_cmd("echo hello")
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello")
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         init_config(build_options={'trace': False})
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = run_shell_cmd("echo hello")
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello")
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
@@ -988,13 +958,10 @@ class RunTest(EnhancedTestCase):
         for trace in (True, False):
             init_config(build_options={'trace': trace})
 
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            res = run_shell_cmd("echo hello", hidden=True)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                res = run_shell_cmd("echo hello", hidden=True)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
             self.assertEqual(res.output, 'hello\n')
             self.assertEqual(res.exit_code, 0)
             self.assertEqual(stdout, '')
@@ -1014,43 +981,32 @@ class RunTest(EnhancedTestCase):
             r"  >> command completed: exit 0, ran in .*",
         ]
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = run_shell_cmd("echo hello")
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello")
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         # also test with command that is fed input via stdin
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = run_shell_cmd('cat', stdin='hello')
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd('cat', stdin='hello')
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(res.output, 'hello')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stderr, '')
         pattern.insert(4, r"\t\[input: hello\]")
         pattern[1] = "\tcat"
-        regex = re.compile('\n'.join(pattern))
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, '\n'.join(pattern))
 
         # trace output can be disabled on a per-command basis by enabling 'hidden'
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        res = run_shell_cmd("echo hello", hidden=True)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            res = run_shell_cmd("echo hello", hidden=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(res.output, 'hello\n')
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(stdout, '')
@@ -1096,7 +1052,7 @@ class RunTest(EnhancedTestCase):
         # fails because non-question is encountered
         error_pattern = "Max nohits 1 reached: end of output not-a-question-but-a-statement"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_cmd_qa, cmd, qa, maxhits=1, trace=False)
 
         with self.mocked_stdout_stderr():
             (out, ec) = run_cmd_qa(cmd, qa, no_qa=["not-a-question-but-a-statement"], maxhits=1, trace=False)
@@ -1140,17 +1096,17 @@ class RunTest(EnhancedTestCase):
         # check type check on qa_patterns
         error_pattern = "qa_patterns passed to run_shell_cmd should be a list of 2-tuples!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns={'foo': 'bar'})
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=('foo', 'bar'))
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=(('foo', 'bar'),))
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns='foo:bar')
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=['foo:bar'])
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns={'foo': 'bar'})
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=('foo', 'bar'))
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=(('foo', 'bar'),))
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns='foo:bar')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=['foo:bar'])
 
         # validate use of qa_timeout to give up if there's no matching question for too long
         cmd = "sleep 3; echo 'question'; read a; echo $a"
         error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
 
         # check using answer that is completed via pattern extracted from question
         cmd = ';'.join([
@@ -1176,8 +1132,8 @@ class RunTest(EnhancedTestCase):
 
         # fails because non-question is encountered
         error_pattern = "No matching questions found for current command output, giving up after 1 seconds!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1,
-                              hidden=True)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1,
+                               hidden=True)
 
         qa_wait_patterns = ["not-a-question-but-a-statement"]
         with self.mocked_stdout_stderr():
@@ -1256,8 +1212,7 @@ class RunTest(EnhancedTestCase):
             (out, ec) = run_cmd_qa(cmd, {'Pick a number: ': '42'}, log_all=True, maxhits=5)
 
         self.assertEqual(ec, 0)
-        regex = re.compile("Picked number: 42$")
-        self.assertTrue(regex.search(out), "Pattern '%s' found in: %s" % (regex.pattern, out))
+        self.assertRegex(out, "Picked number: 42$")
 
         # also test with script run as interactive command that quickly exits with non-zero exit code;
         # see https://github.com/easybuilders/easybuild-framework/issues/3593
@@ -1288,8 +1243,7 @@ class RunTest(EnhancedTestCase):
             res = run_shell_cmd(cmd, qa_patterns=[('Pick a number: ', '42')], qa_timeout=10)
 
         self.assertEqual(res.exit_code, 0)
-        regex = re.compile("Picked number: 42$")
-        self.assertTrue(regex.search(res.output), f"Pattern '{regex.pattern}' found in: {res.output}")
+        self.assertRegex(res.output, "Picked number: 42$")
 
         # also test with script run as interactive command that quickly exits with non-zero exit code;
         # see https://github.com/easybuilders/easybuild-framework/issues/3593
@@ -1346,13 +1300,10 @@ class RunTest(EnhancedTestCase):
         self.allow_deprecated_behaviour()
 
         # --trace is enabled by default
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd_qa("echo 'n: '; read n; seq 1 $n", {'n: ': '5'})
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
         pattern = r"^  >> running interactive command:\n"
         pattern += r"\t\[started at: .*\]\n"
@@ -1360,16 +1311,13 @@ class RunTest(EnhancedTestCase):
         pattern += r"\t\[output logged in .*\]\n"
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
         pattern += r'  >> interactive command completed: exit 0, ran in .*'
-        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+        self.assertRegex(stdout, pattern)
 
         # trace output can be disabled on a per-command basis
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello", trace=False)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello", trace=False)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(stdout, '')
         self.assertTrue(stderr.strip().startswith("WARNING: Deprecated functionality"))
 
@@ -1377,13 +1325,10 @@ class RunTest(EnhancedTestCase):
         """Test run_shell_cmd with qa_patterns under --trace"""
         update_build_option('trace', True)
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')])
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')])
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(stderr, '')
         pattern = r"^  >> running interactive shell command:\n"
         pattern += r"\techo \'n: \'; read n; seq 1 \$n\n"
@@ -1391,16 +1336,13 @@ class RunTest(EnhancedTestCase):
         pattern += r"\t\[working dir: .*\]\n"
         pattern += r"\t\[output and state saved to .*\]\n"
         pattern += r'  >> command completed: exit 0, ran in .*'
-        self.assertTrue(re.search(pattern, stdout), "Pattern '%s' found in: %s" % (pattern, stdout))
+        self.assertRegex(stdout, pattern)
 
         # trace output can be disabled on a per-command basis
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')], hidden=True)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            run_shell_cmd("echo 'n: '; read n; seq 1 $n", qa_patterns=[('n: ', '5')], hidden=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
         self.assertEqual(stdout, '')
         self.assertEqual(stderr, '')
 
@@ -1424,7 +1366,7 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(ec, 0)
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Invalid type for answer", run_cmd_qa, cmd, {'q': 1})
+            self.assertRaisesRegex(EasyBuildError, "Invalid type for answer", run_cmd_qa, cmd, {'q': 1})
 
         # test cycling of answers
         cmd = cmd * 2
@@ -1445,8 +1387,8 @@ class RunTest(EnhancedTestCase):
         self.assertEqual(res.exit_code, 0)
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd,
-                                  qa_patterns=[('question', 1)])
+            self.assertRaisesRegex(EasyBuildError, "Unknown type of answers encountered", run_shell_cmd, cmd,
+                                   qa_patterns=[('question', 1)])
 
         # test cycling of answers
         cmd = cmd * 2
@@ -1622,10 +1564,9 @@ class RunTest(EnhancedTestCase):
 
         cmd = "somecommand foo 123 bar"
 
-        self.mock_stdout(True)
-        res = run_shell_cmd(cmd)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = run_shell_cmd(cmd)
+            stdout = self.get_stdout()
         # fake output/exit code is returned for commands not actually run in dry run mode
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, '')
@@ -1635,10 +1576,9 @@ class RunTest(EnhancedTestCase):
         self.assertIn(expected, stdout)
 
         # check enabling 'hidden'
-        self.mock_stdout(True)
-        res = run_shell_cmd(cmd, hidden=True)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = run_shell_cmd(cmd, hidden=True)
+            stdout = self.get_stdout()
         # fake output/exit code is returned for commands not actually run in dry run mode
         self.assertEqual(res.exit_code, 0)
         self.assertEqual(res.output, '')
@@ -1649,11 +1589,10 @@ class RunTest(EnhancedTestCase):
         # check forced run_cmd
         outfile = os.path.join(self.test_prefix, 'cmd.out')
         self.assertNotExists(outfile)
-        self.mock_stdout(True)
-        res = run_shell_cmd("echo 'This is always echoed' > %s; echo done; false" % outfile,
-                            fail_on_error=False, in_dry_run=True)
-        stdout = self.get_stdout()
-        self.mock_stdout(False)
+        with self.mocked_stdout():
+            res = run_shell_cmd("echo 'This is always echoed' > %s; echo done; false" % outfile,
+                                fail_on_error=False, in_dry_run=True)
+            stdout = self.get_stdout()
         self.assertNotIn('running shell command "', stdout)
         self.assertNotEqual(res.exit_code, 0)
         self.assertEqual(res.output, 'done\n')
@@ -1669,8 +1608,8 @@ class RunTest(EnhancedTestCase):
 
         cmd = ['/bin/sh', '-c', "echo hello"]
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
-                                  run_cmd, cmd)
+            self.assertRaisesRegex(EasyBuildError, "When passing cmd as a list then `shell` must be set explictely!",
+                                   run_cmd, cmd)
             (out, ec) = run_cmd(cmd, shell=False)
         self.assertEqual(out, "hello\n")
         # no reason echo hello could fail
@@ -1741,13 +1680,10 @@ class RunTest(EnhancedTestCase):
         # use of run_cmd is deprecated, so we need to allow it here
         self.allow_deprecated_behaviour()
 
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        (out, ec) = run_cmd("echo hello", stream_output=True)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            (out, ec) = run_cmd("echo hello", stream_output=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
 
         self.assertEqual(ec, 0)
         self.assertEqual(out, "hello\n")
@@ -1764,22 +1700,19 @@ class RunTest(EnhancedTestCase):
     def test_run_shell_cmd_stream(self):
         """Test use of run_shell_cmd with streaming output."""
         init_config(build_options={'trace': True})
-        self.mock_stdout(True)
-        self.mock_stderr(True)
-        cmd = '; '.join([
-            "echo hello there",
-            "sleep 1",
-            "echo testing command that produces a fair amount of output",
-            "sleep 1",
-            "echo more than 128 bytes which means a whole bunch of characters...",
-            "sleep 1",
-            "echo more than 128 characters in fact, which is quite a bit when you think of it",
-        ])
-        res = run_shell_cmd(cmd, stream_output=True)
-        stdout = self.get_stdout()
-        stderr = self.get_stderr()
-        self.mock_stdout(False)
-        self.mock_stderr(False)
+        with self.mocked_stdout_stderr():
+            cmd = '; '.join([
+                "echo hello there",
+                "sleep 1",
+                "echo testing command that produces a fair amount of output",
+                "sleep 1",
+                "echo more than 128 bytes which means a whole bunch of characters...",
+                "sleep 1",
+                "echo more than 128 characters in fact, which is quite a bit when you think of it",
+            ])
+            res = run_shell_cmd(cmd, stream_output=True)
+            stdout = self.get_stdout()
+            stderr = self.get_stderr()
 
         expected_output = '\n'.join([
             "hello there",
@@ -1870,7 +1803,7 @@ class RunTest(EnhancedTestCase):
         time.sleep(1)
         error_pattern = 'cmd ".*" exited with exit code 123'
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info)
 
         with self.mocked_stdout_stderr():
             cmd_info = run_cmd(error_test_cmd, asynchronous=True)
@@ -1906,8 +1839,6 @@ class RunTest(EnhancedTestCase):
                 time.sleep(1)
                 output += get_output_from_process(proc)
                 ec = proc.poll()
-
-        with self.mocked_stdout_stderr():
             out, ec = complete_cmd(*cmd_info, simple=False, output=output)
         self.assertEqual(ec, 0)
         self.assertTrue(out.startswith('start\n'))
@@ -1919,8 +1850,8 @@ class RunTest(EnhancedTestCase):
 
         error_pattern = r"Number of output bytes to read should be a positive integer value \(or zero\)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
-            self.assertErrorRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size=-1)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, check_async_cmd, *cmd_info, output_read_size='foo')
 
         # with output_read_size set to 0, no output is read yet, only status of command is checked
         with self.mocked_stdout_stderr():
@@ -2014,10 +1945,10 @@ class RunTest(EnhancedTestCase):
         os.close(fd)
 
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [42])
-            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [(42, IGNORE)])
-            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", "invalid-mode")])
-            self.assertErrorRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", IGNORE, "")])
+            self.assertRaisesRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [42])
+            self.assertRaisesRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [(42, IGNORE)])
+            self.assertRaisesRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", "invalid-mode")])
+            self.assertRaisesRegex(EasyBuildError, "Invalid input:", check_log_for_errors, "", [("42", IGNORE, "")])
 
         input_text = "\n".join([
             "OK",
@@ -2033,16 +1964,16 @@ class RunTest(EnhancedTestCase):
 
         # String promoted to list
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                                  r"\b(error|crashed)\b")
+            self.assertRaisesRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                   r"\b(error|crashed)\b")
         # List of string(s)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                                  [r"\b(error|crashed)\b"])
+            self.assertRaisesRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                   [r"\b(error|crashed)\b"])
         # List of tuple(s)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
-                                  [(r"\b(error|crashed)\b", ERROR)])
+            self.assertRaisesRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text,
+                                   [(r"\b(error|crashed)\b", ERROR)])
 
         expected_msg = "Found 2 potential error(s) in command output:\n"\
                        "\terror found\n"\
@@ -2059,7 +1990,7 @@ class RunTest(EnhancedTestCase):
         write_file(logfile, '')
         init_logging(logfile, silent=True)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
+            self.assertRaisesRegex(EasyBuildError, expected_msg, check_log_for_errors, input_text, [
                 r"\berror\b",
                 (r"\ballowed-test failed\b", IGNORE),
                 (r"(?i)\bCRASHED\b", WARN),
@@ -2216,8 +2147,7 @@ class RunTest(EnhancedTestCase):
             run_shell_cmd("make")
             stdout = self.get_stdout()
 
-        regex = re.compile('>> running shell command:\n\techo make', re.M)
-        self.assertTrue(regex.search(stdout), "Pattern '%s' found in: %s" % (regex.pattern, stdout))
+        self.assertRegex(stdout, re.compile('>> running shell command:\n\techo make', re.M))
 
         with self.mocked_stdout_stderr():
             # run_shell_cmd will raise RunShellCmdError which we don't care about here,
@@ -2304,7 +2234,7 @@ class RunTest(EnhancedTestCase):
 
         mkdir(workdir, parents=True)
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd_workdir_rm, work_dir=workdir)
 
     def test_run_cmd_sysroot(self):
         """Test with_sysroot option of run_cmd function."""

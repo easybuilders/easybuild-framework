@@ -81,10 +81,6 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
             Extension.__init__(self, *args, **kwargs)
 
-            # name and version properties of EasyBlock are used, so make sure name and version are correct
-            self.cfg['name'] = self.ext.get('name', None)
-            self.cfg['version'] = self.ext.get('version', None)
-
             self.builddir = self.master.builddir
             self.installdir = self.master.installdir
             self.modules_tool = self.master.modules_tool
@@ -181,7 +177,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         # take into account that module may already be loaded earlier in sanity check
         if not (self.sanity_check_module_loaded or self.is_extension or self.dry_run):
             for extra_modules in lists_of_extra_modules:
-                with self.fake_module_environment(extra_modules=extra_modules):
+                with self.sanity_check_module_environment(extra_modules=extra_modules):
                     if extra_modules:
                         info_msg = f"Running extension sanity check with extra modules: {', '.join(extra_modules)}"
                         self.log.info(info_msg)
@@ -194,8 +190,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
 
         if custom_paths or custom_commands or not self.is_extension:
             super().sanity_check_step(custom_paths=custom_paths,
-                                      custom_commands=custom_commands,
-                                      extension=self.is_extension)
+                                      custom_commands=custom_commands)
 
         # pass or fail sanity check
         if sanity_check_ok:

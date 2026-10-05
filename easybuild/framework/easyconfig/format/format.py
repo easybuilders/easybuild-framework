@@ -50,7 +50,7 @@ FORMAT_VERSION_HEADER_TEMPLATE = "# %s %s\n" % (FORMAT_VERSION_KEYWORD, FORMAT_V
 FORMAT_VERSION_REGEXP = re.compile(r'^#\s+%s\s*(?P<major>\d+)\.(?P<minor>\d+)\s*$' % FORMAT_VERSION_KEYWORD, re.M)
 FORMAT_DEFAULT_VERSION = EasyVersion('1.0')
 
-DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies']
+DEPENDENCY_PARAMETERS = ['builddependencies', 'dependencies', 'hiddendependencies', 'source_deps']
 
 # values for these keys will not be templated in dump()
 EXCLUDED_KEYS_REPLACE_TEMPLATES = ['description', 'easyblock', 'exts_default_options', 'exts_list',
@@ -99,7 +99,7 @@ class NestedDict(dict):
 
     def __init__(self, parent, depth):
         """Initialise NestedDict instance"""
-        dict.__init__(self)
+        super().__init__()
         self.depth = depth
         self.parent = parent
 

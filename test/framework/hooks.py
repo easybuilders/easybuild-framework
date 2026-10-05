@@ -103,7 +103,7 @@ class HooksTest(EnhancedTestCase):
     def test_load_hooks(self):
         """Test for load_hooks function."""
 
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
+        self.assertRaisesRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, '/no/such/hooks.py')
 
         hooks = load_hooks(self.test_hooks_pymod)
 
@@ -141,7 +141,7 @@ class HooksTest(EnhancedTestCase):
 
         # clearing cached hooks results in error because hooks file is not found
         easybuild.tools.hooks._cached_hooks = {}
-        self.assertErrorRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
+        self.assertRaisesRegex(EasyBuildError, "Specified path .* does not exist.*", load_hooks, self.test_hooks_pymod)
 
     def test_find_hook(self):
         """Test for find_hook function."""
@@ -211,34 +211,32 @@ class HooksTest(EnhancedTestCase):
                 self.version = '1.2.3'
 
         def run_hooks():
-            self.mock_stdout(True)
-            self.mock_stderr(True)
-            run_hook('start', hooks)
-            run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
-            run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
-            run_hook('easyblock', hooks, args=[FakeEasyBlock()], pre_step_hook=True)
-            run_hook('configure', hooks, pre_step_hook=True, args=[None])
-            run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"], kwargs={'interactive': True})
-            run_hook('configure', hooks, post_step_hook=True, args=[None])
-            run_hook('build', hooks, pre_step_hook=True, args=[None])
-            run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
-            run_hook('build', hooks, post_step_hook=True, args=[None])
-            run_hook('install', hooks, pre_step_hook=True, args=[None])
-            res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
-            self.assertEqual(res, "sudo make install")
-            run_hook('install', hooks, post_step_hook=True, args=[None])
-            run_hook('extensions', hooks, pre_step_hook=True, args=[None])
-            for _ in range(3):
-                run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
-                run_hook('single_extension', hooks, post_step_hook=True, args=[None])
-            run_hook('extensions', hooks, post_step_hook=True, args=[None])
-            run_hook('fail', hooks, args=[EasyBuildError('oops')])
-            run_hook('crash', hooks, args=[RuntimeError('boom!')])
-            run_hook('easyblock', hooks, args=[FakeEasyBlock()], post_step_hook=True)
-            stdout = self.get_stdout()
-            stderr = self.get_stderr()
-            self.mock_stdout(False)
-            self.mock_stderr(False)
+            with self.mocked_stdout_stderr():
+                run_hook('start', hooks)
+                run_hook('parse', hooks, args=['<EasyConfig instance>'], msg="Running parse hook for example.eb...")
+                run_hook('build_and_install_loop', hooks, args=[['ec1', 'ec2']], pre_step_hook=True)
+                run_hook('easyblock', hooks, args=[FakeEasyBlock()], pre_step_hook=True)
+                run_hook('configure', hooks, pre_step_hook=True, args=[None])
+                run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["configure.sh"],
+                         kwargs={'interactive': True})
+                run_hook('configure', hooks, post_step_hook=True, args=[None])
+                run_hook('build', hooks, pre_step_hook=True, args=[None])
+                run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make -j 3"])
+                run_hook('build', hooks, post_step_hook=True, args=[None])
+                run_hook('install', hooks, pre_step_hook=True, args=[None])
+                res = run_hook('run_shell_cmd', hooks, pre_step_hook=True, args=["make install"], kwargs={})
+                self.assertEqual(res, "sudo make install")
+                run_hook('install', hooks, post_step_hook=True, args=[None])
+                run_hook('extensions', hooks, pre_step_hook=True, args=[None])
+                for _ in range(3):
+                    run_hook('single_extension', hooks, pre_step_hook=True, args=[None])
+                    run_hook('single_extension', hooks, post_step_hook=True, args=[None])
+                run_hook('extensions', hooks, post_step_hook=True, args=[None])
+                run_hook('fail', hooks, args=[EasyBuildError('oops')])
+                run_hook('crash', hooks, args=[RuntimeError('boom!')])
+                run_hook('easyblock', hooks, args=[FakeEasyBlock()], post_step_hook=True)
+                stdout = self.get_stdout()
+                stderr = self.get_stderr()
 
             return stdout, stderr
 
@@ -321,7 +319,7 @@ class HooksTest(EnhancedTestCase):
         error_msg_pattern += r"\* stat_hook \(did you mean 'start_hook'\?\)\n"
         error_msg_pattern += r"\* there_is_no_such_hook\n\n"
         error_msg_pattern += r"Run 'eb --avail-hooks' to get an overview of known hooks"
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
+        self.assertRaisesRegex(EasyBuildError, error_msg_pattern, load_hooks, test_broken_hooks_pymod)
 
 
 def suite(loader=None):

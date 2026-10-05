@@ -48,6 +48,7 @@ Authors:
 import concurrent
 import contextlib
 import copy
+import difflib
 import functools
 import glob
 import inspect
@@ -67,6 +68,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from string import ascii_letters
 from textwrap import indent
+from typing import List
 
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
@@ -85,14 +87,14 @@ from easybuild.tools.build_details import get_build_stats
 from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
-from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa
+from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa # pylint:disable=unused-import
 from easybuild.tools.config import FORCE_DOWNLOAD_ALL, FORCE_DOWNLOAD_PATCHES, FORCE_DOWNLOAD_SOURCES
 from easybuild.tools.config import MOD_SEARCH_PATH_HEADERS, PYTHONPATH, SEARCH_PATH_BIN_DIRS, SEARCH_PATH_LIB_DIRS
 from easybuild.tools.config import build_option, build_path, get_failed_install_build_dirs_path
 from easybuild.tools.config import get_failed_install_logs_path, get_log_filename, get_repository, get_repositorypath
 from easybuild.tools.config import install_path, log_path, package_path, source_paths, source_paths_data
 from easybuild.tools.config import DATA, SOFTWARE
-from easybuild.tools.environment import restore_env, sanitize_env
+from easybuild.tools.environment import copy_current_env, restore_env, sanitize_env
 from easybuild.tools.filetools import CHECKSUM_TYPE_SHA256
 from easybuild.tools.filetools import adjust_permissions, apply_patch, back_up_file, change_dir, check_lock, clean_dir
 from easybuild.tools.filetools import compute_checksum, convert_name, copy_dir, copy_file, create_lock
@@ -107,7 +109,7 @@ from easybuild.tools.hooks import (
     MODULE_STEP, MODULE_WRITE, PACKAGE_STEP, PATCH_STEP, PERMISSIONS_STEP, POSTITER_STEP, POSTPROC_STEP, PREPARE_STEP,
     READY_STEP, SANITYCHECK_STEP, SINGLE_EXTENSION, TEST_STEP, TESTCASES_STEP, load_hooks, run_hook,
 )
-from easybuild.tools.run import RunShellCmdError, raise_run_shell_cmd_error, run_shell_cmd
+from easybuild.tools.run import RunShellCmdError, RunShellCmdResult, raise_run_shell_cmd_error, run_shell_cmd
 from easybuild.tools.jenkins import write_to_xml
 from easybuild.tools.module_generator import ModuleGeneratorLua, ModuleGeneratorTcl, module_generator, dependencies_for
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -115,6 +117,7 @@ from easybuild.tools.modules import ROOT_ENV_VAR_NAME_PREFIX, VERSION_ENV_VAR_NA
 from easybuild.tools.modules import Lmod, ModEnvVarType, ModuleLoadEnvironment, MODULE_LOAD_ENV_HEADERS
 from easybuild.tools.modules import curr_module_paths, invalidate_module_caches_for, get_software_root
 from easybuild.tools.modules import get_software_root_env_var_name, get_software_version_env_var_name
+from easybuild.tools.modules import NoModulesTool, modules_tool
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ALL, PROGRESS_BAR_EASYCONFIG, PROGRESS_BAR_EXTENSIONS
 from easybuild.tools.output import show_progress_bars, start_progress_bar, stop_progress_bar, update_progress_bar
 from easybuild.tools.package.utilities import package
@@ -213,12 +216,11 @@ class EasyBlock:
 
         # extensions
         self.exts = []
-        self.exts_all = None
         self.ext_instances = []
         self.skip = None
         self.module_extra_extensions = ''  # extra stuff for module file required by extensions
 
-        # indicates whether or not this instance represents an extension or not;
+        # indicates whether or not this instance represents an extension
         # may be set to True by ExtensionEasyBlock
         self.is_extension = False
 
@@ -261,6 +263,9 @@ class EasyBlock:
             ) from err
 
         self.module_load_environment = ModuleLoadEnvironment(aliases=mod_load_aliases)
+
+        # placeholder for cached build environment
+        self.cached_build_env = None
 
         # determine install subdirectory, based on module name
         self.install_subdir = None
@@ -353,6 +358,12 @@ class EasyBlock:
             self.init_dry_run()
 
         self.log.info("Init completed for application name %s version %s" % (self.name, self.version))
+
+    @property
+    def exts_all(self):
+        """DEPRECATED: Get extensions"""
+        self.log.deprecated("self.exts_all was the same as self.exts so self.exts should always be used", '6.0')
+        return self.exts[:]
 
     def post_init(self):
         """
@@ -684,16 +695,19 @@ class EasyBlock:
                         'version': ext_version,
                         'options': ext_options,
                         'github_account': ext_options.get('github_account', orig_github_account),
+                        # if a particular easyblock is specified, make sure it's used
+                        # (this is picked up by init_ext_instances)
+                        'easyblock': ext_options.get('easyblock'),
                     }
-
-                    # if a particular easyblock is specified, make sure it's used
-                    # (this is picked up by init_ext_instances)
-                    ext_src['easyblock'] = ext_options.get('easyblock', None)
 
                     # construct dictionary with template values;
                     # inherited from parent, except for name/version templates which are specific to this extension
                     template_values = copy.deepcopy(self.cfg.template_values)
                     template_values.update(template_constant_dict(ext_src))
+
+                    # Resolve this here where we have the template values available
+                    if 'extension_name' in ext_options:
+                        ext_options['extension_name'] = resolve_template(ext_options['extension_name'], template_values)
 
                     source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
                     checksums = resolve_template(ext_options.get('checksums', []), template_values)
@@ -854,8 +868,7 @@ class EasyBlock:
                     exts_sources.append(ext_src)
 
             elif isinstance(ext, str):
-                exts_sources.append({'name': ext})
-
+                exts_sources.append({'name': resolve_template(ext, self.cfg.template_values)})
             else:
                 raise EasyBuildError("Extension specified in unknown format (not a string/list/tuple)")
 
@@ -1142,14 +1155,14 @@ class EasyBlock:
     @property
     def name(self):
         """
-        Shortcut the get the module name.
+        Shortcut to get the module name.
         """
         return self.cfg['name']
 
     @property
     def version(self):
         """
-        Shortcut the get the module version.
+        Shortcut to get the module version.
         """
         return self.cfg['version']
 
@@ -1671,8 +1684,8 @@ class EasyBlock:
         """
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
-        # add extra stuff for extensions (if any)
-        if self.cfg.get_ref('exts_list'):
+        # add extra stuff for extensions (if any), or if the 'extension_name' easyconfig parameter is used
+        if self.cfg.get_ref('exts_list') or self.cfg.get('extension_name'):
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
@@ -1863,7 +1876,7 @@ class EasyBlock:
                 msg += f"and paths='{env_var}'"
                 self.log.debug(msg)
 
-    def expand_module_search_path(self, search_path, path_type=ModEnvVarType.PATH_WITH_FILES):
+    def expand_module_search_path(self, *_, **__):
         """
         REMOVED in EasyBuild 5.1, use EasyBlock.module_load_environment.expand_paths instead
         """
@@ -1952,13 +1965,12 @@ class EasyBlock:
         """
         Clean up fake module.
         """
-        fake_mod_path, env = fake_mod_data
-        # unload module and remove temporary module directory
+        fake_mod_path, orig_env = fake_mod_data
+
+        # remove temporary module directory
         # self.short_mod_name might not be set (e.g. during unit tests)
         if fake_mod_path and self.short_mod_name is not None:
             try:
-                self.modules_tool.unload([self.short_mod_name], hide_output=True)
-                self.modules_tool.remove_module_path(os.path.join(fake_mod_path, self.mod_subdir))
                 remove_dir(os.path.dirname(fake_mod_path))
             except OSError as err:
                 raise EasyBuildError("Failed to clean up fake module dir %s: %s", fake_mod_path, err)
@@ -1967,7 +1979,7 @@ class EasyBlock:
 
         # restore original environment
         self.log.info("Restoring environment after unloading fake module")
-        restore_env(env, log_changes=False)
+        restore_env(orig_env, log_changes=False)
 
     def load_dependency_modules(self):
         """Load dependency modules."""
@@ -1989,27 +2001,56 @@ class EasyBlock:
             exts_list = sorted(exts_list, key=str.lower)
         return ext_sep.join(exts_list)
 
-    def make_extension_list(self):
+    def make_extension_list(self, formatted=True):
         """
         Return a list of extension names and their versions included in this installation
 
         Each entry should be a (name, version) tuple or just (name, ) if no version exists.
         Custom EasyBlocks may override this to add extensions that cannot be found automatically.
+
+        An 'extension_name' option for an extension in exts_list replaces its name.
+        The 'extension_name' easyconfig parameter, if set, is added as an extra extension.
+
+        :param formatted: boolean indicating whether the extension name should be formatted. If True, format using
+                          the function defined by the exts_formatter parameter.
         """
-        # Each extension in exts_list is either a string or a list/tuple with name, version as first entries
-        # As name can be a templated value we must resolve templates
         if hasattr(self, '_make_extension_list'):
             self.log.nosupport("self._make_extension_list is replaced by self.make_extension_list", '5.0')
         if type(self).make_extension_string != EasyBlock.make_extension_string:
             self.log.nosupport("self.make_extension_string should not be overridden", '5.0')
 
+        if self.cfg.get_ref('exts_list') and not self.exts:
+            self.exts = self.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+
         exts_list = []
-        for ext in self.cfg.get_ref('exts_list'):
-            if isinstance(ext, str):
-                exts_list.append((resolve_template(ext, self.cfg.template_values), ))
+        for ext in self.exts:
+            ext_name = ext.get('options', {}).get('extension_name') or ext['name']
+            ext_version = ext.get('version')
+            if ext_version is not None:
+                exts_list.append((ext_name, ext_version))
             else:
-                exts_list.append((resolve_template(ext[0], self.cfg.template_values),
-                                  resolve_template(ext[1], self.cfg.template_values)))
+                exts_list.append((ext_name,))
+
+        # 'extension_name' easyconfig parameter (if set) is added as an extra extension, as if in exts_list
+        extension_name = self.cfg.get('extension_name')
+        if extension_name and extension_name not in [ext[0] for ext in exts_list]:
+            self.log.debug(f"Adding '{extension_name}' to list of extensions, "
+                           f"as specified via the 'extension_name' easyconfig parameter")
+            exts_list.append((extension_name, self.version))
+
+        if formatted:
+            formatter = self.cfg.get('exts_formatter')
+            if formatter:
+                if not callable(formatter):
+                    raise EasyBuildError("Parameter exts_formatter should be a function that accepts the extension name"
+                                         "and returns the formatted name.")
+                self.log.debug(f"Using provided function to format extension names: {formatter}")
+                self.log.debug("Original extension names: " + ', '.join(x[0] for x in exts_list))
+                exts_list = [(formatter(x[0]), ) + x[1:] for x in exts_list]
+                self.log.debug("Re-formatted extension names: " + ', '.join(x[0] for x in exts_list))
+            else:
+                self.log.debug("No formatter function for extension names specified")
+
         return exts_list
 
     def prepare_for_extensions(self):
@@ -2041,7 +2082,7 @@ class EasyBlock:
         Skip already installed extensions (checking sequentially),
         by removing them from list of Extension instances to install (self.ext_instances).
         """
-        print_msg("skipping installed extensions (sequentially)", log=self.log)
+        print_msg("skipping installed extensions (sequentially)", silent=self.silent, log=self.log)
 
         exts_cnt = len(self.ext_instances)
 
@@ -2071,7 +2112,7 @@ class EasyBlock:
         Skip already installed extensions (checking in parallel),
         by removing them from list of Extension instances to install (self.ext_instances).
         """
-        print_msg("skipping installed extensions (in parallel)", log=self.log)
+        print_msg("skipping installed extensions (in parallel)", silent=self.silent, log=self.log)
 
         cmds = [construct_exts_filter_cmds(exts_filter, ext) for ext in self.ext_instances]
         # Consider extensions that don't need checking as checked
@@ -2110,7 +2151,7 @@ class EasyBlock:
         retained_ext_instances = []
         for idx, ext in enumerate(self.ext_instances):
             if installed_exts[idx]:
-                print_msg(f"skipping extension {ext.name}", log=self.log)
+                print_msg(f"skipping extension {ext.name}", silent=self.silent, log=self.log)
             else:
                 retained_ext_instances.append(ext)
                 self.log.info("Not skipping %s", ext.name)
@@ -2153,6 +2194,94 @@ class EasyBlock:
         else:
             self.install_extensions_sequential(install=install)
 
+    def _install_extensions_det_init_build_env(self, fake_mod_file_path):
+        """
+        Determine initial build environment for installing extensions
+        """
+
+        build_env = None
+        fake_mod_file_txt = None
+
+        # determine initial build environment to use for installing extensions
+        self.log.debug("Determining build environment for extensions...")
+        if not self.dry_run:
+            # load fake module file to get fully correct environment for installing extensions
+            with self.fake_module_environment(with_build_deps=True):
+                self.log.debug("List of loaded modules: %s", self.modules_tool.list())
+
+                # reset toolchain instance before calling prepare again to get pristine build environment;
+                # this is required because of the complex mechanism used to determine values for environment
+                # variables, without this value for environment variable like $MPICXX would be duplicated,
+                # see https://github.com/easybuilders/easybuild-framework/issues/4948
+                self.toolchain.reset()
+
+                # determine build environment by preparing toolchain,
+                # which will for example also inject RPATH wrappers;
+                # don't reload modules for toolchain, there is no need
+                # since they will be loaded already by the fake module
+                self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                       silent=True, loadmod=False,
+                                       rpath_filter_dirs=self.rpath_filter_dirs,
+                                       rpath_include_dirs=self.rpath_include_dirs,
+                                       rpath_wrappers_dir=self.rpath_wrappers_dir)
+
+                # copy Toolchain instance into Extension instances,
+                # to ensure they get the correct values for variables, etc.
+                for ext in self.ext_instances:
+                    ext.cfg._toolchain = copy.copy(self.toolchain)
+
+                # note: we must grab contents of fake module file within context of fake_module_environment
+                fake_mod_file_txt = read_file(fake_mod_file_path)
+
+                build_env = copy_current_env()
+
+        return build_env, fake_mod_file_txt
+
+    def _install_extensions_check_fake_mod_file(self, fake_mod_file_path, fake_mod_file_txt):
+        """
+        Check whether contents of fake module file have changed
+        after installing extension(s)
+        """
+        res = None
+        if self.dry_run:
+            return res  # No module file is written, so no changes. See _install_extensions_det_init_build_env
+
+        self.log.debug(f"Checking whether contents of fake module file {fake_mod_file_path} have changed...")
+
+        # re-generate fake module file, and check if it is different from before;
+        # if so, we need to re-determine the build environment to use
+        # by re-loading the fake module and calling toolchain.prepare
+        self.make_module_step(fake=True)
+        new_fake_mod_file_txt = read_file(fake_mod_file_path)
+        if new_fake_mod_file_txt != fake_mod_file_txt:
+            diff_lines = difflib.ndiff(fake_mod_file_txt.splitlines(), new_fake_mod_file_txt.splitlines())
+            diff_txt = '\n'.join(diff_lines)
+            self.log.info("Contents of fake module file have changed, diff: " + diff_txt)
+
+            fake_mod_file_txt = new_fake_mod_file_txt
+
+            self.log.info("Re-determining build environment for extensions...")
+            with self.fake_module_environment(with_build_deps=True):
+                self.toolchain.reset()
+                self.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
+                                       silent=True, loadmod=False,
+                                       rpath_filter_dirs=self.rpath_filter_dirs,
+                                       rpath_include_dirs=self.rpath_include_dirs,
+                                       rpath_wrappers_dir=self.rpath_wrappers_dir)
+
+                # copy Toolchain instance into Extension instances,
+                # to ensure they get the correct values for variables, etc.
+                for ext in self.ext_instances:
+                    ext.cfg._toolchain = copy.copy(self.toolchain)
+
+                build_env = copy_current_env()
+
+                res = (build_env, fake_mod_file_txt)
+        else:
+            self.log.debug("Contents of fake module file have not changed")
+
+        return res
+
     def install_extensions_sequential(self, install=True):
         """
         Install extensions sequentially.
@@ -2163,7 +2292,12 @@ class EasyBlock:
 
         exts_cnt = len(self.ext_instances)
 
-        for idx, ext in enumerate(self.ext_instances):
+        # path to fake module file, so we can check if contents change after installing extensions
+        fake_mod_file_path = self.module_generator.get_module_filepath(fake=True)
+
+        build_env, fake_mod_file_txt = self._install_extensions_det_init_build_env(fake_mod_file_path)
+
+        for idx, ext in enumerate(self.ext_instances, start=1):
             self.log.info("Starting extension %s", ext.name)
 
             run_hook(SINGLE_EXTENSION, self.hooks, pre_step_hook=True, args=[ext])
@@ -2171,32 +2305,21 @@ class EasyBlock:
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
 
-            progress_info = "Installing '%s' extension (%s/%s)" % (ext.name, idx + 1, exts_cnt)
+            progress_info = f"Installing '{ext.name}' extension ({idx}/{exts_cnt})"
             self.update_exts_progress_bar(progress_info)
 
-            tup = (ext.name, ext.version or '', idx + 1, exts_cnt)
-            print_msg("installing extension %s %s (%d/%d)..." % tup, silent=self.silent, log=self.log)
+            print_msg(f"installing extension {ext.name} {ext.version or ''} ({idx}/{exts_cnt})...",
+                      silent=self.silent, log=self.log)
             start_time = datetime.now()
 
-            if self.dry_run:
-                tup = (ext.name, ext.version, ext.__class__.__name__)
-                msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
-                self.dry_run_msg(msg)
+            if install:
+                if self.dry_run:
+                    self.dry_run_msg(f"\n* installing extension {ext.name} {ext.version} "
+                                     f"using '{ext.__class__.__name__}' easyblock\n")
+                else:  # actual installation of the extension
+                    # restore build environment for this extension
+                    restore_env(build_env, log_changes=False)
 
-            if self.dry_run:
-                self.dry_run_msg("defining build environment based on toolchain (options) and dependencies...")
-
-            # actual installation of the extension
-            if install and not self.dry_run:
-                with self.fake_module_environment(with_build_deps=True):
-                    self.log.debug("List of loaded modules: %s", self.modules_tool.list())
-                    # don't reload modules for toolchain, there is no need
-                    # since they will be loaded already by the fake module
-                    ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
-                                          silent=True, loadmod=False,
-                                          rpath_filter_dirs=self.rpath_filter_dirs,
-                                          rpath_include_dirs=self.rpath_include_dirs,
-                                          rpath_wrappers_dir=self.rpath_wrappers_dir)
                     try:
                         ext.install_extension_substep("pre_install_extension")
                         with self.module_generator.start_module_creation():
@@ -2211,9 +2334,17 @@ class EasyBlock:
                         elif self.logdebug or build_option('trace'):
                             print_msg("\t... (took < 1 sec)", log=self.log, silent=self.silent)
 
+                    res = self._install_extensions_check_fake_mod_file(fake_mod_file_path, fake_mod_file_txt)
+                    if res:
+                        build_env, fake_mod_file_txt = res
+
             self.update_exts_progress_bar(progress_info, progress_size=1)
 
             run_hook(SINGLE_EXTENSION, self.hooks, post_step_hook=True, args=[ext])
+
+        # restore "parent" build environment (in which fake module is not loaded)
+        if self.cached_build_env:
+            restore_env(self.cached_build_env)
 
     def install_extensions_parallel(self, install=True):
         """
@@ -2222,13 +2353,24 @@ class EasyBlock:
         :param install: actually install extensions, don't just prepare environment for installing
         """
         self.log.info("Installing extensions in parallel...")
-
+        if self.dry_run:
+            # No tasks started in dry-run so use dummy result
+            dry_run_mock_result = RunShellCmdResult(cmd='dummy', exit_code=EasyBuildExit.SUCCESS,
+                                                    output="bar", stderr=None, work_dir='/test_cat',
+                                                    out_file='/tmp/cat.out', err_file=None,
+                                                    cmd_sh='/tmp/cmd.sh', thread_id=None, task_id=None)
         thread_pool = ThreadPoolExecutor(max_workers=self.cfg.parallel)
 
-        running_exts = []
-        installed_ext_names = []
+        # path to fake module file, so we can check if contents change after installing extensions
+        fake_mod_file_path = self.module_generator.get_module_filepath(fake=True)
 
-        all_ext_names = [x['name'] for x in self.exts_all]
+        self.log.debug("Determining build environment for extensions...")
+        build_env, fake_mod_file_txt = self._install_extensions_det_init_build_env(fake_mod_file_path)
+
+        running_exts: List[Extension] = []
+        installed_ext_names: List[str] = []
+
+        all_ext_names = [x['name'] for x in self.exts]
         self.log.debug("List of names of all extensions: %s", all_ext_names)
 
         # take into account that some extensions may be installed already
@@ -2236,7 +2378,7 @@ class EasyBlock:
         installed_ext_names = [n for n in all_ext_names if n not in to_install_ext_names]
 
         exts_cnt = len(all_ext_names)
-        exts_queue = self.ext_instances[:]
+        exts_queue: List[Extension] = self.ext_instances[:]
 
         def update_exts_progress_bar_helper(running_exts, progress_size):
             """Helper function to update extensions progress bar."""
@@ -2254,30 +2396,13 @@ class EasyBlock:
 
             self.update_exts_progress_bar(progress_info, progress_size=progress_size)
 
+        # amount of seconds to wait until running next iteration of the loop below
+        wait_time = 1
+
         while exts_queue or running_exts:
 
             # always go back to original work dir to avoid running stuff from a dir that no longer exists
             change_dir(self.orig_workdir)
-
-            # check for extension installations that have completed
-            if running_exts:
-                self.log.info(f"Checking for completed extension installations ({len(running_exts)} running)...")
-                for ext in running_exts[:]:
-                    if self.dry_run or ext.async_cmd_task.done():
-                        res = ext.async_cmd_task.result()
-                        if res.exit_code == EasyBuildExit.SUCCESS:
-                            self.log.info(f"Installation of extension {ext.name} completed!")
-                            # run post-install method for extension from same working dir as installation of extension
-                            cwd = change_dir(res.work_dir)
-                            ext.install_extension_substep("post_install_extension")
-                            change_dir(cwd)
-                            running_exts.remove(ext)
-                            installed_ext_names.append(ext.name)
-                            update_exts_progress_bar_helper(running_exts, 1)
-                        else:
-                            raise_run_shell_cmd_error(res)
-                    else:
-                        self.log.debug(f"Installation of extension {ext.name} is still running...")
 
             # try to start as many extension installations as we can, taking into account number of available cores,
             # but only consider first 100 extensions still in the queue
@@ -2312,15 +2437,8 @@ class EasyBlock:
                     else:
                         pending_deps = []
 
-                if self.dry_run:
-                    tup = (ext.name, ext.version, ext.__class__.__name__)
-                    msg = "\n* installing extension %s %s using '%s' easyblock\n" % tup
-                    self.dry_run_msg(msg)
-                    running_exts.append(ext)
-
                 # if some of the required dependencies are not installed yet, requeue this extension
-                elif pending_deps:
-
+                if pending_deps:
                     # check whether all required dependency extensions are actually going to be installed;
                     # if not, we assume that they are provided by dependencies;
                     missing_deps = [x for x in required_deps if x not in all_ext_names]
@@ -2336,35 +2454,79 @@ class EasyBlock:
                         msg = f"Pending dependencies for {ext.name} after taking into account missing dependencies: "
                         self.log.debug(msg + ', '.join(pending_deps))
 
-                    if pending_deps:
-                        msg = f"Required dependencies not installed yet for extension {ext.name} ("
-                        msg += ', '.join(pending_deps)
-                        msg += "), adding it back to queue..."
-                        self.log.info(msg)
-                        # purposely adding extension back in the queue at Nth place rather than at the end,
-                        # since we assume that the required dependencies will be installed soon...
-                        exts_queue.insert(max_iter, ext)
-
                 # list of pending dependencies may be empty now after taking into account required extensions
                 # that are not being installed above, so extension may be ready to install
-                if not pending_deps:
-                    tup = (ext.name, ext.version or '')
-                    print_msg("starting installation of extension %s %s..." % tup, silent=self.silent, log=self.log)
+                if pending_deps:
+                    msg = f"Required dependencies not installed yet for extension {ext.name} ("
+                    msg += ', '.join(pending_deps)
+                    msg += "), adding it back to queue..."
+                    self.log.info(msg)
+                    # purposely adding extension back in the queue at Nth place rather than at the end,
+                    # since we assume that the required dependencies will be installed soon...
+                    exts_queue.insert(max_iter, ext)
+                else:
+                    print_msg(f"starting installation of extension {ext.name} {ext.version or ''}...",
+                              silent=self.silent, log=self.log)
 
-                    if install and not self.dry_run:
-                        with self.fake_module_environment(with_build_deps=True):
-                            # don't reload modules for toolchain, there is no
-                            # need since they will be loaded by the fake module
-                            ext.toolchain.prepare(onlymod=self.cfg['onlytcmod'], deps=self.cfg.dependencies(),
-                                                  silent=True, loadmod=False,
-                                                  rpath_filter_dirs=self.rpath_filter_dirs,
-                                                  rpath_include_dirs=self.rpath_include_dirs,
-                                                  rpath_wrappers_dir=self.rpath_wrappers_dir)
+                    if install:
+                        if self.dry_run:
+                            self.dry_run_msg(f"\n* installing extension {ext.name} {ext.version} using "
+                                             f"'{ext.__class__.__name__}' easyblock\n")
+                            running_exts.append(ext)
+                        else:
+                            # restore build environment for this extension
+                            restore_env(build_env, log_changes=False)
+
                             ext.install_extension_substep("pre_install_extension")
+
+                            # note: current build environment is copied when install_extension_async is called
                             ext.async_cmd_task = ext.install_extension_substep("install_extension_async", thread_pool)
                             running_exts.append(ext)
+
                             self.log.info(f"Started installation of extension {ext.name} in the background...")
-                        update_exts_progress_bar_helper(running_exts, 0)
+                            update_exts_progress_bar_helper(running_exts, 0)
+
+            # check for extension installations that have completed
+            installs_completed = False
+            if running_exts:
+                self.log.info(f"Checking for completed extension installations ({len(running_exts)} running)...")
+                for ext in running_exts[:]:
+                    if self.dry_run or ext.async_cmd_check():
+                        if self.dry_run:
+                            res = dry_run_mock_result
+                        else:
+                            res = ext.async_cmd_task.result()
+                        installs_completed = True
+                        if res.exit_code == EasyBuildExit.SUCCESS:
+                            print_msg(f"installation of extension {ext.name} {ext.version or ''} completed!",
+                                      silent=self.silent, log=self.log)
+                            if not self.dry_run:
+                                # run post-install method for extension from same working dir as installation of it
+                                cwd = change_dir(res.work_dir)
+                                ext.install_extension_substep("post_install_extension")
+                                change_dir(cwd)
+                            running_exts.remove(ext)
+                            installed_ext_names.append(ext.name)
+                            update_exts_progress_bar_helper(running_exts, 1)
+                        else:
+                            raise_run_shell_cmd_error(res)
+                    else:
+                        self.log.debug(f"Installation of extension {ext.name} is still running...")
+
+            if installs_completed:
+                # reset wait time between iterations
+                wait_time = 1
+                # check whether installed extensions result in changes to the contents of the fake module file
+                res = self._install_extensions_check_fake_mod_file(fake_mod_file_path, fake_mod_file_txt)
+                if res:
+                    build_env, fake_mod_file_txt = res
+            else:
+                # if no installations were completed, we should wait a bit before checking whether the installations
+                # of additional extensions can be started...
+                time.sleep(wait_time)
+                # wait a bit longer, with a max. wait time of 10 seconds
+                if wait_time < 10:
+                    wait_time += 1
 
             # print progress info after every iteration (unless that info is already shown via progress bar)
             if not show_progress_bars():
@@ -2374,9 +2536,14 @@ class EasyBlock:
                     running_ext_names = ', '.join(x.name for x in running_exts)
                 else:
                     running_ext_names = ', '.join(x.name for x in running_exts[:3]) + ", ..."
-                print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names), log=self.log)
+                print_msg(msg % (installed_cnt, exts_cnt, queued_cnt, running_cnt, running_ext_names),
+                          silent=self.silent, log=self.log)
 
         thread_pool.shutdown()
+
+        # restore "parent" build environment (in which fake module is not loaded)
+        if self.cached_build_env:
+            restore_env(self.cached_build_env)
 
     #
     # MISCELLANEOUS UTILITY FUNCTIONS
@@ -2395,6 +2562,10 @@ class EasyBlock:
         fake_mod_data = None
 
         if with_build_deps:
+            if extra_modules:
+                print_warning("`with_build_deps` overwrites `extra_modules` in fake_module_environment. "
+                              "Until EasyBuild 6 add the build dependencies to `extra_modules` instead",
+                              log=self.log)
             # load modules for build dependencies as extra modules
             extra_modules = [dep['short_mod_name'] for dep in self.cfg.dependencies(build_only=True)]
 
@@ -2406,6 +2577,28 @@ class EasyBlock:
             # cleanup (unload fake module, remove fake module dir)
             if fake_mod_data:
                 self.clean_up_fake_module(fake_mod_data)
+
+    @contextmanager
+    def sanity_check_module_environment(self, extra_modules=None, check_loaded=True):
+        """Load/Unload module for performing sanity checks"""
+        if self.sanity_check_module_loaded and check_loaded:
+            raise EasyBuildError("Sanity check module is already loaded and must not be loaded again")
+
+        if self.sanity_check_module_loaded:
+            unload_module = False
+        else:
+            self.sanity_check_load_module(extra_modules=extra_modules)
+            unload_module = True
+
+        try:
+            yield
+        finally:
+            # cleanup (unload fake module, remove fake module dir)
+            if unload_module:
+                if self.fake_mod_data:
+                    self.clean_up_fake_module(self.fake_mod_data)
+                    self.fake_mod_data = None
+                self.sanity_check_module_loaded = False
 
     def guess_start_dir(self):
         """
@@ -2693,6 +2886,20 @@ class EasyBlock:
                 raise EasyBuildError("EasyBuild-version %s is newer than the currently running one. Aborting!",
                                      easybuild_version)
 
+        source_deps = self.cfg['source_deps']
+        pre_fetch_env = None
+        # load modules for source dependencies (if any)
+        if source_deps:
+            pre_fetch_env = copy.deepcopy(os.environ)
+
+            if isinstance(self.modules_tool, NoModulesTool):
+                mod_tool = modules_tool(modules_tool_name=build_option('orig_modules_tool'))
+            else:
+                mod_tool = self.modules_tool
+
+            source_deps_mod_names = [d['short_mod_name'] for d in source_deps]
+            mod_tool.load(source_deps_mod_names)
+
         start_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL, self.cfg.count_files())
 
         if self.dry_run:
@@ -2779,6 +2986,10 @@ class EasyBlock:
             self.log.info("Skipped installation dirs check per user request")
 
         stop_progress_bar(PROGRESS_BAR_DOWNLOAD_ALL)
+
+        # revert back to environment before fetching sources, if source deps were loaded
+        if pre_fetch_env:
+            restore_env(pre_fetch_env)
 
     def checksum_step(self):
         """Verify checksum of sources and patches, if a checksum is available."""
@@ -3092,6 +3303,9 @@ class EasyBlock:
                     f"defined in nvidia-compilers: {self.cfg['cuda_compute_capabilities']}"
                 )
 
+        # cache build environment, so we can restore it later (when installing extensions)
+        self.cached_build_env = copy_current_env()
+
         # guess directory to start configure/build/install process in, and move there
         if start_dir:
             self.guess_start_dir()
@@ -3259,8 +3473,6 @@ class EasyBlock:
         if fetch:
             self.update_exts_progress_bar("fetching extension sources/patches")
             self.exts = self.collect_exts_file_info(fetch_files=True)
-
-        self.exts_all = self.exts[:]  # retain a copy of all extensions, regardless of filtering/skipping
 
         # actually install extensions
         if install:
@@ -3442,6 +3654,16 @@ class EasyBlock:
 
     def _dispatch_sanity_check_step(self, *args, **kwargs):
         """Decide whether to run the dry-run or the real version of the sanity-check step"""
+        if 'extension' in kwargs:
+            extension = kwargs.pop('extension')
+            self.log.deprecated(
+                "Passing `extension` to `sanity_check_step` is no longer necessary "
+                f"(Easyblock: {self.__class__.__name__}).",
+                '6.0',
+            )
+            if extension != self.is_extension:
+                raise EasyBuildError('Unexpected value for `extension` argument. '
+                                     f'Should be: {self.is_extension}, got:  {extension}')
         if self.dry_run:
             self._sanity_check_step_dry_run(*args, **kwargs)
         else:
@@ -3535,7 +3757,7 @@ class EasyBlock:
                 for entry in os.listdir(dirpath):
                     path = os.path.join(dirpath, entry)
                     if os.path.isfile(path):
-                        self.log.debug("Sanity checking file {path} for CUDA device code")
+                        self.log.debug(f"Sanity checking file {path} for CUDA device code")
                         files_to_check.append(path)
             else:
                 self.log.debug(f"Not sanity checking files in non-existing directory {dirpath}")
@@ -4158,8 +4380,10 @@ class EasyBlock:
                 paths = {}
                 for key in path_keys_and_check:
                     paths.setdefault(key, [])
-                paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
-                self.log.info("Using default sanity check paths: %s", paths)
+                # Default paths for extensions are handled in the parent easyconfig if desired
+                if not self.is_extension:
+                    paths.update({SANITY_CHECK_PATHS_DIRS: ['bin', ('lib', 'lib64')]})
+                    self.log.info("Using default sanity check paths: %s", paths)
 
             # if enhance_sanity_check is enabled *and* sanity_check_paths are specified in the easyconfig,
             # those paths are used to enhance the paths provided by the easyblock
@@ -4179,9 +4403,11 @@ class EasyBlock:
         # verify sanity_check_paths value: only known keys, correct value types, at least one non-empty value
         only_list_values = all(isinstance(x, list) for x in paths.values())
         only_empty_lists = all(not x for x in paths.values())
-        if sorted_keys != known_keys or not only_list_values or only_empty_lists:
+        if sorted_keys != known_keys or not only_list_values or (only_empty_lists and not self.is_extension):
             error_msg = "Incorrect format for sanity_check_paths: should (only) have %s keys, "
-            error_msg += "values should be lists (at least one non-empty)."
+            error_msg += "values should be lists"
+            if not self.is_extension:
+                error_msg += " (at least one non-empty)."
             raise EasyBuildError(error_msg % ', '.join("'%s'" % k for k in known_keys))
 
         # Resolve arch specific entries
@@ -4310,23 +4536,34 @@ class EasyBlock:
             self.sanity_check_fail_msgs.append(overall_fail_msg + ', '.join(x[0] for x in failed_exts))
             self.sanity_check_fail_msgs.extend(x[1] for x in failed_exts)
 
-    def sanity_check_load_module(self, extension=False, extra_modules=None):
+    def sanity_check_load_module(self, extension=None, extra_modules=None):
         """
         Load module to prepare environment for sanity check
+        :param extension: DEPRECATED: indicates whether this method is called for an extension
         """
+        if extension is not None:
+            self.log.deprecated(
+                "Passing `extension` to `sanity_check_load_module` is no longer necessary "
+                f"(Easyblock: {self.__class__.__name__}).",
+                '6.0',
+            )
+            if extension != self.is_extension:
+                raise EasyBuildError('Unexpected value for `extension` argument. '
+                                     f'Should be: {self.is_extension}, got:  {extension}')
+        del extension  # Avoid accidental use
+
+        # Don't load any module for extensions
+        if self.is_extension:
+            return self.fake_mod_data
 
         # skip loading of fake module when using --sanity-check-only, load real module instead
-        if build_option('sanity_check_only') and not extension:
+        if build_option('sanity_check_only'):
             self.log.info("Loading real module for %s %s: %s", self.name, self.version, self.short_mod_name)
             self.load_module(extra_modules=extra_modules)
             self.sanity_check_module_loaded = True
-
-        # only load fake module for non-extensions, and not during dry run
-        elif not (extension or self.dry_run):
-
+        elif not self.dry_run:
             if extra_modules:
                 self.log.info("Loading extra modules for sanity check: %s", ', '.join(extra_modules))
-
             try:
                 # unload all loaded modules before loading fake module
                 # this ensures that loading of dependencies is tested, and avoids conflicts with build dependencies
@@ -4338,15 +4575,26 @@ class EasyBlock:
 
         return self.fake_mod_data
 
-    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=False, extra_modules=None):
+    def _sanity_check_step(self, custom_paths=None, custom_commands=None, extension=None, extra_modules=None):
         """
         Real version of sanity_check_step method.
 
         :param custom_paths: custom sanity check paths to check existence for
         :param custom_commands: custom sanity check commands to run
-        :param extension: indicates whether or not sanity check is run for an extension
+        :param extension: DEPRECATED: indicated whether sanity check is run for an extension, now ignored
         :param extra_modules: extra modules to load before running sanity check commands
         """
+        if extension is not None:
+            self.log.deprecated(
+                "Passing `extension` to `sanity_check_step` is no longer necessary "
+                f"(Easyblock: {self.__class__.__name__}).",
+                '6.0',
+            )
+            if extension != self.is_extension:
+                raise EasyBuildError('Unexpected value for `extension` argument. '
+                                     f'Should be: {self.is_extension}, got:  {extension}')
+        del extension  # Avoid accidental use
+
         paths, path_keys_and_check, commands = self._sanity_check_step_common(custom_paths, custom_commands)
 
         # helper function to sanity check (alternatives for) one particular path
@@ -4404,7 +4652,7 @@ class EasyBlock:
                 trace_msg("%s %s found: %s" % (typ, xs2str(xs), ('FAILED', 'OK')[found]))
 
         if not self.sanity_check_module_loaded:
-            self.sanity_check_load_module(extension=extension, extra_modules=extra_modules)
+            self.sanity_check_load_module(extra_modules=extra_modules)
 
         # allow oversubscription of P processes on C cores (P>C) for software installed on top of Open MPI;
         # this is useful to avoid failing of sanity check commands that involve MPI
@@ -4433,53 +4681,54 @@ class EasyBlock:
             trace_msg(f"result for command '{cmd}': {cmd_result_str}")
 
         # also run sanity check for extensions (unless we are an extension ourselves)
-        if not extension:
+        if not self.is_extension:
             if build_option('skip_extensions'):
                 self.log.info("Skipping sanity check for extensions since skip-extensions is enabled...")
             else:
                 self._sanity_check_step_extensions()
 
-        linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
-        if linked_shared_lib_fails:
-            self.log.warning("Check for required/banned linked shared libraries failed!")
-            self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
+            # Do not do those checks for extensions, only in the main easyconfig
+            linked_shared_lib_fails = self.sanity_check_linked_shared_libs()
+            if linked_shared_lib_fails:
+                self.log.warning("Check for required/banned linked shared libraries failed!")
+                self.sanity_check_fail_msgs.append(linked_shared_lib_fails)
 
-        # software installed with GCCcore toolchain should not have Fortran module files (.mod),
-        # unless that's explicitly allowed
-        if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
-            mod_files_found_msg = self.sanity_check_mod_files()
-            if mod_files_found_msg:
-                if build_option('fail_on_mod_files_gcccore'):
-                    self.sanity_check_fail_msgs.append(mod_files_found_msg)
+            # software installed with GCCcore toolchain should not have Fortran module files (.mod),
+            # unless that's explicitly allowed
+            if self.toolchain.name in ('GCCcore',) and not self.cfg['skip_mod_files_sanity_check']:
+                mod_files_found_msg = self.sanity_check_mod_files()
+                if mod_files_found_msg:
+                    if build_option('fail_on_mod_files_gcccore'):
+                        self.sanity_check_fail_msgs.append(mod_files_found_msg)
+                    else:
+                        print_warning(mod_files_found_msg)
+
+            if self.toolchain.use_rpath:
+                rpath_fails = self.sanity_check_rpath()
+                if rpath_fails:
+                    self.log.warning("RPATH sanity check failed!")
+                    self.sanity_check_fail_msgs.extend(rpath_fails)
+            else:
+                self.log.debug("Skipping RPATH sanity check")
+
+            if 'CUDA' in [dep['name'] for dep in self.cfg.dependencies()]:
+                if shutil.which('cuobjdump'):
+                    cuda_fails = self.sanity_check_cuda()
+                    if cuda_fails:
+                        self.log.warning("CUDA device code sanity check failed!")
+                        self.sanity_check_fail_msgs.extend(cuda_fails)
                 else:
-                    print_warning(mod_files_found_msg)
+                    msg = "Failed to execute CUDA sanity check: cuobjdump not found\n"
+                    msg += "CUDA module must be loaded for sanity check (or cuobjdump available in PATH)"
+                    raise EasyBuildError(msg)
+            else:
+                self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
 
         # cleanup
         if self.fake_mod_data:
             self.clean_up_fake_module(self.fake_mod_data)
             self.sanity_check_module_loaded = False
             self.fake_mod_data = None
-
-        if self.toolchain.use_rpath:
-            rpath_fails = self.sanity_check_rpath()
-            if rpath_fails:
-                self.log.warning("RPATH sanity check failed!")
-                self.sanity_check_fail_msgs.extend(rpath_fails)
-        else:
-            self.log.debug("Skipping RPATH sanity check")
-
-        if 'CUDA' in [dep['name'] for dep in self.cfg.dependencies()]:
-            if shutil.which('cuobjdump'):
-                cuda_fails = self.sanity_check_cuda()
-                if cuda_fails:
-                    self.log.warning("CUDA device code sanity check failed!")
-                    self.sanity_check_fail_msgs.extend(cuda_fails)
-            else:
-                msg = "Failed to execute CUDA sanity check: cuobjdump not found\n"
-                msg += "CUDA module must be loaded for sanity check (or cuobjdump available in PATH)"
-                raise EasyBuildError(msg)
-        else:
-            self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
 
         # pass or fail
         if self.sanity_check_fail_msgs:

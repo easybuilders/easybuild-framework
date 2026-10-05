@@ -15,7 +15,6 @@ flake8
 GC3Pie; python_version < '3.11'
 graphviz
 python-hglib
-requests
 
 # Some packages dropped support for Python 3.6, so specify max versions
 rich<13; python_version < '3.7'

@@ -29,11 +29,11 @@ Unit tests for EasyBuild configuration.
 @author: Stijn De Weirdt (Ghent University)
 """
 import os
-import re
 import shutil
 import sys
 import tempfile
 from importlib import reload
+from test.framework import TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -169,7 +169,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         installpath_software = tempfile.mkdtemp(prefix='installpath-software')
         os.environ['EASYBUILD_SUBDIR_SOFTWARE'] = installpath_software
         error_regex = r"Found problems validating the options.*'subdir_software' must specify a \*relative\* path"
-        self.assertErrorRegex(EasyBuildError, error_regex, init_config)
+        self.assertRaisesRegex(EasyBuildError, error_regex, init_config)
 
         del os.environ['EASYBUILD_PREFIX']
         del os.environ['EASYBUILD_SUBDIR_SOFTWARE']
@@ -185,7 +185,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         error = r"Found 2 environment variable\(s\) that are prefixed with %s " % CONFIG_ENV_VAR_PREFIX
         error += r"but do not match valid option\(s\): "
         error += r','.join(['EASYBUILD_FOO', 'EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION'])
-        self.assertErrorRegex(EasyBuildError, error, init_config)
+        self.assertRaisesRegex(EasyBuildError, error, init_config)
 
         del os.environ['EASYBUILD_THERESNOSUCHCONFIGURATIONOPTION']
         del os.environ['EASYBUILD_FOO']
@@ -198,7 +198,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(install_path(typ='mod'), os.path.join(self.test_installpath, 'modules'))
         self.assertEqual(install_path('modules'), os.path.join(self.test_installpath, 'modules'))
 
-        self.assertErrorRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
+        self.assertRaisesRegex(EasyBuildError, "Unknown type specified", install_path, typ='foo')
 
         args = [
             '--subdir-software', 'SOFT',
@@ -264,8 +264,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
 
-        test_ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
-        copy_dir(test_ecs_dir, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(TEST_ECS_DIR, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         orig_sys_path = sys.path[:]
         sys.path.insert(0, tmpdir)  # prepend to give it preference over possible other installed easyconfigs pkgs
@@ -343,7 +342,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # if build options is not initialised yet, we'll get an error when querying any build option (even known ones)
         error_pattern = "Build options are not initialized yet, or undefined build option used: 'debug'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, build_option, 'debug')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, build_option, 'debug')
 
         # specifying a default value can be used as workaround
         self.assertEqual(build_option('debug', default='DEFAULT'), 'DEFAULT')
@@ -365,16 +364,16 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertTrue(bo['force'])
 
         # updating is impossible (methods are not even available)
-        self.assertErrorRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
-        self.assertErrorRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
+        self.assertRaisesRegex(Exception, '.*(item assignment|no attribute).*', lambda x: bo.update(x), {'debug': True})
+        self.assertRaisesRegex(AttributeError, '.*no attribute.*', lambda x: bo.__setitem__(*x), ('debug', True))
 
         # only valid keys can be set
         BuildOptions.__class__._instances.clear()
         msg = r"Encountered unknown keys .* \(known keys: .*"
-        self.assertErrorRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertRaisesRegex(KeyError, msg, BuildOptions, {'thisisclearlynotavalidbuildoption': 'FAIL'})
 
         # test init_build_options and build_option functions
-        self.assertErrorRegex(KeyError, msg, init_build_options, {'thisisclearlynotavalidbuildoption': 'FAIL'})
+        self.assertRaisesRegex(KeyError, msg, init_build_options, {'thisisclearlynotavalidbuildoption': 'FAIL'})
         bo = init_build_options({
             'robot_path': '/some/robot/path',
             'stop': 'configure',
@@ -385,7 +384,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         self.assertEqual(bo['stop'], 'configure')
 
         # test error reporting when unknown build option is used
-        self.assertErrorRegex(EasyBuildError, "undefined build option used: 'foobar'", build_option, 'foobar')
+        self.assertRaisesRegex(EasyBuildError, "undefined build option used: 'foobar'", build_option, 'foobar')
 
         # specifying a default value can be used as workaround
         self.assertEqual(build_option('foobar', default='DEFAULT'), 'DEFAULT')
@@ -498,9 +497,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
-        test_ecs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
         tmp_ecs_dir = os.path.join(tmpdir, 'easybuild', 'easyconfigs')
-        copy_dir(test_ecs_path, tmp_ecs_dir)
+        copy_dir(TEST_ECS_DIR, tmp_ecs_dir)
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         orig_sys_path = sys.path[:]
@@ -598,33 +596,27 @@ class EasyBuildConfigTest(EnhancedTestCase):
         tmpdir = tempfile.gettempdir()
 
         res = get_log_filename('foo', '1.2.3')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.[0-9]{6}\.log$'))
 
         res = get_log_filename('foo', '1.2.3', date='19700101')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.[0-9]{6}\.log$'))
 
         res = get_log_filename('foo', '1.2.3', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-[0-9]{8}\.094651\.log$'))
 
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log$'))
 
         # if log file already exists, numbers are added to the filename to obtain a new file path
         write_file(res, '')
         res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651')
-        regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$'))
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.log\.1$'))
 
         # adding salt ensures a unique filename (pretty much)
         prev_log_filenames = []
-        for i in range(10):
+        for _ in range(10):
             res = get_log_filename('foo', '1.2.3', date='19700101', timestamp='094651', add_salt=True)
-            regex = re.compile(os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
-            self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+            self.assertRegex(res, os.path.join(tmpdir, r'easybuild-foo-1\.2\.3-19700101\.094651\.[a-zA-Z]{5}\.log$'))
             self.assertNotIn(res, prev_log_filenames)
             prev_log_filenames.append(res)
 
@@ -662,7 +654,7 @@ class EasyBuildConfigTest(EnhancedTestCase):
         # test handling of incorrect setting for --logfile-format
         init_config(args=['--logfile-format=easybuild,log.txt,thisiswrong'])
         error_pattern = "Incorrect log file format specification, should be 2-tuple"
-        self.assertErrorRegex(EasyBuildError, error_pattern, log_file_format)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, log_file_format)
 
     def test_log_path(self):
         """Test for log_path()."""
@@ -676,9 +668,8 @@ class EasyBuildConfigTest(EnhancedTestCase):
 
         # reconfigure with value for log directory that includes templates
         init_config(args=['--logfile-format=easybuild-%(name)s-%(version)s-%(date)s-%(time)s,log.txt'])
-        regex = re.compile(r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
         res = log_path(ec=ec)
-        self.assertTrue(regex.match(res), "Pattern '%s' matches '%s'" % (regex.pattern, res))
+        self.assertRegex(res, r'^easybuild-foo-1\.2\.3-[0-9-]{8}-[0-9]{6}$')
         self.assertEqual(log_file_format(), 'log.txt')
 
     def test_get_build_log_path(self):

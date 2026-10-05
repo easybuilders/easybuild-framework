@@ -23,7 +23,7 @@
 # along with EasyBuild.  If not, see <http://www.gnu.org/licenses/>.
 ##
 """
-EasyBuild support for gfbf compiler toolchain (includes GCC, FlexiBLAS and FFTW)
+EasyBuild support for lfbf compiler toolchain (includes LLVM, FlexiBLAS and FFTW)
 
 Authors:
 
@@ -38,7 +38,7 @@ from easybuild.toolchains.linalg.flexiblas import FlexiBLAS
 
 
 class Lfbf(LLVMCompilersToolchain, FlexiBLAS, Fftw):
-    """Compiler toolchain with GCC, FlexiBLAS and FFTW."""
+    """Compiler toolchain with LLVM, FlexiBLAS and FFTW."""
     NAME = 'lfbf'
     SUBTOOLCHAIN = LLVMCompilersToolchain.NAME
     OPTIONAL = True

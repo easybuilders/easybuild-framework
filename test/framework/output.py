@@ -102,7 +102,7 @@ class OutputTest(EnhancedTestCase):
         if not HAVE_RICH:
             update_build_option('output_style', 'rich')
             error_pattern = "Can't use 'rich' output style, Rich Python package is not available!"
-            self.assertErrorRegex(EasyBuildError, error_pattern, get_output_style)
+            self.assertRaisesRegex(EasyBuildError, error_pattern, get_output_style)
 
     def test_use_rich_show_progress_bars(self):
         """Test use_rich and show_progress_bar functions."""
@@ -139,7 +139,7 @@ class OutputTest(EnhancedTestCase):
         self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
         self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
 
-        self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+        self.assertRaisesRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
     def test_colorize_rich(self):
         """
@@ -153,7 +153,7 @@ class OutputTest(EnhancedTestCase):
         for color in ('blue', 'cyan', 'green', 'purple', 'red', 'yellow'):
             self.assertEqual(colorize('test', color), '[bold %s]test[/bold %s]' % (color, color))
 
-        self.assertErrorRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
+        self.assertRaisesRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
 
     def test_print_error(self):
         """
@@ -161,13 +161,11 @@ class OutputTest(EnhancedTestCase):
         """
         update_build_option('output_style', 'basic')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        print_error(msg)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            print_error(msg)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+
         self.assertEqual(stdout, '')
         expected = '\n\nThis is yellow: \x1b[1;33ma banana\x1b[0m\n\n'
         self.assertEqual(stderr, expected)
@@ -182,13 +180,11 @@ class OutputTest(EnhancedTestCase):
             self.skipTest("rich not available")
         update_build_option('output_style', 'rich')
         msg = "This is yellow: " + colorize("a banana", color='yellow')
-        self.mock_stderr(True)
-        self.mock_stdout(True)
-        print_error(msg)
-        stderr = self.get_stderr()
-        stdout = self.get_stdout()
-        self.mock_stderr(False)
-        self.mock_stdout(False)
+        with self.mocked_stdout_stderr():
+            print_error(msg)
+            stderr = self.get_stderr()
+            stdout = self.get_stdout()
+
         self.assertEqual(stdout, '')
         expected = '\n\nThis is yellow: a banana\n\n'
         self.assertEqual(stderr, expected)
@@ -221,7 +217,7 @@ class OutputTest(EnhancedTestCase):
 
         # stopping a progress bar that never was started results in an error
         error_pattern = "Failed to stop extensions progress bar, since it was never started"
-        self.assertErrorRegex(EasyBuildError, error_pattern, stop_progress_bar, PROGRESS_BAR_EXTENSIONS)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, stop_progress_bar, PROGRESS_BAR_EXTENSIONS)
 
         # updating a progress bar that never was started is silently ignored on purpose
         update_progress_bar(PROGRESS_BAR_EXTENSIONS)

@@ -1037,14 +1037,14 @@ class SystemToolsTest(EnhancedTestCase):
     def test_platform_name_linux(self):
         """Test getting platform name (mocked for Linux)."""
         st.get_os_type = lambda: st.LINUX
-        self.assertTrue(re.match('.*-unknown-linux$', get_platform_name()))
-        self.assertTrue(re.match('.*-unknown-linux-gnu$', get_platform_name(withversion=True)))
+        self.assertRegex(get_platform_name(), '.*-unknown-linux$')
+        self.assertRegex(get_platform_name(withversion=True), '.*-unknown-linux-gnu$')
 
     def test_platform_name_darwin(self):
         """Test getting platform name (mocked for Darwin)."""
         st.get_os_type = lambda: st.DARWIN
-        self.assertTrue(re.match('.*-apple-darwin$', get_platform_name()))
-        self.assertTrue(re.match('.*-apple-darwin.*$', get_platform_name(withversion=True)))
+        self.assertRegex(get_platform_name(), '.*-apple-darwin$')
+        self.assertRegex(get_platform_name(withversion=True), '.*-apple-darwin.*$')
 
     def test_os_name(self):
         """Test getting OS name."""
@@ -1191,19 +1191,19 @@ class SystemToolsTest(EnhancedTestCase):
         # mock running with different Python versions
         mock_python_ver(1, 4)
         error_pattern = r"EasyBuild is not compatible with Python 1.4"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(4, 0)
         error_pattern = r"EasyBuild is not compatible \(yet\) with Python 4.0"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(2, 7)
         error_pattern = r"EasyBuild is not compatible with Python 2.7"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, check_python_version)
 
         mock_python_ver(3, 5)
         error_pattern = r"Python 3.6 or higher is required, found Python 3.5"
-        self.assertErrorRegex(EasyBuildError, error_pattern, check_python_version)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, check_python_version)
 
         # no problems when running with a supported Python version
         for pyver in [(3, 6), (3, 7), (3, 11)]:
@@ -1211,10 +1211,10 @@ class SystemToolsTest(EnhancedTestCase):
             self.assertEqual(check_python_version(), pyver)
 
         # shouldn't raise any errors, since Python version used to run tests should be supported;
-        self.mock_stderr(True)
-        (py_maj_ver, py_min_ver) = check_python_version()
-        stderr = self.get_stderr()
-        self.mock_stderr(False)
+        with self.mocked_stderr():
+            (py_maj_ver, py_min_ver) = check_python_version()
+            stderr = self.get_stderr()
+
         self.assertFalse(stderr)
 
         self.assertIn(py_maj_ver, [2, 3])
@@ -1241,7 +1241,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3-ppc64le')
 
         error_pattern = "Unknown value type for version"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_dep_version, ('1.2.3', '4.5.6'))
 
         # check support for using 'arch=*' as fallback key
         dep_ver_dict = {
@@ -1255,19 +1255,18 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(pick_dep_version(dep_ver_dict), '1.2.3')
 
         # check how faulty input is handled
-        self.assertErrorRegex(EasyBuildError, "Found empty dict as version!", pick_dep_version, {})
+        self.assertRaisesRegex(EasyBuildError, "Found empty dict as version!", pick_dep_version, {})
         error_pattern = r"Unexpected keys in version: bar,foo \(only 'arch=' keys are supported\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_dep_version, {'foo': '1.2', 'bar': '2.3'})
         error_pattern = r"Unknown value type for version: .* \(1.23\), should be string value"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_dep_version, 1.23)
 
     def test_det_pypkg_version(self):
         """Test det_pypkg_version function."""
         self.assertIsNone(det_pypkg_version('doesnotexist', 'doesnotexist.foo'))
 
         rich_ver = det_pypkg_version('rich', 'rich')
-        regex = re.compile(r'^[0-9]+\.[0-9].*')
-        self.assertTrue(regex.match(rich_ver), f"Pattern {regex.pattern} should match for: {rich_ver}")
+        self.assertRegex(rich_ver, r'^[0-9]+\.[0-9].*')
 
     def test_pick_system_specific_value(self):
         """Test pick_system_specific_value function."""
@@ -1292,14 +1291,14 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(pick_system_specific_value('test-desc', option_dict), '1.2.3-other')
 
         error_pattern = "Found empty dict as test-desc"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc', {})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc', {})
 
         error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
-                              {'foo': '1'})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                               {'foo': '1'})
         error_pattern = r"Unexpected keys in test-desc: foo \(only 'arch=' keys are supported\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
-                              {'foo': '1', 'arch=POWER': '2'})
+        self.assertRaisesRegex(EasyBuildError, error_pattern, pick_system_specific_value, 'test-desc',
+                               {'foo': '1', 'arch=POWER': '2'})
 
     def test_check_os_dependency(self):
         """Test check_os_dependency."""
@@ -1418,18 +1417,12 @@ class SystemToolsTest(EnhancedTestCase):
             test_file = os.path.join(self.test_prefix, 'test.txt')
             write_file(test_file, 'test')
 
-            warning_regex = re.compile(r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!", re.M)
+            with self.mocked_stdout_stderr():
+                res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
+                stderr = self.get_stderr()
+                stdout = self.get_stdout()
 
-            self.mock_stderr(True)
-            self.mock_stdout(True)
-            res = check_linked_shared_libs(test_file, banned_patterns=['/lib'])
-            stderr = self.get_stderr()
-            stdout = self.get_stdout()
-            self.mock_stderr(False)
-            self.mock_stdout(False)
-
-            fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex.pattern, stderr)
-            self.assertTrue(warning_regex.search(stderr), fail_msg)
+            self.assertRegex(stderr, r"WARNING: Determining linked libraries.* via 'ldd .*/test.txt' failed!")
             self.assertFalse(stdout)
 
             self.assertEqual(res, None)
@@ -1471,7 +1464,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         # Test case 1: there's no cuobjdump on the path yet
         error_pattern = r"cuobjdump command not found"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_cuda_bin')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_cuda_bin')
 
         # Put a cuobjdump on the path, doesn't matter what. It will be mocked anyway
         cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
@@ -1501,13 +1494,12 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res)
-        fail_msg = "Pattern '%s' should be found in: %s" % (debug_regex.pattern, logtxt)
-        self.assertTrue(debug_regex.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, debug_regex)
 
         # Test case 5: call on a file where cuobjdump produces really unexpected output
         error_pattern = r"Dumping CUDA binary file information for .* via .* failed!"
-        self.assertErrorRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw,
-                              path='mock_non_cuda_sharedlib_unexpected')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw,
+                               path='mock_non_cuda_sharedlib_unexpected')
 
         # Test case 6: call on CUDA shared lib, which only contains PTX code
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_sharedlib'), CUOBJDUMP_PTX_ONLY)
@@ -1556,8 +1548,7 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res_elf)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
-        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_elf)
         self.assertEqual(res_ptx, ['9.0', '9.0a'])
 
         # Test case 5: call on CUDA static lib, which only contains device code
@@ -1571,8 +1562,7 @@ class SystemToolsTest(EnhancedTestCase):
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
         self.assertIsNone(res_ptx)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_ptx.pattern, logtxt)
-        self.assertTrue(warning_regex_ptx.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_ptx)
         self.assertEqual(res_elf, ['10.0', '10.0a', '10.0f'])
 
         # Test case 6: call on CUDA shared lib which lacks an arch = sm_XX entry (should never happen)
@@ -1584,8 +1574,7 @@ class SystemToolsTest(EnhancedTestCase):
             res_elf = get_cuda_architectures('mock_invalid_cuda_sharedlib', 'elf')
         st._log.setLevel(old_log_level)
         logtxt = read_file(self.logfile)
-        fail_msg = "Pattern '%s' should be found in: %s" % (warning_regex_elf.pattern, logtxt)
-        self.assertTrue(warning_regex_elf.search(logtxt), fail_msg)
+        self.assertRegex(logtxt, warning_regex_elf)
         self.assertIsNone(res_elf)
 
     def test_get_linked_libs_raw(self):

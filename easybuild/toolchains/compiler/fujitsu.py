@@ -103,7 +103,7 @@ class FujitsuCompiler(Compiler):
         libdir = os.path.join(os.getenv(TC_CONSTANT_MODULE_VAR), 'lib64')
         if libdir not in library_path:
             self.log.debug("Adding %s to $LIBRARY_PATH" % libdir)
-            env.setvar('LIBRARY_PATH', os.pathsep.join([library_path, libdir]))
+            env.setvar('LIBRARY_PATH', env.join_path_var([library_path, libdir]))
 
     def _set_compiler_vars(self):
         super()._set_compiler_vars()

@@ -831,6 +831,13 @@ class EasyConfig:
                 builddeps = [self._parse_dependency(dep, build_only=True) for dep in builddeps]
             self['builddependencies'] = remove_false_versions(builddeps)
 
+            source_deps = self['source_deps']
+            if source_deps and all(isinstance(x, (list, tuple)) for y in source_deps for x in y):
+                source_deps = [[self._parse_dependency(dep, build_only=True) for dep in x] for x in source_deps]
+            else:
+                source_deps = [self._parse_dependency(dep, build_only=True) for dep in source_deps]
+            self['source_deps'] = remove_false_versions(source_deps)
+
             # keep track of parsed multi deps, they'll come in handy during sanity check & module steps...
             self.multi_deps = self.get_parsed_multi_deps()
 
@@ -2327,7 +2334,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
     if not build_specs:
-        cache_key = (path, validate, hidden, parse_only)
+        cache_key = (str(path), validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             # Note: This does NOT copy EasyConfig instances but the dict containing an instance in the 'ec' key.
             # So modifications to the `EasyConfig` instance will be shared.

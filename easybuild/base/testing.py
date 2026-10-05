@@ -36,12 +36,12 @@ Authors:
 import difflib
 import os
 import pprint
-import re
 import sys
 from contextlib import contextmanager
 from io import StringIO
 
 from unittest import TestCase as OrigTestCase
+from easybuild.base import fancylogger
 
 
 def nicediff(txta, txtb, offset=5):
@@ -66,7 +66,7 @@ def nicediff(txta, txtb, offset=5):
 
 
 class TestCase(OrigTestCase):
-    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+    """Enhanced test case, provides extra functionality."""
 
     longMessage = True  # print both standard messgae and custom message
 
@@ -143,6 +143,8 @@ class TestCase(OrigTestCase):
 
     def convert_exception_to_str(self, err):
         """Convert an Exception instance to a string."""
+        fancylogger.getLogger().deprecated('convert_exception_to_str is deprecated, use `str(err)` directly instead',
+                                           '6.0')
         msg = err
         if hasattr(err, 'msg'):
             msg = err.msg
@@ -162,21 +164,9 @@ class TestCase(OrigTestCase):
 
         return res
 
-    def assertErrorRegex(self, error, regex, call, *args, **kwargs):
-        """
-        Convenience method to match regex with the expected error message.
-        Example: self.assertErrorRegex(OSError, "No such file or directory", os.remove, '/no/such/file')
-        """
-        try:
-            call(*args, **kwargs)
-            str_kwargs = ['='.join([k, str(v)]) for (k, v) in kwargs.items()]
-            str_args = ', '.join(list(map(str, args)) + str_kwargs)
-            self.fail("Expected errors with %s(%s) call should occur" % (call.__name__, str_args))
-        except error as err:
-            msg = self.convert_exception_to_str(err)
-            if isinstance(regex, str):
-                regex = re.compile(regex)
-            self.assertTrue(regex.search(msg), "Pattern '%s' is found in '%s'" % (regex.pattern, msg))
+    def assertErrorRegex(self, *args, **kwargs):
+        fancylogger.getLogger().deprecated('assertErrorRegex is deprecated, use assertRaisesRegex instead', '6.0')
+        return self.assertRaisesRegex(*args, **kwargs)
 
     def mock_stdout(self, enable, force_tty=False):
         """Enable/disable mocking stdout."""
@@ -209,30 +199,30 @@ class TestCase(OrigTestCase):
         return sys.stderr.getvalue()
 
     @contextmanager
-    def mocked_stdout(self):
+    def mocked_stdout(self, force_tty=False):
         """Context manager to mock stdout"""
-        self.mock_stdout(True)
+        self.mock_stdout(True, force_tty=force_tty)
         try:
             yield sys.stdout
         finally:
             self.mock_stdout(False)
 
     @contextmanager
-    def mocked_stderr(self):
+    def mocked_stderr(self, force_tty=False):
         """Context manager to mock stdout"""
-        self.mock_stderr(True)
+        self.mock_stderr(True, force_tty=force_tty)
         try:
             yield sys.stderr
         finally:
             self.mock_stderr(False)
 
     @contextmanager
-    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True):
+    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True, force_tty=False):
         """Context manager to mock stdout and stderr"""
         if mock_stdout:
-            self.mock_stdout(True)
+            self.mock_stdout(True, force_tty=force_tty)
         if mock_stderr:
-            self.mock_stderr(True)
+            self.mock_stderr(True, force_tty=force_tty)
         try:
             if mock_stdout and mock_stderr:
                 yield sys.stdout, sys.stderr

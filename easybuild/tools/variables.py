@@ -267,7 +267,7 @@ class ListOfLists(list):
             self.log.devel("_is_protected: %s value %s (%s)", self.protected_instances, value, type(value))
             res = True
 
-        self.log.devel("_is_protected: %s value %s (%s)", res, value, value.__repr__())
+        self.log.devel("_is_protected: %s value %s (%s)", res, value, repr(value))
         return res
 
     def nappend(self, value, **kwargs):
@@ -298,11 +298,11 @@ class ListOfLists(list):
         if self._str_ok(newvalue) or append_empty:
             self.append(newvalue)
             self.log.devel("nappend: value %s newvalue %s position %s",
-                           value.__repr__(), newvalue.__repr__(), position)
+                           repr(value), repr(newvalue), position)
             return newvalue
         else:
             self.log.devel("nappend: ignoring value %s newvalue %s (not _str_ok)",
-                           value.__repr__(), newvalue.__repr__())
+                           repr(value), repr(newvalue))
 
     def nextend(self, value=None, **kwargs):
         """Named extend, value is list type (TODO: tighten the allowed values)
@@ -316,7 +316,7 @@ class ListOfLists(list):
         else:
             for el in value:
                 if not self._str_ok(el):
-                    self.log.devel("nextend: ignoring el %s from value %s (not _str_ok)", el, value.__repr__())
+                    self.log.devel("nextend: ignoring el %s from value %s (not _str_ok)", el, repr(value))
                     continue
 
                 if type(el) in self.PROTECTED_CLASSES:
@@ -338,7 +338,7 @@ class ListOfLists(list):
                 res.append(newvalue)
 
         self.extend(res)
-        self.log.devel("nextend: value %s res %s", value.__repr__(), res.__repr__())
+        self.log.devel("nextend: value %s res %s", repr(value), repr(res))
         return res
 
     def str_convert(self, x):
@@ -406,7 +406,7 @@ class ListOfLists(list):
 
         if self._first is None:
             # return empty string
-            self.log.devel("__str__: first is None (self %s)", self.__repr__())
+            self.log.devel("__str__: first is None (self %s)", repr(self))
             return ''
         else:
             sep = self.SEPARATOR
@@ -416,7 +416,7 @@ class ListOfLists(list):
                 # reverse list to mimic prepend_paths in module files
                 listoflists = reversed(self)
             txt = str(sep).join([self.str_convert(x) for x in listoflists if self._str_ok(x)])
-            self.log.devel("__str__: return %s (self: %s)", txt, self.__repr__())
+            self.log.devel("__str__: return %s (self: %s)", txt, repr(self))
             return txt
 
     def try_function_on_element(self, function_name, names=None, args=None, kwargs=None):
@@ -499,7 +499,7 @@ class Variables(dict):
 
         for other in others:
             if other in self:
-                self.log.devel("join other %s in self: other %s", other, self.get(other).__repr__())
+                self.log.devel("join other %s in self: other %s", other, repr(self.get(other)))
                 for el in self.get(other):
                     self.nappend(name, el)
             else:
