@@ -588,10 +588,10 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     elif options.bwrap:
         # require that 'experimental' configuration setting is enabled
         _log.experimental("support for building in bwrap namespace (--bwrap)")
-        # updating modules_to_install because process_eb_args may run multiple times:
+        # updating install_subdirs because process_eb_args may run multiple times:
         # once for each easyconfig in the easystack
-        modules_to_install = set(dry_run(easyconfigs, modtool, return_modules_to_install=True))
-        update_bwrap_info('modules_to_install', modules_to_install)
+        install_subdirs = set(dry_run(easyconfigs, modtool, return_install_subdirs=True))
+        update_bwrap_info('install_subdirs', install_subdirs)
         if not options.job:
             return True
 
@@ -870,7 +870,7 @@ def main_with_hooks(args=None):
 
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
-        if int(exit_code) == 0 and build_option('bwrap') and get_bwrap_info('modules_to_install'):
+        if int(exit_code) == 0 and build_option('bwrap') and get_bwrap_info('install_subdirs'):
             prepare_bwrap(eb_go.options.bwrap_installpath)
             if not eb_go.options.job:
                 rerun_with_bwrap()

@@ -51,7 +51,7 @@ _bwrap_info = {
     'bwrap_installpath_modules': '',
     'installpath_modules': '',
     'installpath_software': '',
-    'modules_to_install': set(),
+    'install_subdirs': set(),
 
 }
 
@@ -148,9 +148,9 @@ def prepare_bwrap(bwrap_installpath):
         bwrap_cmd.extend(bwrap_options)
 
     # bind mount all software directories
-    for mod in sorted(get_bwrap_info('modules_to_install')):
-        installdir = os.path.join(os.path.realpath(installpath_software), mod)
-        bwrap_installdir = os.path.join(bwrap_installpath_software, mod)
+    for subdir in sorted(get_bwrap_info('install_subdirs')):
+        installdir = os.path.join(installpath_software, subdir)
+        bwrap_installdir = os.path.join(bwrap_installpath_software, subdir)
         mkdir(bwrap_installdir, parents=True)
 
         use_overlayfs = False
