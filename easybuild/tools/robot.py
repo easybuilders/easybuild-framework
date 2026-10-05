@@ -269,6 +269,7 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
 
     install_subdirs = []
+    data_ecs = []
 
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs if spec['spec'] is not None])
@@ -289,9 +290,9 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
             if ans != 'x' and spec['ec'] is not None:
                 # data is installed in a separate install path (or a custom one with Dataset's 'data_install_path')
                 if spec['ec']['data_sources']:
-                    raise EasyBuildError("Installing easyconfigs with 'data_sources' is not supported (yet) "
-                                         "with --bwrap: %s", spec['spec'])
-                install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
+                    data_ecs.append(spec['spec'])
+                else:
+                    install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
             continue
 
         if spec['ec'] is not None and spec['ec'].short_mod_name != spec['ec'].full_mod_name:
@@ -311,6 +312,9 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
         lines.append(dry_run_fmt.format(status=ans, ec=item, module=mod))
 
     if return_install_subdirs:
+        if data_ecs:
+            raise EasyBuildError("Installing easyconfigs with 'data_sources' is not supported (yet) with --bwrap:\n%s",
+                                 '\n'.join('* ' + ec for ec in data_ecs))
         return install_subdirs
 
     if short and not terse:
