@@ -2865,7 +2865,9 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
                         hidden=True, verbose_dry_run=True)
 
-    if res.exit_code not in (0, 1):
+    # For git grep, exit code 1 is expected when no matching lines are found.
+    # In this case that means the selected tree has no filter=lfs attributes, so it should not be treated as an error.
+    if res.exit_code not in (EasyBuildExit.SUCCESS, 1):
         raise EasyBuildError(f"Failed to determine whether Git repository uses Git LFS: {res.output}")
 
     use_lfs = any(
