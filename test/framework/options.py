@@ -1063,9 +1063,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_search(self):
         """Test searching for easyconfigs."""
 
-        args = ['--robot=%s' % TEST_ECS_DIR]
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.eb_main(args + ['--search=gzip'], testing=False)
+            self.eb_main(['--search=gzip'], testing=False)
             txt = self.get_stdout()
 
         for ec in ["gzip-1.4.eb", "gzip-1.4-GCC-4.6.3.eb"]:
@@ -1073,7 +1072,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # search w/ regex
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.eb_main(args + ['--search=^gcc.*2.eb'], testing=False)
+            self.eb_main(['--search=^gcc.*2.eb'], testing=False)
             txt = self.get_stdout()
 
         for ec in ['GCC-4.8.2.eb', 'GCC-4.9.2.eb']:
@@ -1090,7 +1089,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test --search-filename
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.eb_main(args + ['--search-filename=^gcc'], testing=False)
+            self.eb_main(['--search-filename=^gcc'], testing=False)
             txt = self.get_stdout()
 
         for ec in gcc_ecs:
@@ -1098,7 +1097,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # test --search-filename --terse
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.eb_main(args + ['--search-filename=^gcc', '--terse'], testing=False)
+            self.eb_main(['--search-filename=^gcc', '--terse'], testing=False)
             txt = self.get_stdout()
 
         for ec in gcc_ecs:
@@ -1107,7 +1106,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # also test --search-short/-S
         for search_arg in ['-S', '--search-short']:
             with self.mocked_stdout_stderr(mock_stderr=False):
-                self.eb_main(args + [search_arg, '^toy-0.0'], raise_error=True, verbose=True, testing=False)
+                self.eb_main([search_arg, '^toy-0.0'], raise_error=True, verbose=True, testing=False)
                 txt = self.get_stdout()
 
             self.assertRegex(txt, re.compile(r'^CFGS\d+=', re.M))
@@ -1116,7 +1115,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # combining --search with --try-* should not cause trouble; --try-* should just be ignored
         with self.mocked_stdout_stderr(mock_stderr=False):
-            self.eb_main(args + ['--search=^gcc', '--try-toolchain-version=1.2.3'], testing=False, raise_error=True)
+            self.eb_main(['--search=^gcc', '--try-toolchain-version=1.2.3'], testing=False, raise_error=True)
             txt = self.get_stdout()
         self.assertIn('GCC-4.9.2', txt)
 
@@ -1126,7 +1125,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for opt in ['--search', '-S', '--search-short']:
             for pattern in ['netCDF-C++', 'foo|bar', '^foo', 'foo.*bar']:
                 with self.mocked_stdout_stderr(mock_stderr=False):
-                    _log, err = self.eb_main(args + [opt, pattern], return_error=True, verbose=True, testing=False)
+                    _log, err = self.eb_main([opt, pattern], return_error=True, verbose=True, testing=False)
                     stdout = self.get_stdout()
                 # there shouldn't be any hits for any of these queries, so empty output...
                 self.assertEqual(stdout.strip(), '')
@@ -1139,13 +1138,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         for opt in ['--search', '-S', '--search-short']:
             for pattern in ['*foo', '(foo', ')foo', 'foo)', 'foo(']:
                 with self.mocked_stdout_stderr():
-                    self.assertRaisesRegex(EasyBuildError, "Invalid search query", self.eb_main, args + [opt, pattern],
+                    self.assertRaisesRegex(EasyBuildError, "Invalid search query", self.eb_main, [opt, pattern],
                                            raise_error=True)
 
         # test searching for non-existing easyconfig file (should produce non-zero exit code)
         # 4 corresponds with MISSING_EASYCONFIG in EasyBuildExit (see easybuild/tools/build_log.py)
         self.assertRaisesRegex(SystemExit, 'MISSING_EASYCONFIG|4', self.eb_main,
-                               args + ['--search', 'nosuchsoftware-1.2.3.4.5'],
+                               ['--search', 'nosuchsoftware-1.2.3.4.5'],
                                testing=False, raise_error=True)
 
     def test_ignore_index(self):
