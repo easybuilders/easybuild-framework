@@ -34,6 +34,7 @@ import json
 import os
 
 from easybuild.base import fancylogger
+from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError, print_msg
 from easybuild.tools.config import build_option, install_path, ConfigurationVariables
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
@@ -90,6 +91,33 @@ def update_bwrap_info(key, value):
             raise EasyBuildError("Unknown type of value encountered when updating bwrap info!")
     else:
         raise EasyBuildError(f"Unknown key specified to update bwrap info: {key}")
+
+
+def det_install_subdirs(specs):
+    """
+    Determine software installation subdirectories for easyconfigs to be installed in bwrap namespace
+
+    :param specs: list of easyconfig specs (dicts) to be installed
+    :return: list of installation subdirectories, relative to the software install path
+    """
+    install_subdirs = []
+    data_ecs = []
+    for spec in specs:
+        # skip dummy entries for dependencies without an easyconfig
+        if spec['ec'] is None:
+            continue
+        # data is installed in a separate install path (or a custom one with Dataset's 'data_install_path')
+        if spec['ec']['data_sources']:
+            data_ecs.append(spec['spec'])
+        else:
+            # use install subdir rather than module name, since they differ for some module naming schemes (e.g. HMNS)
+            install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
+
+    if data_ecs:
+        raise EasyBuildError("Installing easyconfigs with 'data_sources' is not supported (yet) with --bwrap:\n%s",
+                             '\n'.join('* ' + ec for ec in data_ecs))
+
+    return install_subdirs
 
 
 def prepare_bwrap(bwrap_installpath):

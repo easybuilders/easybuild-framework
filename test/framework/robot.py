@@ -1611,8 +1611,8 @@ class RobotTest(EnhancedTestCase):
 
             self.assertRegex(stdout, re.compile('\n'.join(pattern), re.M))
 
-    def test_dry_run_install_subdirs(self):
-        """Test dry_run with return_install_subdirs (used for --bwrap)."""
+    def test_dry_run_specs_to_install(self):
+        """Test dry_run with return_specs_to_install (and deprecated return_modules_to_install)."""
         self.install_mock_module()
 
         build_options = {
@@ -1620,58 +1620,47 @@ class RobotTest(EnhancedTestCase):
             'robot_path': TEST_ECS_DIR,
             'validate': False,
         }
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-
-        # install subdirs must not depend on the module naming scheme (cfr. module subdirs with HMNS)
-        expected = [
-            'FFTW/3.3.7-gompi-2018a',
-            'GCC/6.4.0-2.28',
-            'OpenBLAS/0.2.20-GCC-6.4.0-2.28',
-            'OpenMPI/2.1.2-GCC-6.4.0-2.28',
-            'ScaLAPACK/2.0.2-gompi-2018a-OpenBLAS-0.2.20',
-            'foss/2018a',
-            'gompi/2018a',
-            'gzip/1.5-foss-2018a',
-            'hwloc/1.11.8-GCC-6.4.0-2.28',
-        ]
-        installed_mods = {
-            'EasyBuildMNS': ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28'],
-            'HierarchicalMNS': ['Core/GCC/6.4.0-2.28', 'Compiler/GCC/6.4.0-2.28/hwloc/1.11.8'],
-        }
-        for mns, mods in installed_mods.items():
-            os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = mns
-            init_config(build_options=build_options)
-            ecs, _ = parse_easyconfigs([(gzip_ec, False)])
-
-            MockModule.avail_modules = []
-            self.assertEqual(sorted(dry_run(ecs, self.modtool, return_install_subdirs=True)), expected)
-
-            # modules that are already available are skipped
-            MockModule.avail_modules = mods
-            res = sorted(dry_run(ecs, self.modtool, return_install_subdirs=True))
-            self.assertEqual(res, [x for x in expected if x not in ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']])
-
-            # with --force, only the specified easyconfig is reinstalled if all modules are available
-            init_config(build_options=dict(build_options, force=True))
-            ecs, _ = parse_easyconfigs([(gzip_ec, False)])
-            all_specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            MockModule.avail_modules = [spec['full_mod_name'] for spec in all_specs]
-            self.assertEqual(dry_run(ecs, self.modtool, return_install_subdirs=True), ['gzip/1.5-foss-2018a'])
-
-        # easyconfigs with data_sources are not supported, all of them are listed in the error
-        del os.environ['EASYBUILD_MODULE_NAMING_SCHEME']
         init_config(build_options=build_options)
+        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        ecs, _ = parse_easyconfigs([(gzip_ec, False)])
+
+        expected = [
+            'FFTW-3.3.7-gompi-2018a.eb',
+            'GCC-6.4.0-2.28.eb',
+            'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb',
+            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
+            'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb',
+            'foss-2018a.eb',
+            'gompi-2018a.eb',
+            'gzip-1.5-foss-2018a.eb',
+            'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+        ]
         MockModule.avail_modules = []
-        toy_data_txt = re.sub('^sources = ', 'data_sources = ', TOY_EC_TXT, flags=re.M)
-        toy_data_ecs = []
-        for version in ['0.0', '0.1']:
-            toy_data_ec = os.path.join(self.test_prefix, f'toy-{version}.eb')
-            write_file(toy_data_ec, re.sub('^version = .*', f"version = '{version}'", toy_data_txt, flags=re.M))
-            toy_data_ecs.append(toy_data_ec)
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb')
-        ecs, _ = parse_easyconfigs([(ec, False) for ec in toy_data_ecs + [gzip_ec]])
-        error_pattern = r"'data_sources' is not supported \(yet\) with --bwrap:\n\* %s\n\* %s$" % tuple(toy_data_ecs)
-        self.assertRaisesRegex(EasyBuildError, error_pattern, dry_run, ecs, self.modtool, return_install_subdirs=True)
+        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
+        self.assertEqual(sorted(os.path.basename(spec['spec']) for spec in specs), expected)
+
+        # modules that are already available are skipped
+        MockModule.avail_modules = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']
+        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
+        res = sorted(os.path.basename(spec['spec']) for spec in specs)
+        self.assertEqual(res, [x for x in expected if not x.startswith(('GCC-', 'hwloc-'))])
+
+        # deprecated return_modules_to_install returns full module names
+        depr_msg = "Parameter 'return_modules_to_install' of dry_run is deprecated"
+        self.assertRaisesRegex(EasyBuildError, depr_msg, dry_run, ecs, self.modtool, return_modules_to_install=True)
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            mods = dry_run(ecs, self.modtool, return_modules_to_install=True)
+            stderr = self.get_stderr()
+        self.assertIn(depr_msg, stderr)
+        self.assertEqual(mods, [spec['full_mod_name'] for spec in specs])
+
+        # with --force, only the specified easyconfig is reinstalled if all modules are available
+        init_config(build_options=dict(build_options, force=True))
+        ecs, _ = parse_easyconfigs([(gzip_ec, False)])
+        all_specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+        MockModule.avail_modules = [spec['full_mod_name'] for spec in all_specs]
+        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
+        self.assertEqual([spec['spec'] for spec in specs], [gzip_ec])
 
 
 def suite(loader=None):

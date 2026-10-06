@@ -236,7 +236,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True, return_
     return res
 
 
-def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
+def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False, return_specs_to_install=False):
     """
     Compose dry run overview for supplied easyconfigs:
     * [ ] for unavailable
@@ -246,9 +246,15 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
     :param easyconfigs: list of parsed easyconfigs (EasyConfig instances)
     :param modtool: ModulesTool instance to use
     :param short: use short format for overview: use a variable for common prefixes
-    :param return_install_subdirs: boolean indicating whether list of software installation subdirectories
-                                   of modules to be (re)installed should be returned
+    :param return_modules_to_install: boolean indicating whether list of modules to be (re)installed should be returned
+                                      (DEPRECATED, use return_specs_to_install instead)
+    :param return_specs_to_install: boolean indicating whether list of easyconfig specs (dicts) to be (re)installed
+                                    should be returned
     """
+    if return_modules_to_install:
+        _log.deprecated("Parameter 'return_modules_to_install' of dry_run is deprecated, "
+                        "use 'return_specs_to_install' instead", '6.0')
+
     terse = build_option('terse')
     if build_option('robot') is None:
         lines = ["Dry run: printing build status of easyconfigs"]
@@ -268,8 +274,7 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
 
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
 
-    install_subdirs = []
-    data_ecs = []
+    specs_to_install = []
 
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs if spec['spec'] is not None])
@@ -285,14 +290,9 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
         else:
             ans = 'x'
 
-        if return_install_subdirs:
-            # use install subdir rather than module name, since they differ for some module naming schemes (e.g. HMNS)
-            if ans != 'x' and spec['ec'] is not None:
-                # data is installed in a separate install path (or a custom one with Dataset's 'data_install_path')
-                if spec['ec']['data_sources']:
-                    data_ecs.append(spec['spec'])
-                else:
-                    install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
+        if return_modules_to_install or return_specs_to_install:
+            if ans != 'x':
+                specs_to_install.append(spec)
             continue
 
         if spec['ec'] is not None and spec['ec'].short_mod_name != spec['ec'].full_mod_name:
@@ -311,11 +311,10 @@ def dry_run(easyconfigs, modtool, short=False, return_install_subdirs=False):
 
         lines.append(dry_run_fmt.format(status=ans, ec=item, module=mod))
 
-    if return_install_subdirs:
-        if data_ecs:
-            raise EasyBuildError("Installing easyconfigs with 'data_sources' is not supported (yet) with --bwrap:\n%s",
-                                 '\n'.join('* ' + ec for ec in data_ecs))
-        return install_subdirs
+    if return_modules_to_install:
+        return [spec['full_mod_name'] for spec in specs_to_install]
+    if return_specs_to_install:
+        return specs_to_install
 
     if short and not terse:
         # insert after 'Dry run:' message
