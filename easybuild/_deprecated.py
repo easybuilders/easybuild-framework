@@ -571,6 +571,10 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
                 proc.stdout.close()
             if proc.stdin:
                 proc.stdin.close()
+            # make sure the process is killed and reaped, to avoid zombies and ResourceWarnings
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
             if cmd_log:
                 cmd_log.close()
 
