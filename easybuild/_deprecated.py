@@ -377,6 +377,10 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
         output = get_output_from_process(proc, print_deprecation_warning=False)
     finally:
         proc.stdout.close()
+        # make sure the process is killed and reaped, to avoid zombies and ResourceWarnings
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
 
     if cmd_log:
         cmd_log.write(output)
