@@ -103,7 +103,7 @@ def json_loads(body):
     return json.loads(body)
 
 
-def get_output_from_process(proc, read_size=None, asynchronous=False, print_deprecation_warning=True):
+def get_output_from_process(proc: subprocess.Popen, read_size=None, asynchronous=False, print_deprecation_warning=True):
     """
     Get output from running process (that was opened with subprocess.Popen).
 
@@ -271,9 +271,13 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
     except OSError as err:
         raise EasyBuildError("run_cmd init cmd %s failed:%s", cmd, err)
 
-    if inp:
-        proc.stdin.write(inp.encode())
-    proc.stdin.close()
+    try:
+        if inp:
+            proc.stdin.write(inp.encode())
+        proc.stdin.close()
+    except Exception:
+        _finalize_process(proc)
+        raise
 
     if asynchronous:
         return (proc, cmd, cwd, start_time, cmd_log)
@@ -283,7 +287,8 @@ def run_cmd(cmd, log_ok=True, log_all=False, simple=False, inp=None, regexp=True
                             print_deprecation_warning=False)
 
 
-def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024, output=''):
+def check_async_cmd(proc: subprocess.Popen, cmd, owd, start_time, cmd_log, fail_on_error=True, output_read_size=1024,
+                    output=''):
     """
     Check status of command that was started asynchronously.
 
@@ -328,7 +333,23 @@ def check_async_cmd(proc, cmd, owd, start_time, cmd_log, fail_on_error=True, out
     return res
 
 
-def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
+def _finalize_process(proc: subprocess.Popen):
+    """Terminate/Kill and reap a subprocess.Popen instance, making sure all handles are closed."""
+    if proc.stdout:
+        proc.stdout.close()
+    if proc.stderr:
+        proc.stderr.close()
+    try:
+        if proc.stdin:
+            proc.stdin.close()
+    finally:
+        # make sure the process is killed and reaped, to avoid zombies and ResourceWarnings
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+
+
+def complete_cmd(proc: subprocess.Popen, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False, simple=False,
                  regexp=True, stream_output=None, trace=True, output='', with_hook=True,
                  print_deprecation_warning=True):
     """
@@ -376,11 +397,7 @@ def complete_cmd(proc, cmd, owd, start_time, cmd_log, log_ok=True, log_all=False
         # read remaining data (all of it)
         output = get_output_from_process(proc, print_deprecation_warning=False)
     finally:
-        proc.stdout.close()
-        # make sure the process is killed and reaped, to avoid zombies and ResourceWarnings
-        if proc.poll() is None:
-            proc.kill()
-        proc.wait()
+        _finalize_process(proc)
 
     if cmd_log:
         cmd_log.write(output)
@@ -571,14 +588,7 @@ def run_cmd_qa(cmd, qa, no_qa=None, log_ok=True, log_all=False, simple=False, re
         try:
             yield proc
         finally:
-            if proc.stdout:
-                proc.stdout.close()
-            if proc.stdin:
-                proc.stdin.close()
-            # make sure the process is killed and reaped, to avoid zombies and ResourceWarnings
-            if proc.poll() is None:
-                proc.kill()
-            proc.wait()
+            _finalize_process(proc)
             if cmd_log:
                 cmd_log.close()
 
