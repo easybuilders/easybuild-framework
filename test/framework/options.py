@@ -243,7 +243,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test forcing installation even if the module is already available."""
 
         # use GCC-4.6.3.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.6.3.eb')
+        eb_file = TEST_ECS_DIR / 'g/GCC/GCC-4.6.3.eb'
 
         # check log message without --force
         args = [
@@ -398,7 +398,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_skip_test_step(self):
         """Test skipping testing the build (--skip-test-step)."""
 
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-test.eb'
 
         # check log message without --skip-test-step
         args = [
@@ -432,7 +432,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test ignore failing tests (--ignore-test-failure)."""
 
         # This EC uses a `runtest` command which does not exist and hence will make the test step fail
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-test.eb'
 
         args = [toy_ec, '--ignore-test-failure', '--force']
 
@@ -476,8 +476,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test submitting build as a job."""
 
         # use gzip-1.4.eb easyconfig file that comes with the tests
-        test_ecs = TEST_ECS_DIR
-        eb_file = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb')
+        eb_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb'
 
         def check_args(job_args, passed_args=None, msgstrs=None, try_opts='', tweaked_eb_file='gzip-1.4.eb'):
             """Check whether specified args yield expected result."""
@@ -530,8 +529,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
                    msgstrs=[
                        (tweaked_eb_file, eb_file + try_opts),
                        ('libtoy-0.0-GCC-4.9.3-2.26.eb',
-                        os.path.join(test_ecs, 'l', 'libtoy', 'libtoy-0.0.eb') + try_opts),
-                       (gzip_eb_file, os.path.join(test_ecs, 'g', 'gzip', gzip_eb_file))],
+                        TEST_ECS_DIR / 'l/libtoy/libtoy-0.0.eb' + try_opts),
+                       (gzip_eb_file, TEST_ECS_DIR / 'g/gzip' / gzip_eb_file)],
                    try_opts=try_opts,
                    tweaked_eb_file=tweaked_eb_file)
 
@@ -1247,7 +1246,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test --copy-ec."""
 
         toy_ec_txt = TOY_EC_TXT
-        bzip2_ec_txt = read_file(os.path.join(TEST_ECS_DIR, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+        bzip2_ec_txt = read_file(TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb')
 
         # basic test: copying one easyconfig file to a non-existing absolute path
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1714,9 +1713,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        test_ecs = TEST_ECS_DIR
-        eb1 = os.path.join(test_ecs, 'f', 'FFTW', 'FFTW-3.3.7-gompi-2018a.eb')
-        eb2 = os.path.join(test_ecs, 's', 'ScaLAPACK', 'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb')
+        eb1 = TEST_ECS_DIR / 'f/FFTW/FFTW-3.3.7-gompi-2018a.eb'
+        eb2 = TEST_ECS_DIR / 's/ScaLAPACK/ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb'
 
         # check log message with --skip for existing module
         args = [
@@ -1724,7 +1722,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             eb2,
             '--debug',
             '--force',
-            '--robot=%s' % test_ecs,
+            '--robot',
             '--try-toolchain=gompi,2018b',
             '--dry-run',
             '--unittest-file=%s' % self.logfile,
@@ -1749,8 +1747,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_try_toolchain_mapping(self):
         """Test mapping of subtoolchains with --try-toolchain."""
-        test_ecs = TEST_ECS_DIR
-        gzip_ec = os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb'
 
         args = [
             gzip_ec,
@@ -2071,10 +2068,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         os.close(fd)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
-        test_ecs_path = TEST_ECS_DIR
         ecstmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(ecstmpdir, 'easybuild'), parents=True)
-        copy_dir(test_ecs_path, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(TEST_ECS_DIR, os.path.join(ecstmpdir, 'easybuild', 'easyconfigs'))
 
         # inject path to test easyconfigs into head of Python search path
         sys.path.insert(0, ecstmpdir)
@@ -2087,8 +2083,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             # PR for XCrySDen/1.6.2-foss-2024a, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
             '--from-pr=22227',
             '--dry-run',
-            # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % test_ecs_path,
+            '--robot',
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -2097,10 +2092,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (test_ecs_path, 'toy/0.0'),  # not included in PR
+                (TEST_ECS_DIR, 'toy/0.0'),  # not included in PR
                 ('.*%s' % os.path.dirname(tmpdir), 'XCrySDen/1.6.2-foss-2024a'),
                 ('.*%s' % os.path.dirname(tmpdir), 'Togl/2.0-GCCcore-13.3.0'),
-                (test_ecs_path, 'GCC/4.6.3'),  # not included in PR, available locally
+                (TEST_ECS_DIR, 'GCC/4.6.3'),  # not included in PR, available locally
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))
@@ -2373,7 +2368,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Test generating recursively unloading modules."""
 
         # use toy-0.0.eb easyconfig file that comes with the tests
-        eb_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
+        eb_file = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
 
         # check log message with --skip for existing module
         lastargs = ['--recursive-module-unload']
@@ -2638,7 +2633,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             tweaked_toy_ec,
             '--dry-run',
-            '--robot=%s' % TEST_ECS_DIR,
+            f'--robot={TEST_ECS_DIR}',
         ]
 
         test_cases = [
@@ -2691,7 +2686,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # Try changing only name or version of toolchain
         args.pop(0)  # Remove EC filename
         foss_toy_ec = os.path.join(self.test_buildpath, 'toy-0.0-foss-2018a.eb')
-        copy_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a.eb'), foss_toy_ec)
+        copy_file(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb', foss_toy_ec)
         write_file(foss_toy_ec, "toolchain['name'] = 'foss'", append=True)
 
         test_cases = [
@@ -2712,7 +2707,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         args = [
             tweaked_toy_ec,
             '--dry-run',
-            '--robot=%s' % TEST_ECS_DIR,
+            f'--robot={TEST_ECS_DIR}',
             '--copy-ec',
         ]
         copied_ec = os.path.join(self.test_buildpath, 'my_eb.eb')
@@ -2736,7 +2731,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_software_version_ordering(self):
         """Test whether software versions are correctly ordered when using --software."""
-        gcc_ec = os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.9.2.eb')
+        gcc_ec = TEST_ECS_DIR / 'g/GCC/GCC-4.9.2.eb'
 
         test_gcc_ec = os.path.join(self.test_prefix, 'GCC-4.10.1.eb')
         test_gcc_txt = read_file(gcc_ec).replace("version = '4.9.2'", "version = '4.10.1'")
@@ -2759,12 +2754,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         copy_file(TOY_EC, tweaked_toy_ec)
         write_file(tweaked_toy_ec, "dependencies = [('gzip', '1.4')]\n", append=True)  # add fictious dependency
 
-        sourcepath = os.path.join(TEST_DIR, 'sandbox', 'sources')
+        sourcepath = TEST_DIR / 'sandbox/sources'
         args = [
             tweaked_toy_ec,
             '--sourcepath=%s' % sourcepath,
             '--try-toolchain=gompi,2018a',
-            '--robot=%s' % TEST_ECS_DIR,
+            f'--robot={TEST_ECS_DIR}',
             '--ignore-osdeps',
             '--dry-run',
         ]
@@ -2851,11 +2846,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_filter_deps(self):
         """Test use of --filter-deps."""
-        ec_file = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
+        ec_file = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
         os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         args = [
             ec_file,
-            '--robot=%s' % TEST_ECS_DIR,
+            f'--robot={TEST_ECS_DIR}',
             '--dry-run',
         ]
         with self.mocked_stdout_stderr():
@@ -2964,7 +2959,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # This easyconfig contains a dependency of CMake for which no easyconfig exists. It should still
         # succeed when called with --filter-deps=CMake=:2.8.10]
         write_file(self.logfile, '')
-        ec_file = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a-broken.eb')
+        ec_file = TEST_ECS_DIR / 'f/foss/foss-2018a-broken.eb'
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
         with self.mocked_stdout_stderr():
@@ -2975,7 +2970,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # The test below fails without PR 2983
         write_file(self.logfile, '')
-        ec_file = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a-broken.eb')
+        ec_file = TEST_ECS_DIR / 'f/foss/foss-2018a-broken.eb'
         args[0] = ec_file
         args[-1] = 'FFTW=3.3.7,CMake=:2.8.10],zlib'
         with self.mocked_stdout_stderr():
@@ -2984,12 +2979,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_hide_deps(self):
         """Test use of --hide-deps."""
-        test_dir = TEST_DIR
-        ec_file = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
+        ec_file = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
         os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         args = [
             ec_file,
-            '--robot=%s' % os.path.join(test_dir, 'easyconfigs'),
+            f'--robot={TEST_DIR / "easyconfigs"}',
             '--dry-run',
         ]
         with self.mocked_stdout_stderr():
@@ -3021,7 +3015,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_hide_toolchains(self):
         """Test use of --hide-toolchains."""
-        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.6-GCC-4.9.2.eb'
         args = [
             ec_file,
             '--dry-run',
@@ -3104,7 +3098,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_http_header_fields_urlpat(self):
         """Test use of --http-header-fields-urlpat."""
         tmpdir = tempfile.mkdtemp()
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.6-GCC-4.9.2.eb')
+        gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.6-GCC-4.9.2.eb'
         gzip_ec_txt = read_file(gzip_ec)
         test_ec_txt = re.sub('^source_urls = .*',
                              "source_urls = ['https://sources.easybuild.io/g/gzip']",
@@ -3276,9 +3270,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
         os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
 
-        test_ecs_path = TEST_ECS_DIR
         # includes 'toy/.0.0-deps' as a dependency
-        eb_file = os.path.join(test_ecs_path, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        eb_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
 
         # hide test modules
         self.reset_modulepath([])
@@ -3286,7 +3279,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # dependency resolution is disabled by default, even if required paths are available
         args = [
             eb_file,
-            '--robot-paths=%s' % test_ecs_path,
+            f'--robot-paths={TEST_ECS_DIR}',
         ]
         error_regex = r"Missing modules for dependencies .*: toy/\.0.0-deps"
         with self.mocked_stdout_stderr():
@@ -3304,13 +3297,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # add path to test easyconfigs to robot paths, so dependencies can be resolved
         args.append('--dry-run')
         with self.mocked_stdout_stderr():
-            self.eb_main(args + ['--robot-paths=%s' % test_ecs_path], raise_error=True)
+            self.eb_main(args + [f'--robot-paths={TEST_ECS_DIR}'], raise_error=True)
 
         # copy test easyconfigs to easybuild/easyconfigs subdirectory of temp directory
         # to check whether easyconfigs install path is auto-included in robot path
         tmpdir = tempfile.mkdtemp(prefix='easybuild-easyconfigs-pkg-install-path')
         mkdir(os.path.join(tmpdir, 'easybuild'), parents=True)
-        copy_dir(test_ecs_path, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
+        copy_dir(TEST_ECS_DIR, os.path.join(tmpdir, 'easybuild', 'easyconfigs'))
 
         # prepend path to test easyconfigs into Python search path, so it gets picked up as --robot-paths default
         del os.environ['EASYBUILD_ROBOT_PATHS']
@@ -3325,7 +3318,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # make sure that paths specified to --robot get preference over --robot-paths
         args = [
             eb_file,
-            '--robot=%s' % test_ecs_path,
+            f'--robot={TEST_ECS_DIR}',
             '--robot-paths=%s' % os.path.join(tmpdir, 'easybuild', 'easyconfigs'),
             '--dry-run',
         ]
@@ -3340,7 +3333,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         re_template = r'^\s\*\s\[[xF ]\]\s%s'
         for ecfile in ecfiles:
-            self.assertRegex(outtxt, re.compile(re_template % os.path.join(test_ecs_path, ecfile), re.M))
+            self.assertRegex(outtxt, re.compile(re_template % os.path.join(TEST_ECS_DIR, ecfile), re.M))
 
         # Check for disabling --robot
         args.append('--disable-robot')
@@ -3349,7 +3342,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True)
         for ecfile in ecfiles:
-            ec_regex = re.compile(re_template % os.path.join(test_ecs_path, ecfile), re.M)
+            ec_regex = re.compile(re_template % os.path.join(TEST_ECS_DIR, ecfile), re.M)
             # Only the EC passed would be build but not the dependencies
             if os.path.basename(ecfile) == os.path.basename(eb_file):
                 self.assertRegex(outtxt, ec_regex)
@@ -3599,8 +3592,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, logfile=dummylogfn, raise_error=True)
         logtxt = read_file(self.logfile)
 
-        test_easyblocks = TEST_DIR
-        path_pattern = os.path.join(test_easyblocks, 'sandbox', 'easybuild', 'easyblocks', 'f', 'foo.py')
+        path_pattern = str(TEST_DIR / 'sandbox/easybuild/easyblocks/f/foo.py')
         self.assertRegex(logtxt, re.compile(r"^\|-- EB_foo \(easybuild.easyblocks.foo @ %s\)" % path_pattern, re.M))
 
         # 'undo' import of foo easyblock
@@ -3613,7 +3605,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
         # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(TEST_DIR, 'sandbox')
+        testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
                 if testdir_sandbox not in path:
@@ -3734,7 +3726,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
         # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(TEST_DIR, 'sandbox')
+        testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
                 if testdir_sandbox not in path:
@@ -3875,7 +3867,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic,
         # to avoid that easyblocks picked up from other places cause trouble
-        testdir_sandbox = os.path.join(TEST_DIR, 'sandbox')
+        testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
                 if testdir_sandbox not in path:
@@ -4169,8 +4161,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Skipping test_preview_pr, no GitHub token available?")
             return
 
-        test_ecs_path = TEST_ECS_DIR
-        eb_file = os.path.join(test_ecs_path, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
+        eb_file = TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb'
         args = [
             '--color=never',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4456,8 +4447,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # test easyblocks
-        test_ebs = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
-        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        test_ebs = TEST_DIR / 'sandbox/easybuild/easyblocks'
+        toy_eb = test_ebs / 't/toy.py'
 
         args = [
             '--new-branch-github',
@@ -4477,8 +4468,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
         # test framework with tweaked copy of test_module_naming_scheme.py
-        test_mns_py = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'tools', 'module_naming_scheme',
-                                   'test_module_naming_scheme.py')
+        test_mns_py = TEST_DIR / 'sandbox/easybuild/tools/module_naming_scheme/test_module_naming_scheme.py'
         target_dir = os.path.join(self.test_prefix, 'easybuild-framework', 'test', 'framework', 'sandbox',
                                   'easybuild', 'tools', 'module_naming_scheme')
         mkdir(target_dir, parents=True)
@@ -4577,13 +4567,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # copy toy test easyconfig
 
-        test_ecs = TEST_ECS_DIR
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn
         # purposely picked one with non-default toolchain/versionsuffix
-        copy_file(os.path.join(test_ecs, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), toy_ec)
-
+        copy_file(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb', toy_ec)
         # modify file to mock archived easyconfig
         toy_ec_txt = read_file(toy_ec)
         toy_ec_txt = '\n'.join([
@@ -4723,7 +4711,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # modifying an existing easyconfig requires a custom PR title;
         # we need to use a sufficiently recent GCC version, since easyconfigs for old versions have been archived
-        gcc_ec = os.path.join(test_ecs, 'g', 'GCC', 'GCC-10.2.0.eb')
+        gcc_ec = TEST_ECS_DIR / 'g/GCC/GCC-10.2.0.eb'
         gcc_new_ec = os.path.join(self.test_prefix, 'GCC-14.3.0.eb')
         gcc_new_txt = read_file(gcc_ec).replace('10.2.0', '14.3.0')
         write_file(gcc_new_ec, gcc_new_txt)
@@ -4804,7 +4792,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        copy_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), test_ec)
+        copy_file(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb', test_ec)
 
         patches_regex = re.compile(r'^patches = .*', re.M)
         test_ec_txt = read_file(test_ec)
@@ -4901,7 +4889,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
             return
 
         # copy toy test easyconfig
-        test_ecs = TEST_ECS_DIR
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         copy_file(TOY_EC, toy_ec)
 
@@ -4922,7 +4909,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # if multiple easyconfigs depending on Python are included, Python version is only listed once
         gzip_ec = os.path.join(self.test_prefix, 'test.eb')
-        copy_file(os.path.join(test_ecs, 'g', 'gzip', 'gzip-1.4.eb'), gzip_ec)
+        copy_file(TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb', gzip_ec)
         gzip_ec_txt = read_file(gzip_ec)
         write_file(gzip_ec, gzip_ec_txt + "\ndependencies = [('Python', '3.7.2')]")
 
@@ -5019,7 +5006,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             print("Skipping test_new_pr_easyblock, no GitHub token available?")
             return
 
-        toy_eb = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks', 't', 'toy.py')
+        toy_eb = TEST_DIR / 'sandbox/easybuild/easyblocks/t/toy.py'
         self.assertExists(toy_eb)
 
         args = [
@@ -5201,7 +5188,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         default_prefix = os.path.join(os.environ['HOME'], '.local', 'easybuild')
 
-        test_dir = TEST_DIR
         expected_lines = [
             r"#",
             r"# Current EasyBuild configuration",
@@ -5216,8 +5202,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             r"repositorypath\s* \(D\) = " + os.path.join(default_prefix, 'ebfiles_repo'),
             rf"robot-paths\s* \(E\) = {TEST_ECS_DIR}",
             r"rpath\s* \(D\) = " + ('False' if get_os_type() == DARWIN else 'True'),
-            r"sourcepath\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'sources'),
-            r"sourcepath-data\s* \(E\) = " + os.path.join(test_dir, 'sandbox', 'data_sources'),
+            r"sourcepath\s* \(E\) = " + str(TEST_DIR / 'sandbox/sources'),
+            r"sourcepath-data\s* \(E\) = " + str(TEST_DIR / 'sandbox/data_sources'),
             r"subdir-modules\s* \(F\) = mods",
         ]
 
@@ -5742,15 +5728,15 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # full test is a nuisance, because all dependencies must be available and toolchains like intel must have
         # all expected components when testing with HierarchicalMNS (which the test easyconfigs don't always have)
 
-        cray_ec = os.path.join(TEST_ECS_DIR, 'c', 'CrayCCE', 'CrayCCE-5.1.29.eb')
-        gcc_ec = os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.6.3.eb')
-        gzip_ec = os.path.join(TEST_DIR, 'easyconfigs', 'v1.0', 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
-        gzip_system_ec = os.path.join(TEST_DIR, 'easyconfigs', 'v1.0', 'g', 'gzip', 'gzip-1.4.eb')
+        cray_ec = TEST_ECS_DIR / 'c/CrayCCE/CrayCCE-5.1.29.eb'
+        gcc_ec = TEST_ECS_DIR / 'g/GCC/GCC-4.6.3.eb'
+        gzip_ec = TEST_DIR / 'easyconfigs/v1.0/g/gzip/gzip-1.4-GCC-4.6.3.eb'
+        gzip_system_ec = TEST_DIR / 'easyconfigs/v1.0/g/gzip/gzip-1.4.eb'
 
-        test_ecs = os.path.join(self.test_prefix, 'test_ecs')
+        tmp_ecs = os.path.join(self.test_prefix, 'tmp_ecs')
         for ec in [cray_ec, gcc_ec, gzip_ec, gzip_system_ec]:
             subdirs = os.path.dirname(ec).split(os.path.sep)[-2:]
-            target_dir = os.path.join(test_ecs, *subdirs)
+            target_dir = os.path.join(tmp_ecs, *subdirs)
             mkdir(target_dir, parents=True)
             copy_file(ec, target_dir)
 
@@ -5764,7 +5750,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             'description = "HPL"',
             'toolchain = {"name": "CrayCCE", "version": "5.1.29"}',
         ])
-        hpl_cray_ec = os.path.join(self.test_prefix, 'test_ecs', 'h', 'HPL', 'HPL-2.3-CrayCCE-5.1.29.eb')
+        hpl_cray_ec = os.path.join(tmp_ecs, 'h', 'HPL', 'HPL-2.3-CrayCCE-5.1.29.eb')
         write_file(hpl_cray_ec, hpl_cray_ec_txt)
 
         # put dummy Core/GCC/4.6.3 in place
@@ -5778,7 +5764,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             args = [
                 '--list-software',
-                '--robot-paths=%s' % test_ecs,
+                '--robot-paths=%s' % tmp_ecs,
                 '--module-naming-scheme=%s' % mns,
             ]
             txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False, verbose=True)
@@ -5796,7 +5782,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = [
                 '--list-software=detailed',
                 '--output-format=rst',
-                '--robot-paths=%s' % test_ecs,
+                '--robot-paths=%s' % tmp_ecs,
                 '--module-naming-scheme=%s' % mns,
             ]
             txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
@@ -5816,7 +5802,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             args = [
                 '--list-installed-software',
                 '--output-format=rst',
-                '--robot-paths=%s' % test_ecs,
+                '--robot-paths=%s' % tmp_ecs,
                 '--module-naming-scheme=%s' % mns,
             ]
             txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
@@ -5834,7 +5820,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             args = [
                 '--list-installed-software=detailed',
-                '--robot-paths=%s' % test_ecs,
+                '--robot-paths=%s' % tmp_ecs,
                 '--module-naming-scheme=%s' % mns,
             ]
             txt, _ = self._run_mock_eb(args, testing=False, raise_error=True, verbose=True)
@@ -6056,7 +6042,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_set_default_module(self):
         """Test use of --set-default-module"""
 
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
 
         with self.mocked_stdout_stderr():
             self.eb_main([toy_ec, '--set-default-module'], do_build=True, raise_error=True)
@@ -6161,7 +6147,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_inject_checksums(self):
         """Test for --inject-checksums"""
 
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         # checksums are injected in existing easyconfig, so test with a copy
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -6396,7 +6382,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(ext_opts['checksums'], expected_checksums)
 
         # Also works for cargo crates
-        cargo_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-cargo.eb')
+        cargo_ec = TEST_ECS_DIR / 't/toy/toy-0.0-cargo.eb'
         copy_file(cargo_ec, test_ec)
         stdout, stderr = self._run_mock_eb([test_ec, '--inject-checksums'], raise_error=True, strip=True)
         self.assertIn("injecting sha256 checksums in", stdout)
@@ -6482,7 +6468,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_force_download(self):
         """Test --force-download"""
 
-        toy_srcdir = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy')
+        toy_srcdir = TEST_DIR / 'sandbox/sources/toy'
 
         copy_file(TOY_EC, self.test_prefix)
         toy_tar = 'toy-0.0.tar.gz'
@@ -6509,7 +6495,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_enforce_checksums(self):
         """Test effect of --enforce-checksums"""
 
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
 
         # wipe $EASYBUILD_ROBOT_PATHS to avoid that checksums.json for toy is found in test_ecs
@@ -6743,8 +6729,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, do_build=True, raise_error=True)
 
         # also check when using easyblock that enables build_in_installdir in its constructor
-        test_ebs = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
-        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        test_ebs = TEST_DIR / 'sandbox/easybuild/easyblocks'
+        toy_eb = test_ebs / 't/toy.py'
         toy_eb_txt = read_file(toy_eb)
 
         self.assertNotIn('self.build_in_installdir = True', toy_eb_txt)
@@ -6892,9 +6878,8 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_create_index(self):
         """Test --create-index option."""
-        test_ecs = TEST_ECS_DIR
         remove_dir(self.test_prefix)
-        copy_dir(test_ecs, self.test_prefix)
+        copy_dir(TEST_ECS_DIR, self.test_prefix)
 
         args = ['--create-index', self.test_prefix]
         stdout, stderr = self._run_mock_eb(args, raise_error=True)
@@ -7102,7 +7087,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_easystack_wrong_read(self):
         """Test for --easystack <easystack.yaml> when wrong name is provided"""
 
-        toy_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_nonexistent.yaml')
+        toy_easystack = TEST_DIR / 'easystacks/test_easystack_nonexistent.yaml'
         args = ['--easystack', toy_easystack, '--experimental']
         expected_err = "No such file or directory: '%s'" % toy_easystack
         with self.mocked_stdout_stderr():
@@ -7113,7 +7098,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_easystack_basic(self):
         """Test for --easystack <easystack.yaml> -> success case"""
 
-        toy_easystack = os.path.join(TEST_DIR, 'easystacks', 'test_easystack_basic.yaml')
+        toy_easystack = TEST_DIR / 'easystacks/test_easystack_basic.yaml'
 
         args = ['--easystack', toy_easystack, '--debug', '--experimental', '--dry-run']
         with self.mocked_stdout_stderr():
@@ -7197,7 +7182,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         but from a different location.
         """
 
-        libtoy_ec = os.path.join(TEST_ECS_DIR, 'l', 'libtoy', 'libtoy-0.0.eb')
+        libtoy_ec = TEST_ECS_DIR / 'l/libtoy/libtoy-0.0.eb'
 
         test_ec = os.path.join(self.test_prefix, 'toy-0.0.eb')
         test_ec_txt = TOY_EC_TXT
