@@ -33,6 +33,7 @@ import sys
 import tempfile
 from unittest import TextTestRunner
 
+from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import TestLoaderFiltered
 
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
@@ -75,7 +76,7 @@ class EasyBuildLibTest(TestCase):
         error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
         with self.mocked_stdout_stderr():
-            self.assertErrorRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_cmd, "echo hello")
 
         self.configure()
 
@@ -90,7 +91,7 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
+        self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, "echo hello")
 
         self.configure()
 
@@ -107,7 +108,7 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, mkdir, test_dir)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mkdir, test_dir)
 
         self.configure()
 
@@ -121,14 +122,12 @@ class EasyBuildLibTest(TestCase):
 
         error_pattern = r"Build options are not initialized yet, or undefined build option used: .*"
         error_pattern += r" Make sure you have set up the EasyBuild configuration using set_up_configuration\(\)"
-        self.assertErrorRegex(EasyBuildError, error_pattern, modules_tool)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, modules_tool)
 
         self.configure()
 
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-
         modtool = modules_tool()
-        modtool.use(test_mods_path)
+        modtool.use(TEST_MODULES_DIR)
         self.assertIn('GCC/6.4.0-2.28', modtool.available())
         modtool.load(['GCC/6.4.0-2.28'])
         self.assertEqual(modtool.list(), [{'default': None, 'mod_name': 'GCC/6.4.0-2.28'}])

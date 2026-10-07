@@ -41,6 +41,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import MODULE_VERSION_CACHE, EnvironmentModules, Lmod
+from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import init_config
 
 
@@ -112,7 +113,7 @@ class ModulesToolTest(EnhancedTestCase):
         # redefine 'module' function (deliberate mismatch with used module command in MockModulesTool)
         os.environ['module'] = "() {  eval `/tmp/Modules/$MODULE_VERSION/bin/modulecmd bash $*`\n}"
         error_regex = ".*pattern .* not found in defined 'module' function"
-        self.assertErrorRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
+        self.assertRaisesRegex(EasyBuildError, error_regex, MockModulesTool, testing=True)
 
         # check whether escaping error by allowing mismatch via build options works
         build_options = {
@@ -164,7 +165,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['PATH'] = join_path_var(new_paths)
 
             # make sure $MODULEPATH contains path that provides some modules
-            os.environ['MODULEPATH'] = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
+            os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
             fake_path = os.path.join(self.test_installpath, 'lmod')
@@ -201,7 +202,7 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
             os.environ['module'] = "() {  _module_raw \"$@\" 2>&1;\n}"
             error_regex = ".*pattern .* not found in defined 'module' function"
-            self.assertErrorRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
+            self.assertRaisesRegex(EasyBuildError, error_regex, EnvironmentModules, testing=True)
 
             # redefine '_module_raw' function with correct module command
             os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/modulecmd.tcl' bash $*`;\n}"

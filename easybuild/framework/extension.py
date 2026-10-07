@@ -84,8 +84,9 @@ def construct_exts_filter_cmds(exts_filter, ext):
     :return: (cmd, input) as a tuple of strings for each modulename. Might be empty if no filtering is intented
     """
 
-    if isinstance(exts_filter, str) or len(exts_filter) != 2:
-        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input")')
+    if not isinstance(exts_filter, (list, tuple)) or len(exts_filter) != 2:
+        raise EasyBuildError('exts_filter should be a list or tuple of ("command","input"), '
+                             f"got: {exts_filter} (type {type(exts_filter)})")
 
     cmd, cmdinput = exts_filter
 
@@ -138,6 +139,7 @@ class Extension:
         restore_options = (
             'checksums',
             'data_sources',
+            'extension_name',
             'patches',
             'postinstallcmds',
             'sanity_check_commands',
