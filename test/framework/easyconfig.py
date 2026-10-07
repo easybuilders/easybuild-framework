@@ -460,8 +460,8 @@ class EasyConfigTest(EnhancedTestCase):
     def test_exts_list(self):
         """Test handling of list of extensions."""
         os.environ['EASYBUILD_SOURCEPATH'] = ':'.join([
-            str(TEST_ECS_DIR / 'g' / 'gzip'),
-            str(TEST_ECS_DIR / 't' / 'toy'),
+            str(TEST_ECS_DIR / 'g/gzip'),
+            str(TEST_ECS_DIR / 't/toy'),
         ])
         init_config()
         self.contents = textwrap.dedent("""
@@ -862,8 +862,8 @@ class EasyConfigTest(EnhancedTestCase):
         })
 
         # Allow tweaking of non-toolchain values for multiple ECs of different toolchains
-        untweaked_openmpi_1 = TEST_ECS_DIR / 'o' / 'OpenMPI' / 'OpenMPI-2.1.2-GCC-4.6.4.eb'
-        untweaked_openmpi_2 = TEST_ECS_DIR / 'o' / 'OpenMPI' / 'OpenMPI-3.1.1-GCC-7.3.0-2.30.eb'
+        untweaked_openmpi_1 = TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-2.1.2-GCC-4.6.4.eb'
+        untweaked_openmpi_2 = TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-3.1.1-GCC-7.3.0-2.30.eb'
         easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi_1, False), (untweaked_openmpi_2, False)])
         tweak_specs = {'moduleclass': 'debugger'}
         easyconfigs, tweak_map = tweak(easyconfigs, tweak_specs, self.modtool, targetdirs=tweaked_ecs_paths,
@@ -1325,7 +1325,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec['source_urls'][3], 'https://github.com/pi/pi/releases/download/v3.04')
 
         # test use of %(mpi_cmd_prefix)s template
-        gompi_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a.eb'
+        gompi_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         write_file(test_ec, read_file(gompi_ec) + "\nsanity_check_commands = ['%(mpi_cmd_prefix)s toy']")
 
@@ -1815,7 +1815,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test fetch_parameters_from_easyconfig function."""
         for ec_file, correct_name, correct_easyblock in [
             (TOY_EC, 'toy', None),
-            (TEST_ECS_DIR / 'f' / 'foss' / 'foss-2018a.eb', 'foss', 'Toolchain'),
+            (TEST_ECS_DIR / 'f/foss/foss-2018a.eb', 'foss', 'Toolchain'),
         ]:
             name, easyblock = fetch_parameters_from_easyconfig(read_file(ec_file), ['name', 'easyblock'])
             self.assertEqual(name, correct_name)
@@ -1894,12 +1894,12 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        ec = EasyConfig(TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.5-foss-2018a.eb')
+        ec = EasyConfig(TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb')
         tc_compilers = ['/'.join([x['name'], x['version']]) for x in det_toolchain_compilers(ec)]
         self.assertEqual(tc_compilers, ['GCC/6.4.0-2.28'])
         self.assertEqual(det_toolchain_mpi(ec)['name'], 'OpenMPI')
 
-        ec = EasyConfig(TEST_ECS_DIR / 'h' / 'hwloc' / 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+        ec = EasyConfig(TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb')
         tc_comps = det_toolchain_compilers(ec)
         expected = ['GCC/6.4.0-2.28']
         self.assertEqual(['/'.join([x['name'], x['version'] + x['versionsuffix']]) for x in tc_comps], expected)
@@ -1911,7 +1911,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_filter_deps(self):
         """Test filtered dependencies."""
-        ec_file = TEST_ECS_DIR / 'f' / 'foss' / 'foss-2018a.eb'
+        ec_file = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
         ec = EasyConfig(ec_file)
         self.assertEqual(ec.dependency_names(), {'FFTW', 'GCC', 'OpenBLAS', 'OpenMPI', 'ScaLAPACK'})
 
@@ -1942,7 +1942,7 @@ class EasyConfigTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         ec_file = os.path.join(self.test_prefix, 'test.eb')
-        copy_file(TEST_ECS_DIR / 'o' / 'OpenMPI' / 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb', ec_file)
+        copy_file(TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-2.1.2-GCC-6.4.0-2.28.eb', ec_file)
 
         ec_txt = read_file(ec_file)
         ec_txt = ec_txt.replace('hwloc', 'deptobefiltered')
@@ -2107,7 +2107,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_external_dependencies(self):
         """Test specifying external (build) dependencies."""
-        ectxt = read_file(TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb')
+        ectxt = read_file(TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb')
         toy_ec = os.path.join(self.test_prefix, 'toy-0.0-external-deps.eb')
 
         # just specify some of the test modules we ship, doesn't matter where they come from
@@ -2452,7 +2452,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""
-        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4-GCC-4.6.3.eb'
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
         ec = EasyConfig(ec_file)
         self.assertEqual(ec['hiddendependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
         self.assertEqual(ec['dependencies'][0]['full_mod_name'], 'toy/.0.0-deps')
@@ -3250,7 +3250,7 @@ class EasyConfigTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
+        ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         ec_files = [(ec_file, False)]
         ecs, _ = parse_easyconfigs(ec_files)
 
@@ -3332,14 +3332,14 @@ class EasyConfigTest(EnhancedTestCase):
         }
 
         init_config(build_options=build_options)
-        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
+        ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         ec = EasyConfig(ec_file)
 
         self.assertEqual(ActiveMNS().det_full_module_name(ec), 'toy/0.0-deps')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][0]), 'intel/2018a')
         self.assertEqual(ActiveMNS().det_full_module_name(ec['dependencies'][1]), 'GCC/6.4.0-2.28')
 
-        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4-GCC-4.6.3.eb'
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
         ec = EasyConfig(ec_file)
         hiddendep = ec['hiddendependencies'][0]
         self.assertEqual(ActiveMNS().det_full_module_name(hiddendep), 'toy/.0.0-deps')
@@ -3347,7 +3347,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_find_related_easyconfigs(self):
         """Test find_related_easyconfigs function."""
-        ec_file = TEST_ECS_DIR / 'g' / 'GCC' / 'GCC-4.6.3.eb'
+        ec_file = TEST_ECS_DIR / 'g/GCC/GCC-4.6.3.eb'
         ec = EasyConfig(ec_file)
 
         # exact match: GCC-4.6.3.eb
@@ -3365,7 +3365,7 @@ class EasyConfigTest(EnhancedTestCase):
         expected = ['GCC-4.9.2.eb', 'GCC-4.8.3.eb', 'GCC-4.8.2.eb', 'GCC-4.6.4.eb', 'GCC-4.6.3.eb']
         self.assertEqual(res, expected)
 
-        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
+        ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         ec = EasyConfig(ec_file)
 
         # exact match
@@ -3396,7 +3396,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_modaltsoftname(self):
         """Test specifying an alternative name for the software name, to use when determining module name."""
-        ec_file = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
+        ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         ectxt = read_file(ec_file)
         modified_ec_file = os.path.join(self.test_prefix, os.path.basename(ec_file))
         write_file(modified_ec_file, ectxt + "\nmodaltsoftname = 'notreallyatoy'")
@@ -3415,7 +3415,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec.software_license, None)
 
         # specified software license gets handled correctly
-        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4.eb'
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb'
         ec = EasyConfig(ec_file)
         ec.validate_license()
         # constant GPLv3 is resolved as string
@@ -3430,7 +3430,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_param_value_type_checking(self):
         """Test value tupe checking of easyconfig parameters."""
-        ec_file = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4-broken.eb'
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-broken.eb'
         # version parameter has values of wrong type in this broken easyconfig
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         self.assertRaisesRegex(EasyBuildError, error_msg_pattern, EasyConfig, ec_file, auto_convert_value_types=False)
@@ -3471,7 +3471,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(hash(ec1), hash(ec2))
 
         # other parsed easyconfig is not equal
-        ec3 = EasyConfig(TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4.eb')
+        ec3 = EasyConfig(TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb')
         self.assertFalse(ec1 == ec3)
         self.assertTrue(ec1 != ec3)
 
@@ -3561,7 +3561,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_template_constant_dict(self):
         """Test template_constant_dict function."""
-        ec = EasyConfig(TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.5-foss-2018a.eb')
+        ec = EasyConfig(TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb')
 
         arch_regex = re.compile('^[a-z0-9_]+$')
 
@@ -3615,7 +3615,7 @@ class EasyConfigTest(EnhancedTestCase):
         res.pop('arch')
         self.assertEqual(res, expected)
 
-        toy_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-deps.eb'
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         toy_ec_txt = read_file(toy_ec)
 
         # fiddle with version to check version_minor template ('0' should be retained)
@@ -3746,7 +3746,7 @@ class EasyConfigTest(EnhancedTestCase):
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')
-        copy_file(TEST_ECS_DIR / 'p' / 'Python' / 'Python-2.7.10-intel-2018a.eb', pyec)
+        copy_file(TEST_ECS_DIR / 'p/Python/Python-2.7.10-intel-2018a.eb', pyec)
         write_file(pyec, "\ntoolchain = {'name': 'foss', 'version': '2018a'}", append=True)
 
         ec_txt = '\n'.join([
@@ -3796,7 +3796,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_hidden_toolchain(self):
         """Test hiding of toolchain via easyconfig parameter."""
-        ec_txt = read_file(TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.6-GCC-4.9.2.eb')
+        ec_txt = read_file(TEST_ECS_DIR / 'g/gzip/gzip-1.6-GCC-4.9.2.eb')
 
         new_tc = "toolchain = {'name': 'GCC', 'version': '4.9.2', 'hidden': True}"
         ec_txt = re.sub("toolchain = .*", new_tc, ec_txt, re.M)
@@ -3825,7 +3825,7 @@ class EasyConfigTest(EnhancedTestCase):
         configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
         toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
 
-        gzip_ec = TEST_ECS_DIR / 'g' / 'gzip' / 'gzip-1.4.eb'
+        gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb'
         paths = [
             'bzip2-1.0.6.eb',
             toy_easyblock,
@@ -3977,7 +3977,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_verify_easyconfig_filename(self):
         """Test verify_easyconfig_filename function"""
-        toy_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a-test.eb'
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         toy_ec_name = os.path.basename(toy_ec)
         specs = {
             'name': 'toy',
@@ -4130,7 +4130,7 @@ class EasyConfigTest(EnhancedTestCase):
         """Test error reporting when a file that's not actually an easyconfig file is provided."""
         # run test on an easyconfig file that was downloaded using wget using a non-raw GitHub URL
         # cfr. https://github.com/easybuilders/easybuild-framework/issues/2383
-        not_an_ec = TEST_DIR / 'sandbox' / 'not_an_easyconfig.eb'
+        not_an_ec = TEST_DIR / 'sandbox/not_an_easyconfig.eb'
 
         # from Python 3.10 onwards: invalid decimal literal
         # older Python versions: invalid syntax
@@ -4187,7 +4187,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(check_sha256_checksums(ecs), [])
 
         # also test toy easyconfig with extensions, for which some checksums are missing
-        toy_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a-test.eb'
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         ecs, _ = parse_easyconfigs([(toy_ec, False)])
         ecs = [ec['ec'] for ec in ecs]
 
@@ -4240,7 +4240,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_deprecated_toolchain(self):
         """Test use of deprecated toolchain"""
-        deprecated_toolchain_ec = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a.eb'
+        deprecated_toolchain_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb'
         init_config(build_options={'silence_deprecation_warnings': [], 'unit_testing_mode': False})
         error_pattern = r"toolchain 'gompi/2018a' is marked as deprecated \(see also"
         self.assertRaisesRegex(EasyBuildError, error_pattern, EasyConfig, deprecated_toolchain_ec)
@@ -4270,7 +4270,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_get_ref(self):
         """Test get_ref method."""
-        ec = EasyConfig(TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-iter.eb')
+        ec = EasyConfig(TEST_ECS_DIR / 't/toy/toy-0.0-iter.eb')
 
         # without using get_ref, we get a (templated) copy rather than the original value
         sources = ec['sources']
@@ -4883,7 +4883,7 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_recursive_module_unload(self):
         """Test use of recursive_module_unload easyconfig parameter."""
-        toy_ec = TEST_ECS_DIR / 'f' / 'foss' / 'foss-2018a.eb'
+        toy_ec = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = read_file(toy_ec)
 
@@ -5148,8 +5148,8 @@ class EasyConfigTest(EnhancedTestCase):
 
     def test_count_files(self):
         """Tests for EasyConfig.count_files method."""
-        foss = TEST_ECS_DIR / 'f' / 'foss' / 'foss-2018a.eb'
-        toy_exts = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a-test.eb'
+        foss = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
+        toy_exts = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         # no sources or patches for toolchain => 0
         foss_ec = EasyConfig(foss)
@@ -5205,7 +5205,7 @@ class EasyConfigTest(EnhancedTestCase):
         """
         Test whether easyconfigs caches work as intended.
         """
-        libtoy_ec = TEST_ECS_DIR / 'l' / 'libtoy' / 'libtoy-0.0.eb'
+        libtoy_ec = TEST_ECS_DIR / 'l/libtoy/libtoy-0.0.eb'
         copy_file(libtoy_ec, self.test_prefix)
         copy_file(TOY_EC, self.test_prefix)
         libtoy_ec = os.path.join(self.test_prefix, os.path.basename(libtoy_ec))
