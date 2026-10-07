@@ -139,6 +139,7 @@ class Extension:
         restore_options = (
             'checksums',
             'data_sources',
+            'extension_name',
             'patches',
             'postinstallcmds',
             'sanity_check_commands',

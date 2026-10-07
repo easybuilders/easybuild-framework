@@ -1793,7 +1793,7 @@ class EnvironmentModules(ModulesTool):
     DEPR_VERSION = '4.3.0'
     MAX_VERSION = None
     REQ_VERSION_TCL_CHECK_GROUP = '4.6.0'
-    REQ_VERSION_EXTENSIONS = '5.1.0'
+    REQ_VERSION_EXTENSIONS = '5.7.0'
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     SHOW_HIDDEN_OPTION = '--all'
@@ -1818,15 +1818,18 @@ class EnvironmentModules(ModulesTool):
         setvar('MODULES_AVAIL_TERSE_OUTPUT', '', verbose=False)
         # ensure only module names are returned on list (MODULES_LIST_TERSE_OUTPUT added in v4.7)
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
+        # consider module extensions as purely informational, so no module alias is defined for them
+        # (MODULES_INFO_EXTENSION has been introduced in v5.7, it is ignored by older versions)
+        setvar('MODULES_INFO_EXTENSION', '1', verbose=False)
 
         super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
-        # Environment Modules should support "informational extension" to safely handle the
-        # extensions built here (see https://github.com/envmodules/modules/issues/585)
-        self.supports_extensions = False
+        # module extensions are only supported by Environment Modules 5.7.0+, where they can be considered as purely
+        # informational (no module alias defined for them, see https://github.com/envmodules/modules/issues/585)
+        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
