@@ -498,7 +498,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.assertRegex(outtxt, job_msg, assertmsg)
 
             if msgstrs is None:
-                msgstrs = [(tweaked_eb_file, eb_file + try_opts)]
+                msgstrs = [(tweaked_eb_file, str(eb_file) + try_opts)]
 
             assertmsg = "Info log msg with creating job for --job (job_msg: %s, outtxt: %s)" % (job_msg, outtxt)
             for msgstr in msgstrs:
@@ -529,7 +529,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                    msgstrs=[
                        (tweaked_eb_file, eb_file + try_opts),
                        ('libtoy-0.0-GCC-4.9.3-2.26.eb',
-                        TEST_ECS_DIR / 'l/libtoy/libtoy-0.0.eb' + try_opts),
+                        str(TEST_ECS_DIR / 'l/libtoy/libtoy-0.0.eb') + try_opts),
                        (gzip_eb_file, TEST_ECS_DIR / 'g/gzip' / gzip_eb_file)],
                    try_opts=try_opts,
                    tweaked_eb_file=tweaked_eb_file)
@@ -3608,7 +3608,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
+                if str(testdir_sandbox) not in path:
                     sys.modules[pkg].__path__.remove(path)
 
         # include extra test easyblocks
@@ -3729,7 +3729,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
+                if str(testdir_sandbox) not in path:
                     sys.modules[pkg].__path__.remove(path)
 
         error_msg = "Failed to obtain class for FooBar easyblock"
@@ -3870,7 +3870,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         testdir_sandbox = TEST_DIR / 'sandbox'
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
+                if str(testdir_sandbox) not in path:
                     sys.modules[pkg].__path__.remove(path)
 
         # clear log

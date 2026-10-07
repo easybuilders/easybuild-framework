@@ -205,7 +205,7 @@ class EnhancedTestCase(TestCase):
         # to avoid that easyblocks picked up from other places cause trouble
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
+                if str(testdir_sandbox) not in path:
                     sys.modules[pkg].__path__.remove(path)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
