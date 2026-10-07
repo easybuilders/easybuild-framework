@@ -40,7 +40,7 @@ from easybuild.tools import modules, LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import read_file, which, write_file
-from easybuild.tools.modules import EnvironmentModules, Lmod
+from easybuild.tools.modules import MODULE_VERSION_CACHE, EnvironmentModules, Lmod
 from test.framework import TEST_MODULES_DIR
 from test.framework.utilities import init_config
 
@@ -247,6 +247,22 @@ class ModulesToolTest(EnhancedTestCase):
             EnvironmentModules.COMMAND = fake_path
             mt = EnvironmentModules(testing=True)
             self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+            # module extensions are only supported by Environment Modules 5.7.0+
+            self.assertFalse(mt.supports_extensions)
+            # module extensions are always considered as purely informational
+            self.assertEqual(os.environ.get('MODULES_INFO_EXTENSION'), '1')
+
+            fake_modulecmd_txt = '\n'.join([
+                '#!/bin/bash',
+                'echo "Modules Release 5.7.0 (2026-09-21)" >&2',
+                'echo "os.environ[\'FOO\'] = \'foo\'"',
+            ])
+            os.chmod(fake_path, stat.S_IRWXU)
+            write_file(fake_path, fake_modulecmd_txt)
+            # make sure version is determined again
+            MODULE_VERSION_CACHE.pop(fake_path, None)
+            mt = EnvironmentModules(testing=True)
+            self.assertTrue(mt.supports_extensions)
 
     def tearDown(self):
         """Testcase cleanup."""
