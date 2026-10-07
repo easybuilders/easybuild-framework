@@ -195,9 +195,8 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(system_constant, {'name': 'system', 'version': 'system'})
 
         # make sure both keys and values are of appropriate types
-        for constant_name in constants:
-            self.assertIsInstance(constant_name, str, "Constant name %s is a string" % constant_name)
-            val = constants[constant_name]
+        for constant_name, val in constants.items():
+            self.assertIsInstance(constant_name, str, f"Constant name {constant_name} should be a string")
             fail_msg = "The constant %s should have an acceptable type, found %s (%s)" % (constant_name,
                                                                                           type(val), str(val))
             self.assertIsInstance(val, (str, dict, tuple), fail_msg)
