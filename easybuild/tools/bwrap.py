@@ -138,6 +138,14 @@ def prepare_bwrap(bwrap_installpath):
     installpath_modules = os.path.realpath(install_path(typ='modules'))
     set_bwrap_info('installpath_modules', installpath_modules)
 
+    # make sure install paths exist, so mount targets never go above them
+    for descr, path in [('software', installpath_software), ('modules', installpath_modules)]:
+        try:
+            mkdir(path, parents=True)
+        except EasyBuildError as err:
+            raise EasyBuildError(f"{descr} install path {path} does not exist and could not be created, "
+                                 f"it must exist when launching EasyBuild with bwrap: {err}") from err
+
     variables = ConfigurationVariables()
     bwrap_installpath_software = os.path.join(bwrap_installpath, variables['subdir_software'])
     bwrap_installpath_modules = os.path.join(bwrap_installpath, variables['subdir_modules'])
@@ -150,9 +158,6 @@ def prepare_bwrap(bwrap_installpath):
     bwrap_opts = set()
 
     mkdir(bwrap_installpath_modules, parents=True)
-
-    if not os.path.isdir(installpath_modules):
-        raise EasyBuildError(f"Modules install path {installpath_modules} must already exist when using --bwrap")
 
     if os.access(installpath_modules, os.W_OK):
         # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available

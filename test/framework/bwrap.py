@@ -111,12 +111,23 @@ class BwrapTest(EnhancedTestCase):
         init_config(args=['--installpath=%s' % installpath])
         set_bwrap_info('install_subdirs', {'foo/1.0', 'bar/2.0'})
 
-        # modules install path must already exist
-        mkdir(software, parents=True)
-        error_pattern = "Modules install path .*/modules must already exist when using --bwrap"
-        self.assertRaisesRegex(EasyBuildError, error_pattern, prepare_bwrap, bwrap_installpath)
+        # software and modules install paths must exist or be created
+        mkdir(installpath, parents=True)
+        os.chmod(installpath, stat.S_IRUSR | stat.S_IXUSR)
+        try:
+            error_pattern = "Software install path .*/software does not exist and could not be created"
+            self.assertRaisesRegex(EasyBuildError, error_pattern, prepare_bwrap, bwrap_installpath)
+            os.chmod(installpath, stat.S_IRWXU)
+            mkdir(software)
+            os.chmod(installpath, stat.S_IRUSR | stat.S_IXUSR)
+            error_pattern = "Modules install path .*/modules does not exist and could not be created"
+            self.assertRaisesRegex(EasyBuildError, error_pattern, prepare_bwrap, bwrap_installpath)
+        finally:
+            os.chmod(installpath, stat.S_IRWXU)
 
-        # writable install paths: bind mounts, existing modules are copied to bwrap install path
+        # writable install paths: missing install paths are created, bind mounts are used,
+        # and existing modules are copied to bwrap install path
+        os.rmdir(software)
         write_file(os.path.join(modules, 'all', 'foo', '0.9.lua'), '')
         with self.mocked_stdout_stderr():
             prepare_bwrap(bwrap_installpath)
@@ -130,6 +141,7 @@ class BwrapTest(EnhancedTestCase):
         self.assertEqual(os.environ['EB_BWRAP_CMD'], ' '.join(expected))
         self.assertTrue(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
         self.assertTrue(os.path.exists(os.path.join(bwrap_installpath, 'bwrap_info.json')))
+        self.assertTrue(os.path.isdir(software))
 
         # read-only install paths: overlays on the closest existing directory,
         # with parent directories mounted before their subdirectories
