@@ -84,7 +84,7 @@ class ModulesTest(EnhancedTestCase):
         # copy one of the test modules there
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
         os.makedirs(gcc_mod_dir)
-        gcc_mod_path = TEST_MODULES_DIR / 'GCC' / '4.6.3'
+        gcc_mod_path = TEST_MODULES_DIR / 'GCC/4.6.3'
         copy_file(gcc_mod_path, gcc_mod_dir)
 
         # try and use long modules path
@@ -262,8 +262,8 @@ class ModulesTest(EnhancedTestCase):
         # exist works on hidden modules in Lua syntax (only with Lmod)
         if isinstance(self.modtool, Lmod):
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
-            self.assertExists(TEST_MODULES_DIR / 'bzip2' / '.1.0.6.lua')
-            self.assertNotExists(TEST_MODULES_DIR / 'bzip2' / '.1.0.6')
+            self.assertExists(TEST_MODULES_DIR / 'bzip2/.1.0.6.lua')
+            self.assertNotExists(TEST_MODULES_DIR / 'bzip2/.1.0.6')
             self.assertEqual(self.modtool.exist(['bzip2/.1.0.6']), [True])
 
         # exist also works on lists of module names
@@ -773,7 +773,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_modulefile_path(self):
         """Test modulefile_path method"""
-        gcc_mod_file = TEST_MODULES_DIR / 'GCC' / '6.4.0-2.28'
+        gcc_mod_file = TEST_MODULES_DIR / 'GCC/6.4.0-2.28'
 
         modtool = modules_tool()
         res = modtool.modulefile_path('GCC/6.4.0-2.28')
@@ -781,7 +781,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             res = modtool.modulefile_path('bzip2/.1.0.6')
-            self.assertTrue((TEST_MODULES_DIR / 'bzip2' / '.1.0.6.lua').samefile(res))
+            self.assertTrue((TEST_MODULES_DIR / 'bzip2/.1.0.6.lua').samefile(res))
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
             self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
 
