@@ -146,28 +146,28 @@ def prepare_bwrap(bwrap_installpath):
 
     bwrap_cmd = ['bwrap', '--dev-bind', '/', '/']
 
-    mkdir(bwrap_installpath_modules, parents=True)
-
-    try:
-        mkdir(installpath_modules, parents=True)
-        # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available
-        # required for building multiple unrelated easyconfigs (e.g. easystacks)
-        if os.path.exists(installpath_modules):
-            copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
-        # bind mount the modules installpath
-        bwrap_cmd.extend([
-            '--bind', bwrap_installpath_modules, installpath_modules])
-
-    except EasyBuildError:
-        # if we can't create the external modules directory, try to use overlayfs
-        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', 'modules')
-        mkdir(bwrap_workdir, parents=True)
-        bwrap_cmd.extend([
-            '--overlay-src', installpath_modules,
-            '--overlay', bwrap_installpath_modules, bwrap_workdir, installpath_modules])
-
     # store bwrap options in a set to avoid duplicate binds
     bwrap_opts = set()
+
+    mkdir(bwrap_installpath_modules, parents=True)
+
+    if not os.path.isdir(installpath_modules):
+        raise EasyBuildError(f"Modules install path {installpath_modules} must already exist when using --bwrap")
+
+    if os.access(installpath_modules, os.W_OK):
+        # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available
+        # required for building multiple unrelated easyconfigs (e.g. easystacks)
+        copy_dir(installpath_modules, bwrap_installpath_modules, dirs_exist_ok=True)
+        # bind mount the modules installpath
+        bwrap_opts.add((
+            '--bind', bwrap_installpath_modules, installpath_modules))
+    else:
+        # if the modules installpath is read-only, use overlayfs
+        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', 'modules')
+        mkdir(bwrap_workdir, parents=True)
+        bwrap_opts.add((
+            '--overlay-src', installpath_modules,
+            '--overlay', bwrap_installpath_modules, bwrap_workdir, installpath_modules))
 
     # add user-specified extra options to the bwrap command
     bwrap_options = build_option('bwrap_options')

@@ -29,6 +29,7 @@ Unit tests for functionality in easybuild.tools.bwrap
 """
 import os
 import re
+import stat
 import sys
 from test.framework import TEST_ECS_DIR, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -36,8 +37,8 @@ from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.bwrap import det_install_subdirs
-from easybuild.tools.filetools import write_file
+from easybuild.tools.bwrap import det_install_subdirs, get_bwrap_info, prepare_bwrap, set_bwrap_info
+from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.robot import resolve_dependencies
 
 
@@ -97,6 +98,74 @@ class BwrapTest(EnhancedTestCase):
         specs, _ = parse_easyconfigs([(ec, False) for ec in toy_data_ecs + [gzip_ec]])
         error_pattern = r"'data_sources' is not supported \(yet\) with --bwrap:\n\* %s\n\* %s$" % tuple(toy_data_ecs)
         self.assertRaisesRegex(EasyBuildError, error_pattern, det_install_subdirs, specs)
+
+    def test_prepare_bwrap(self):
+        """Test prepare_bwrap function."""
+        installpath = os.path.realpath(os.path.join(self.test_prefix, 'install'))
+        software = os.path.join(installpath, 'software')
+        modules = os.path.join(installpath, 'modules')
+        bwrap_installpath = os.path.join(self.test_prefix, 'bwrap')
+        bwrap_software = os.path.join(bwrap_installpath, 'software')
+        bwrap_modules = os.path.join(bwrap_installpath, 'modules')
+
+        init_config(args=['--installpath=%s' % installpath])
+        set_bwrap_info('install_subdirs', {'foo/1.0', 'bar/2.0'})
+
+        # modules install path must already exist
+        mkdir(software, parents=True)
+        error_pattern = "Modules install path .*/modules must already exist when using --bwrap"
+        self.assertRaisesRegex(EasyBuildError, error_pattern, prepare_bwrap, bwrap_installpath)
+
+        # writable install paths: bind mounts, existing modules are copied to bwrap install path
+        write_file(os.path.join(modules, 'all', 'foo', '0.9.lua'), '')
+        with self.mocked_stdout_stderr():
+            prepare_bwrap(bwrap_installpath)
+        expected = [
+            'bwrap', '--dev-bind', '/', '/',
+            '--bind', bwrap_modules, modules,
+            '--bind', os.path.join(bwrap_software, 'bar', '2.0'), os.path.join(software, 'bar', '2.0'),
+            '--bind', os.path.join(bwrap_software, 'foo', '1.0'), os.path.join(software, 'foo', '1.0'),
+        ]
+        self.assertEqual(get_bwrap_info('bwrap_cmd'), expected)
+        self.assertEqual(os.environ['EB_BWRAP_CMD'], ' '.join(expected))
+        self.assertTrue(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
+        self.assertTrue(os.path.exists(os.path.join(bwrap_installpath, 'bwrap_info.json')))
+
+        # read-only install paths: overlays on the closest existing directory,
+        # with parent directories mounted before their subdirectories
+        installpath = os.path.realpath(os.path.join(self.test_prefix, 'install_ro'))
+        software = os.path.join(installpath, 'software')
+        modules = os.path.join(installpath, 'modules')
+        bwrap_installpath = os.path.join(self.test_prefix, 'bwrap_ro')
+        bwrap_software = os.path.join(bwrap_installpath, 'software')
+        bwrap_modules = os.path.join(bwrap_installpath, 'modules')
+        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
+
+        init_config(args=['--installpath=%s' % installpath])
+        set_bwrap_info('install_subdirs', {'foo/1.0', 'bar/2.0'})
+
+        read_only_dirs = [os.path.join(software, 'foo'), software, modules]
+        for path in read_only_dirs:
+            mkdir(path, parents=True)
+            os.chmod(path, stat.S_IRUSR | stat.S_IXUSR)
+        try:
+            with self.mocked_stdout_stderr():
+                prepare_bwrap(bwrap_installpath)
+        finally:
+            for path in read_only_dirs:
+                os.chmod(path, stat.S_IRWXU)
+
+        expected = [
+            'bwrap', '--dev-bind', '/', '/',
+            '--overlay-src', modules,
+            '--overlay', bwrap_modules, os.path.join(bwrap_workdir, 'modules'), modules,
+            '--overlay-src', software,
+            '--overlay', bwrap_software, os.path.join(bwrap_workdir, 'software'), software,
+            '--overlay-src', os.path.join(software, 'foo'),
+            '--overlay', os.path.join(bwrap_software, 'foo'), os.path.join(bwrap_workdir, 'software', 'foo'),
+            os.path.join(software, 'foo'),
+        ]
+        self.assertEqual(get_bwrap_info('bwrap_cmd'), expected)
 
 
 def suite(loader=None):
