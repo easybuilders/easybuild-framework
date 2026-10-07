@@ -1,7 +1,7 @@
 .. image:: https://github.com/easybuilders/easybuild/raw/develop/logo/png/easybuild_logo_2022_horizontal_dark_bg_transparent.png
    :align: center
    :height: 400px
-   
+
 .. image:: https://github.com/easybuilders/easybuild-framework/actions/workflows/unit_tests.yml/badge.svg?branch=develop
 
 `EasyBuild <https://easybuild.io>`_ is a software build
