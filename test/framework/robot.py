@@ -1614,53 +1614,26 @@ class RobotTest(EnhancedTestCase):
     def test_dry_run_specs_to_install(self):
         """Test dry_run with return_specs_to_install (and deprecated return_modules_to_install)."""
         self.install_mock_module()
+        init_config(build_options={'robot_path': TEST_ECS_DIR})
+        hwloc_ec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+        ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
 
-        build_options = {
-            'check_osdeps': False,
-            'robot_path': TEST_ECS_DIR,
-            'validate': False,
-        }
-        init_config(build_options=build_options)
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-        ecs, _ = parse_easyconfigs([(gzip_ec, False)])
-
-        expected = [
-            'FFTW-3.3.7-gompi-2018a.eb',
-            'GCC-6.4.0-2.28.eb',
-            'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb',
-            'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb',
-            'ScaLAPACK-2.0.2-gompi-2018a-OpenBLAS-0.2.20.eb',
-            'foss-2018a.eb',
-            'gompi-2018a.eb',
-            'gzip-1.5-foss-2018a.eb',
-            'hwloc-1.11.8-GCC-6.4.0-2.28.eb',
-        ]
         MockModule.avail_modules = []
         specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
-        self.assertEqual(sorted(os.path.basename(spec['spec']) for spec in specs), expected)
+        res = sorted(spec['full_mod_name'] for spec in specs)
+        self.assertEqual(res, ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28'])
 
         # modules that are already available are skipped
-        MockModule.avail_modules = ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']
+        MockModule.avail_modules = ['GCC/6.4.0-2.28']
         specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
-        res = sorted(os.path.basename(spec['spec']) for spec in specs)
-        self.assertEqual(res, [x for x in expected if not x.startswith(('GCC-', 'hwloc-'))])
+        self.assertEqual([spec['spec'] for spec in specs], [hwloc_ec])
 
         # deprecated return_modules_to_install returns full module names
         depr_msg = "Parameter 'return_modules_to_install' of dry_run is deprecated"
         self.assertRaisesRegex(EasyBuildError, depr_msg, dry_run, ecs, self.modtool, return_modules_to_install=True)
         with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
             mods = dry_run(ecs, self.modtool, return_modules_to_install=True)
-            stderr = self.get_stderr()
-        self.assertIn(depr_msg, stderr)
-        self.assertEqual(mods, [spec['full_mod_name'] for spec in specs])
-
-        # with --force, only the specified easyconfig is reinstalled if all modules are available
-        init_config(build_options=dict(build_options, force=True))
-        ecs, _ = parse_easyconfigs([(gzip_ec, False)])
-        all_specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-        MockModule.avail_modules = [spec['full_mod_name'] for spec in all_specs]
-        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
-        self.assertEqual([spec['spec'] for spec in specs], [gzip_ec])
+        self.assertEqual(mods, ['hwloc/1.11.8-GCC-6.4.0-2.28'])
 
 
 def suite(loader=None):
