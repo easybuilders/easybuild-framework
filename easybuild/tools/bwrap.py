@@ -148,8 +148,6 @@ def prepare_bwrap(bwrap_installpath):
 
     mkdir(bwrap_installpath_modules, parents=True)
 
-    bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
-
     try:
         mkdir(installpath_modules, parents=True)
         # copy installpath_modules to bwrap_installpath_modules to ensure all installed modules are available
@@ -162,6 +160,7 @@ def prepare_bwrap(bwrap_installpath):
 
     except EasyBuildError:
         # if we can't create the external modules directory, try to use overlayfs
+        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', 'modules')
         mkdir(bwrap_workdir, parents=True)
         bwrap_cmd.extend([
             '--overlay-src', installpath_modules,
@@ -193,6 +192,9 @@ def prepare_bwrap(bwrap_installpath):
             while not os.path.exists(installdir):
                 installdir = os.path.dirname(installdir)
                 bwrap_installdir = os.path.dirname(bwrap_installdir)
+            # use a separate workdir per overlay target, so each target is only overlaid once
+            rel_target = os.path.relpath(installdir, installpath_software)
+            bwrap_workdir = os.path.normpath(os.path.join(bwrap_installpath, 'workdir', 'software', rel_target))
             mkdir(bwrap_workdir, parents=True)
             bwrap_opts.add((
                 '--overlay-src', installdir,
@@ -201,7 +203,9 @@ def prepare_bwrap(bwrap_installpath):
             bwrap_opts.add((
                 '--bind', bwrap_installdir, installdir))
 
-    for x in bwrap_opts:
+    # sort on mount target (last element), so parent directories are mounted before their subdirectories,
+    # since mounting a parent directory afterwards would hide the subdirectory mount
+    for x in sorted(bwrap_opts, key=lambda opts: (opts[-1], opts)):
         bwrap_cmd.extend(x)
 
     set_bwrap_info('bwrap_cmd', bwrap_cmd)
