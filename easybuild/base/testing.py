@@ -39,8 +39,8 @@ import pprint
 import sys
 from contextlib import contextmanager
 from io import StringIO
-
 from unittest import TestCase as OrigTestCase
+from typing import Generator, Tuple, Union
 from easybuild.base import fancylogger
 
 
@@ -199,7 +199,7 @@ class TestCase(OrigTestCase):
         return sys.stderr.getvalue()
 
     @contextmanager
-    def mocked_stdout(self, force_tty=False):
+    def mocked_stdout(self, force_tty=False) -> Generator[StringIO, None, None]:
         """Context manager to mock stdout"""
         self.mock_stdout(True, force_tty=force_tty)
         try:
@@ -208,7 +208,7 @@ class TestCase(OrigTestCase):
             self.mock_stdout(False)
 
     @contextmanager
-    def mocked_stderr(self, force_tty=False):
+    def mocked_stderr(self, force_tty=False) -> Generator[StringIO, None, None]:
         """Context manager to mock stdout"""
         self.mock_stderr(True, force_tty=force_tty)
         try:
@@ -217,7 +217,8 @@ class TestCase(OrigTestCase):
             self.mock_stderr(False)
 
     @contextmanager
-    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True, force_tty=False):
+    def mocked_stdout_stderr(self, mock_stdout=True, mock_stderr=True,
+                             force_tty=False) -> Generator[Union[StringIO, Tuple[StringIO, StringIO]], None, None]:
         """Context manager to mock stdout and stderr"""
         if mock_stdout:
             self.mock_stdout(True, force_tty=force_tty)
