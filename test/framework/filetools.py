@@ -233,7 +233,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(fp, perltxt)
         ft.patch_perl_script_autoflush(fp)
         txt = ft.read_file(fp)
-        self.assertTrue(len(txt.split('\n')) == len(perl_lines) + 4)
+        self.assertEqual(len(txt.split('\n')), len(perl_lines) + 4)
         self.assertTrue(txt.startswith(perl_lines[0] + "\n\nuse IO::Handle qw();\nSTDOUT->autoflush(1);"))
         for line in perl_lines[1:]:
             self.assertIn(line, txt)
@@ -1768,7 +1768,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertRegex(url, pattern)
 
         # more than 50 releases at time of writing test, which always stay there
-        self.assertTrue(len(res) > 50)
+        self.assertGreater(len(res), 50)
 
         # check for Python package that has yanked releases,
         # see https://github.com/easybuilders/easybuild-framework/issues/3301
@@ -2264,7 +2264,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # if the directory already exists and 'dirs_exist_ok' is True, copy_dir should succeed
         ft.copy_dir(to_copy, testdir, dirs_exist_ok=True)
-        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(testdir)))
+        self.assertEqual(sorted(os.listdir(to_copy)), sorted(os.listdir(testdir)))
 
         # check whether use of 'ignore' works if target path already exists and 'dirs_exist_ok' is enabled
         def ignore_func(_, names):
@@ -2339,7 +2339,7 @@ class FileToolsTest(EnhancedTestCase):
             txt = self.get_stdout()
 
         self.assertExists(target_dir)
-        self.assertTrue(sorted(os.listdir(to_copy)) == sorted(os.listdir(target_dir)))
+        self.assertEqual(sorted(os.listdir(to_copy)), sorted(os.listdir(target_dir)))
         self.assertEqual(txt, '')
 
     def test_copy(self):
@@ -3509,8 +3509,8 @@ class FileToolsTest(EnhancedTestCase):
         fp = os.path.join(self.test_prefix, 'foobar.py')
         ft.write_file(fp, txt)
         foobar = ft.load_source('foobar', fp)
-        self.assertTrue(isinstance(foobar, types.ModuleType))
-        self.assertTrue(isinstance(foobar.foobar, types.FunctionType))
+        self.assertIsInstance(foobar, types.ModuleType)
+        self.assertIsInstance(foobar.foobar, types.FunctionType)
 
     def test_get_easyblock_class_name(self):
         """Test for get_easyblock_class_name function."""

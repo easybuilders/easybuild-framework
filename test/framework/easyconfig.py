@@ -824,7 +824,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, tweaked_ecs=True)
         self.assertTrue(tweaked_ecs_path)
-        self.assertTrue(isinstance(tweaked_ecs_path, tuple))
+        self.assertIsInstance(tweaked_ecs_path, tuple)
         self.assertEqual(len(tweaked_ecs_path), 2)
         self.assertEqual(tweaked_ecs_path[0], os.path.join(self.test_prefix, 'tweaked_easyconfigs'))
         self.assertEqual(tweaked_ecs_path[1], os.path.join(self.test_prefix, 'tweaked_dep_easyconfigs'))
@@ -833,7 +833,7 @@ class EasyConfigTest(EnhancedTestCase):
         tweaked_ecs_path, extra_ecs_path = alt_easyconfig_paths(self.test_prefix, from_prs=[123, 456])
         self.assertEqual(tweaked_ecs_path, None)
         self.assertTrue(extra_ecs_path)
-        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertIsInstance(extra_ecs_path, list)
         self.assertEqual(len(extra_ecs_path), 2)
         self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
         self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
@@ -842,7 +842,7 @@ class EasyConfigTest(EnhancedTestCase):
                                                                 review_pr=789, from_commit='c0ff33')
         self.assertEqual(tweaked_ecs_path, None)
         self.assertTrue(extra_ecs_path)
-        self.assertTrue(isinstance(extra_ecs_path, list))
+        self.assertIsInstance(extra_ecs_path, list)
         self.assertEqual(len(extra_ecs_path), 4)
         self.assertEqual(extra_ecs_path[0], os.path.join(self.test_prefix, 'files_pr123'))
         self.assertEqual(extra_ecs_path[1], os.path.join(self.test_prefix, 'files_pr456'))
@@ -2448,7 +2448,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         # for dictionary values: extend, test for existence (not ordering)
         ec.update('sanity_check_paths', {'key1': 'value1'})
-        self.assertTrue(ec['sanity_check_paths']['key1'] == 'value1')
+        self.assertEqual(ec['sanity_check_paths']['key1'], 'value1')
 
     def test_hide_hidden_deps(self):
         """Test use of --hide-deps on hiddendependencies."""

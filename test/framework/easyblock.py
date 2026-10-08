@@ -1332,7 +1332,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         # --fetch is used, fake modules tool instance is used
-        self.assertTrue(isinstance(eb.modules_tool, NoModulesTool))
+        self.assertIsInstance(eb.modules_tool, NoModulesTool)
 
         def fake_download_file(_filename, _url, path, *_args, **_kwargs):
             write_file(path, 'content')
