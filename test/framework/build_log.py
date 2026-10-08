@@ -191,7 +191,7 @@ class BuildLogTest(EnhancedTestCase):
             "this is just a test",
             "(see URLGOESHERE for more information)",
         ])
-        self.assertTrue(logtxt.strip().endswith(expected_logtxt))
+        self.assertEndsWith(logtxt.strip(), expected_logtxt)
 
     def test_log_levels(self):
         """Test whether log levels are respected"""
@@ -405,7 +405,7 @@ class BuildLogTest(EnhancedTestCase):
         """Test init_logging function."""
         # first, make very sure $TMPDIR is a subdir of self.test_prefix
         tmpdir = os.getenv('TMPDIR')
-        self.assertTrue(tmpdir.startswith(self.test_prefix))
+        self.assertStartsWith(tmpdir, self.test_prefix)
 
         # use provided path for log file
         tmp_logfile = os.path.join(self.test_prefix, 'test.log')
@@ -441,7 +441,7 @@ class BuildLogTest(EnhancedTestCase):
         self.assertExists(logfile)
         self.assertEqual(os.path.dirname(logfile), tmpdir)
         self.assertIsInstance(log, EasyBuildLog)
-        self.assertTrue(stdout.startswith("== Temporary log file in case of crash"))
+        self.assertStartsWith(stdout, "== Temporary log file in case of crash")
 
         stop_logging(logfile)
 
