@@ -448,7 +448,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         self.modtool.use(os.path.join(self.test_installpath, 'modules', 'all'))
         out = self.modtool.run_module('load', 'toy/0.0-tweaked', return_output=True)
-        self.assertTrue(out.strip().endswith(expected))
+        self.assertEndsWith(out.strip(), expected)
 
     def test_toy_buggy_easyblock(self):
         """Test build using a buggy/broken easyblock, make sure a traceback is reported."""
@@ -2155,7 +2155,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertEqual(len(toy_mod_backups), 1)
         first_toy_mod_backup = toy_mod_backups[0]
         # check that backup module is hidden (required for Tcl syntax)
-        self.assertTrue(os.path.basename(first_toy_mod_backup).startswith('.'))
+        self.assertStartsWith(os.path.basename(first_toy_mod_backup), '.')
 
         toy_mod_bak = r".*/toy/\.0\.0-deps\.bak_[0-9]+_[0-9]+"
         self.assertRegex(stdout, re.compile("^== backup of existing module file stored at %s" % toy_mod_bak, re.M))
