@@ -55,7 +55,7 @@ from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.tools import LooseVersion, config
+from easybuild.tools import LooseVersion, config, filetools
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, mkdir, read_file
@@ -2280,6 +2280,66 @@ class EasyBlockTest(EnhancedTestCase):
 
         # cleanup
         remove_file(eb.src[0]['path'])
+
+    @requires_github_access()
+    def test_fetch_sources_git_lfs(self):
+        """Test fetching sources from a Git repository with Git LFS enabled."""
+
+        testdir = os.path.abspath(os.path.dirname(__file__))
+        ec = process_easyconfig(os.path.join(testdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb'))[0]
+        eb = get_easyblock_instance(ec)
+        eb.src = []
+
+        sources = [
+            {
+                'filename': 'testrepository.tar.xz',
+                'git_config': {
+                    'repo_name': 'testrepository',
+                    'url': 'https://github.com/easybuilders',
+                    'tag': 'branch_tag_for_test',
+                }
+            }
+        ]
+        checksums = ["00000000"]
+
+        orig_run_shell_cmd = filetools.run_shell_cmd
+        git_cmds = []
+
+        def mocked_run_shell_cmd(cmd, *args, **kwargs):
+            git_cmds.append(cmd)
+            if ' grep -I -h filter=lfs ' in cmd:
+                return unittest.mock.Mock(
+                    exit_code=0,
+                    output='*.bam filter=lfs diff=lfs merge=lfs -text\n',
+                )
+            elif cmd.startswith('git lfs '):
+                return None
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        if sys.version_info < (3, 9):
+            self.allow_deprecated_behaviour()
+
+        with unittest.mock.patch('easybuild.tools.filetools.run_shell_cmd', side_effect=mocked_run_shell_cmd):
+            with self.mocked_stdout_stderr():
+                eb.fetch_sources(sources, checksums=checksums)
+
+        if sys.version_info < (3, 9):
+            self.disallow_deprecated_behaviour()
+
+        self.assertEqual(len(eb.src), 1)
+        self.assertExists(eb.src[0]['path'])
+        self.addCleanup(remove_file, eb.src[0]['path'])
+
+        lfs_install_cmd = 'git lfs install --local --skip-repo'
+        checkout_cmd = 'git checkout refs/tags/branch_tag_for_test'
+        lfs_pull_cmd = 'git lfs pull'
+
+        self.assertIn(lfs_install_cmd, git_cmds)
+        self.assertIn(checkout_cmd, git_cmds)
+        self.assertIn(lfs_pull_cmd, git_cmds)
+
+        self.assertLess(git_cmds.index(lfs_install_cmd), git_cmds.index(checkout_cmd))
+        self.assertLess(git_cmds.index(checkout_cmd), git_cmds.index(lfs_pull_cmd))
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
