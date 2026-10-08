@@ -67,14 +67,13 @@ from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
+from test.framework.github import ignore_rate_limit_in_pr, requires_github_token
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
-from test.framework.github import ignore_rate_limit_in_pr
 
 try:
     import pycodestyle  # noqa
 except ImportError:
     pass
-
 
 EXTERNAL_MODULES_METADATA = """[foobar/1.2.3]
 name = foo, bar
@@ -107,7 +106,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def setUp(self):
         """Set up test."""
         super().setUp()
-        self.github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
 
         self.orig_terminal_supports_colors = easybuild.tools.options.terminal_supports_colors
         self.orig_os_getuid = easybuild.main.os.getuid
@@ -1342,12 +1340,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
+    @requires_github_token()
     def test_github_copy_ec_from_pr(self):
         """Test combination of --copy-ec with --from-pr."""
-        if self.github_token is None:
-            print("Skipping test_copy_ec_from_pr, no GitHub token available?")
-            return
-
         test_working_dir = os.path.join(self.test_prefix, 'test_working_dir')
         mkdir(test_working_dir)
         test_target_dir = os.path.join(self.test_prefix, 'test_target_dir')
@@ -1959,12 +1954,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         if os.path.exists(dummylogfn):
             os.remove(dummylogfn)
 
+    @requires_github_token()
     def test_github_from_pr(self):
         """Test fetching easyconfigs from a PR."""
-        if self.github_token is None:
-            print("Skipping test_from_pr, no GitHub token available?")
-            return
-
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2028,12 +2020,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
+    @requires_github_token()
     def test_github_from_pr_token_log(self):
         """Check that --from-pr doesn't leak GitHub token in log."""
-        if self.github_token is None:
-            print("Skipping test_from_pr_token_log, no GitHub token available?")
-            return
-
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2046,24 +2035,22 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--robot=%s' % TEST_DIR / 'easyconfigs',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
         ]
+        github_token = fetch_github_token(GITHUB_TEST_ACCOUNT)
         try:
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
                 stdout = self.get_stdout()
                 stderr = self.get_stderr()
-            self.assertNotIn(self.github_token, outtxt)
-            self.assertNotIn(self.github_token, stdout)
-            self.assertNotIn(self.github_token, stderr)
+            self.assertNotIn(github_token, outtxt)
+            self.assertNotIn(github_token, stdout)
+            self.assertNotIn(github_token, stderr)
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
+    @requires_github_token()
     def test_github_from_pr_listed_ecs(self):
         """Test --from-pr in combination with specifying easyconfigs on the command line."""
-        if self.github_token is None:
-            print("Skipping test_from_pr, no GitHub token available?")
-            return
-
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2109,12 +2096,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
 
+    @requires_github_token()
     def test_github_from_pr_x(self):
         """Test combination of --from-pr with --extended-dry-run."""
-        if self.github_token is None:
-            print("Skipping test_from_pr_x, no GitHub token available?")
-            return
-
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
         os.close(fd)
 
@@ -2145,6 +2129,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr_x" % err)
 
+    @requires_github_token()
     def test_from_commit(self):
         """Test for --from-commit."""
         # --from-commit does not involve using GitHub API, so no GitHub token required;
@@ -2152,9 +2137,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # (see also https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/),
         # we only run this test when a GitHub token is available,
         # which is only the case for a limited number of test configurations (see .github/workflows/unit_tests.yml)
-        if self.github_token is None:
-            print("Skipping test_from_commit (no GitHub token available)")
-            return
 
         # easyconfigs commit to add EasyBuild-4.8.2.eb
         test_commit = '7c83a553950c233943c7b0189762f8c05cfea852'
@@ -2234,6 +2216,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
+    @requires_github_token()
     def test_xxx_include_easyblocks_from_commit(self):
         """Test for --include-easyblocks-from-commit."""
         # --from-commit does not involve using GitHub API, so no GitHub token required;
@@ -2241,9 +2224,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # (see also https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/),
         # we only run this test when a GitHub token is available,
         # which is only the case for a limited number of test configurations (see .github/workflows/unit_tests.yml)
-        if self.github_token is None:
-            print("Skipping test_xxx_include_easyblocks_from_commit (no GitHub token available)")
-            return
 
         orig_local_sys_path = sys.path[:]
         # easyblocks commit only touching Binary easyblock
@@ -3766,12 +3746,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     # must be run after test for --list-easyblocks, hence the '_xxx_'
     # cleaning up the imported easyblocks is quite difficult...
+    @requires_github_token()
     def test_github_xxx_include_easyblocks_from_pr(self):
         """Test --include-easyblocks-from-pr."""
-        if self.github_token is None:
-            print("Skipping test_preview_pr, no GitHub token available?")
-            return
-
         orig_local_sys_path = sys.path[:]
 
         fd, dummylogfn = tempfile.mkstemp(prefix='easybuild-dummy', suffix='.log')
@@ -4155,12 +4132,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
             self.assertExists(os.path.join(tweaked_dir, 'toy-1.0.eb'))
 
+    @requires_github_token()
     def test_github_preview_pr(self):
         """Test --preview-pr."""
-        if self.github_token is None:
-            print("Skipping test_preview_pr, no GitHub token available?")
-            return
-
         eb_file = TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb'
         args = [
             '--color=never',
@@ -4173,12 +4147,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             txt = self.get_stdout()
         self.assertRegex(txt, r"^Comparing bzip2-1.0.6\S* with bzip2-1.0.8")
 
+    @requires_github_token()
     def test_github_review_pr(self):
         """Test --review-pr."""
-        if self.github_token is None:
-            print("Skipping test_review_pr, no GitHub token available?")
-            return
-
         # PR for bwidget 1.10.1 easyconfig, see https://github.com/easybuilders/easybuild-easyconfigs/pull/22227
         args = [
             '--color=never',
@@ -4424,12 +4395,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
             stderr_txt = stderr_txt.strip()
         return stdout_txt, stderr_txt
 
+    @requires_github_token()
     def test_new_branch_github(self):
         """Test for --new-branch-github."""
-        if self.github_token is None:
-            print("Skipping test_create_branch_github, no GitHub token available?")
-            return
-
         args = [
             '--new-branch-github',
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,
@@ -4493,12 +4461,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+    @requires_github_token()
     def test_github_new_pr_from_branch(self):
         """Test --new-pr-from-branch."""
-        if self.github_token is None:
-            print("Skipping test_github_new_pr_from_branch, no GitHub token available?")
-            return
-
         # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
         # branch created specifically for this test,
         # only adds toy-0.0.eb test easyconfig compared to central develop branch
@@ -4533,12 +4498,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+    @requires_github_token()
     def test_update_branch_github(self):
         """Test --update-branch-github."""
-        if self.github_token is None:
-            print("Skipping test_update_branch_github, no GitHub token available?")
-            return
-
         args = [
             '--update-branch-github=develop',
             '--github-user=boegel',  # used to determine account to grab branch from (no GitHub token needed)
@@ -4559,12 +4521,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+    @requires_github_token()
     def test_github_new_update_pr(self):
         """Test use of --new-pr (dry run only)."""
-        if self.github_token is None:
-            print("Skipping test_new_update_pr, no GitHub token available?")
-            return
-
         # copy toy test easyconfig
 
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
@@ -4784,13 +4743,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertNotMultiRegex(regexs, txt)
 
+    @requires_github_token()
     def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
-
-        if self.github_token is None:
-            print("Skipping test_new_pr_warning_missing_patch, no GitHub token available?")
-            return
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         copy_file(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb', test_ec)
 
@@ -4824,12 +4779,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertRegex(stdout, new_pr_out_regex)
         self.assertRegex(stderr, warning_regex)
 
+    @requires_github_token()
     def test_github_sync_pr_with_develop(self):
         """Test use of --sync-pr-with-develop (dry run only)."""
-        if self.github_token is None:
-            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
-            return
-
         # use https://github.com/easybuilders/easybuild-easyconfigs/pull/9150,
         # which is a PR from boegel:develop to easybuilders:develop
         # (to sync 'develop' branch in boegel's fork with central develop branch);
@@ -4853,12 +4805,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertRegex(txt, re.compile(f"^{pattern}$", re.M))
 
+    @requires_github_token()
     def test_github_sync_branch_with_develop(self):
         """Test use of --sync-branch-with-develop (dry run only)."""
-        if self.github_token is None:
-            print("Skipping test_sync_pr_with_develop, no GitHub token available?")
-            return
-
         # see https://github.com/boegel/easybuild-easyconfigs/tree/test_new_pr_from_branch_DO_NOT_REMOVE
         test_branch = 'test_new_pr_from_branch_DO_NOT_REMOVE'
 
@@ -4882,12 +4831,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertRegex(stdout, re.compile(f"^{pattern}$", re.M))
 
+    @requires_github_token()
     def test_github_new_pr_python(self):
         """Check generated PR title for --new-pr on easyconfig that includes Python dependency."""
-        if self.github_token is None:
-            print("Skipping test_new_pr_python, no GitHub token available?")
-            return
-
         # copy toy test easyconfig
         toy_ec = os.path.join(self.test_prefix, 'toy.eb')
         copy_file(TOY_EC, toy_ec)
@@ -4923,13 +4869,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertRegex(txt, re.compile(r"^\* title: \"\{tools\}\[system/system\] toy v0.0\"$", re.M))
 
+    @requires_github_token()
     def test_github_new_pr_delete(self):
         """Test use of --new-pr to delete easyconfigs."""
-
-        if self.github_token is None:
-            print("Skipping test_new_pr_delete, no GitHub token available?")
-            return
-
         ec_name = 'bzip2-1.0.8.eb'
         args = [
             '--new-pr',
@@ -4949,13 +4891,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+    @requires_github_token()
     def test_github_new_pr_dependencies(self):
         """Test use of --new-pr with automatic dependency lookup."""
-
-        if self.github_token is None:
-            print("Skipping test_new_pr_dependencies, no GitHub token available?")
-            return
-
         foo_eb = '\n'.join([
             'easyblock = "ConfigureMake"',
             'name = "foo"',
@@ -4997,15 +4935,11 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertMultiRegex(regexs, txt, multi_line=True)
 
+    @requires_github_token()
     def test_github_new_pr_easyblock(self):
         """
         Test using --new-pr to open an easyblocks PR
         """
-
-        if self.github_token is None:
-            print("Skipping test_new_pr_easyblock, no GitHub token available?")
-            return
-
         toy_eb = TEST_DIR / 'sandbox/easybuild/easyblocks/t/toy.py'
         self.assertExists(toy_eb)
 
@@ -5025,13 +4959,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(patterns, txt)
 
+    @requires_github_token()
     def test_github_merge_pr(self):
         """
         Test use of --merge-pr (dry run)"""
-        if self.github_token is None:
-            print("Skipping test_merge_pr, no GitHub token available?")
-            return
-
         # start by making sure --merge-pr without dry-run errors out for a closed PR
         args = [
             '--merge-pr',
@@ -5132,12 +5063,9 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         self.assertIn(expected_stdout, stdout)
 
+    @requires_github_token()
     def test_github_empty_pr(self):
         """Test use of --new-pr (dry run only) with no changes"""
-        if self.github_token is None:
-            print("Skipping test_empty_pr, no GitHub token available?")
-            return
-
         # get file from develop branch
         full_url = URL_SEPARATOR.join([GITHUB_RAW, GITHUB_EB_MAIN, GITHUB_EASYCONFIGS_REPO,
                                        'develop/easybuild/easyconfigs/z/zlib/zlib-1.3.1-GCCcore-14.2.0.eb'])
