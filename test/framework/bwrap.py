@@ -27,6 +27,7 @@ Unit tests for functionality in easybuild.tools.bwrap
 
 @author: Samuel Moors (Vrije Universiteit Brussel)
 """
+import json
 import os
 import stat
 import sys
@@ -36,13 +37,34 @@ from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.tools import parse_easyconfigs
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.bwrap import det_install_subdirs, get_bwrap_info, prepare_bwrap, set_bwrap_info
-from easybuild.tools.filetools import mkdir, write_file
+import easybuild.tools.bwrap as bwrap
+from easybuild.tools.bwrap import check_bwrap_config, det_install_subdirs, det_module_files, get_bwrap_info
+from easybuild.tools.bwrap import prepare_bwrap, set_bwrap_info
+from easybuild.tools.filetools import mkdir, read_file, write_file
 from easybuild.tools.robot import resolve_dependencies
 
 
 class BwrapTest(EnhancedTestCase):
     """Tests for bwrap support"""
+
+    def test_check_bwrap_config(self):
+        """Test check_bwrap_config function."""
+        bwrap._bwrap_config.clear()
+        init_config()
+        check_bwrap_config('/tmp/bwrap')
+        self.assertEqual(get_bwrap_info('bwrap_installpath'), '/tmp/bwrap')
+        # same configuration is fine (e.g. for next easystack entry)
+        check_bwrap_config('/tmp/bwrap')
+
+        # different configuration is not, all differences are listed in the error
+        init_config(args=['--installpath-software=%s' % self.test_prefix],
+                    build_options={'suffix_modules_path': 'foo'})
+        error_pattern = (r"must be the same for all easystack entries:\n"
+                         r"\* bwrap-installpath: /tmp/bwrap vs /tmp/other\n"
+                         r"\* installpath-software: .* vs .*\n"
+                         r"\* suffix-modules-path: all vs foo$")
+        self.assertRaisesRegex(EasyBuildError, error_pattern, check_bwrap_config, '/tmp/other')
+        bwrap._bwrap_config.clear()
 
     def test_det_install_subdirs(self):
         """Test det_install_subdirs function."""
@@ -63,6 +85,26 @@ class BwrapTest(EnhancedTestCase):
         specs.extend({'ec': {'data_sources': ['data.tar.gz']}, 'spec': f'data{i}.eb'} for i in (1, 2))
         error_pattern = r"'data_sources' is not supported \(yet\) with --bwrap:\n\* data1.eb\n\* data2.eb$"
         self.assertRaisesRegex(EasyBuildError, error_pattern, det_install_subdirs, specs)
+
+    def test_det_module_files(self):
+        """Test det_module_files function."""
+        hwloc_ec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+
+        # module file paths depend on module naming scheme and module syntax
+        test_cases = [
+            ('EasyBuildMNS', 'Lua', ['GCC/6.4.0-2.28.lua', 'hwloc/1.11.8-GCC-6.4.0-2.28.lua']),
+            ('EasyBuildMNS', 'Tcl', ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']),
+            ('HierarchicalMNS', 'Lua', ['Compiler/GCC/6.4.0-2.28/hwloc/1.11.8.lua', 'Core/GCC/6.4.0-2.28.lua']),
+        ]
+        for mns, syntax, expected in test_cases:
+            os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = mns
+            init_config(args=['--module-syntax=%s' % syntax], build_options={'robot_path': TEST_ECS_DIR})
+            ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
+            specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
+            self.assertEqual(sorted(det_module_files(specs)), expected)
+
+        # dummy entries for dependencies without an easyconfig are skipped
+        self.assertEqual(det_module_files([{'ec': None, 'full_mod_name': 'foo/1.0'}]), [])
 
     def test_prepare_bwrap(self):
         """Test prepare_bwrap function."""
@@ -88,6 +130,7 @@ class BwrapTest(EnhancedTestCase):
         # writable install paths: bind mounts, existing modules are copied to bwrap install path
         write_file(os.path.join(modules, 'all', 'foo', '0.9.lua'), '')
         set_bwrap_info('install_subdirs', {'foo/1.0', 'bar/2.0'})
+        set_bwrap_info('module_files', {'foo/1.0.lua', 'bar/2.0.lua'})
         with self.mocked_stdout_stderr():
             prepare_bwrap(bwrap_installpath)
         expected = [
@@ -98,7 +141,10 @@ class BwrapTest(EnhancedTestCase):
         ]
         self.assertEqual(get_bwrap_info('bwrap_cmd'), expected)
         self.assertEqual(os.environ['EB_BWRAP_CMD'], ' '.join(expected))
-        self.assertTrue(os.path.exists(os.path.join(bwrap_installpath, 'bwrap_info.json')))
+        bwrap_info = json.loads(read_file(os.path.join(bwrap_installpath, 'bwrap_info.json')))
+        self.assertEqual(bwrap_info['bwrap_cmd'], expected)
+        self.assertEqual(bwrap_info['module_files'], ['bar/2.0.lua', 'foo/1.0.lua'])
+        self.assertEqual(bwrap_info['suffix_modules_path'], 'all')
         self.assertTrue(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
 
         # read-only install paths: overlays on the closest existing directory (only once per directory),

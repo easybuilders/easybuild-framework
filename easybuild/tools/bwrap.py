@@ -36,8 +36,9 @@ import os
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, install_path, ConfigurationVariables
+from easybuild.tools.config import build_option, get_module_syntax, install_path, ConfigurationVariables
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
+from easybuild.tools.module_generator import avail_module_generators
 from easybuild.tools.utilities import trace_msg
 
 
@@ -53,8 +54,12 @@ _bwrap_info = {
     'installpath_modules': '',
     'installpath_software': '',
     'install_subdirs': set(),
-
+    'module_files': set(),
+    'suffix_modules_path': '',
 }
+
+# configuration settings that are relevant for bwrap, used to check that they are the same for all easystack entries
+_bwrap_config = {}
 
 _log = fancylogger.getLogger('bwrap', fname=False)
 
@@ -93,6 +98,32 @@ def update_bwrap_info(key, value):
         raise EasyBuildError(f"Unknown key specified to update bwrap info: {key}")
 
 
+def check_bwrap_config(bwrap_installpath):
+    """
+    Check that configuration settings that are relevant for bwrap are the same for all easyconfigs to be installed:
+    each entry in an easystack file can have its own options, but the bwrap command is only prepared once
+
+    :param bwrap_installpath: bwrap install path
+    """
+    config = {
+        'bwrap-installpath': bwrap_installpath,
+        'bwrap-options': build_option('bwrap_options'),
+        'installpath-modules': os.path.realpath(install_path(typ='modules')),
+        'installpath-software': os.path.realpath(install_path(typ='software')),
+        'suffix-modules-path': build_option('suffix_modules_path'),
+    }
+    if _bwrap_config:
+        diffs = [f"* {key}: {_bwrap_config[key]} vs {value}" for key, value in sorted(config.items())
+                 if value != _bwrap_config[key]]
+        if diffs:
+            raise EasyBuildError("Configuration settings that are relevant for --bwrap must be the same "
+                                 "for all easystack entries:\n%s", '\n'.join(diffs))
+    else:
+        _bwrap_config.update(config)
+        # bwrap install path may be set per easystack entry, so it can differ from the one on the command line
+        set_bwrap_info('bwrap_installpath', bwrap_installpath)
+
+
 def det_install_subdirs(specs):
     """
     Determine software installation subdirectories for easyconfigs to be installed in bwrap namespace
@@ -120,6 +151,18 @@ def det_install_subdirs(specs):
     return install_subdirs
 
 
+def det_module_files(specs):
+    """
+    Determine paths of module files for easyconfigs to be installed in bwrap namespace
+
+    :param specs: list of easyconfig specs (dicts) to be installed
+    :return: list of module file paths, relative to <modules install path>/<modules path suffix>
+    """
+    mod_file_ext = avail_module_generators()[get_module_syntax()].MODULE_FILE_EXTENSION
+    # skip dummy entries for dependencies without an easyconfig
+    return [spec['full_mod_name'] + mod_file_ext for spec in specs if spec['ec']]
+
+
 def prepare_bwrap(bwrap_installpath):
     """
     Prepare for running EasyBuild with bwrap:
@@ -137,6 +180,8 @@ def prepare_bwrap(bwrap_installpath):
 
     installpath_modules = os.path.realpath(install_path(typ='modules'))
     set_bwrap_info('installpath_modules', installpath_modules)
+
+    set_bwrap_info('suffix_modules_path', build_option('suffix_modules_path'))
 
     # make sure install paths exist, so mount targets never go above them
     for descr, path in [('software', installpath_software), ('modules', installpath_modules)]:
@@ -224,7 +269,7 @@ def prepare_bwrap(bwrap_installpath):
 
     # write json file with bwrap install info into bwrap installpath
     bwrap_infopath = os.path.join(bwrap_installpath, BWRAP_INFO_JSON)
-    write_file(bwrap_infopath, json.dumps(_bwrap_info, default=list, indent=2, sort_keys=True), backup=True)
+    write_file(bwrap_infopath, json.dumps(_bwrap_info, default=sorted, indent=2, sort_keys=True), backup=True)
 
     print_msg('Building/installing in bwrap namespace')
     trace_msg(f'bwrap command (to prefix eb command): {bwrap_cmd_str}')
