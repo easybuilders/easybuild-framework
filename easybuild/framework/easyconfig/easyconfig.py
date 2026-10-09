@@ -1172,8 +1172,12 @@ class EasyConfig:
 
         return res
 
-    def dep_is_filtered(self, dep, filter_deps_specs):
+    def dep_is_filtered(self, dep, filter_deps_specs=None):
         """Returns True if a dependency is filtered according to the filter_deps_specs"""
+
+        if filter_deps_specs is None:
+            filter_deps_specs = self.parse_filter_deps()
+
         filter_dep = False
         if dep['name'] in filter_deps_specs:
             filter_spec = filter_deps_specs[dep['name']]
@@ -2334,7 +2338,7 @@ def process_easyconfig(path, build_specs=None, validate=True, parse_only=False, 
     # only cache when no build specifications are involved (since those can't be part of a dict key)
     cache_key = None
     if not build_specs:
-        cache_key = (path, validate, hidden, parse_only)
+        cache_key = (str(path), validate, hidden, parse_only)
         if cache_key in _easyconfigs_cache:
             # Note: This does NOT copy EasyConfig instances but the dict containing an instance in the 'ec' key.
             # So modifications to the `EasyConfig` instance will be shared.

@@ -36,6 +36,7 @@ import tempfile
 import shutil
 import stat
 import sys
+from test.framework import TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -64,7 +65,7 @@ class ModulesTest(EnhancedTestCase):
     def init_testmods(self, test_modules_paths=None):
         """Initialize set of test modules for test."""
         if test_modules_paths is None:
-            test_modules_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))]
+            test_modules_paths = [TEST_MODULES_DIR.absolute()]
         self.reset_modulepath(test_modules_paths)
 
     # for Lmod, this test has to run first, to avoid that it fails;
@@ -83,7 +84,7 @@ class ModulesTest(EnhancedTestCase):
         # copy one of the test modules there
         gcc_mod_dir = os.path.join(long_mod_path, 'GCC')
         os.makedirs(gcc_mod_dir)
-        gcc_mod_path = os.path.join(os.path.dirname(__file__), 'modules', 'GCC', '4.6.3')
+        gcc_mod_path = TEST_MODULES_DIR / 'GCC/4.6.3'
         copy_file(gcc_mod_path, gcc_mod_dir)
 
         # try and use long modules path
@@ -97,8 +98,6 @@ class ModulesTest(EnhancedTestCase):
     def test_run_module(self):
         """Test for ModulesTool.run_module method."""
 
-        testdir = os.path.dirname(os.path.abspath(__file__))
-
         for key in ['EBROOTGCC', 'EBROOTOPENMPI', 'EBROOTOPENBLAS']:
             os.environ.pop(key, None)
 
@@ -107,7 +106,7 @@ class ModulesTest(EnhancedTestCase):
             self.modtool.run_module('load', 'GCC/6.4.0-2.28')
             self.assertEqual(os.environ['EBROOTGCC'], '/prefix/software/GCC/6.4.0-2.28')
 
-        self.reset_modulepath([os.path.join(testdir, 'modules')])
+        self.reset_modulepath([TEST_MODULES_DIR])
 
         self.assertNotIn('EBROOTGCC', os.environ)
         self.modtool.run_module(['load', 'GCC/6.4.0-2.28'])
@@ -119,7 +118,7 @@ class ModulesTest(EnhancedTestCase):
 
             # by default, exit code is checked and an error is raised if we run something that fails
             error_pattern = "Module command '.*thisdoesnotmakesense' failed with exit code [1-9]"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'thisdoesnotmakesense')
 
             # we need to use a different error pattern here with EnvironmentModulesC and
             # EnvironmentModules  <5.5, because a load of a non-existing module doesnt' trigger a
@@ -130,7 +129,7 @@ class ModulesTest(EnhancedTestCase):
                 error_pattern = "Unable to locate a modulefile for 'nosuchmodule/1.2.3'"
             else:
                 error_pattern = "Module command '.*load nosuchmodule/1.2.3' failed with exit code [1-9]"
-            self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
+            self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.run_module, 'load', 'nosuchmodule/1.2.3')
 
         # we can choose to blatently ignore the exit code,
         # and also disable the output check that serves as a fallback;
@@ -261,11 +260,10 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(['OpenMPI'], maybe_partial=False, skip_avail=True), [False])
 
         # exist works on hidden modules in Lua syntax (only with Lmod)
-        test_modules_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'modules'))
         if isinstance(self.modtool, Lmod):
             # make sure only the .lua module file is there, otherwise this test doesn't work as intended
-            self.assertExists(os.path.join(test_modules_path, 'bzip2', '.1.0.6.lua'))
-            self.assertNotExists(os.path.join(test_modules_path, 'bzip2', '.1.0.6'))
+            self.assertExists(TEST_MODULES_DIR / 'bzip2/.1.0.6.lua')
+            self.assertNotExists(TEST_MODULES_DIR / 'bzip2/.1.0.6')
             self.assertEqual(self.modtool.exist(['bzip2/.1.0.6']), [True])
 
         # exist also works on lists of module names
@@ -278,7 +276,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(self.modtool.exist(mod_names, skip_avail=True), [True, False, True, False, True, True])
 
         # verify whether checking for existence of a module wrapper works
-        self.modtool.unuse(test_modules_path)
+        self.modtool.unuse(TEST_MODULES_DIR)
         self.modtool.use(self.test_prefix)
 
         java_mod_dir = os.path.join(self.test_prefix, 'Java')
@@ -438,7 +436,7 @@ class ModulesTest(EnhancedTestCase):
             'MPI/GCC/6.4.0-2.28/OpenMPI/2.1.2/ScaLAPACK/2.0.2-OpenBLAS-0.2.20',
         ]
         for modname in modnames:
-            self.assertErrorRegex(EasyBuildError, '.*', self.modtool.load, [modname])
+            self.assertRaisesRegex(EasyBuildError, '.*', self.modtool.load, [modname])
 
         # by default, modules are always loaded, even if they are already loaded
         self.modtool.load(['GCC/6.4.0-2.28', 'OpenMPI/2.1.2-GCC-6.4.0-2.28'])
@@ -618,10 +616,9 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(modulepath, curr_module_paths())
 
         # prepending path that is 'deeper down' in $MODULEPATH works, brings it back to front
-        test_mods_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-        self.assertTrue(any(os.path.samefile(test_mods_dir, p) for p in modulepath))
-        self.modtool.prepend_module_path(test_mods_dir)
-        self.assertTrue(os.path.samefile(curr_module_paths()[0], test_mods_dir))
+        self.assertTrue(any(TEST_MODULES_DIR.samefile(p) for p in modulepath))
+        self.modtool.prepend_module_path(TEST_MODULES_DIR)
+        self.assertTrue(os.path.samefile(curr_module_paths()[0], TEST_MODULES_DIR))
 
         # prepending path that is a symlink to the current head of $MODULEPATH is a no-op
         modulepath = curr_module_paths()
@@ -725,7 +722,7 @@ class ModulesTest(EnhancedTestCase):
         remove_file(os.path.join(root, 'lib64', 'libfoo.' + shlib_ext))
 
         # check expected result of get_software_libdir with multiple lib subdirs
-        self.assertErrorRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
+        self.assertRaisesRegex(EasyBuildError, "Multiple library subdirectories found.*", get_software_libdir, name)
         check_get_software_libdir(only_one=False, expected=['lib', 'lib64'])
 
         # only directories containing files in specified list should be retained
@@ -763,22 +760,20 @@ class ModulesTest(EnhancedTestCase):
 
     def test_wrong_modulepath(self):
         """Test whether modules tool can deal with a broken $MODULEPATH."""
-        test_modules_path = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
         modules_test_installpath = os.path.join(self.test_installpath, 'modules', 'all')
-        os.environ['MODULEPATH'] = '/some/non-existing/path:/this/doesnt/exists/anywhere:%s' % test_modules_path
+        os.environ['MODULEPATH'] = f'/some/non-existing/path:/this/doesnt/exists/anywhere:{TEST_MODULES_DIR}'
         init_config()
         # purposely *not* using self.modtool here;
         # need to check whether creating new ModulesTool instance doesn't break when $MODULEPATH contains faulty paths
         modtool = modules_tool()
         self.assertEqual(len(modtool.mod_paths), 2)
         self.assertTrue(os.path.samefile(modtool.mod_paths[0], modules_test_installpath))
-        self.assertEqual(modtool.mod_paths[1], test_modules_path)
+        self.assertEqual(modtool.mod_paths[1], str(TEST_MODULES_DIR))
         self.assertTrue(len(modtool.available()) > 0)
 
     def test_modulefile_path(self):
         """Test modulefile_path method"""
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        gcc_mod_file = os.path.join(test_dir, 'modules', 'GCC', '6.4.0-2.28')
+        gcc_mod_file = TEST_MODULES_DIR / 'GCC/6.4.0-2.28'
 
         modtool = modules_tool()
         res = modtool.modulefile_path('GCC/6.4.0-2.28')
@@ -786,7 +781,7 @@ class ModulesTest(EnhancedTestCase):
 
         if isinstance(self.modtool, Lmod):
             res = modtool.modulefile_path('bzip2/.1.0.6')
-            self.assertTrue(os.path.samefile(res, os.path.join(test_dir, 'modules', 'bzip2', '.1.0.6.lua')))
+            self.assertTrue((TEST_MODULES_DIR / 'bzip2/.1.0.6.lua').samefile(res))
             res = modtool.modulefile_path('bzip2/.1.0.6', strip_ext=True)
             self.assertTrue(res.endswith('test/framework/modules/bzip2/.1.0.6'))
 
@@ -806,11 +801,10 @@ class ModulesTest(EnhancedTestCase):
     def test_path_to_top_of_module_tree_hierarchical_mns(self):
         """Test function to determine path to top of the module tree for a hierarchical module naming scheme."""
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -845,7 +839,7 @@ class ModulesTest(EnhancedTestCase):
         """Test path_to_top_of_module_tree function on modules in Lua syntax."""
         if isinstance(self.modtool, Lmod):
             orig_modulepath = os.environ.get('MODULEPATH')
-            self.modtool.unuse(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
+            self.modtool.unuse(TEST_MODULES_DIR)
             curr_modulepath = os.environ.get('MODULEPATH')
             error_msg = "Incorrect $MODULEPATH value after unuse: %s (orig: %s)" % (curr_modulepath, orig_modulepath)
             self.assertEqual(curr_modulepath, None, error_msg)
@@ -938,7 +932,7 @@ class ModulesTest(EnhancedTestCase):
 
         # error for non-existing modules
         error_pattern = "Can't get value from a non-existing module"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.modpath_extensions_for, ['nosuchmodule/1.2'])
 
         # make sure $HOME/$USER is set to something we can easily check
         os.environ['HOME'] = os.path.join(self.test_prefix, 'HOME')
@@ -1016,11 +1010,10 @@ class ModulesTest(EnhancedTestCase):
         scheme.
         """
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -1055,11 +1048,9 @@ class ModulesTest(EnhancedTestCase):
 
     def test_modules_tool_stateless(self):
         """Check whether ModulesTool instance is stateless between runs."""
-        test_modules_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
-
         # copy test Core/Compiler modules, we need to rewrite the 'module use' statement in the one we're going to load
-        copy_dir(os.path.join(test_modules_path, 'Core'), os.path.join(self.test_prefix, 'Core'))
-        copy_dir(os.path.join(test_modules_path, 'Compiler'), os.path.join(self.test_prefix, 'Compiler'))
+        copy_dir(TEST_MODULES_DIR / 'Core', os.path.join(self.test_prefix, 'Core'))
+        copy_dir(TEST_MODULES_DIR / 'Compiler', os.path.join(self.test_prefix, 'Compiler'))
 
         modtxt = read_file(os.path.join(self.test_prefix, 'Core', 'GCC', '6.4.0-2.28'))
         modpath_extension = os.path.join(self.test_prefix, 'Compiler', 'GCC', '6.4.0-2.28')
@@ -1089,7 +1080,7 @@ class ModulesTest(EnhancedTestCase):
         # GCC/4.6.3 is *not* an available Core module
         os.environ['LC_ALL'] = 'C'
         os.environ['LANG'] = 'C'
-        self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
+        self.assertRaisesRegex(EasyBuildError, load_err_msg, self.modtool.load, ['GCC/4.6.3'])
 
         # GCC/6.4.0-2.28 is one of the available Core modules
         self.modtool.load(['GCC/6.4.0-2.28'])
@@ -1102,7 +1093,7 @@ class ModulesTest(EnhancedTestCase):
 
         # reset $MODULEPATH, obtain new ModulesTool instance,
         # which should not remember anything w.r.t. previous $MODULEPATH value
-        os.environ['MODULEPATH'] = test_modules_path
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
         self.modtool = modules_tool()
 
         # GCC/4.6.3 is available
@@ -1124,7 +1115,7 @@ class ModulesTest(EnhancedTestCase):
         else:
             load_err_msg = "Unable to locate a modulefile"
 
-        self.assertErrorRegex(EasyBuildError, load_err_msg, self.modtool.load, ['OpenMPI/2.1.2'])
+        self.assertRaisesRegex(EasyBuildError, load_err_msg, self.modtool.load, ['OpenMPI/2.1.2'])
 
     def test_mk_module_cache_key(self):
         """Test mk_module_cache_key method."""
@@ -1151,9 +1142,8 @@ class ModulesTest(EnhancedTestCase):
 
         # create symlink to entry in $MODULEPATH we're going to use, and add it to $MODULEPATH
         # invalidate_module_caches_for should be able to deal with this
-        test_mods_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
         mods_symlink = os.path.join(self.test_prefix, 'modules_symlink')
-        os.symlink(test_mods_path, mods_symlink)
+        os.symlink(TEST_MODULES_DIR, mods_symlink)
         self.modtool.use(mods_symlink)
 
         # no caching for 'avail' commands with an argument
@@ -1186,12 +1176,12 @@ class ModulesTest(EnhancedTestCase):
 
         # invalidate caches with correct path
         modulepaths = [p for p in os.environ.get('MODULEPATH', '').split(os.pathsep) if p]
-        self.assertTrue(any(os.path.exists(mp) and os.path.samefile(test_mods_path, mp) for mp in modulepaths))
+        self.assertTrue(any(os.path.exists(mp) and TEST_MODULES_DIR.samefile(mp) for mp in modulepaths))
         paths_in_key = [p for p in avail_cache_key[0].split('=')[1].split(os.pathsep) if p]
-        self.assertTrue(any(os.path.exists(p) and os.path.samefile(test_mods_path, p) for p in paths_in_key))
+        self.assertTrue(any(os.path.exists(p) and TEST_MODULES_DIR.samefile(p) for p in paths_in_key))
 
         # verify cache invalidation, caches should be empty again
-        invalidate_module_caches_for(test_mods_path)
+        invalidate_module_caches_for(TEST_MODULES_DIR)
         self.assertEqual(mod.MODULE_AVAIL_CACHE, {})
         self.assertEqual(mod.MODULE_SHOW_CACHE, {})
 
@@ -1218,7 +1208,7 @@ class ModulesTest(EnhancedTestCase):
 
         # Adding an empty modulepath is not possible
         modulepath = os.environ.get('MODULEPATH', '')
-        self.assertErrorRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
+        self.assertRaisesRegex(EasyBuildError, "Cannot add empty path", self.modtool.use, '')
         self.assertEqual(os.environ.get('MODULEPATH', ''), modulepath)
 
         # make sure the right test module is loaded
@@ -1443,7 +1433,7 @@ class ModulesTest(EnhancedTestCase):
         else:
             # Environment Modules exits with 0 even when a non-existing module is loaded...
             error_pattern = "Unable to locate a modulefile for 'nosuchmoduleavailableanywhere'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.load, ['nosuchmoduleavailableanywhere'])
 
     def test_check_loaded_modules(self):
         """Test check_loaded_modules method."""
@@ -1495,7 +1485,7 @@ class ModulesTest(EnhancedTestCase):
         # error mentioning 1 non-allowed module (OpenMPI), both GCC and hwloc loaded modules are allowed
         error_pattern = r"Found one or more non-allowed loaded .* module.*\n"
         error_pattern += r"\* OpenMPI/2.1.2-GCC-6.4.0-2.28\n\nThis is not"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modtool.check_loaded_modules)
 
         # check for warning message when purge is being run on loaded modules
         build_options.update({'detect_loaded_modules': 'purge'})
@@ -1528,7 +1518,7 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options=build_options)
         error_msg = r"Found defined \$EBROOT\* environment variables without matching loaded module: "
         error_msg += r"\$EBROOTSOFTWAREWITHOUTAMATCHINGMODULE\n"
-        self.assertErrorRegex(EasyBuildError, error_msg, check_loaded_modules)
+        self.assertRaisesRegex(EasyBuildError, error_msg, check_loaded_modules)
 
         build_options.update({'check_ebroot_env_vars': 'ignore'})
         init_config(build_options=build_options)
@@ -1545,7 +1535,7 @@ class ModulesTest(EnhancedTestCase):
 
         # specified action for detected loaded modules is verified early
         error_msg = "Unknown action specified to --detect-loaded-modules: sdvbfdgh"
-        self.assertErrorRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
+        self.assertRaisesRegex(EasyBuildError, error_msg, init_config, args=['--detect-loaded-modules=sdvbfdgh'])
 
     def test_NoModulesTool(self):
         """Test use of NoModulesTool class."""
@@ -1590,11 +1580,8 @@ class ModulesTest(EnhancedTestCase):
 
         init_config(build_options={'generate_devel_module': True})
 
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
-        write_file(test_ec, read_file(eb_path))
+        write_file(test_ec, TOY_EC_TXT)
         write_file(test_ec, "\nmodextravars = {'FOO': 'value with spaces'}", append=True)
 
         toy_eb = EasyBlock(EasyConfig(test_ec))
@@ -1919,7 +1906,7 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(mod_load_env.TEST_VAR.contents, test_contents)
 
         error_pattern = "Name of ModuleLoadEnvironment attribute does not conform to shell naming rules.*'test_lower'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, setattr, mod_load_env, 'test_lower', test_contents)
 
         mod_load_env.TEST_STR = 'some/path'
         self.assertTrue(hasattr(mod_load_env, 'TEST_STR'))
@@ -2064,9 +2051,9 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(alias_load_env.ALIAS_VAR32.contents, ['alias3_path', 'new_path'])
 
         error_pattern = "Wrong format for aliases defitions passed to ModuleLoadEnvironment"
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
-        self.assertErrorRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=False)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases='wrong')
+        self.assertRaisesRegex(EasyBuildError, error_pattern, mod.ModuleLoadEnvironment, aliases=['some', 'list'])
 
 
 def suite(loader=None):

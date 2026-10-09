@@ -42,12 +42,13 @@ from pathlib import Path
 from typing import List, Pattern, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
-from easybuild.base import fancylogger
-from easybuild.base.testing import TestCase
+
 import easybuild.tools.build_log as eb_build_log
 import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
+from easybuild.base import fancylogger
+from easybuild.base.testing import TestCase
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.main import main
@@ -88,7 +89,7 @@ for key in list(os.environ):
 
 
 class EnhancedTestCase(TestCase):
-    """Enhanced test case, provides extra functionality (e.g. an assertErrorRegex method)."""
+    """Enhanced test case, provides extra functionality (e.g. an assertRaisesRegex method)."""
 
     def purge_environment(self):
         """Remove any leftover easybuild variables"""
@@ -204,7 +205,7 @@ class EnhancedTestCase(TestCase):
         # to avoid that easyblocks picked up from other places cause trouble
         for pkg in ('easybuild.easyblocks', 'easybuild.easyblocks.generic'):
             for path in sys.modules[pkg].__path__[:]:
-                if testdir_sandbox not in path:
+                if str(testdir_sandbox) not in path:
                     sys.modules[pkg].__path__.remove(path)
 
         # save values of $PATH & $PYTHONPATH, so they can be restored later
@@ -215,7 +216,7 @@ class EnhancedTestCase(TestCase):
         self.env_pythonpath = os.environ.get('PYTHONPATH')
 
         self.modtool: ModulesTool = modules_tool()
-        self.reset_modulepath([os.path.join(TEST_MODULES_DIR)])
+        self.reset_modulepath([TEST_MODULES_DIR])
         reset_module_caches()
 
     def disallow_deprecated_behaviour(self):
@@ -309,7 +310,7 @@ class EnhancedTestCase(TestCase):
         self.modtool.set_mod_paths()
 
     def eb_main(self, args, do_build=False, return_error=False, return_exit_code=False, logfile=None, verbose=False,
-                raise_error=False, reset_env=True, raise_systemexit=False, testing=True, redo_init_config=True,
+                raise_error=False, reset_env=True, testing=True, redo_init_config=True,
                 clear_caches=True):
         """Helper method to call EasyBuild main function."""
 
@@ -319,7 +320,7 @@ class EnhancedTestCase(TestCase):
         # note: don't change 'args' value, which is passed by reference!
         main_args = [str(arg) if isinstance(arg, Path) else arg for arg in args] + ['--unit-testing-mode']
 
-        myerr = False
+        myerr = None
         if logfile is None:
             logfile = self.logfile
         # clear log file
@@ -337,10 +338,14 @@ class EnhancedTestCase(TestCase):
                 modtool = None
             else:
                 modtool = self.modtool
-            exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
-        except SystemExit as err:
-            if raise_systemexit:
-                raise err
+            try:
+                exit_code = main(args=main_args, logfile=logfile, do_build=do_build, testing=testing, modtool=modtool)
+            except SystemExit as err:
+                # Ignore successful exits, i.e. `sys.exit(0)` on e.g. --help
+                if err.code != 0:
+                    myerr = err
+                    exit_code = err.code
+
         except Exception as err:
             myerr = err
             if verbose:
@@ -384,7 +389,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(TEST_MODULES_DIR, mod_subdir)
+            src_mod_path = TEST_MODULES_DIR / mod_subdir
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
 
         # make sure only modules in a hierarchical scheme are available, mixing modules installed with
@@ -429,7 +434,7 @@ class EnhancedTestCase(TestCase):
         # EasyBuild is responsible for making sure that the toolchain can be loaded using the short module name
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler', 'MPI']:
-            src_mod_path = os.path.join(TEST_MODULES_DIR, 'CategorizedHMNS', mod_subdir)
+            src_mod_path = TEST_MODULES_DIR / 'CategorizedHMNS' / mod_subdir
             copy_dir(src_mod_path, os.path.join(mod_prefix, mod_subdir))
         # create empty module file directory to make Environment Modules <5.0 happy
         mpi_pref = os.path.join(mod_prefix, 'MPI', 'GCC', '6.4.0-2.28', 'OpenMPI', '2.1.2')

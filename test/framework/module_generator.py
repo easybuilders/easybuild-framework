@@ -47,6 +47,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
+from test.framework import TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
 
@@ -59,8 +60,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test setup."""
         super().setUp()
         # find .eb file
-        topdir = os.path.dirname(os.path.abspath(__file__))
-        eb_path = os.path.join(topdir, 'easyconfigs', 'test_ecs', 'g', 'gzip', 'gzip-1.4.eb')
+        eb_path = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb')
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
@@ -317,8 +317,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends-on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected,
-                                          self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertRaisesRegex(EasyBuildError, expected,
+                                           self.modgen.load_module, "mod_name", depends_on=True)
         else:
             # default: guarded module load (which implies no recursive unloading)
             expected = '\n'.join([
@@ -363,8 +363,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             else:
                 expected = "depends_on statements in generated module are not supported by modules tool"
                 with self.mocked_stdout_stderr():
-                    self.assertErrorRegex(EasyBuildError, expected,
-                                          self.modgen.load_module, "mod_name", depends_on=True)
+                    self.assertRaisesRegex(EasyBuildError, expected,
+                                           self.modgen.load_module, "mod_name", depends_on=True)
 
     def test_load_multi_deps(self):
         """Test generated load statement when multi_deps is involved."""
@@ -544,11 +544,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_modulerc(self):
         """Test modulerc method."""
-        self.assertErrorRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
+        self.assertRaisesRegex(EasyBuildError, "Incorrect module_version value type", self.modgen.modulerc, 'foo')
 
         arg = {'foo': 'bar'}
         error_pattern = "Incorrect module_version spec, expected keys"
-        self.assertErrorRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, self.modgen.modulerc, arg)
 
         mod_ver_spec = {'modname': 'test/1.2.3.4.5', 'sym_version': '1.2.3', 'version': '1.2.3.4.5'}
         modulerc_path = os.path.join(self.test_prefix, 'test', self.modgen.DOT_MODULERC)
@@ -557,7 +557,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         if isinstance(self.modtool, Lmod) and LooseVersion(self.modtool.version) < LooseVersion('7.0'):
             error = "Expected module file .* not found; "
             error += "Lmod 6.x requires that .modulerc and wrapped module file are in same directory"
-            self.assertErrorRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
+            self.assertRaisesRegex(EasyBuildError, error, self.modgen.modulerc, mod_ver_spec, filepath=modulerc_path)
 
         # if the wrapped module file is in place, everything should be fine
         write_file(os.path.join(self.test_prefix, 'test', '1.2.3.4.5'), '#%Module')
@@ -776,9 +776,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = append_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('append_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                              "which only expects relative paths." % self.modgen.app.installdir,
-                              append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+        self.assertRaisesRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
+                               "which only expects relative paths." % self.modgen.app.installdir,
+                               append_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
@@ -796,16 +796,11 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions(self):
         """test the extensions() for extensions"""
-        # not supported by Environment Modules for the moment
-        if isinstance(self.modtool, EnvironmentModules):
-            return
-
         # check if extensions option is enabled and some module extensions are defined
         init_config(build_options={'module_extensions': True})
 
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
+        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -830,10 +825,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 r'\s*extensions\("bar/0.0,barbar/1.2,toy/0.0,ulimit"\)\nend$',
             ]
 
-        self.assertMultiRegex(patterns, desc, multi_line=True)
+        if self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and not self.modtool.supports_extensions:
+            # no extensions statement if modules tool does not support it (Environment Modules < 5.7.0)
+            self.assertNotMultiRegex(patterns, desc)
+        else:
+            self.assertMultiRegex(patterns, desc, multi_line=True)
 
         # check if the extensions is missing if there are no extensions
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb')
+        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-test.eb')
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -849,7 +848,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # check if the extensions is missing if 'module_extensions' is disabled
         init_config(build_options={'module_extensions': False})
-        test_ec = os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -860,16 +859,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
     def test_module_extensions_extension_name(self):
         """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""
-        # not supported by Environment Modules for the moment
-        if isinstance(self.modtool, EnvironmentModules):
-            return
-
         init_config(build_options={'module_extensions': True})
 
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         # toy easyconfig without extensions in exts_list
-        test_ec_txt = read_file(os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb'))
+        test_ec_txt = read_file(TEST_ECS_DIR / 't/toy/toy-0.0-test.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         for with_ext in (True, False):
             with self.subTest(add_extension=with_ext):
@@ -888,7 +881,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
                 else:
                     pattern = r'\s*extensions\("extra/0\.0"\)'
 
-                if with_ext:
+                # no extensions statement if modules tool does not support it (Environment Modules < 5.7.0)
+                unsupported = self.MODULE_GENERATOR_CLASS == ModuleGeneratorTcl and not self.modtool.supports_extensions
+                if with_ext and not unsupported:
                     self.assertRegex(desc, pattern)
                 else:
                     self.assertNotRegex(desc, pattern)
@@ -941,9 +936,9 @@ class ModuleGeneratorTest(EnhancedTestCase):
             res = prepend_paths('key', ['1234@example.com'], expand_relpaths=False)
             self.assertEqual('prepend_path("key", "1234@example.com")\n', res)
 
-        self.assertErrorRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
-                                              "which only expects relative paths." % self.modgen.app.installdir,
-                              prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
+        self.assertRaisesRegex(EasyBuildError, "Absolute path %s/foo passed to update_paths "
+                               "which only expects relative paths." % self.modgen.app.installdir,
+                               prepend_paths, "key2", ["bar", "%s/foo" % self.modgen.app.installdir])
 
         # check for warning that is printed when same path is added multiple times
         with self.modgen.start_module_creation():
@@ -1392,15 +1387,14 @@ class ModuleGeneratorTest(EnhancedTestCase):
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         init_config(build_options={'valid_stops': all_stops})
 
-        ecs_dir = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs')
-        ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(ecs_dir) for fil in files]
+        ec_files = [os.path.join(subdir, fil) for (subdir, _, files) in os.walk(TEST_ECS_DIR) for fil in files]
         # keep only easyconfig files (there may be additional files like patches, checksums.json, etc.)
         ec_files = [x for x in ec_files if x.endswith('.eb')]
 
         build_options = {
             'check_osdeps': False,
             'external_modules_metadata': {},
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
         }
@@ -1455,8 +1449,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        ec_file = os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-        self.assertErrorRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
+        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        self.assertRaisesRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
 
         # test simple custom module naming scheme
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'TestModuleNamingScheme'
@@ -1472,7 +1466,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
         self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/2018a')
 
         # test module naming scheme using all available easyconfig parameters
@@ -1519,7 +1513,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # determine full module name
             self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        ec = EasyConfig(os.path.join(ecs_dir, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'), hidden=True)
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'), hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-foss-2018a.eb'])
         self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/e69469ac250145c9e814e5dde93f5fde6d80375d')
 
@@ -1538,7 +1532,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             'versionsuffix': {'name': 'system', 'version': 'system'},
         }
         error_pattern = "versionsuffix value should be a string, found 'dict'"
-        self.assertErrorRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ActiveMNS().det_full_module_name, faulty_dep_spec)
 
     def test_mod_name_validation(self):
         """Test module naming validation."""
@@ -1588,11 +1582,10 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test hierarchical module naming scheme."""
 
         moduleclasses = ['base', 'compiler', 'mpi', 'numlib', 'system', 'toolchain']
-        ecs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs', 'test_ecs')
         all_stops = [x[0] for x in EasyBlock.get_steps()]
         build_options = {
             'check_osdeps': False,
-            'robot_path': [ecs_dir],
+            'robot_path': [TEST_ECS_DIR],
             'valid_stops': all_stops,
             'validate': False,
             'valid_module_classes': moduleclasses,
@@ -1600,7 +1593,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
-            ec = EasyConfig(glob.glob(os.path.join(ecs_dir, '*', '*', ecfile))[0])
+            ec = EasyConfig(glob.glob(os.path.join(TEST_ECS_DIR, '*', '*', ecfile))[0])
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -1686,8 +1679,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals)
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'i', 'impi', 'impi-5.1.2.150.eb'))
+        self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
         init_config(build_options=build_options)
@@ -1729,8 +1722,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(ecs_dir, 'i', 'impi', 'impi-5.1.2.150.eb'))
-        self.assertErrorRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
+        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'i', 'impi', 'impi-5.1.2.150.eb'))
+        self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
         init_config(build_options=build_options)
