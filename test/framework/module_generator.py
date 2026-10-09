@@ -861,10 +861,8 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test that the 'extension_name' easyconfig parameter is included in the 'extensions' statement."""
         init_config(build_options={'module_extensions': True})
 
-        test_dir = os.path.abspath(os.path.dirname(__file__))
-        os.environ['MODULEPATH'] = os.path.join(test_dir, 'modules')
         # toy easyconfig without extensions in exts_list
-        test_ec_txt = read_file(os.path.join(test_dir, 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0-test.eb'))
+        test_ec_txt = read_file(TEST_ECS_DIR / 't/toy/toy-0.0-test.eb')
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         for with_ext in (True, False):
             with self.subTest(add_extension=with_ext):
