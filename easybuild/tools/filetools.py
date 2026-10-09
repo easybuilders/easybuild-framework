@@ -938,7 +938,7 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
 
         if not downloaded:
             if attempt_cnt < max_attempts:
-                _log.info("Attempt {attempt_cnt} of downloading {url} to {path} failed, trying again...")
+                _log.info(f"Attempt {attempt_cnt} of downloading {url} to {path} failed, trying again...")
 
                 if wait:
                     _log.info(f"Waiting for {wait_time} seconds before trying download of {url} again...")
@@ -959,9 +959,9 @@ def download_file(filename, url, path, forced=False, trace=True, max_attempts=No
                         break
 
     if downloaded:
-        _log.info("Successful download of file %s from url %s to path %s" % (filename, url, path))
+        _log.info(f"Successful download of file {filename} from url {url} to path %{path}")
         if trace:
-            trace_msg("download succeeded: %s" % url)
+            trace_msg(f"download succeeded: {url}")
         return path
     else:
         _log.warning("Download of %s to %s failed, done trying" % (url, path))
