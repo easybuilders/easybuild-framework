@@ -3214,8 +3214,6 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git checkout 8456f86"',
             r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git lfs pull"',
-            r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
         ]).format(**string_args, repo_name='testrepository')
 
