@@ -1336,7 +1336,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # first check what happens when module for source dep is not available
         expected_error = "Module for one or more source dependencies is not available yet"
-        self.assertErrorRegex(EasyBuildError, expected_error, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, expected_error, eb.fetch_step)
 
         # put fake module in place for source dep
         mods = os.path.join(self.test_prefix, 'modules')
