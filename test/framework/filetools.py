@@ -3041,7 +3041,7 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        def run_check():
+        def run_check(expected: str):
             """Helper function to run get_source_tarball_from_git & check dry run output"""
             with self.mocked_stdout_stderr():
                 res = ft.get_source_tarball_from_git('test', target_dir, git_config)
@@ -3069,7 +3069,7 @@ class FileToolsTest(EnhancedTestCase):
             r"':\(glob\)\*\*/\.gitattributes'\""
         )
 
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
             lfs_check_tag,
@@ -3077,11 +3077,11 @@ class FileToolsTest(EnhancedTestCase):
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+            ]).format(**string_args, repo_name='testrepository')
+        )
 
         git_config['clone_into'] = 'test123'
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo} test123"',
             r"  \(in .*/tmp.*\)",
             lfs_check_tag,
@@ -3089,12 +3089,12 @@ class FileToolsTest(EnhancedTestCase):
             r'  running shell command "git checkout refs/tags/tag_for_tests"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='test123')
-        run_check()
+            ]).format(**string_args, repo_name='test123')
+        )
         del git_config['clone_into']
 
         git_config['recursive'] = True
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
             lfs_check_tag,
@@ -3104,11 +3104,11 @@ class FileToolsTest(EnhancedTestCase):
             r'  running shell command "git submodule update --init --recursive"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+            ]).format(**string_args, repo_name='testrepository')
+        )
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "{git_clone_cmd} {git_repo}"',
             r"  \(in .*/tmp.*\)",
             lfs_check_tag,
@@ -3118,8 +3118,8 @@ class FileToolsTest(EnhancedTestCase):
             r'  running shell command "git submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+            ]).format(**string_args, repo_name='testrepository')
+        )
 
         git_config['extra_config_params'] = [
             'submodule."fastahack".active=false',
@@ -3130,7 +3130,7 @@ class FileToolsTest(EnhancedTestCase):
             r'  running shell command "{git_cmd_extra} grep -I -h filter=lfs refs/tags/tag_for_tests -- '
             r"':\(glob\)\*\*/\.gitattributes'\""
         )
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "{git_cmd_extra} clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
             lfs_check_extra,
@@ -3141,32 +3141,49 @@ class FileToolsTest(EnhancedTestCase):
             + ' \':!vcflib\' \':!sdsl-lite\'"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository', git_cmd_extra=git_cmd_extra)
-        run_check()
+            ]).format(**string_args, repo_name='testrepository', git_cmd_extra=git_cmd_extra)
+        )
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
         del git_config['tag']
-        git_config['commit'] = '8456f86'
+        string_args['commit'] = git_config['commit'] = '90366eac4408c5d615d69c5444ed784734b167c8'
         lfs_check_commit = (
-            r'  running shell command "git grep -I -h filter=lfs 8456f86 -- '
+            r'  running shell command "git grep -I -h filter=lfs {commit} -- '
             r"':\(glob\)\*\*/\.gitattributes'\""
         )
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
+            r'  running shell command "git fetch {git_repo} {commit}"',
+            r"  \(in .*/{repo_name}\)",
             lfs_check_commit,
             r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
+            r'  running shell command "git checkout {commit}"',
             r"  \(in .*/{repo_name}\)",
             r'  running shell command "git submodule update --init --recursive"',
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        run_check()
+            ]).format(**string_args, repo_name='testrepository')
+        )
+
+        # clone & fetch does not work for short hashes
+        string_args['commit'] = git_config['commit'] = '8456f86'
+        run_check('\n'.join([
+            r'  running shell command "git clone --no-checkout {git_repo}"',
+            r"  \(in .*/tmp.*\)",
+            lfs_check_commit,
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git checkout {commit}"',
+            r"  \(in .*/{repo_name}\)",
+            r'  running shell command "git submodule update --init --recursive"',
+            r"  \(in .*/{repo_name}\)",
+            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+            ]).format(**string_args, repo_name='testrepository')
+        )
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*/tmp.*\)",
             lfs_check_commit,
@@ -3177,11 +3194,11 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
         ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        )
 
         del git_config['recursive']
         del git_config['recurse_submodules']
-        expected = '\n'.join([
+        run_check('\n'.join([
             r'  running shell command "git clone --no-checkout {git_repo}"',
             r"  \(in .*\)",
             lfs_check_commit,
@@ -3190,7 +3207,7 @@ class FileToolsTest(EnhancedTestCase):
             r"  \(in .*/{repo_name}\)",
             r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
         ]).format(**string_args, repo_name='testrepository')
-        run_check()
+        )
 
         # Check Git LFS handling when .gitattributes contains filter=lfs.
         orig_run_shell_cmd = ft.run_shell_cmd
@@ -3205,22 +3222,19 @@ class FileToolsTest(EnhancedTestCase):
             return res
 
         ft.run_shell_cmd = mock_run_shell_cmd
-        expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*\)",
-            lfs_check_commit,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git lfs install --local --skip-repo"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git lfs pull"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-
         try:
-            run_check()
+            run_check('\n'.join([
+                r'  running shell command "git clone --no-checkout {git_repo}"',
+                r"  \(in .*\)",
+                lfs_check_commit,
+                r"  \(in .*/{repo_name}\)",
+                r'  running shell command "git lfs install --local --skip-repo"',
+                r"  \(in .*/{repo_name}\)",
+                r'  running shell command "git checkout 8456f86"',
+                r"  \(in .*/{repo_name}\)",
+                r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+            ]).format(**string_args, repo_name='testrepository')
+            )
         finally:
             ft.run_shell_cmd = orig_run_shell_cmd
 
@@ -3235,18 +3249,17 @@ class FileToolsTest(EnhancedTestCase):
             return res
 
         ft.run_shell_cmd = mock_run_shell_cmd
-        expected = '\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*\)",
-            lfs_check_commit,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-
         try:
-            run_check()
+            run_check('\n'.join([
+                r'  running shell command "git clone --no-checkout {git_repo}"',
+                r"  \(in .*\)",
+                lfs_check_commit,
+                r"  \(in .*/{repo_name}\)",
+                r'  running shell command "git checkout 8456f86"',
+                r"  \(in .*/{repo_name}\)",
+                r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
+                ]).format(**string_args, repo_name='testrepository')
+            )
         finally:
             ft.run_shell_cmd = orig_run_shell_cmd
 
@@ -3263,7 +3276,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.run_shell_cmd = mock_run_shell_cmd
         try:
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(
+                self.assertRaisesRegex(
                     EasyBuildError,
                     "Failed to determine whether Git repository uses Git LFS",
                     ft.get_source_tarball_from_git,
@@ -3336,18 +3349,19 @@ class FileToolsTest(EnhancedTestCase):
             self.assertFalse(os.path.isdir(os.path.join(extracted_repo_dir, '.git')))
 
             del git_config['tag']
-            git_config['commit'] = '90366ea'
-            res = ft.get_source_tarball_from_git('test2', target_dir, git_config)
-            test_file = os.path.join(target_dir, 'test2.tar.xz')
-            self.assertEqual(res, test_file)
-            self.assertTrue(os.path.isfile(test_file))
-            test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
-            extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
-            with self.mocked_stdout_stderr():
-                extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
-            self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'README.md')))
-            self.assertFalse(os.path.isdir(os.path.join(extracted_repo_dir, '.git')))
+            for i, commit in enumerate(['90366eac4408c5d615d69c5444ed784734b167c8', '90366ea']):
+                git_config['commit'] = commit
+                test_file = os.path.join(target_dir, f'test2-{i}.tar.xz')
+                res = ft.get_source_tarball_from_git(os.path.basename(test_file), target_dir, git_config)
+                self.assertEqual(res, test_file)
+                self.assertTrue(os.path.isfile(test_file))
+                test_tar_files.append(os.path.basename(test_file))
+                self.assertCountEqual(os.listdir(target_dir), test_tar_files)
+                extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
+                with self.mocked_stdout_stderr():
+                    extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
+                self.assertTrue(os.path.isfile(os.path.join(extracted_repo_dir, 'README.md')))
+                self.assertFalse(os.path.isdir(os.path.join(extracted_repo_dir, '.git')))
 
             git_config['keep_git_dir'] = True
             res = ft.get_source_tarball_from_git('test3', target_dir, git_config)

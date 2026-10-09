@@ -1336,7 +1336,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # first check what happens when module for source dep is not available
         expected_error = "Module for one or more source dependencies is not available yet"
-        self.assertErrorRegex(EasyBuildError, expected_error, eb.fetch_step)
+        self.assertRaisesRegex(EasyBuildError, expected_error, eb.fetch_step)
 
         # put fake module in place for source dep
         mods = os.path.join(self.test_prefix, 'modules')
@@ -2337,14 +2337,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         lfs_install_cmd = 'git lfs install --local --skip-repo'
         checkout_cmd = 'git checkout refs/tags/branch_tag_for_test'
-        lfs_pull_cmd = 'git lfs pull'
 
         self.assertIn(lfs_install_cmd, git_cmds)
         self.assertIn(checkout_cmd, git_cmds)
-        self.assertIn(lfs_pull_cmd, git_cmds)
 
         self.assertLess(git_cmds.index(lfs_install_cmd), git_cmds.index(checkout_cmd))
-        self.assertLess(git_cmds.index(checkout_cmd), git_cmds.index(lfs_pull_cmd))
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
