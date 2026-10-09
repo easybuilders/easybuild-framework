@@ -3338,7 +3338,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
+            self.assertCountEqual(os.listdir(target_dir), test_tar_files)
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
                 extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
@@ -3351,7 +3351,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
+            self.assertCountEqual(os.listdir(target_dir), test_tar_files)
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
                 extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
@@ -3366,7 +3366,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
+            self.assertCountEqual(os.listdir(target_dir), test_tar_files)
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
                 extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
@@ -3382,7 +3382,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
+            self.assertCountEqual(os.listdir(target_dir), test_tar_files)
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
                 extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
@@ -3398,7 +3398,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(res, test_file)
             self.assertTrue(os.path.isfile(test_file))
             test_tar_files.append(os.path.basename(test_file))
-            self.assertCountEqual(sorted(os.listdir(target_dir)), test_tar_files)
+            self.assertCountEqual(os.listdir(target_dir), test_tar_files)
             extracted_dir = tempfile.mkdtemp(prefix='extracted_dir')
             with self.mocked_stdout_stderr():
                 extracted_repo_dir = ft.extract_file(test_file, extracted_dir, change_into_dir=False)
