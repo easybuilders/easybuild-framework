@@ -1108,6 +1108,11 @@ class RunTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
 
+        # check that a command that is still running when the QA timeout is exceeded is killed, so we don't hang
+        cmd = "sleep 30"
+        with self.mocked_stdout_stderr():
+            self.assertRaisesRegex(EasyBuildError, error_pattern, run_shell_cmd, cmd, qa_patterns=qa, qa_timeout=1)
+
         # check using answer that is completed via pattern extracted from question
         cmd = ';'.join([
             "echo 'and the magic number is: 42'",
