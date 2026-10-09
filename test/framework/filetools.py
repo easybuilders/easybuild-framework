@@ -3263,7 +3263,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.run_shell_cmd = mock_run_shell_cmd
         try:
             with self.mocked_stdout_stderr():
-                self.assertErrorRegex(
+                self.assertRaisesRegex(
                     EasyBuildError,
                     "Failed to determine whether Git repository uses Git LFS",
                     ft.get_source_tarball_from_git,
