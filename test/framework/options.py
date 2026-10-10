@@ -1974,7 +1974,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=22227',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % TEST_DIR / 'easyconfigs',
+            '--robot=%s' % (TEST_DIR / 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -2003,7 +2003,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--from-pr=22227,19834',
             '--dry-run',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % TEST_DIR / 'easyconfigs',
+            '--robot=%s' % (TEST_DIR / 'easyconfigs'),
             '--unittest-file=%s' % self.logfile,
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
             '--tmpdir=%s' % tmpdir,
@@ -2043,7 +2043,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             '--dry-run',
             '--debug',
             # an argument must be specified to --robot, since easybuild-easyconfigs may not be installed
-            '--robot=%s' % TEST_DIR / 'easyconfigs',
+            '--robot=%s' % (TEST_DIR / 'easyconfigs'),
             '--github-user=%s' % GITHUB_TEST_ACCOUNT,  # a GitHub token should be available for this user
         ]
         try:
@@ -2092,10 +2092,10 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 outtxt = self.eb_main(args, logfile=dummylogfn, raise_error=True)
             modules = [
-                (TEST_ECS_DIR, 'toy/0.0'),  # not included in PR
+                (str(TEST_ECS_DIR), 'toy/0.0'),  # not included in PR
                 ('.*%s' % os.path.dirname(tmpdir), 'XCrySDen/1.6.2-foss-2024a'),
                 ('.*%s' % os.path.dirname(tmpdir), 'Togl/2.0-GCCcore-13.3.0'),
-                (TEST_ECS_DIR, 'GCC/4.6.3'),  # not included in PR, available locally
+                (str(TEST_ECS_DIR), 'GCC/4.6.3'),  # not included in PR, available locally
             ]
             for path_prefix, module in modules:
                 ec_fn = "%s.eb" % '-'.join(module.split('/'))

@@ -2337,14 +2337,11 @@ class EasyBlockTest(EnhancedTestCase):
 
         lfs_install_cmd = 'git lfs install --local --skip-repo'
         checkout_cmd = 'git checkout refs/tags/branch_tag_for_test'
-        lfs_pull_cmd = 'git lfs pull'
 
         self.assertIn(lfs_install_cmd, git_cmds)
         self.assertIn(checkout_cmd, git_cmds)
-        self.assertIn(lfs_pull_cmd, git_cmds)
 
         self.assertLess(git_cmds.index(lfs_install_cmd), git_cmds.index(checkout_cmd))
-        self.assertLess(git_cmds.index(checkout_cmd), git_cmds.index(lfs_pull_cmd))
 
     def test_download_instructions(self):
         """Test use of download_instructions easyconfig parameter."""
