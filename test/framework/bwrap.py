@@ -41,6 +41,7 @@ import easybuild.tools.bwrap as bwrap
 from easybuild.tools.bwrap import check_bwrap_config, det_install_subdirs, det_module_files, get_bwrap_info
 from easybuild.tools.bwrap import prepare_bwrap, set_bwrap_info
 from easybuild.tools.filetools import mkdir, read_file, write_file
+from easybuild.tools.modules import Lmod
 from easybuild.tools.robot import resolve_dependencies
 
 
@@ -92,10 +93,12 @@ class BwrapTest(EnhancedTestCase):
 
         # module file paths depend on module naming scheme and module syntax
         test_cases = [
-            ('EasyBuildMNS', 'Lua', ['GCC/6.4.0-2.28.lua', 'hwloc/1.11.8-GCC-6.4.0-2.28.lua']),
             ('EasyBuildMNS', 'Tcl', ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']),
-            ('HierarchicalMNS', 'Lua', ['Compiler/GCC/6.4.0-2.28/hwloc/1.11.8.lua', 'Core/GCC/6.4.0-2.28.lua']),
+            ('HierarchicalMNS', 'Tcl', ['Compiler/GCC/6.4.0-2.28/hwloc/1.11.8', 'Core/GCC/6.4.0-2.28']),
         ]
+        # Lua module syntax requires Lmod
+        if isinstance(self.modtool, Lmod):
+            test_cases.append(('EasyBuildMNS', 'Lua', ['GCC/6.4.0-2.28.lua', 'hwloc/1.11.8-GCC-6.4.0-2.28.lua']))
         for mns, syntax, expected in test_cases:
             os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = mns
             init_config(args=['--module-syntax=%s' % syntax], build_options={'robot_path': TEST_ECS_DIR})
