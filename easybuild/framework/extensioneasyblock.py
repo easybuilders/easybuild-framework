@@ -32,7 +32,7 @@ import os
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
-from easybuild.framework.extension import Extension
+from easybuild.framework.extension import Extension, _ExtensionOptions
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import change_dir, extract_file
@@ -65,7 +65,12 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             _log.nosupport("Obtained value of type '%s' for extra_vars, should be 'dict'" % type(extra_vars), '2.0')
 
         extra_vars.update({
-            'options': [{}, "Dictionary with extension options.", CUSTOM],
+            'load_name': [None, "Name used to load/import this software package, "
+                          "defaults to `extension_name` if set otherwise its name.", CUSTOM],
+            'nosource': [False, "Do not unpack a source for this extension, "
+                         "the start directory of the parent easyconfig is used instead.", CUSTOM],
+            'options': [{}, "DEPRECATED. Dictionary with extension options.", CUSTOM],
+            'source_tmpl': [None, "Template for the source filename used for this extension.", CUSTOM],
         })
         return EasyBlock.extra_options(extra_vars)
 
@@ -91,7 +96,21 @@ class ExtensionEasyBlock(EasyBlock, Extension):
             self.unpack_options = None
         else:
             EasyBlock.__init__(self, *args, **kwargs)
-            self.options = copy.deepcopy(self.cfg.get('options', {}))  # we need this for Extension.sanity_check_step
+
+            # Normalise the 'options' easyconfig parameter: known easyconfig parameters
+            # (including 'load_name' and 'extension_name') end up in self.cfg, which is the
+            # single source of truth for them; conflict checks and remapping are done in
+            # _normalize_options
+            self._options = _ExtensionOptions(self)
+            options = self.cfg.get('options', {})
+            if options:
+                self.log.deprecated("Easyconfig parameter 'options' is deprecated, "
+                                    "set the values at the top-level instead", '6.0')
+                if 'load_name' in options:
+                    raise EasyBuildError("'load_name' should be specified as a top-level parameter not in 'options'")
+                elif 'modulename' in options and self.cfg.get('load_name') is not None:
+                    raise EasyBuildError(f"Both 'load_name' and deprecated 'modulename' are specified for {self.name}")
+                self._options.update(copy.deepcopy(options))
 
         self.ext_dir = None  # dir where extension source was unpacked
 
@@ -136,7 +155,7 @@ class ExtensionEasyBlock(EasyBlock, Extension):
         """Common operations for extensions: unpacking sources, patching, ..."""
 
         # unpack file if desired
-        if self.options.get('nosource', False):
+        if self.cfg.get('nosource'):
             # If no source wanted use the start_dir from the main EC
             self.ext_dir = self.master.start_dir
         elif unpack_src:
