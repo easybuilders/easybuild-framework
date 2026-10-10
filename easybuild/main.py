@@ -65,7 +65,8 @@ from easybuild.framework.easyconfig.tools import categorize_files_by_type, dep_g
 from easybuild.framework.easyconfig.tools import det_easyconfig_paths, dump_env_script, get_paths_for
 from easybuild.framework.easyconfig.tools import parse_easyconfigs, review_pr, run_contrib_checks, skip_available
 from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak
-from easybuild.tools.bwrap import get_bwrap_info, prepare_bwrap, update_bwrap_info
+from easybuild.tools.bwrap import check_bwrap_config, det_install_subdirs, det_module_files, get_bwrap_info
+from easybuild.tools.bwrap import prepare_bwrap, update_bwrap_info
 from easybuild.tools.config import build_option, find_last_log, get_repository, get_repositorypath
 from easybuild.tools.containers.common import containerize
 from easybuild.tools.docs import list_software
@@ -588,10 +589,12 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
     elif options.bwrap:
         # require that 'experimental' configuration setting is enabled
         _log.experimental("support for building in bwrap namespace (--bwrap)")
-        # updating modules_to_install because process_eb_args may run multiple times:
+        check_bwrap_config(options.bwrap_installpath)
+        # updating install_subdirs and module_files because process_eb_args may run multiple times:
         # once for each easyconfig in the easystack
-        modules_to_install = set(dry_run(easyconfigs, modtool, return_modules_to_install=True))
-        update_bwrap_info('modules_to_install', modules_to_install)
+        specs_to_install = dry_run(easyconfigs, modtool, return_specs_to_install=True)
+        update_bwrap_info('install_subdirs', set(det_install_subdirs(specs_to_install)))
+        update_bwrap_info('module_files', set(det_module_files(specs_to_install)))
         if not options.job:
             return True
 
@@ -870,8 +873,8 @@ def main_with_hooks(args=None):
 
     try:
         exit_code: EasyBuildExit = main(args=args, prepared_cfg_data=(init_session_state, eb_go, cfg_settings))
-        if int(exit_code) == 0 and build_option('bwrap') and get_bwrap_info('modules_to_install'):
-            prepare_bwrap(eb_go.options.bwrap_installpath)
+        if int(exit_code) == 0 and build_option('bwrap') and get_bwrap_info('install_subdirs'):
+            prepare_bwrap(get_bwrap_info('bwrap_installpath'))
             if not eb_go.options.job:
                 rerun_with_bwrap()
         sys.exit(int(exit_code))

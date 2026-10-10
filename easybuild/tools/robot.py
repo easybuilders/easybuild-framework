@@ -236,7 +236,7 @@ def check_conflicts(easyconfigs, modtool, check_inter_ec_conflicts=True, return_
     return res
 
 
-def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
+def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False, return_specs_to_install=False):
     """
     Compose dry run overview for supplied easyconfigs:
     * [ ] for unavailable
@@ -247,7 +247,14 @@ def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
     :param modtool: ModulesTool instance to use
     :param short: use short format for overview: use a variable for common prefixes
     :param return_modules_to_install: boolean indicating whether list of modules to be (re)installed should be returned
+                                      (DEPRECATED, use return_specs_to_install instead)
+    :param return_specs_to_install: boolean indicating whether list of easyconfig specs (dicts) to be (re)installed
+                                    should be returned
     """
+    if return_modules_to_install:
+        _log.deprecated("Parameter 'return_modules_to_install' of dry_run is deprecated, "
+                        "use 'return_specs_to_install' instead", '6.0')
+
     terse = build_option('terse')
     if build_option('robot') is None:
         lines = ["Dry run: printing build status of easyconfigs"]
@@ -267,7 +274,7 @@ def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
 
     listed_ec_paths = [spec['spec'] for spec in easyconfigs]
 
-    modules_to_install = []
+    specs_to_install = []
 
     var_name = 'CFGS'
     common_prefix = det_common_path_prefix([spec['spec'] for spec in all_specs if spec['spec'] is not None])
@@ -283,8 +290,9 @@ def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
         else:
             ans = 'x'
 
-        if return_modules_to_install and ans != 'x':
-            modules_to_install.append(spec['full_mod_name'])
+        if return_modules_to_install or return_specs_to_install:
+            if ans != 'x':
+                specs_to_install.append(spec)
             continue
 
         if spec['ec'] is not None and spec['ec'].short_mod_name != spec['ec'].full_mod_name:
@@ -304,7 +312,9 @@ def dry_run(easyconfigs, modtool, short=False, return_modules_to_install=False):
         lines.append(dry_run_fmt.format(status=ans, ec=item, module=mod))
 
     if return_modules_to_install:
-        return modules_to_install
+        return [spec['full_mod_name'] for spec in specs_to_install]
+    if return_specs_to_install:
+        return specs_to_install
 
     if short and not terse:
         # insert after 'Dry run:' message

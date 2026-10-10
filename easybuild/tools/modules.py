@@ -881,10 +881,16 @@ class ModulesTool:
             # determine module path for EasyBuild install path to be included in $MODULEPATH
             eb_modpath = os.path.join(install_path(typ='modules'), build_option('suffix_modules_path'))
 
-            # make sure EasyBuild module path is in 1st place
-            mkdir(eb_modpath, parents=True)
-            self.prepend_module_path(eb_modpath)
-            self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
+            # avoid creating the module path when in --bwrap mode (before actually running with bwrap),
+            # in case the user does not have the necessary write permissions
+            if not build_option('bwrap'):
+                mkdir(eb_modpath, parents=True)
+
+            # make sure EasyBuild module path is in 1st place, so already installed modules are found;
+            # in --bwrap mode, it may not exist yet, in which case it doesn't contain any modules either
+            if os.path.exists(eb_modpath):
+                self.prepend_module_path(eb_modpath)
+                self.log.info("Prepended list of module paths with path used by EasyBuild: %s" % eb_modpath)
 
         # set the module path environment accordingly
         curr_mod_paths = curr_module_paths()
