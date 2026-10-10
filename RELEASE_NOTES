@@ -3,6 +3,60 @@ For more detailed information, please see the git log.
 
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
+
+v5.4.1 (13 Oct 2026)
+--------------------
+
+update/bugfix release
+
+- enhancements:
+  - add `join_path_var` function to join list of paths into a colon-separated string value (#5228)
+  - support pathlib `Path`s in several `filetools` functions: `apply_regex_substitutions`, `copy`, `mkdir`, `normalize_path`, `remove` (#5233, #5255, #5271, #5288)
+  - enhance error message when creating symlink where a file is already (#5237)
+  - add `extension_name` easyconfig parameter, to specify name of extension to use in generated module file (#5259)
+  - add support for specifying dependencies required to obtain source files via `source_deps` easyconfig parameter (#5273, #5287)
+  - show proper error message for issues in easyblocks (syntax errors, etc.) (#5274)
+  - add `--disable-robot` to `--robot` help description (#5275)
+  - enhance `dep_is_filtered` method in `EasyConfig` class: call `parse_filter_deps` if `filter_deps_specs` is `None` (#5276)
+  - add `--bwrap-options` configuration option (#5281)
+  - enable module extensions for Environment Modules 5.7.0+ (#5295)
+  - automatically handle Git LFS for `git_config` sources (#5297, #5317, #5320)
+  - (drastically) reduce number of stat calls triggered by RPATH wrapper script (#5321)
+- bug fixes:
+  - fix handling of quotes in RPATH wrapper (#4722)
+  - bring back `async_cmd_check` to check for parallel extension install completion and fix dry-run mode with parallel extensions (#5223)
+  - fix symlink handling in `dir_contains_files` (#5236)
+  - fix dry-run message in extension installation (#5248)
+  - initialize `name` and `version` in `EasyConfig` instance of `Extension` (#5267)
+  - fix unsetting `$MODULEPATH` when removing last path in `Lmod.unuse` (#5272)
+  - change RPATH wrapper to still add `-rpath` options when `-v` option is used in linker command (#5282)
+  - fix `download_file` to not give up prematurely when HTTP status between between 400 and 499 is obtained, so fallback URLs (like `ftp.gnu.org` for `ftpmirror.gnu.org`) are being used (#5284)
+  - add `extension_name` property to `EasyBlock` & do NOT inherit parent `extension_name` (#5313)
+  - fix leaked handles and processes in `run_*` functions (#5314)
+  - fix log message for failed download attempts in `download_file` (#5319)
+- other changes
+  - remove uneccessary use of dunder methods (#5181)
+  - clean up duplication in `handle_include_easyblocks_from` (#5194)
+  - remove superflous check in `EasyBlock.sanity_check_load_module` (#5227)
+  - deprecate useless `EasyBlock.exts_all` class variable (#5235)
+  - fix line endings in `easybuild/framework/extension.py` (#5256)
+  - remove fallback to using `requests` in `download_file` (#5289)
+  - add `SECURITY.md` documenting security policy (#5296)
+- enhancements and fixes for test suite:
+  - replace `assertErrorRegex` by standard `assertRaisesRegex` (#5010, #5318)
+  - replace `self.mock_*` pairs by `self.mocked_*` context managers (#5157)
+  - use constants for commonly used test easyconfig folders, files and content (#5203, #5249, #5250, #5251, #5252, #5253, #5254)
+  - use `assert(Not)Regex` instead of `assertTrue` or `assertFalse` in tests (#5240, #5241, #5242, #5243, #5244, #5245, #5246, #5247)
+  - make network ops on CI more reliable (#5270)
+  - use `dict.items` and remove unused variables in tests (#5279)
+  - remove `raise_systemexit` from tests (#5280)
+  - split `assert_multi_regex` into `assertMultiRegex` & `assertNotMultiRegex` (#5285, #5286, #5312)
+  - prepare for renaming `modulename` to `load_name` (#5291)
+  - fix setting download timeout in end2end tests (#5293)
+  - simplify multi-segment path concatenation in tests (#5315)
+  - fix broken GitHub tests for --from-pr (#5322)
+
+
 v5.4.0 (9 Aug 2026)
 --------------------
 
