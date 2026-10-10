@@ -33,6 +33,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 from pathlib import Path
 
+from easybuild.tools.build_log import EasyBuildError
 import easybuild.tools.environment as env
 
 
@@ -141,6 +142,39 @@ class EnvironmentTest(EnhancedTestCase):
             'TEST_ENV_VAR': 'test123',
         }
         self.assertEqual(res, expected)
+
+    def test_get_environment_variable(self):
+        """Test get_environment_variable function."""
+
+        test_var = 'EASYBUILD_TEST_GET_ENV_VAR'
+
+        # defined variable returns its value
+        os.environ[test_var] = '/some/path'
+        self.assertEqual(env.get_environment_variable(test_var), '/some/path')
+
+        # undefined variable returns empty string by default
+        del os.environ[test_var]
+        self.assertEqual(env.get_environment_variable(test_var), '')
+
+        # undefined variable with required=True raises error
+        error_pattern = "Required environment variable.*is not defined"
+        self.assertErrorRegex(EasyBuildError, error_pattern, env.get_environment_variable, test_var, required=True)
+
+        # empty variable with allow_empty=True (default) returns empty string
+        os.environ[test_var] = ''
+        self.assertEqual(env.get_environment_variable(test_var), '')
+
+        # empty variable with allow_empty=False raises error
+        os.environ[test_var] = ''
+        error_pattern = "Required environment variable.*is defined but empty"
+        self.assertErrorRegex(EasyBuildError, error_pattern, env.get_environment_variable, test_var, allow_empty=False)
+
+        # whitespace-only variable with allow_empty=False raises error
+        os.environ[test_var] = '   '
+        self.assertErrorRegex(EasyBuildError, error_pattern, env.get_environment_variable, test_var, allow_empty=False)
+
+        # cleanup
+        del os.environ[test_var]
 
     def test_sanitize_env(self):
         """Test sanitize_env function."""
