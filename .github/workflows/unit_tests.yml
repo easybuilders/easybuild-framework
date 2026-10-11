@@ -170,16 +170,46 @@ jobs:
           echo "Installation of GitHub token skipped (because Python 3.9 + Lmod 8.x is not used)"
         fi
 
+    - name: Cache modules tool
+      id: cache-modules-tool
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # 5.0.5
+      with:
+        path: ~/modules-tool
+        key: ${{env.JOB_OS}}-${{matrix.modules_tool}}-${{hashFiles('easybuild/scripts/install_eb_dep.sh')}}
+
     - name: install modules tool
+      env:
+        MODULES_TOOL: ${{matrix.modules_tool}}
+        CACHE_HIT: ${{steps.cache-modules-tool.outputs.cache-hit}}
       run: |
-          # avoid downloading modules tool sources into easybuild-framework dir
-          cd $HOME
-          export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
-          # install Lmod
-          source $INSTALL_DEP ${{matrix.modules_tool}} $HOME
+          # install modules tool in dedicated prefix, so it can be cached
+          MODTOOL_PREFIX="$HOME/modules-tool"
+          # (environment) settings for modules tool are stored in prefix, so they can be restored from cache
+          MODTOOL_ENV="$MODTOOL_PREFIX/modules-tool-env.sh"
+          ORIG_PATH="$PATH"
+          if [[ "${CACHE_HIT}" != 'true' ]]; then
+            # avoid downloading modules tool sources into easybuild-framework dir
+            cd "$HOME"
+            export INSTALL_DEP="$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh"
+            # install modules tool (Lmod or Environment Modules)
+            # shellcheck source=/dev/null
+            source "$INSTALL_DEP" "${MODULES_TOOL}" "$MODTOOL_PREFIX"
+            # make sure installation was successful;
+            # install_eb_dep.sh does not always exit on errors when sourced, and runs 'set +e' at the end
+            test -f "$MOD_INIT" || { echo "ERROR: installation of ${MODULES_TOOL} failed" >&2; exit 1; }
+            # install_eb_dep.sh prepends the location of the modules tool commands to $PATH
+            {
+              echo "MOD_INIT='$MOD_INIT'"
+              echo "MODTOOL_BIN='${PATH%%:*}'"
+              echo "MODULESHOME='${MODULESHOME:-}'"
+            } > "$MODTOOL_ENV"
+          fi
+          # shellcheck source=/dev/null
+          source "$MODTOOL_ENV"
+          cd "$HOME"
           # changes in environment are not passed to other steps, so need to create files...
           echo $MOD_INIT > mod_init
-          echo $PATH > path
+          echo "$MODTOOL_BIN:$ORIG_PATH" > path
           if [ ! -z $MODULESHOME ]; then echo $MODULESHOME > moduleshome; fi
 
     - name: check sources
