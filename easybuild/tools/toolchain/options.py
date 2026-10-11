@@ -70,11 +70,11 @@ class ToolchainOptions(dict):
             self[name] = value[0]
             self.description[name] = value[1]
 
-    def _add_options_map(self, options_map):
+    def _add_options_map(self, options_map: dict):
         """Add map dict between options and values
             map names starting with _opt_ are allowed without corresponding option
         """
-        for name in options_map.keys():
+        for name in options_map:
             if name not in self:
                 if name.startswith('_opt_'):
                     self.log.devel("_add_options_map: no option with name %s defined, but allowed", name)

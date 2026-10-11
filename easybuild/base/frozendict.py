@@ -76,7 +76,7 @@ class FrozenDictKnownKeys(FrozenDict):
 
         # handle unknown keys: either ignore them or raise an exception
         tmpdict = dict(*args, **kwargs)
-        unknown_keys = [key for key in tmpdict.keys() if key not in self.KNOWN_KEYS]
+        unknown_keys = [key for key in tmpdict if key not in self.KNOWN_KEYS]
         if unknown_keys:
             if ignore_unknown_keys:
                 for key in unknown_keys:

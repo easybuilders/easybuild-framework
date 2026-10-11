@@ -521,15 +521,14 @@ class Toolchain:
             # check whether a matching module exists if self.mod_short_name contains a module name
             return self.modules_tool.exist([self.mod_full_name], skip_avail=True)[0]
 
-    def set_options(self, options):
+    def set_options(self, options: dict):
         """ Process toolchain options """
-        for opt in options.keys():
+        for opt in options:
             # Only process supported opts
             if opt in self.options:
                 self.options[opt] = options[opt]
             else:
-                # used to be warning, but this is a severe error imho
-                known_opts = ','.join(self.options.keys())
+                known_opts = ','.join(self.options)
                 raise EasyBuildError("Undefined toolchain option %s specified (known options: %s)", opt, known_opts)
 
     def get_dependency_version(self, dependency):

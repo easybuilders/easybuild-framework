@@ -150,7 +150,7 @@ class DockerContainer(ContainerGenerator):
 
     def validate(self):
         """Perform validation of specified container configuration."""
-        if self.container_config not in DOCKER_OS_INSTALL_DEPS_TMPLS.keys():
+        if self.container_config not in DOCKER_OS_INSTALL_DEPS_TMPLS:
             raise EasyBuildError("Unsupported container config '%s'" % self.container_config)
         super().validate()
 
