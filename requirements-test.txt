@@ -1,0 +1,6 @@
+# Python packages required to run the EasyBuild framework test suite,
+# on top of the optional Python packages listed in requirements-optional.txt
+
+# pin versions of dependencies of the optional Python packages that dropped support for Python 3.6
+cryptography<37; python_version < '3.7'
+PyNaCl<1.5; python_version < '3.7'
