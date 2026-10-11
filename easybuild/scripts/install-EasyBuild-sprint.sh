@@ -94,7 +94,7 @@ EOF
 
 
 # Check for 'help' argument
-if [ "$1" = "-h" -o "$1" = "--help" ] ; then 
+if [ "$1" = "-h" -o "$1" = "--help" ] ; then
     print_usage
     exit 0
 fi
@@ -131,7 +131,7 @@ MODULES_INSTALL_DIR=${INSTALL_DIR}/modules
 EB_DEVEL_MODULE="${MODULES_INSTALL_DIR}/${EB_DEVEL_MODULE_NAME}"
 mkdir -p ${MODULES_INSTALL_DIR}
 print_devel_module > "${EB_DEVEL_MODULE}"
-echo 
+echo
 echo "=== Run 'module use ${MODULES_INSTALL_DIR}' and 'module load ${EB_DEVEL_MODULE_NAME}' to use your development version of EasyBuild."
 echo "=== (you can append ${MODULES_INSTALL_DIR} to your MODULEPATH to make this module always available for loading)"
 echo
@@ -139,5 +139,3 @@ echo "=== To update each repository, run 'git pull origin' in each subdirectory 
 echo
 
 exit 0
-
-
