@@ -108,7 +108,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_toolchain(self):
         """Test whether toolchain is initialized correctly."""
-        ec_file = find_full_path(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4-GCC-4.9.3-2.26.eb'))
+        ec_file = find_full_path(TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.9.3-2.26.eb')
         ec = EasyConfig(ec_file, validate=False)
         tc = ec.toolchain
         self.assertIn('debug', tc.options)
@@ -189,18 +189,18 @@ class ToolchainTest(EnhancedTestCase):
         self.assertEqual(os.getenv('PKG_CONFIG_PATH'), sysroot_pkgconfig)
 
         # existing $PKG_CONFIG_PATH value is retained
-        test_pkg_config_path = os.pathsep.join([self.test_prefix, '/foo/bar'])
-        os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
+        test_pkg_config_path = join_path_var([self.test_prefix, '/foo/bar'])
+        os.environ['PKG_CONFIG_PATH'] = str(test_pkg_config_path)
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path + os.pathsep + sysroot_pkgconfig)
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), join_path_var([test_pkg_config_path, sysroot_pkgconfig]))
 
         # no duplicate paths are added
-        test_pkg_config_path = os.pathsep.join([self.test_prefix, sysroot_pkgconfig, '/foo/bar'])
-        os.environ['PKG_CONFIG_PATH'] = test_pkg_config_path
+        test_pkg_config_path = join_path_var([self.test_prefix, sysroot_pkgconfig, '/foo/bar'])
+        os.environ['PKG_CONFIG_PATH'] = str(test_pkg_config_path)
         with self.mocked_stdout_stderr():
             tc.prepare()
-        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), test_pkg_config_path)
+        self.assertEqual(os.getenv('PKG_CONFIG_PATH'), str(test_pkg_config_path))
 
         # if no usr/lib*/pkgconfig subdirectory is present in sysroot, then $PKG_CONFIG_PATH is not touched
         del os.environ['PKG_CONFIG_PATH']
@@ -235,7 +235,7 @@ class ToolchainTest(EnhancedTestCase):
             fake_cmd = os.path.join(self.test_prefix, cmd)
             write_file(fake_cmd, '#!/bin/bash')
             adjust_permissions(fake_cmd, stat.S_IRUSR | stat.S_IXUSR)
-        os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
+        os.environ['PATH'] = join_path_var([self.test_prefix, os.environ['PATH']])
 
         # first try with system compiler: only minimal build environment is set up
         tc = self.get_toolchain('system', version='system')
@@ -874,7 +874,7 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_easyconfig_optarch_flags(self):
         """Test whether specifying optarch flags in the easyconfigs works."""
-        eb_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a.eb')
+        eb_file = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb'
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         toy_txt = read_file(eb_file)
@@ -3114,11 +3114,7 @@ class ToolchainTest(EnhancedTestCase):
         os.environ['PYTHONUSERBASE'] = home
 
         # add directory to $PYTHONPATH where we can inject broken Python modules
-        pythonpath = os.getenv('PYTHONPATH')
-        if pythonpath:
-            os.environ['PYTHONPATH'] = self.test_prefix + ':' + pythonpath
-        else:
-            os.environ['PYTHONPATH'] = self.test_prefix
+        os.environ['PYTHONPATH'] = join_path_var([self.test_prefix, os.getenv('PYTHONPATH')])
 
         site_pkgs_dir = os.path.join(home, '.local', 'lib', 'python%s.%s' % sys.version_info[:2], 'site-packages')
         mkdir(site_pkgs_dir, parents=True)
@@ -3360,7 +3356,7 @@ class ToolchainTest(EnhancedTestCase):
         tmp_modules = os.path.join(self.test_prefix, 'modules')
         mkdir(tmp_modules)
 
-        copy_dir(os.path.join(TEST_MODULES_DIR, 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+        copy_dir(TEST_MODULES_DIR / 'OpenMPI', os.path.join(tmp_modules, 'OpenMPI'))
 
         openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
         ompi_mod_txt = read_file(openmpi_module)
@@ -3508,8 +3504,8 @@ class ToolchainTest(EnhancedTestCase):
 
         args = [
             test_ec,
-            '--robot=' + self.test_prefix,
-            '--external-modules-metadata=' + ext_mods_meta,
+            '--robot', self.test_prefix,
+            '--external-modules-metadata', ext_mods_meta,
         ]
         self.eb_main(args, raise_error=True, do_build=True, verbose=True)
 
