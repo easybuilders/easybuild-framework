@@ -124,11 +124,11 @@ class EnhancedTestCase(TestCase):
         # keep track of original environment/Python search path to restore
         self.orig_sys_path = sys.path[:]
 
-        self.test_sourcepath = os.path.join(TEST_DIR, 'sandbox', 'sources')
-        self.test_sourcepath_data = os.path.join(TEST_DIR, 'sandbox', 'data_sources')
-        os.environ['EASYBUILD_SOURCEPATH'] = self.test_sourcepath
-        os.environ['EASYBUILD_SOURCEPATH_DATA'] = self.test_sourcepath_data
-        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
+        self.test_sourcepath = TEST_DIR / 'sandbox/sources'
+        self.test_sourcepath_data = TEST_DIR / 'sandbox/data_sources'
+        os.environ['EASYBUILD_SOURCEPATH'] = str(self.test_sourcepath)
+        os.environ['EASYBUILD_SOURCEPATH_DATA'] = str(self.test_sourcepath_data)
+        os.environ['EASYBUILD_PREFIX'] = str(self.test_prefix)
         self.test_buildpath = tempfile.mkdtemp()
         os.environ['EASYBUILD_BUILDPATH'] = self.test_buildpath
         self.test_installpath = tempfile.mkdtemp()
@@ -170,8 +170,8 @@ class EnhancedTestCase(TestCase):
             pass
 
         # add sandbox to Python search path, update namespace packages
-        testdir_sandbox = os.path.join(TEST_DIR, 'sandbox')
-        sys.path.append(testdir_sandbox)
+        testdir_sandbox = TEST_DIR / 'sandbox'
+        sys.path.append(str(testdir_sandbox))
 
         # required to make sure the 'easybuild' dir in the sandbox is picked up;
         # this relates to the other 'reload' statements below
@@ -183,21 +183,21 @@ class EnhancedTestCase(TestCase):
 
         # remove any entries in Python search path that seem to provide easyblocks (except the sandbox)
         for path in sys.path[:]:
-            if os.path.exists(os.path.join(path, 'easybuild', 'easyblocks', '__init__.py')):
-                if not os.path.samefile(path, testdir_sandbox):
+            if os.path.exists(os.path.join(path, 'easybuild/easyblocks/__init__.py')):
+                if not testdir_sandbox.samefile(path):
                     sys.path.remove(path)
 
         # hard inject location to (generic) test easyblocks into Python search path
         # only prepending to sys.path is not enough due to 'pkgutil.extend_path' in easybuild/easyblocks/__init__.py
-        easybuild.__path__.insert(0, os.path.join(testdir_sandbox, 'easybuild'))
+        easybuild.__path__.insert(0, str(testdir_sandbox / 'easybuild'))
         import easybuild.easyblocks
-        test_easyblocks_path = os.path.join(testdir_sandbox, 'easybuild', 'easyblocks')
-        easybuild.easyblocks.__path__.insert(0, test_easyblocks_path)
+        test_easyblocks_path = testdir_sandbox / 'easybuild/easyblocks'
+        easybuild.easyblocks.__path__.insert(0, str(test_easyblocks_path))
         reload(easybuild.easyblocks)
 
         import easybuild.easyblocks.generic
-        test_easyblocks_path = os.path.join(test_easyblocks_path, 'generic')
-        easybuild.easyblocks.generic.__path__.insert(0, test_easyblocks_path)
+        test_easyblocks_path /= 'generic'
+        easybuild.easyblocks.generic.__path__.insert(0, str(test_easyblocks_path))
         reload(easybuild.easyblocks.generic)
 
         # kick out any paths that shouldn't be there for easybuild.easyblocks and easybuild.easyblocks.generic
