@@ -2642,13 +2642,12 @@ class EasyBlock:
                 mkdir(os.path.join(topdir, start_dir), parents=True)
 
             abs_start_dir = os.path.join(topdir, start_dir) if start_dir else topdir
-            if topdir.endswith(start_dir) and not os.path.exists(abs_start_dir):
+            if os.path.exists(abs_start_dir):
+                self.cfg['start_dir'] = abs_start_dir
+            elif str(topdir).endswith(start_dir):
                 self.cfg['start_dir'] = topdir
             else:
-                if os.path.exists(abs_start_dir):
-                    self.cfg['start_dir'] = abs_start_dir
-                else:
-                    raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
+                raise EasyBuildError("Specified start dir %s does not exist", abs_start_dir)
 
         self.log.info("Using %s as start dir", self.cfg['start_dir'])
 
