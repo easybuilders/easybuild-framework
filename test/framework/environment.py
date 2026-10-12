@@ -29,6 +29,7 @@ Unit tests for environment.py
 """
 import os
 import sys
+from easybuild.tools.environment import join_path_var
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 from pathlib import Path
@@ -154,15 +155,15 @@ class EnvironmentTest(EnhancedTestCase):
         """Test sanitize_env function."""
 
         # define $*PATH variable that include empty entries, those should get filtered out
-        os.environ['PATH'] = '/bar::/foo:' + self.test_prefix  # middle empty entry
+        os.environ['PATH'] = '/bar::/foo:' + str(self.test_prefix)  # middle empty entry
         os.environ['LD_LIBRARY_PATH'] = '/apps/slurm/default/lib:/usr/lib:'  # trailing empty entry
-        os.environ['LIBRARY_PATH'] = self.test_prefix + ':' + os.environ['HOME']  # no empty entries here
-        os.environ['CPATH'] = ':' + self.test_prefix  # leading empty entry
+        os.environ['LIBRARY_PATH'] = join_path_var(self.test_prefix, os.environ['HOME'])  # no empty entries here
+        os.environ['CPATH'] = ':' + str(self.test_prefix)  # leading empty entry
         os.environ['LD_PRELOAD'] = ':::'  # only empty entries (should get unset!)
 
         # define $PYTHON* environment variables, these should be unset by sanitize_env
         os.environ['PYTHONNOUSERSITE'] = '1'
-        os.environ['PYTHONPATH'] = self.test_prefix
+        os.environ['PYTHONPATH'] = str(self.test_prefix)
         os.environ['PYTHONOPTIMIZE'] = '1'
 
         env.sanitize_env()
@@ -170,10 +171,10 @@ class EnvironmentTest(EnhancedTestCase):
         self.assertFalse(any(x for x in os.environ if x.startswith('PYTHON')))
 
         expected = {
-            'CPATH': self.test_prefix,
+            'CPATH': str(self.test_prefix),
             'LD_LIBRARY_PATH': '/apps/slurm/default/lib:/usr/lib',
-            'LIBRARY_PATH': self.test_prefix + ':' + os.environ['HOME'],
-            'PATH': '/bar:/foo:' + self.test_prefix,
+            'LIBRARY_PATH': f'{self.test_prefix}:{os.environ["HOME"]}',
+            'PATH': f'/bar:/foo:{self.test_prefix}',
         }
         for key in sorted(expected):
             self.assertEqual(os.getenv(key), expected[key])

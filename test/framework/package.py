@@ -171,7 +171,7 @@ class PackageTest(EnhancedTestCase):
             binpath = os.path.join(self.test_prefix, binary)
             write_file(binpath, '#!/bin/bash')
             adjust_permissions(binpath, stat.S_IXUSR, add=True)
-        os.environ['PATH'] = self.test_prefix
+        os.environ['PATH'] = str(self.test_prefix)
 
         # no errors => support check passes
         check_pkg_support()
@@ -182,7 +182,7 @@ class PackageTest(EnhancedTestCase):
             os.environ['EASYBUILD_PACKAGE_NAMING_SCHEME'] = pns_type
             init_config(build_options={'silent': True})
 
-            test_ec = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+            test_ec = TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
             ec = EasyConfig(test_ec, validate=False)
 
             pns = ActivePNS()
@@ -205,7 +205,7 @@ class PackageTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
+        ec = EasyConfig(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb', validate=False)
 
         mock_fpm(self.test_prefix)
 
@@ -239,7 +239,7 @@ class PackageTest(EnhancedTestCase):
 
         self.assertNotRegex(pkgtxt, re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.M))
 
-        toy_txt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
+        toy_txt = read_file(TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb')
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)

@@ -312,8 +312,7 @@ class TweakTest(EnhancedTestCase):
         paths, toolchain_suff = get_matching_easyconfig_candidates('gzip-', toolchain)
         expected_toolchain_suff = '-GCC-4.9.3-2.26'
         self.assertEqual(toolchain_suff, expected_toolchain_suff)
-        expected_paths = [os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4' + expected_toolchain_suff + '.eb')]
-        self.assertEqual(paths, expected_paths)
+        self.assertEqual(paths, [str(TEST_ECS_DIR / f'g/gzip/gzip-1.4{expected_toolchain_suff}.eb')])
 
         paths, toolchain_stub = get_matching_easyconfig_candidates('nosuchmatch', toolchain)
         self.assertEqual(paths, [])
@@ -357,7 +356,7 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         # The below mapping includes a binutils mapping (2.26 to 2.25)
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
-        ec_spec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        ec_spec = TEST_ECS_DIR / 'h/hwloc/hwloc-1.6.2-GCC-4.9.3-2.26.eb'
         parsed_ec = process_easyconfig(ec_spec)[0]
         gzip_dep = [dep for dep in parsed_ec['ec']['dependencies'] if dep['name'] == 'gzip'][0]
         self.assertEqual(gzip_dep['full_mod_name'], 'gzip/1.4-GCC-4.9.3-2.26')
@@ -366,7 +365,7 @@ class TweakTest(EnhancedTestCase):
         self.assertEqual(len(potential_versions), 1)
         # Should see version 1.6 of gzip with iccifort toolchain
         expected = {
-            'path': os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
+            'path': str(TEST_ECS_DIR / 'g/gzip/gzip-1.6-iccifort-2016.1.150-GCC-4.9.3-2.25.eb'),
             'toolchain': {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'},
             'version': '1.6',
             'versionsuffix': '',
@@ -398,7 +397,7 @@ class TweakTest(EnhancedTestCase):
         potential_versions = find_potential_version_mappings(openblas_dep, tc_mapping, ignore_versionsuffixes=True)
         self.assertEqual(len(potential_versions), 1)
         expected = {
-            'path': os.path.join(TEST_ECS_DIR, 'o', 'OpenBLAS', 'OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
+            'path': str(TEST_ECS_DIR / 'o/OpenBLAS/OpenBLAS-0.2.20-GCC-6.4.0-2.28.eb'),
             'toolchain': {'version': '6.4.0-2.28', 'name': 'GCC'},
             'version': '0.2.20',
             'versionsuffix': '',
@@ -419,7 +418,7 @@ class TweakTest(EnhancedTestCase):
         iccifort_binutils_tc = {'name': 'iccifort', 'version': '2016.1.150-GCC-4.9.3-2.25'}
         # The below mapping includes a binutils mapping (2.26 to 2.25)
         tc_mapping = map_toolchain_hierarchies(gcc_binutils_tc, iccifort_binutils_tc, self.modtool)
-        ec_spec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb')
+        ec_spec = TEST_ECS_DIR / 'h/hwloc/hwloc-1.6.2-GCC-4.9.3-2.26.eb'
         tweaked_spec = map_easyconfig_to_target_tc_hierarchy(ec_spec, tc_mapping)
         tweaked_ec = process_easyconfig(tweaked_spec)[0]
         tweaked_dict = tweaked_ec['ec'].asdict()
@@ -486,7 +485,7 @@ class TweakTest(EnhancedTestCase):
 
         # Check that if we update a software version, it also updates the version if the software appears in an
         # extension list (like for a PythonBundle)
-        ec_spec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        ec_spec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         # Create the trivial toolchain mapping
         toolchain = {'name': 'gompi', 'version': '2018a'}
         tc_mapping = map_toolchain_hierarchies(toolchain, toolchain, self.modtool)
@@ -520,11 +519,11 @@ class TweakTest(EnhancedTestCase):
         init_config(build_options=build_options)
         get_toolchain_hierarchy.clear()
 
-        ec_spec = os.path.join(TEST_ECS_DIR, 'g', 'golf', 'golf-2018a.eb')
+        ec_spec = TEST_ECS_DIR / 'g/golf/golf-2018a.eb'
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-serial'])
-        ec_spec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb')
+        ec_spec = TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb'
         self.assertEqual(list_deps_versionsuffixes(ec_spec), [])
-        ec_spec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_spec = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
         self.assertEqual(list_deps_versionsuffixes(ec_spec), ['-deps'])
 
 

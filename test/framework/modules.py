@@ -606,7 +606,7 @@ class ModulesTest(EnhancedTestCase):
 
     def test_prepend_module_path(self):
         """Test prepend_module_path method."""
-        test_path = tempfile.mkdtemp(prefix=self.test_prefix)
+        test_path = tempfile.mkdtemp()
         self.modtool.prepend_module_path(test_path)
         self.assertTrue(os.path.samefile(curr_module_paths()[0], test_path))
 
@@ -618,7 +618,7 @@ class ModulesTest(EnhancedTestCase):
         # prepending path that is 'deeper down' in $MODULEPATH works, brings it back to front
         self.assertTrue(any(TEST_MODULES_DIR.samefile(p) for p in modulepath))
         self.modtool.prepend_module_path(TEST_MODULES_DIR)
-        self.assertTrue(os.path.samefile(curr_module_paths()[0], TEST_MODULES_DIR))
+        self.assertTrue(TEST_MODULES_DIR.samefile(curr_module_paths()[0]))
 
         # prepending path that is a symlink to the current head of $MODULEPATH is a no-op
         modulepath = curr_module_paths()
@@ -628,8 +628,8 @@ class ModulesTest(EnhancedTestCase):
         self.assertEqual(modulepath, curr_module_paths())
 
         # test prepending with high priority
-        test_path_bis = tempfile.mkdtemp(prefix=self.test_prefix)
-        test_path_tris = tempfile.mkdtemp(prefix=self.test_prefix)
+        test_path_bis = tempfile.mkdtemp()
+        test_path_tris = tempfile.mkdtemp()
         self.modtool.prepend_module_path(test_path_bis, priority=10000)
         self.assertEqual(test_path_bis, curr_module_paths()[0])
 
