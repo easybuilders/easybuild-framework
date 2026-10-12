@@ -405,7 +405,7 @@ class BuildLogTest(EnhancedTestCase):
         """Test init_logging function."""
         # first, make very sure $TMPDIR is a subdir of self.test_prefix
         tmpdir = os.getenv('TMPDIR')
-        self.assertTrue(tmpdir.startswith(self.test_prefix))
+        self.assertTrue(tmpdir.startswith(str(self.test_prefix)))
 
         # use provided path for log file
         tmp_logfile = os.path.join(self.test_prefix, 'test.log')

@@ -40,7 +40,7 @@ from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import setvar
+from easybuild.tools.environment import setvar, join_path_var
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, RISCV, X86_64
@@ -1326,7 +1326,7 @@ class SystemToolsTest(EnhancedTestCase):
         write_file(locate, 'exit 1')
         adjust_permissions(locate, stat.S_IXUSR, add=True)
 
-        os.environ['PATH'] = self.test_prefix + ':' + os.getenv('PATH')
+        os.environ['PATH'] = join_path_var(self.test_prefix, os.getenv('PATH'))
 
         self.assertTrue(os.path.samefile(which('rpm'), rpm))
 

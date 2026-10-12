@@ -379,7 +379,7 @@ class ContainersTest(EnhancedTestCase):
 
         remove_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
 
-        base_args.insert(1, os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.9.2.eb'))
+        base_args.insert(1, TEST_ECS_DIR / 'g/GCC/GCC-4.9.2.eb')
         self.run_main(base_args + ['--container-config=ubuntu:20.04'])
         def_file = read_file(os.path.join(self.test_prefix, 'containers', 'Dockerfile.toy-0.0'))
         regexs = [

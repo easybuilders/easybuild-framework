@@ -556,7 +556,7 @@ class FileToolsTest(EnhancedTestCase):
         fn = 'toy-0.0.tar.gz'
         target_location = os.path.join(self.test_buildpath, 'some', 'subdir', fn)
         # provide local file path as source URL
-        toy_source_dir = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy')
+        toy_source_dir = TEST_DIR / 'sandbox/sources/toy'
         source_url = 'file://%s/%s' % (toy_source_dir, fn)
         with self.mocked_stdout_stderr():
             res = ft.download_file(fn, source_url, target_location)
@@ -615,7 +615,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(len(downloads), 2)
         backup = [d for d in downloads if os.path.basename(d) != fn][0]
         self.assertEqual(ft.read_file(backup), '')
-        self.assertEqual(ft.compute_checksum(target_location), ft.compute_checksum(os.path.join(toy_source_dir, fn)))
+        self.assertEqual(ft.compute_checksum(target_location), ft.compute_checksum(toy_source_dir / fn))
 
         # make sure specified timeout is parsed correctly (as a float, not a string)
         opts = init_config(args=['--download-timeout=5.3'])
@@ -1044,7 +1044,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_det_patched_files(self):
         """Test det_patched_files function."""
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        pf = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        pf = TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn
         self.assertEqual(ft.det_patched_files(pf), ['b/toy-0.0/toy.source'])
         self.assertEqual(ft.det_patched_files(pf, omit_ab_prefix=True), ['toy-0.0/toy.source'])
 
@@ -1247,8 +1247,8 @@ class FileToolsTest(EnhancedTestCase):
     def test_multidiff(self):
         """Test multidiff function."""
         other_toy_ecs = [
-            os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-deps.eb'),
-            os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
+            TEST_ECS_DIR / 't/toy/toy-0.0-deps.eb',
+            TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb',
         ]
 
         # default (colored)
@@ -1688,7 +1688,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.find_flexlm_license(), ([lic_file2], 'LM_LICENSE_FILE'))
 
         # directory with existing license files
-        os.environ['LM_LICENSE_FILE'] = self.test_prefix
+        os.environ['LM_LICENSE_FILE'] = str(self.test_prefix)
         self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_file2], 'LM_LICENSE_FILE'))
 
         # server spec
@@ -1696,7 +1696,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(ft.find_flexlm_license(), ([lic_server], 'LM_LICENSE_FILE'))
 
         # duplicates are filtered out, order is maintained
-        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file1, lic_server, self.test_prefix, lic_file2, lic_file1])
+        os.environ['LM_LICENSE_FILE'] = ':'.join([lic_file1, lic_server, str(self.test_prefix), lic_file2, lic_file1])
         self.assertEqual(ft.find_flexlm_license(), ([lic_file1, lic_server, lic_file2], 'LM_LICENSE_FILE'))
 
         # invalid server spec (missing port)
@@ -1744,7 +1744,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test for is_patch_file() function."""
         self.assertFalse(ft.is_patch_file(TOY_EC))
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        self.assertTrue(ft.is_patch_file(os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)))
+        self.assertTrue(ft.is_patch_file(TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn))
 
     def test_is_alt_pypi_url(self):
         """Test is_alt_pypi_url() function."""
@@ -1841,11 +1841,11 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_apply_patch(self):
         """ Test apply_patch """
-        toy_tar_gz = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        toy_tar_gz = TEST_DIR / 'sandbox/sources/toy/toy-0.0.tar.gz'
         with self.mocked_stdout_stderr():
             path = ft.extract_file(toy_tar_gz, self.test_prefix, change_into_dir=False)
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn
 
         for with_backup in (True, False):
             update_build_option('backup_patched_files', with_backup)
@@ -1864,7 +1864,7 @@ class FileToolsTest(EnhancedTestCase):
                 self.assertNotExists(backup_file)
 
         # This patch is dependent on the previous one
-        toy_patch_gz = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', 'toy-0.0_gzip.patch.gz')
+        toy_patch_gz = TEST_DIR / 'sandbox/sources/toy/toy-0.0_gzip.patch.gz'
         with self.mocked_stdout_stderr():
             self.assertTrue(ft.apply_patch(toy_patch_gz, path))
         patched_gz = ft.read_file(os.path.join(path, 'toy-0.0', 'toy.source'))
@@ -1965,7 +1965,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.remove_file(copied_file)
 
         # clean error when trying to copy a directory with copy_file
-        src, target = os.path.dirname(TOY_EC), os.path.join(self.test_prefix, 'toy')
+        src, target = TOY_EC.parent, os.path.join(self.test_prefix, 'toy')
         # error message was changed in Python 3.9.7 to "FileNotFoundError: Directory does not exist"
         error_pattern = "Failed to copy file.*(Is a directory|Directory does not exist)"
         self.assertRaisesRegex(EasyBuildError, error_pattern, ft.copy_file, src, target)
@@ -2088,7 +2088,7 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_copy_files(self):
         """Test copy_files function."""
-        bzip2_ec = os.path.join(TEST_ECS_DIR, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb')
+        bzip2_ec = TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb'
         bzip2_ec_txt = ft.read_file(bzip2_ec)
 
         # copying a single file to a non-existing directory
@@ -2238,12 +2238,12 @@ class FileToolsTest(EnhancedTestCase):
 
     def test_copy_dir(self):
         """Test copy_dir function."""
-        to_copy = os.path.join(TEST_ECS_DIR, 'g', 'GCC')
+        to_copy = TEST_ECS_DIR / 'g/GCC'
 
         target_dir = os.path.join(self.test_prefix, 'GCC')
         self.assertNotExists(target_dir)
 
-        self.assertExists(os.path.join(to_copy, 'GCC-6.4.0-2.28.eb'))
+        self.assertExists(to_copy / 'GCC-6.4.0-2.28.eb')
 
         ft.copy_dir(to_copy, target_dir, ignore=lambda src, names: [x for x in names if '6.4.0-2.28' in x])
         self.assertExists(target_dir)
@@ -2254,7 +2254,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertNotExists(os.path.join(target_dir, 'GCC-6.4.0-2.28.eb'))
 
         # clean error when trying to copy a file with copy_dir
-        src, target = os.path.join(to_copy, 'GCC-4.6.3.eb'), os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
+        src, target = to_copy / 'GCC-4.6.3.eb', os.path.join(self.test_prefix, 'GCC-4.6.3.eb')
         self.assertRaisesRegex(EasyBuildError, "Failed to copy directory.*Not a directory", ft.copy_dir, src, target)
 
         # if directory already exists, we expect a clean error
@@ -2346,8 +2346,8 @@ class FileToolsTest(EnhancedTestCase):
         """Test copy function."""
         toy_file = TOY_EC
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
-        gcc_dir = os.path.join(TEST_ECS_DIR, 'g', 'GCC')
+        toy_patch = TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn
+        gcc_dir = TEST_ECS_DIR / 'g/GCC'
 
         ft.copy([toy_file, gcc_dir, toy_patch], self.test_prefix)
 
@@ -2376,7 +2376,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # no actual copying in dry run mode, unless forced
         with self.mocked_stdout():
-            to_copy = [os.path.dirname(toy_file), os.path.join(gcc_dir, 'GCC-4.6.3.eb')]
+            to_copy = [os.path.dirname(toy_file), gcc_dir / 'GCC-4.6.3.eb']
             ft.copy(to_copy, self.test_prefix)
             txt = self.get_stdout()
 
@@ -2391,7 +2391,7 @@ class FileToolsTest(EnhancedTestCase):
             txt = self.get_stdout()
 
         self.assertTrue(os.path.isdir(os.path.join(self.test_prefix, 'toy')))
-        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy', 'toy-0.0.eb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'toy/toy-0.0.eb')))
         self.assertTrue(os.path.isfile(os.path.join(self.test_prefix, 'GCC-4.6.3.eb')))
         self.assertEqual(txt, '')
 
@@ -2437,7 +2437,7 @@ class FileToolsTest(EnhancedTestCase):
         """Test extract_file"""
         cwd = os.getcwd()
 
-        toy_tarball = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        toy_tarball = TEST_DIR / 'sandbox/sources/toy/toy-0.0.tar.gz'
 
         self.assertNotExists(os.path.join(self.test_prefix, 'toy-0.0', 'toy.source'))
         with self.mocked_stdout_stderr():
@@ -2667,7 +2667,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # set up some files to create actual index file for
         ecs_dir = os.path.join(self.test_prefix, 'easyconfigs')
-        ft.copy_dir(os.path.join(TEST_ECS_DIR, 'g'), ecs_dir)
+        ft.copy_dir(TEST_ECS_DIR / 'g', ecs_dir)
 
         # test dump_index function
         index_fp = ft.dump_index(ecs_dir)
@@ -2782,7 +2782,7 @@ class FileToolsTest(EnhancedTestCase):
 
         # check short mode
         var_defs, hits = ft.search_file([TEST_ECS_DIR], 'HWLOC', silent=True, short=True)
-        self.assertEqual(var_defs, [('CFGS1', os.path.join(TEST_ECS_DIR, 'h', 'hwloc'))])
+        self.assertEqual(var_defs, [('CFGS1', str(TEST_ECS_DIR / 'h/hwloc'))])
         self.assertEqual(hits, ['$CFGS1/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
                                 '$CFGS1/hwloc-1.8-gcccuda-2018a.eb',
                                 '$CFGS1/hwloc-1.11.8-GCC-4.6.4.eb',
@@ -2793,13 +2793,13 @@ class FileToolsTest(EnhancedTestCase):
         # check terse mode (implies 'silent', overrides 'short')
         var_defs, hits = ft.search_file([TEST_ECS_DIR], 'HWLOC', terse=True, short=True)
         self.assertEqual(var_defs, [])
-        expected = [
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.6.2-GCC-4.9.3-2.26.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
-        ]
+        expected = [str(path) for path in (
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.6.2-GCC-4.9.3-2.26.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.8-gcccuda-2018a.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-4.6.4.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+        )]
         self.assertEqual(hits, expected)
 
         # check combo of terse and filename-only
@@ -3566,7 +3566,7 @@ class FileToolsTest(EnhancedTestCase):
         ft.write_file(os.path.join(os.path.dirname(test_python_mod), '__init__.py'), '')
         ft.write_file(test_python_mod, 'import vsc')
 
-        sys.path.insert(0, self.test_prefix)
+        sys.path.insert(0, str(self.test_prefix))
 
         with self.mocked_stdout_stderr():
             try:
@@ -3622,15 +3622,15 @@ class FileToolsTest(EnhancedTestCase):
     def test_get_easyblock_class_name(self):
         """Test for get_easyblock_class_name function."""
 
-        test_ebs = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        test_ebs = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
-        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
+        configuremake = test_ebs / 'generic/configuremake.py'
         self.assertEqual(ft.get_easyblock_class_name(configuremake), 'ConfigureMake')
 
-        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
+        gcc_eb = test_ebs / 'g/gcc.py'
         self.assertEqual(ft.get_easyblock_class_name(gcc_eb), 'EB_GCC')
 
-        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        toy_eb = test_ebs / 't/toy.py'
         self.assertEqual(ft.get_easyblock_class_name(toy_eb), 'EB_toy')
 
         bad_py = os.path.join(self.test_prefix, 'bad_easyblock.py')
@@ -3653,7 +3653,7 @@ class FileToolsTest(EnhancedTestCase):
     def test_copy_easyblocks(self):
         """Test for copy_easyblocks function."""
 
-        test_ebs = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        test_ebs = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
         # easybuild/easyblocks subdirectory must exist in target directory
         error_pattern = "Could not find easybuild/easyblocks subdir in .*"
@@ -3668,9 +3668,9 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(res, {'eb_names': [], 'new': [], 'paths_in_repo': []})
 
         # check with different types of easyblocks
-        configuremake = os.path.join(test_ebs, 'generic', 'configuremake.py')
-        gcc_eb = os.path.join(test_ebs, 'g', 'gcc.py')
-        toy_eb = os.path.join(test_ebs, 't', 'toy.py')
+        configuremake = test_ebs / 'generic/configuremake.py'
+        gcc_eb = test_ebs / 'g/gcc.py'
+        toy_eb = test_ebs / 't/toy.py'
         test_ebs = [gcc_eb, configuremake, toy_eb]
 
         # copy them straight into tmpdir first, to check whether correct subdir is derived correctly
@@ -3742,7 +3742,7 @@ class FileToolsTest(EnhancedTestCase):
         # setup.py is an important test case, since it has no parent directory
         # (it's straight in the easybuild-framework directory)
         setup_py = 'setup.py'
-        if os.path.exists(os.path.join(REPO_ROOT, setup_py)):
+        if (REPO_ROOT / setup_py).exists():
             test_files.append(setup_py)
             expected_entries.append(setup_py)
             expected_new.append(True)
@@ -3751,7 +3751,7 @@ class FileToolsTest(EnhancedTestCase):
         # so we need to make sure that's the case here as well (may not be in workspace dir on Travis from example)
         framework_dir = os.path.join(self.test_prefix, 'easybuild-framework')
         for test_file in test_files:
-            ft.copy_file(os.path.join(REPO_ROOT, test_file), os.path.join(framework_dir, test_file))
+            ft.copy_file(REPO_ROOT / test_file, os.path.join(framework_dir, test_file))
 
         test_paths = [os.path.join(framework_dir, f) for f in test_files]
 
@@ -3762,7 +3762,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertEqual(sorted(res.keys()), ['new', 'paths_in_repo'])
 
         for idx, test_file in enumerate(test_files):
-            orig_path = os.path.join(REPO_ROOT, test_file)
+            orig_path = REPO_ROOT / test_file
             copied_path = os.path.join(target_dir, test_file)
 
             self.assertExists(copied_path)
