@@ -554,9 +554,9 @@ class EasyConfigTest(EnhancedTestCase):
         """)
         self.prep()
         # Ensure source is found
-        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        toy_tar_gz = self.test_sourcepath / 'toy/toy-0.0.tar.gz'
         copy_file(toy_tar_gz, self.test_prefix)
-        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        os.environ['EASYBUILD_SOURCEPATH'] = str(self.test_prefix)
         init_config(build_options={'silent': True})
 
         ec = EasyConfig(self.eb_file)
@@ -576,13 +576,13 @@ class EasyConfigTest(EnhancedTestCase):
         """Test whether templates used in exts_list are resolved properly."""
 
         # put dummy source file in place to avoid download fail
-        toy_tar_gz = os.path.join(self.test_sourcepath, 'toy', 'toy-0.0.tar.gz')
+        toy_tar_gz = self.test_sourcepath / 'toy/toy-0.0.tar.gz'
         copy_file(toy_tar_gz, os.path.join(self.test_prefix, 'toy-0.0-py3-test.tar.gz'))
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(self.test_sourcepath, 'toy', toy_patch_fn)
+        toy_patch = self.test_sourcepath / 'toy' / toy_patch_fn
         copy_file(toy_patch, self.test_prefix)
 
-        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        os.environ['EASYBUILD_SOURCEPATH'] = str(self.test_prefix)
         init_config(build_options={'silent': True})
 
         # extensions step requires that module for dependencies are available, so create dummy ones
@@ -2784,8 +2784,8 @@ class EasyConfigTest(EnhancedTestCase):
             '',
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
-        os.close(handle)
+        with tempfile.NamedTemporaryFile(suffix='.eb') as f:
+            testec = f.name
 
         ec = EasyConfig(None, rawtxt=rawtxt)
         ec.dump(testec)
@@ -2847,8 +2847,8 @@ class EasyConfigTest(EnhancedTestCase):
             'moduleclass = "tools"',
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
-        os.close(handle)
+        with tempfile.NamedTemporaryFile(suffix='.eb') as f:
+            testec = f.name
 
         ec = EasyConfig(None, rawtxt=rawtxt)
         ec.dump(testec)
@@ -2920,8 +2920,8 @@ class EasyConfigTest(EnhancedTestCase):
             "# trailing comment",
         ])
 
-        handle, testec = tempfile.mkstemp(prefix=self.test_prefix, suffix='.eb')
-        os.close(handle)
+        with tempfile.NamedTemporaryFile(suffix='.eb') as f:
+            testec = f.name
 
         ec = EasyConfig(None, rawtxt=rawtxt)
 
@@ -3819,11 +3819,11 @@ class EasyConfigTest(EnhancedTestCase):
                          categorize_files_by_type([]))
 
         toy_patch_fn = 'toy-0.0_fix-silly-typo-in-printf-statement.patch'
-        toy_patch = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', toy_patch_fn)
+        toy_patch = TEST_DIR / 'sandbox/sources/toy' / toy_patch_fn
 
-        easyblocks_dir = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
-        configuremake = os.path.join(easyblocks_dir, 'generic', 'configuremake.py')
-        toy_easyblock = os.path.join(easyblocks_dir, 't', 'toy.py')
+        easyblocks_dir = TEST_DIR / 'sandbox/easybuild/easyblocks'
+        configuremake = easyblocks_dir / 'generic/configuremake.py'
+        toy_easyblock = easyblocks_dir / 't/toy.py'
 
         gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb'
         paths = [
@@ -3843,8 +3843,8 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertEqual(res['easyconfigs'], expected)
         self.assertEqual(res['files_to_delete'], ['toy-0.0-deps.eb'])
-        self.assertEqual(res['patch_files'], [toy_patch])
-        self.assertEqual(res['py_files'], [toy_easyblock, configuremake])
+        self.assertEqual(res['patch_files'], [str(toy_patch)])
+        self.assertEqual(res['py_files'], [str(toy_easyblock), str(configuremake)])
 
         # Error cases
         tmpdir = tempfile.mkdtemp()
@@ -4037,7 +4037,7 @@ class EasyConfigTest(EnhancedTestCase):
         with self.mocked_stderr():
             # locations listed in 'robot_path' named argument are taken into account
             res = get_paths_for(subdir='easyconfigs', robot_path=[self.test_prefix])
-        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[0]))
+        self.assertTrue(TEST_ECS_DIR.samefile(res[0]))
 
         # Can't have EB_SCRIPT_PATH set (for some of) these tests
         env_eb_script_path = os.getenv('EB_SCRIPT_PATH')
@@ -4050,7 +4050,7 @@ class EasyConfigTest(EnhancedTestCase):
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[-1]))
+        self.assertTrue(TEST_ECS_DIR.samefile(res[-1]))
 
         # also works when 'eb' resides in a symlinked location
         altbin = os.path.join(self.test_prefix, 'some', 'other', 'symlinked', 'bin')
@@ -4058,7 +4058,7 @@ class EasyConfigTest(EnhancedTestCase):
         symlink(os.path.join(self.test_prefix, 'bin'), altbin)
         os.environ['PATH'] = '%s:%s' % (altbin, orig_path)
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[-1]))
+        self.assertTrue(TEST_ECS_DIR.samefile(res[-1]))
 
         # Restore (temporarily) EB_SCRIPT_PATH value if set originally
         if env_eb_script_path:
@@ -4066,9 +4066,9 @@ class EasyConfigTest(EnhancedTestCase):
 
         # also locations in sys.path are considered
         os.environ['PATH'] = orig_path
-        sys.path.insert(0, self.test_prefix)
+        sys.path.insert(0, str(self.test_prefix))
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
-        self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[0]))
+        self.assertTrue(TEST_ECS_DIR.samefile(res[0]))
 
         # put mock 'eb' back in $PATH
         os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
@@ -5209,7 +5209,7 @@ class EasyConfigTest(EnhancedTestCase):
         copy_file(libtoy_ec, self.test_prefix)
         copy_file(TOY_EC, self.test_prefix)
         libtoy_ec = os.path.join(self.test_prefix, os.path.basename(libtoy_ec))
-        toy_ec = os.path.join(self.test_prefix, os.path.basename(TOY_EC))
+        toy_ec = os.path.join(self.test_prefix, TOY_EC.name)
 
         ec1 = process_easyconfig(toy_ec)[0]
         self.assertEqual(ec1['ec'].name, 'toy')
