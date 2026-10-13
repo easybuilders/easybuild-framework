@@ -3338,7 +3338,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 1b: test with default options, --cuda-compute-capabilities=8.0 and a binary that contains
         # 7.0 and 9.0 device code and 8.0 PTX code.
-        # Note that the difference with 1a is the presense of additional device code, PTX code foor the right
+        # Note that the difference with 1a is the presense of additional device code, PTX code for the right
         # architecture, but missing device code for the requested architecture
         # It should not matter for the result, but triggers slightly different code paths in easyblock.py
         # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
@@ -3357,7 +3357,7 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertIn(device_missing_80_code_msg, outtxt)
         assert_cuda_report(missing_cc=4, additional_cc=4, missing_ptx=0, log=outtxt, stdout=stdout)
 
-        # Test case 2: same as Test case 1, but add --cuda-sanity-check-error-on-failed-checks
+        # Test case 2a: same as Test case 1, but add --cuda-sanity-check-error-on-failed-checks
         # This is expected to fail since there is missing device code for CC80
         args = ['--cuda-compute-capabilities=8.0', '--cuda-sanity-check-error-on-failed-checks']
         # We expect this to fail, so first check error, then run again to check output
@@ -3370,6 +3370,14 @@ class ToyBuildTest(EnhancedTestCase):
         self.assertIn(device_additional_70_90_code_msg, outtxt)
         self.assertIn(device_missing_80_code_msg, outtxt)
         assert_cuda_report(missing_cc=4, additional_cc=4, missing_ptx=0, log=outtxt, stdout=stdout)
+
+        # Test case 2b: same as Test case 2a, but explicitely disable the check in the easyconfig
+        toy_ec_cuda_disabled = os.path.join(self.test_prefix, 'toy-0.0-cuda-disabled.eb')
+        write_file(toy_ec_cuda_disabled, toy_ec_txt + '\nsanity_check_cuda = False')
+        with self.mocked_stdout():
+            outtxt = self._test_toy_build(ec_file=toy_ec_cuda_disabled, extra_args=args, raise_error=True)
+        self.assertIn("DEBUG Skipping CUDA sanity check: Explicitely disabled", outtxt)
+        self.assertIn("INFO Sanity check for toy successful", outtxt)
 
         # Test case 3: same as Test case 2, but add --cuda-sanity-check-accept-ptx-as-devcode
         # This is expected to succeed, since now the PTX code for CC80 will be accepted as
