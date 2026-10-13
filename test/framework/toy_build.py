@@ -2306,14 +2306,17 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_regtest(self):
         """Test use of --regtest."""
+        output_dir = os.path.join(self.test_prefix, 'regtest-out')
         with self.mocked_stdout_stderr():
-            self._test_toy_build(extra_args=['--regtest', '--sequential'], verify=False)
+            self._test_toy_build(extra_args=['--regtest', '--sequential', '--regtest-output-dir', output_dir],
+                                 verify=False)
 
         # just check whether module exists
         toy_module = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
         if get_module_syntax() == 'Lua':
             toy_module += '.lua'
         self.assertExists(toy_module)
+        self.assertExists(os.path.join(output_dir, 'easybuild-test.xml'))
 
     def test_minimal_toolchains(self):
         """Test toy build with --minimal-toolchains."""
