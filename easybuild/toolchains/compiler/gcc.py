@@ -32,6 +32,7 @@ Authors:
 """
 
 import re
+from typing import List
 
 import easybuild.tools.systemtools as systemtools
 from easybuild.tools import LooseVersion
@@ -118,7 +119,7 @@ class Gcc(Compiler):
 
     COMPILER_CC = 'gcc'
     COMPILER_CXX = 'g++'
-    COMPILER_C_UNIQUE_OPTIONS = []
+    COMPILER_C_UNIQUE_OPTIONS: List[str] = []
 
     COMPILER_F77 = 'gfortran'
     COMPILER_F90 = 'gfortran'

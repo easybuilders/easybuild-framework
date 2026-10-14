@@ -34,10 +34,12 @@ import inspect
 import logging
 import os
 
+from typing import Optional, List
+
 from easybuild.base import fancylogger
 
 
-def get_callers_logger():
+def get_callers_logger() -> Optional[logging.Logger]:
     """
     Get logger defined in caller's environment
     :return: logger instance (or None if none was found)
@@ -76,11 +78,11 @@ class LoggedException(Exception):
     # must accept an argument of type string, i.e. the log message, and an optional list of formatting arguments
     LOGGING_METHOD_NAME = 'error'
     # list of top-level package names to use to format location info; None implies not to include location info
-    LOC_INFO_TOP_PKG_NAMES = []
+    LOC_INFO_TOP_PKG_NAMES: List[str] = []
     # include location where error was raised from (enabled by default under 'python', disabled under 'python -O')
     INCLUDE_LOCATION = __debug__
 
-    def __init__(self, msg, *args, **kwargs):
+    def __init__(self, msg: str, *args, **kwargs) -> None:
         """
         Constructor.
         :param msg: exception message
@@ -91,7 +93,7 @@ class LoggedException(Exception):
         if args:
             msg = msg % args
 
-        backtrace = []
+        backtrace: List[str] = []
         if self.LOC_INFO_TOP_PKG_NAMES is not None:
             # determine correct frame to fetch location information from
             frames_up = 1
