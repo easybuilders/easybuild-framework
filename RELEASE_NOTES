@@ -35,9 +35,9 @@ update/bugfix release
   - fix leaked handles and processes in `run_*` functions (#5314)
   - fix log message for failed download attempts in `download_file` (#5319)
 - other changes
-  - remove uneccessary use of dunder methods (#5181)
+  - remove unnecessary use of dunder methods (#5181)
   - clean up duplication in `handle_include_easyblocks_from` (#5194)
-  - remove superflous check in `EasyBlock.sanity_check_load_module` (#5227)
+  - remove superfluos check in `EasyBlock.sanity_check_load_module` (#5227)
   - deprecate useless `EasyBlock.exts_all` class variable (#5235)
   - fix line endings in `easybuild/framework/extension.py` (#5256)
   - remove fallback to using `requests` in `download_file` (#5289)
