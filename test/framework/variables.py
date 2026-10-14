@@ -66,15 +66,15 @@ class VariablesTest(EnhancedTestCase):
         self.assertEqual(str(v['FOO']), "0,1,2")
 
         v['BARSTR'] = 'XYZ'
-        self.assertEqual(v['BARSTR'].__repr__(), "[['XYZ']]")
+        self.assertEqual(repr(v['BARSTR']), "[['XYZ']]")
 
         v['BARINT'] = 0
-        self.assertEqual(v['BARINT'].__repr__(), "[[0]]")
+        self.assertEqual(repr(v['BARINT']), "[[0]]")
 
         v.join('BAR2', 'FOO', 'BARINT')
         self.assertEqual(str(v['BAR2']), "0,1,2 0")
 
-        self.assertErrorRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
+        self.assertRaisesRegex(Exception, 'not found in self', v.join, 'BAZ', 'DOESNOTEXIST')
 
         cmd = CommandFlagList(["gcc", "bar", "baz"])
         self.assertEqual(str(cmd), "gcc -bar -baz")

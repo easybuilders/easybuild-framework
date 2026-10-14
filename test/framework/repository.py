@@ -28,10 +28,10 @@ Unit tests for repository.py.
 @author: Toon Willems (Ghent University)
 """
 import os
-import re
 import shutil
 import sys
 import tempfile
+from test.framework import TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner, mock
 
@@ -88,7 +88,7 @@ class RepositoryTest(EnhancedTestCase):
             shutil.rmtree(repo.wc)
         except EasyBuildError as err:
             print("ignoring failed subtest in test_gitrepo, testing offline?")
-            self.assertTrue(re.search("pull in working copy .* went wrong", str(err)))
+            self.assertRegex(str(err), "pull in working copy .* went wrong")
 
         # filepath
         tmpdir = tempfile.mkdtemp()
@@ -100,15 +100,13 @@ class RepositoryTest(EnhancedTestCase):
         if res.exit_code == 0:
             repo = GitRepository(os.path.join(tmpdir, 'testrepository.git'))
             repo.init()
-            toy_ec_file = os.path.join(os.path.dirname(__file__), 'easyconfigs', 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-            repo.add_easyconfig(toy_ec_file, 'test', '1.0', {}, None)
+            repo.add_easyconfig(TOY_EC, 'test', '1.0', {}, None)
             with mock.patch.dict(os.environ, {'GIT_AUTHOR_NAME': 'test', 'GIT_AUTHOR_EMAIL': 'test@test.org',
                                               'GIT_COMMITTER_NAME': 'test', 'GIT_COMMITTER_EMAIL': 'test@test.org'}):
                 repo.commit("toy/0.0")
 
-            log_regex = re.compile(r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION, re.M)
             logmsg = repo.client.log('HEAD^!')
-            self.assertTrue(log_regex.search(logmsg), "Pattern '%s' found in %s" % (log_regex.pattern, logmsg))
+            self.assertRegex(logmsg, r"toy/0.0 with EasyBuild v%s @ .* \(time: .*, user: .*\)" % VERSION)
 
             shutil.rmtree(repo.wc)
             shutil.rmtree(tmpdir)
@@ -146,7 +144,6 @@ class RepositoryTest(EnhancedTestCase):
     def test_add_easyconfig(self):
         """Test use of add_easyconfig method"""
         repo = init_repository('FileRepository', self.path)
-        test_easyconfigs = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
 
         def check_ec(path, expected_buildstats):
             """Check easyconfig at specified path"""
@@ -157,12 +154,10 @@ class RepositoryTest(EnhancedTestCase):
             ecdict = EasyConfigParser(path).get_config_dict()
             self.assertEqual(ecdict['buildstats'], expected_buildstats)
 
-        toy_eb_file = os.path.join(test_easyconfigs, 'test_ecs', 't', 'toy', 'toy-0.0.eb')
-
-        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23}, None)
+        path = repo.add_easyconfig(TOY_EC, 'test', '1.0', {'time': 1.23}, None)
         check_ec(path, [{'time': 1.23}])
 
-        path = repo.add_easyconfig(toy_eb_file, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
+        path = repo.add_easyconfig(TOY_EC, 'test', '1.0', {'time': 1.23, 'size': 123}, [{'time': 0.9, 'size': 2}])
         check_ec(path, [{'time': 0.9, 'size': 2}, {'time': 1.23, 'size': 123}])
 
     def tearDown(self):

@@ -225,9 +225,9 @@ def create_cmd_scripts(cmd_str, work_dir, env, tmpdir, out_file, err_file):
         env = os.environ.copy()
 
     # Decode any declared bash functions
-    proc = subprocess.Popen('declare -f', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                            env=env, shell=True, executable='bash')
-    (bash_functions, _) = proc.communicate()
+    with subprocess.Popen('declare -f', stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          env=env, shell=True, executable='bash') as proc:
+        (bash_functions, _) = proc.communicate()
 
     env_fp = os.path.join(tmpdir, 'env.sh')
     with open(env_fp, 'w') as fid:
@@ -531,75 +531,74 @@ def run_shell_cmd(cmd, fail_on_error=True, split_stderr=False, stdin=None, env=N
         log_msg += f" (via thread with ID {thread_id})"
     _log.info(log_msg)
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_handle, stdin=stdin_handle,
-                            cwd=work_dir, env=env, shell=shell, executable=executable)
-
-    # 'input' value fed to subprocess.run must be a byte sequence
-    if stdin:
-        stdin = stdin.encode()
-
-    if stream_output or qa_patterns:
-        # enable non-blocking access to stdout, stderr, stdin
-        for channel in (proc.stdout, proc.stdin, proc.stderr):
-            if channel is not None:
-                os.set_blocking(channel.fileno(), False)
-
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=stderr_handle, stdin=stdin_handle,
+                          cwd=work_dir, env=env, shell=shell, executable=executable) as proc:
+        # 'input' value fed to subprocess.run must be a byte sequence
         if stdin:
-            proc.stdin.write(stdin)
-            proc.stdin.flush()
-            if not qa_patterns:
-                proc.stdin.close()
+            stdin = stdin.encode()
 
-        exit_code = None
-        stdout, stderr = b'', b''
-        check_interval_secs = 0.1
-        time_no_match = 0
-        prev_stdout = ''
+        if stream_output or qa_patterns:
+            # enable non-blocking access to stdout, stderr, stdin
+            for channel in (proc.stdout, proc.stdin, proc.stderr):
+                if channel is not None:
+                    os.set_blocking(channel.fileno(), False)
 
-        while exit_code is None:
-            # collect output line by line, while checking for questions to answer (if qa_patterns is provided)
+            if stdin:
+                proc.stdin.write(stdin)
+                proc.stdin.flush()
+                if not qa_patterns:
+                    proc.stdin.close()
+
+            exit_code = None
+            stdout, stderr = b'', b''
+            check_interval_secs = 0.1
+            time_no_match = 0
+            prev_stdout = ''
+
+            while exit_code is None:
+                # collect output line by line, while checking for questions to answer (if qa_patterns is provided)
+                for line in iter(proc.stdout.readline, b''):
+                    _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
+                    stdout += line
+
+                # note: we assume that there won't be any questions in stderr output
+                if split_stderr:
+                    for line in iter(proc.stderr.readline, b''):
+                        stderr += line
+
+                if qa_patterns:
+                    # only check for question patterns if additional output is available
+                    # compared to last time a question was answered;
+                    # use empty list of question patterns if no extra output (except for whitespace) is available
+                    # we do always need to check for wait patterns though!
+                    active_qa_patterns = qa_patterns if stdout.strip() != prev_stdout else []
+
+                    if _answer_question(stdout, proc, active_qa_patterns, qa_wait_patterns):
+                        time_no_match = 0
+                        prev_stdout = stdout.strip()
+                    else:
+                        # this will only run if the for loop above was *not* stopped by the break statement
+                        time_no_match += check_interval_secs
+                        if time_no_match > qa_timeout:
+                            error_msg = "No matching questions found for current command output, "
+                            error_msg += f"giving up after {qa_timeout} seconds!"
+                            # kill process that's still running and not answering questions,
+                            # to avoid having to wait indefinitely for it to exit
+                            proc.kill()
+                            raise EasyBuildError(error_msg)
+                        _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
+
+                time.sleep(check_interval_secs)
+                exit_code = proc.poll()
+
+            # collect last bit of output once processed has exited
             for line in iter(proc.stdout.readline, b''):
                 _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
                 stdout += line
-
-            # note: we assume that there won't be any questions in stderr output
             if split_stderr:
-                for line in iter(proc.stderr.readline, b''):
-                    stderr += line
-
-            if qa_patterns:
-                # only check for question patterns if additional output is available
-                # compared to last time a question was answered;
-                # use empty list of question patterns if no extra output (except for whitespace) is available
-                # we do always need to check for wait patterns though!
-                active_qa_patterns = qa_patterns if stdout.strip() != prev_stdout else []
-
-                if _answer_question(stdout, proc, active_qa_patterns, qa_wait_patterns):
-                    time_no_match = 0
-                    prev_stdout = stdout.strip()
-                else:
-                    # this will only run if the for loop above was *not* stopped by the break statement
-                    time_no_match += check_interval_secs
-                    if time_no_match > qa_timeout:
-                        error_msg = "No matching questions found for current command output, "
-                        error_msg += f"giving up after {qa_timeout} seconds!"
-                        raise EasyBuildError(error_msg)
-                    _log.debug(f"{time_no_match:0.1f} seconds without match in output of interactive shell command")
-
-            time.sleep(check_interval_secs)
-
-            exit_code = proc.poll()
-
-        # collect last bit of output once processed has exited
-        for line in iter(proc.stdout.readline, b''):
-            _log.debug(f"Captured stdout: {line.decode(errors='ignore').rstrip()}")
-            stdout += line
-        proc.stdout.close()
-        if split_stderr:
-            stderr += proc.stderr.read() or b''
-            proc.stderr.close()
-    else:
-        (stdout, stderr) = proc.communicate(input=stdin)
+                stderr += proc.stderr.read() or b''
+        else:
+            (stdout, stderr) = proc.communicate(input=stdin)
 
     # return output as a regular string rather than a byte sequence (and non-UTF-8 characters get stripped out)
     # getpreferredencoding normally gives 'utf-8' but can be ASCII (ANSI_X3.4-1968)

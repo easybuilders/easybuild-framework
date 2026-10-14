@@ -61,7 +61,7 @@ import tempfile
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
-from easybuild.tools.environment import setvar
+from easybuild.tools.environment import setvar, join_path_var
 from easybuild.tools.filetools import adjust_permissions, copy_file, find_eb_script, mkdir, read_file, which, write_file
 from easybuild.tools.module_generator import dependencies_for
 from easybuild.tools.modules import get_software_root, get_software_root_env_var_name
@@ -429,9 +429,9 @@ class Toolchain:
         for v in var_names:
             res.append("%s=%s" % (v, self.variables[v]))
             if verbose:
-                res.append("# type %s" % (type(self.variables[v])))
-                res.append("# %s" % (self.variables[v].show_el()))
-                res.append("# repr %s" % (self.variables[v].__repr__()))
+                res.append("# type %s" % type(self.variables[v]))
+                res.append("# %s" % self.variables[v].show_el())
+                res.append("# repr %s" % repr(self.variables[v]))
 
         if offset is None:
             offset = ''
@@ -604,7 +604,7 @@ class Toolchain:
 
         return deps
 
-    def is_required(self, name):
+    def is_required(self, _name):
         """Determine whether this is a required toolchain element."""
         # default: assume every element is required
         return True
@@ -1018,9 +1018,9 @@ class Toolchain:
         """
         if os.path.basename(os.path.dirname(os.path.dirname(path))) != RPATH_WRAPPERS_SUBDIR:
             return False
-        # Check if `rpath_args`` is called in the file
+        # Check if rpath_args.py is called in the file;
         # need to use binary mode to read the file, since it may be an actual compiler command (which is a binary file)
-        return b'rpath_args.py $CMD' in read_file(path, mode='rb')
+        return b'"$RPATH_ARGS_PY" "$CMD"' in read_file(path, mode='rb')
 
     def prepare_rpath_wrappers(self, rpath_filter_dirs=None, rpath_include_dirs=None, rpath_wrappers_dir=None):
         """
@@ -1080,6 +1080,8 @@ class Toolchain:
             # we assume that each RPATH wrapper script is created in a separate subdirectory (see wrapper_dir below);
             # ${TOPDIR} is defined in template for RPATH wrapper scripts, refers to parent dir of RPATH wrapper script
             rpath_args_py = os.path.join('${TOPDIR}', '..', os.path.basename(rpath_args_py))
+        else:
+            rpath_args_py = f"'{rpath_args_py}'"  # Single quotes to avoid issues with spaces etc. in the path
 
         rpath_wrapper_template = find_eb_script('rpath_wrapper_template.sh.in')
 
@@ -1174,8 +1176,9 @@ class Toolchain:
                     if not any(os.path.exists(x) and os.path.samefile(x, sysroot_pc_path) for x in pkg_config_path):
                         pkg_config_path.append(sysroot_pc_path)
 
+            pkg_config_path = join_path_var(pkg_config_path)
             if pkg_config_path:
-                setvar('PKG_CONFIG_PATH', os.pathsep.join(pkg_config_path))
+                setvar('PKG_CONFIG_PATH', pkg_config_path)
 
     def _add_dependency_variables(self, names=None, cpp=None, ld=None):
         """

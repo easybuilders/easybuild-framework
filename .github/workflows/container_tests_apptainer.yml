@@ -9,6 +9,9 @@ concurrency:
   group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
   cancel-in-progress: true
 
+env:
+  EASYBUILD_DOWNLOAD_TIMEOUT: 100
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -35,10 +38,10 @@ jobs:
 
         # Avoid apt-get update, as we don't really need it,
         # and it does more harm than good (it's fairly expensive, and it results in flaky test runs)
-        if ! sudo apt-get install $APT_PKGS; then
+        if ! sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS; then
           # Try to update cache, then try again to resolve 404s of old packages
-          sudo apt-get update -yqq || true
-          sudo apt-get install $APT_PKGS
+          sudo apt-get update -yqq -o Acquire::Retries=3 || true
+          sudo apt-get install -o Acquire::Retries=3 -y --no-install-suggests --no-install-recommends $APT_PKGS
         fi
 
     - name: install Lmod
@@ -91,8 +94,8 @@ jobs:
           # see https://docs.easybuild.io/en/latest/Containers.html
           curl -OL https://raw.githubusercontent.com/easybuilders/easybuild-easyconfigs/develop/easybuild/easyconfigs/f/flex/flex-2.6.4.eb
           export EASYBUILD_CONTAINERPATH=$PWD
-          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/rockylinux-8.10-amd64'
+          export EASYBUILD_CONTAINER_CONFIG='bootstrap=docker,from=ghcr.io/easybuilders/rockylinux-8.10-amd64,eb_args=--download-timeout=1000'
           export EASYBUILD_CONTAINER_TYPE='apptainer'
-          eb flex-2.6.4.eb --containerize --experimental --container-build-image
+          eb flex-2.6.4.eb --logtostdout --containerize --experimental --container-build-image
           apptainer exec flex-2.6.4.sif command -v flex | grep '/app/software/flex/2.6.4/bin/flex' || (echo "Path to flex '$which_flex' is not correct" && exit 1)
           apptainer exec flex-2.6.4.sif flex --help

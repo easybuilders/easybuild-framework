@@ -232,6 +232,7 @@ BUILD_OPTIONS_CMDLINE = {
         'amdgcn_capabilities',
         'backup_modules',
         'banned_linked_shared_libs',
+        'bwrap_options',
         'checksum_priority',
         'container_config',
         'container_image_format',
@@ -467,6 +468,7 @@ BUILD_OPTIONS_OTHER = {
         'external_modules_metadata',
         'extra_ec_paths',
         'mod_depends_on',  # deprecated
+        'orig_modules_tool',
         'robot_path',
         'valid_module_classes',
         'valid_stops',

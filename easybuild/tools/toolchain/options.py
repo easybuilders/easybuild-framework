@@ -67,8 +67,8 @@ class ToolchainOptions(dict):
                 raise EasyBuildError("_add_options: option name %s has to be 2 element list (%s)", name, value)
             if name in self:
                 self.log.devel("_add_options: redefining previous name %s (previous value %s)", name, self.get(name))
-            self.__setitem__(name, value[0])
-            self.description.__setitem__(name, value[1])
+            self[name] = value[0]
+            self.description[name] = value[1]
 
     def _add_options_map(self, options_map):
         """Add map dict between options and values

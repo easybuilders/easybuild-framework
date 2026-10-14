@@ -502,7 +502,7 @@ class Section(dict):
         """
         if indict is None:
             indict = {}
-        dict.__init__(self)
+        super().__init__()
         # used for nesting level *and* interpolation
         self.parent = parent
         # used for the interpolation attribute
@@ -514,7 +514,7 @@ class Section(dict):
         #
         self._initialise()
         # we do this explicitly so that __setitem__ is used properly
-        # (rather than just passing to ``dict.__init__``)
+        # (rather than just passing to ``super().__init__``)
         for entry in indict:
             self[entry] = indict[entry]
 
@@ -558,7 +558,7 @@ class Section(dict):
 
     def __getitem__(self, key):
         """Fetch the item and do string interpolation."""
-        val = dict.__getitem__(self, key)
+        val = super().__getitem__(key)
         if self.main.interpolation:
             if isinstance(val, str):
                 return self._interpolate(key, val)
@@ -600,15 +600,14 @@ class Section(dict):
         if isinstance(value, Section):
             if key not in self:
                 self.sections.append(key)
-            dict.__setitem__(self, key, value)
+            super().__setitem__(key, value)
         elif isinstance(value, dict) and not unrepr:
             # First create the new depth level,
             # then create the section
             if key not in self:
                 self.sections.append(key)
             new_depth = self.depth + 1
-            dict.__setitem__(
-                self,
+            super().__setitem__(
                 key,
                 Section(
                     self,
@@ -628,7 +627,7 @@ class Section(dict):
                             raise TypeError('Value is not a string "%s".' % entry)
                 else:
                     raise TypeError('Value is not a string "%s".' % value)
-            dict.__setitem__(self, key, value)
+            super().__setitem__(key, value)
 
     def __delitem__(self, key):
         """Remove items from the sequence when deleting."""
@@ -687,7 +686,7 @@ class Section(dict):
         Leaves other attributes alone :
             depth/main/parent are not affected
         """
-        dict.clear(self)
+        super().clear()
         self.scalars = []
         self.sections = []
         self.comments = {}

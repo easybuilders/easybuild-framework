@@ -80,7 +80,7 @@ class UtilitiesTest(EnhancedTestCase):
             self.assertEqual(tu.time2str(end - start), expected)
 
         error_pattern = "Incorrect value type provided to time2str, should be datetime.timedelta: <.* 'int'>"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.time2str, 123)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tu.time2str, 123)
 
     def test_natural_keys(self):
         """Test the natural_keys function"""
@@ -191,15 +191,15 @@ class UtilitiesTest(EnhancedTestCase):
 
         # Default/None LooseVersion cannot be compared
         none_version = LooseVersion(None)
-        self.assertErrorRegex(TypeError, '', lambda c: none_version == LooseVersion('1'))
-        self.assertErrorRegex(TypeError, '', lambda c: none_version < LooseVersion(''))
-        self.assertErrorRegex(TypeError, '', lambda c: none_version < LooseVersion('0'))
-        self.assertErrorRegex(TypeError, '', lambda c: none_version > LooseVersion(''))
-        self.assertErrorRegex(TypeError, '', lambda c: none_version > LooseVersion('0'))
-        self.assertErrorRegex(TypeError, '', lambda c: none_version == '1')
-        self.assertErrorRegex(TypeError, '', lambda c: none_version != '1')
-        self.assertErrorRegex(TypeError, '', lambda c: none_version < '1')
-        self.assertErrorRegex(TypeError, '', lambda c: none_version > '1')
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version == LooseVersion('1'))
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version < LooseVersion(''))
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version < LooseVersion('0'))
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version > LooseVersion(''))
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version > LooseVersion('0'))
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version == '1')
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version != '1')
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version < '1')
+        self.assertRaisesRegex(TypeError, '', lambda c: none_version > '1')
         # You can check for None .version or .vstring
         self.assertIsNone(none_version.version)
         self.assertIsNone(none_version.vstring)
@@ -222,12 +222,12 @@ class UtilitiesTest(EnhancedTestCase):
         self.assertEqual(base, base_orig)
 
         error_pattern = "given affix list is a string"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, "apple")
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, "apple")
         error_pattern = "given affix list is not iterable"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, 0)
         base = "potato"
         error_pattern = "given base cannot be extended"
-        self.assertErrorRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, tu.unique_ordered_extend, base, reference)
 
 
 def suite(loader=None):

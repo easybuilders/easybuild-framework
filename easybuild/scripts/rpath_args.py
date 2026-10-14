@@ -25,13 +25,13 @@
 ##
 """
 Utility script used by RPATH wrapper script;
-output is statements that define the following environment variables
-* $CMD_ARGS: new list of command line arguments to pass
+output is a list of arguments to be passed to the wrapped command, one per line
 
 Usage:
     rpath_args.py <cmd> <rpath_filter> <rpath_include> <args...>
 
 author: Kenneth Hoste (HPC-UGent)
+author: Alexander Grund (TU Dresden)
 """
 import os
 import re
@@ -45,22 +45,25 @@ LINKER_COMMANDS = (
 )
 
 
-def is_new_existing_path(new_path, paths):
+def is_new_existing_path(new_path, paths_and_stat):
     """
     Check whether specified path exists and is a new path compared to provided list of paths (that surely exist as they
     were checked before).
 
     :param new_path: The new path to check
-    :param paths: The list of existing paths
+    :param paths_and_stat: List of (path, stat_info) tuples for existing paths
+    :return: Stat info for the new path if it is a new existing path, None otherwise
     """
-    if not os.path.exists(new_path):
-        return False
+    try:
+        new_path_stat = os.stat(new_path)
+    except OSError:
+        return None
 
-    for path in paths:
-        if os.path.exists(path) and os.path.samefile(new_path, path):
-            return False
+    for (path, path_stat) in paths_and_stat:
+        if os.path.samestat(new_path_stat, path_stat):
+            return None
 
-    return True
+    return new_path_stat
 
 
 def add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldflag_prefix):
@@ -71,13 +74,14 @@ def add_rpath_flag(lib_path, rpath_filter, rpath_lib_paths, cmd_args_rpath, ldfl
 
     :param lib_path: Library path to process
     :param rpath_filter: Compiled regex filter for excluding paths
-    :param rpath_lib_paths: List of already processed library paths
+    :param rpath_lib_paths: List of (path, stat_info) tuples for already processed library paths
     :param cmd_args_rpath: List of -rpath flags to append to
     :param ldflag_prefix: Prefix for linker flags (e.g., '-Wl,' or empty)
     """
     if lib_path and os.path.isabs(lib_path) and (rpath_filter is None or not rpath_filter.match(lib_path)):
-        if is_new_existing_path(lib_path, rpath_lib_paths):
-            rpath_lib_paths.append(lib_path)
+        lib_path_stat = is_new_existing_path(lib_path, rpath_lib_paths)
+        if lib_path_stat:
+            rpath_lib_paths.append((lib_path, lib_path_stat))
             cmd_args_rpath.append(ldflag_prefix + '-rpath=' + lib_path)
 
 
@@ -113,8 +117,12 @@ while idx < len(args):
 
     arg = args[idx]
 
-    # if command is run in 'version check' mode, make sure we don't include *any* -rpath arguments
-    if arg in ['-v', '-V', '--version', '-dumpversion']:
+    # if non-linker command is run in 'version check' mode, make sure we don't include *any* -rpath arguments;
+    # this is required because add an option like -Wl,-rpath=... to a compiler command may change what it does,
+    # for example: "gcc -v" (without additional arguments);
+    # we should not do this for linking command (add -rpath=... options causes no problems)
+    # see also https://github.com/easybuilders/easybuild-framework/issues/5258
+    if arg in ['-v', '-V', '--version', '-dumpversion'] and cmd not in LINKER_COMMANDS:
         add_rpath_args = False
         cmd_args.append(arg)
 
@@ -197,8 +205,6 @@ if add_rpath_args:
     # add -rpath flags in front
     cmd_args = cmd_args_rpath + cmd_args
 
-# wrap all arguments into single quotes to avoid further bash expansion
-cmd_args = ["'%s'" % a.replace("'", "''") for a in cmd_args]
-
-# output: statement to define $CMD_ARGS
-print("CMD_ARGS=(%s)" % ' '.join(cmd_args))
+# print string value that specifies command arguments to use for actual compiler/linker call;
+# use null character (\0) as separator, so we can do a clean split again (in RPATH wrapper shell script)
+print('\0'.join(cmd_args), end='')

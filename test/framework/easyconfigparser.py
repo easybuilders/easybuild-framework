@@ -27,8 +27,8 @@ Unit tests for easyconfig/parser.py
 
 @author: Stijn De Weirdt (Ghent University)
 """
-import os
 import sys
+from test.framework import TEST_DIR, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
@@ -40,15 +40,14 @@ from easybuild.framework.easyconfig.parser import EasyConfigParser
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
-
-TESTDIRBASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'easyconfigs')
+EASYCONFIGS_DIR = TEST_DIR / 'easyconfigs'
 
 
 class EasyConfigParserTest(EnhancedTestCase):
     """Test the parser"""
 
     def test_v10(self):
-        ecp = EasyConfigParser(os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb'))
+        ecp = EasyConfigParser(EASYCONFIGS_DIR / 'v1.0/g/GCC/GCC-4.6.3.eb')
 
         self.assertEqual(ecp._formatter.VERSION, EasyVersion('1.0'))
 
@@ -72,7 +71,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        fn = os.path.join(TESTDIRBASE, 'v2.0', 'GCC.eb')
+        fn = EASYCONFIGS_DIR / 'v2.0/GCC.eb'
         ecp = EasyConfigParser(fn)
 
         formatter = ecp._formatter
@@ -105,7 +104,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        fn = os.path.join(TESTDIRBASE, 'v2.0', 'doesnotexist.eb')
+        fn = TEST_DIR / 'easyconfigs/v2.0/doesnotexist.eb'
         ecp = EasyConfigParser(fn)
 
         formatter = ecp._formatter
@@ -124,7 +123,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         orig_experimental = easybuild.tools.build_log.EXPERIMENTAL
         easybuild.tools.build_log.EXPERIMENTAL = True
 
-        fn = os.path.join(TESTDIRBASE, 'v2.0', 'libpng.eb')
+        fn = EASYCONFIGS_DIR / 'v2.0/libpng.eb'
         ecp = EasyConfigParser(fn)
 
         ec = ecp.get_config_dict()
@@ -139,7 +138,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(deps[0].name(), 'zlib')
         self.assertEqual(deps[0].version(), '1.2.5')
 
-        fn = os.path.join(TESTDIRBASE, 'v2.0', 'foss.eb')
+        fn = EASYCONFIGS_DIR / 'v2.0/foss.eb'
         ecp = EasyConfigParser(fn)
 
         ec = ecp.get_config_dict()
@@ -167,9 +166,9 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_raw(self):
         """Test passing of raw contents to EasyConfigParser."""
-        ec_file1 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'GCC', 'GCC-4.6.3.eb')
+        ec_file1 = EASYCONFIGS_DIR / 'v1.0/g/GCC/GCC-4.6.3.eb'
         ec_txt1 = read_file(ec_file1)
-        ec_file2 = os.path.join(TESTDIRBASE, 'v1.0', 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        ec_file2 = EASYCONFIGS_DIR / 'v1.0/g/gzip/gzip-1.5-foss-2018a.eb'
         ec_txt2 = read_file(ec_file2)
 
         ecparser = EasyConfigParser(ec_file1)
@@ -185,7 +184,7 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(ec['name'], 'gzip')
         self.assertEqual(ec['toolchain']['name'], 'foss')
 
-        self.assertErrorRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
+        self.assertRaisesRegex(EasyBuildError, "Neither filename nor rawcontent provided", EasyConfigParser)
 
     def test_easyconfig_constants(self):
         """Test available easyconfig constants."""
@@ -196,9 +195,8 @@ class EasyConfigParserTest(EnhancedTestCase):
         self.assertEqual(system_constant, {'name': 'system', 'version': 'system'})
 
         # make sure both keys and values are of appropriate types
-        for constant_name in constants:
-            self.assertIsInstance(constant_name, str, "Constant name %s is a string" % constant_name)
-            val = constants[constant_name]
+        for constant_name, val in constants.items():
+            self.assertIsInstance(constant_name, str, f"Constant name {constant_name} should be a string")
             fail_msg = "The constant %s should have an acceptable type, found %s (%s)" % (constant_name,
                                                                                           type(val), str(val))
             self.assertIsInstance(val, (str, dict, tuple), fail_msg)
@@ -211,10 +209,10 @@ class EasyConfigParserTest(EnhancedTestCase):
 
     def test_check_value_types(self):
         """Test checking of easyconfig parameter value types."""
-        test_ec = os.path.join(TESTDIRBASE, 'test_ecs', 'g', 'gzip', 'gzip-1.4-broken.eb')
+        test_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.4-broken.eb'
         error_msg_pattern = "Type checking of easyconfig parameter values failed: .*'version'.*"
         ecp = EasyConfigParser(test_ec, auto_convert_value_types=False)
-        self.assertErrorRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
+        self.assertRaisesRegex(EasyBuildError, error_msg_pattern, ecp.get_config_dict)
 
         # test default behaviour: auto-converting of mismatched value types
         ecp = EasyConfigParser(test_ec)

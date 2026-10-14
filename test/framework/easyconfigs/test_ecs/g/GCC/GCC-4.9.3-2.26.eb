@@ -19,8 +19,8 @@ dependencies = [
     ('binutils', local_binutilsver, '', ('GCCcore', version)),
 ]
 
-#altroot = 'GCCcore'
-#altversion = 'GCCcore'
+# altroot = 'GCCcore'
+# altversion = 'GCCcore'
 
 # this bundle serves as a compiler-only toolchain, so it should be marked as compiler (important for HMNS)
 moduleclass = 'compiler'

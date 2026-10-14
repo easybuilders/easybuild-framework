@@ -28,7 +28,6 @@ Unit tests for general aspects of the EasyBuild framework
 @author: Kenneth hoste (Ghent University)
 """
 import os
-import re
 import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
@@ -49,9 +48,9 @@ class GeneralTest(EnhancedTestCase):
         easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
 
         log_method_regexes = [
-            re.compile(r"log\.error\("),
-            re.compile(r"log\.exception\("),
-            re.compile(r"log\.raiseException\("),
+            r"log\.error\(",
+            r"log\.exception\(",
+            r"log\.raiseException\(",
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
@@ -61,7 +60,7 @@ class GeneralTest(EnhancedTestCase):
                     path = os.path.join(dirpath, filename)
                     txt = read_file(path)
                     for regex in log_method_regexes:
-                        self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                        self.assertNotRegex(txt, regex)
 
     def test_only_if_module_is_available(self):
         """Test only_if_module_is_available decorator."""
@@ -83,14 +82,14 @@ class GeneralTest(EnhancedTestCase):
 
         err_pat = r"None of the specified modules \(nosuchmoduleoutthere\) is available.*"
         err_pat += r"package nosuchpkg.*pypi/nosuchpkg"
-        self.assertErrorRegex(EasyBuildError, err_pat, bar)
+        self.assertRaisesRegex(EasyBuildError, err_pat, bar)
 
         @only_if_module_is_available(('nosuchmodule', 'anothernosuchmodule'))
         def bar2():
             pass
 
         err_pat = r"ImportError: None of the specified modules \(nosuchmodule, anothernosuchmodule\) is available"
-        self.assertErrorRegex(EasyBuildError, err_pat, bar2)
+        self.assertRaisesRegex(EasyBuildError, err_pat, bar2)
 
         class Foo():
             @only_if_module_is_available('thisdoesnotexist', url='http://example.com')
@@ -99,17 +98,17 @@ class GeneralTest(EnhancedTestCase):
 
         err_pat = r"None of the specified modules \(thisdoesnotexist\) is available "
         err_pat += r"\(available from http://example.com\)"
-        self.assertErrorRegex(EasyBuildError, err_pat, Foo().foobar)
+        self.assertRaisesRegex(EasyBuildError, err_pat, Foo().foobar)
 
     def test_docstrings(self):
         """Make sure tags included in docstrings are correctly formatted."""
         # easybuild.framework.__file__ provides location to <prefix>/easybuild/framework/__init__.py
         easybuild_loc = os.path.dirname(os.path.dirname(os.path.abspath(easybuild.framework.__file__)))
 
-        docstring_regexes = [
-            re.compile("@author"),
-            re.compile("@param"),
-            re.compile("@return"),
+        docstring_patterns = [
+            "@author",
+            "@param",
+            "@return",
         ]
 
         for dirpath, _, filenames in os.walk(easybuild_loc):
@@ -120,8 +119,8 @@ class GeneralTest(EnhancedTestCase):
 
                 path = os.path.join(dirpath, filename)
                 txt = read_file(path)
-                for regex in docstring_regexes:
-                    self.assertFalse(regex.search(txt), "No match for '%s' in %s" % (regex.pattern, path))
+                for pattern in docstring_patterns:
+                    self.assertNotIn(pattern, txt)
 
     def test_import_available_modules(self):
         """Test for import_available_modules function."""

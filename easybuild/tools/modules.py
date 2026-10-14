@@ -42,6 +42,7 @@ import os
 import re
 import shlex
 from enum import Enum
+from pathlib import Path
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -1228,6 +1229,8 @@ class ModulesTool:
         if args[0] in ('available', 'avail', 'list',):
             # run these in terse mode for easier machine reading
             opts.append(self.TERSE_OPTION)
+        elif args[0] in ('use', 'unuse'):
+            args = [str(arg) if isinstance(arg, Path) else arg for arg in args]
 
         # inject options at specified location
         for idx, opt in opts:
@@ -1240,7 +1243,7 @@ class ModulesTool:
                                      type(self.COMMAND_SHELL), self.COMMAND_SHELL)
             cmdlist = self.COMMAND_SHELL + cmdlist
 
-        return cmdlist + args
+        return cmdlist + [str(arg) if isinstance(arg, Path) else arg for arg in args]
 
     def run_module(self, *args, **kwargs):
         """
@@ -1787,7 +1790,7 @@ class EnvironmentModules(ModulesTool):
     DEPR_VERSION = '4.3.0'
     MAX_VERSION = None
     REQ_VERSION_TCL_CHECK_GROUP = '4.6.0'
-    REQ_VERSION_EXTENSIONS = '5.1.0'
+    REQ_VERSION_EXTENSIONS = '5.7.0'
     VERSION_REGEXP = r'^Modules\s+Release\s+(?P<version>\d[^+\s]*)(\+\S*)?\s'
 
     SHOW_HIDDEN_OPTION = '--all'
@@ -1812,15 +1815,18 @@ class EnvironmentModules(ModulesTool):
         setvar('MODULES_AVAIL_TERSE_OUTPUT', '', verbose=False)
         # ensure only module names are returned on list (MODULES_LIST_TERSE_OUTPUT added in v4.7)
         setvar('MODULES_LIST_TERSE_OUTPUT', '', verbose=False)
+        # consider module extensions as purely informational, so no module alias is defined for them
+        # (MODULES_INFO_EXTENSION has been introduced in v5.7, it is ignored by older versions)
+        setvar('MODULES_INFO_EXTENSION', '1', verbose=False)
 
         super().__init__(*args, **kwargs)
         version = LooseVersion(self.version)
         self.supports_tcl_getenv = True
         self.supports_tcl_check_group = version >= LooseVersion(self.REQ_VERSION_TCL_CHECK_GROUP)
         self.supports_safe_auto_load = True
-        # Environment Modules should support "informational extension" to safely handle the
-        # extensions built here (see https://github.com/envmodules/modules/issues/585)
-        self.supports_extensions = False
+        # module extensions are only supported by Environment Modules 5.7.0+, where they can be considered as purely
+        # informational (no module alias defined for them, see https://github.com/envmodules/modules/issues/585)
+        self.supports_extensions = version >= LooseVersion(self.REQ_VERSION_EXTENSIONS)
 
     def check_module_function(self, allow_mismatch=False, regex=None):
         """Check whether selected module tool matches 'module' function definition."""
@@ -2081,16 +2087,15 @@ class Lmod(ModulesTool):
         # We can simply remove the path from MODULEPATH to avoid the costly module call
         cur_mod_path = os.environ.get('MODULEPATH')
         if cur_mod_path is not None:
+            path = normalize_path(path)
+            new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
             # Removing the last entry unsets the variable
-            if cur_mod_path == path:
+            if not new_mod_path:
                 self.log.debug('Changing MODULEPATH from %s to <unset>' % cur_mod_path)
                 del os.environ['MODULEPATH']
-            else:
-                path = normalize_path(path)
-                new_mod_path = ':'.join(p for p in cur_mod_path.split(':') if normalize_path(p) != path)
-                if new_mod_path != cur_mod_path:
-                    self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
-                    os.environ['MODULEPATH'] = new_mod_path
+            elif new_mod_path != cur_mod_path:
+                self.log.debug('Changing MODULEPATH from %s to %s' % (cur_mod_path, new_mod_path))
+                os.environ['MODULEPATH'] = new_mod_path
 
     def prepend_module_path(self, path, set_mod_paths=True, priority=None):
         """
@@ -2280,13 +2285,15 @@ def avail_modules_tools():
     return class_dict
 
 
-def modules_tool(mod_paths=None, testing=False) -> ModulesTool:
+def modules_tool(mod_paths=None, testing=False, modules_tool_name=None) -> ModulesTool:
     """
     Return interface to modules tool (EnvironmentModules, Lmod, ...)
     """
     # get_modules_tool might return none (e.g. if config was not initialized yet)
-    modules_tool = get_modules_tool()
-    modules_tool_class = avail_modules_tools().get(modules_tool, NoModulesTool)
+    if modules_tool_name is None:
+        modules_tool_name = get_modules_tool()
+
+    modules_tool_class = avail_modules_tools().get(modules_tool_name, NoModulesTool)
     return modules_tool_class(mod_paths=mod_paths, testing=testing)
 
 

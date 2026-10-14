@@ -46,6 +46,7 @@ import sys
 import tempfile
 import pwd
 from collections import OrderedDict
+from typing import Set
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -244,6 +245,8 @@ class EasyBuildOptions(GeneralOption):
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
         self.default_robot_paths = get_paths_for(subdir=EASYCONFIGS_PKG_SUBDIR, robot_path=None) or []
+
+        self.orig_modules_tool = None
 
         # set up constants to seed into config files parser, by section
         try:
@@ -650,6 +653,7 @@ class EasyBuildOptions(GeneralOption):
             'buildpath': ("Temporary build path", None, 'store', mk_full_default_path('buildpath')),
             'bwrap-installpath': ("Bubblewrap install path for software and modules", None, 'store',
                                   mk_full_default_path('bwrap_installpath')),
+            'bwrap-options': ("List of additional options to pass to the 'bwrap' command", 'strlist', 'store', None),
             'containerpath': ("Location where container recipe & image will be stored", None, 'store',
                               mk_full_default_path('containerpath')),
             'envvars-user-modules': ("List of environment variables that hold the base paths for which user-specific "
@@ -1393,11 +1397,16 @@ class EasyBuildOptions(GeneralOption):
         if self.options.fetch_all:
             self.options.fetch = True
 
+        # keep track of original modules tool, we may need it
+        # (for example when --fetch is used for an easyconfig that includes source_deps)
+        self.orig_modules_tool = self.options.modules_tool
+
         # Fetch option implies stop=fetch, no moduletool and ignore-osdeps
         if self.options.fetch:
             self.options.stop = FETCH_STEP
             self.options.ignore_locks = True
             self.options.ignore_osdeps = True
+            # don't require modules tool when we're only fetching sources
             self.options.modules_tool = None
 
         # imply --disable-pre-create-installdir with --inject-checksums or --inject-checksums-to-json
@@ -1786,22 +1795,27 @@ def handle_include_easyblocks_from(options, log):
     """
     Handle --include-easyblocks-from-pr and --include-easyblocks-from-commit
     """
-    def check_included_multiple(included_easyblocks_from, source):
-        """Check whether easyblock is being included multiple times"""
-        included_multiple = included_easyblocks_from & included_easyblocks
-        if included_multiple:
-            warning_msg = "One or more easyblocks included from multiple locations: %s " \
-                          % ', '.join(included_multiple)
-            warning_msg += "(the one(s) from %s will be used)" % source
-            print_warning(warning_msg)
-
     if options.include_easyblocks_from_pr or options.include_easyblocks_from_commit:
         terse = build_option('terse')
-
         if options.include_easyblocks:
-            # check if you are including the same easyblock twice
-            included_paths = expand_glob_paths(options.include_easyblocks)
-            included_easyblocks = {os.path.basename(eb) for eb in included_paths}
+            included_easyblocks: Set[str] = {os.path.basename(eb)
+                                             for eb in expand_glob_paths(options.include_easyblocks)}
+        else:
+            included_easyblocks: Set[str] = set()
+
+        def check_and_log_include(additional_easyblocks: list, source: str):
+            """Check whether easyblock is being included multiple times and log its inclusion"""
+            additional_easyblocks: Set[str] = {os.path.basename(eb) for eb in additional_easyblocks}
+            included_multiple: Set[str] = included_easyblocks & additional_easyblocks
+            if included_multiple:
+                warning_msg = "One or more easyblocks included from multiple locations: %s " \
+                            % ', '.join(included_multiple)
+                warning_msg += "(the one(s) from %s will be used)" % source
+                print_warning(warning_msg)
+            included_easyblocks.update(additional_easyblocks)
+            for easyblock in additional_easyblocks:
+                easyblock = os.path.basename(easyblock)
+                print_msg(f"easyblock {easyblock} included from {source}", log=log, silent=terse)
 
         if options.include_easyblocks_from_pr:
             try:
@@ -1814,29 +1828,13 @@ def handle_include_easyblocks_from(options, log):
 
             for easyblock_pr in easyblock_prs:
                 easyblocks_from_pr = fetch_easyblocks_from_pr(easyblock_pr)
-                included_from_pr = {os.path.basename(eb) for eb in easyblocks_from_pr}
-
-                if options.include_easyblocks:
-                    check_included_multiple(included_from_pr, "PR #%s" % easyblock_pr)
-                    included_easyblocks |= included_from_pr
-
-                for easyblock in included_from_pr:
-                    print_msg("easyblock %s included from PR #%s" % (easyblock, easyblock_pr), log=log, silent=terse)
-
+                check_and_log_include(easyblocks_from_pr, "PR #%s" % easyblock_pr)
                 include_easyblocks(options.tmpdir, easyblocks_from_pr)
 
         easyblock_commit = options.include_easyblocks_from_commit
         if easyblock_commit:
             easyblocks_from_commit = fetch_easyblocks_from_commit(easyblock_commit)
-            included_from_commit = {os.path.basename(eb) for eb in easyblocks_from_commit}
-
-            if options.include_easyblocks:
-                check_included_multiple(included_from_commit, "commit %s" % easyblock_commit)
-
-            for easyblock in included_from_commit:
-                print_msg("easyblock %s included from commit %s" % (easyblock, easyblock_commit),
-                          log=log, silent=terse)
-
+            check_and_log_include(easyblocks_from_commit, "commit %s" % easyblock_commit)
             include_easyblocks(options.tmpdir, easyblocks_from_commit)
 
         if options.list_easyblocks:
@@ -1941,6 +1939,7 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
         'command_line': eb_cmd_line,
         'external_modules_metadata': parse_external_modules_metadata(options.external_modules_metadata),
         'extra_ec_paths': extra_ec_paths,
+        'orig_modules_tool': eb_go.orig_modules_tool,
         'robot_path': robot_path,
         'silent': testing or new_update_opt,
         'try_to_generate': try_to_generate,

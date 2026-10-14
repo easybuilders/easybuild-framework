@@ -179,6 +179,7 @@ DEFAULT_CONFIG = {
     'multi_deps_load_default': [True, "Load module for first version listed in multi_deps by default", DEPENDENCIES],
     'osdependencies': [[], "OS dependencies that should be present on the system", DEPENDENCIES],
     'moddependpaths': [None, "Absolute path(s) to prepend to MODULEPATH before loading dependencies", DEPENDENCIES],
+    'source_deps': [[], "List of dependencies that are required to download or create the sources", DEPENDENCIES],
 
     # LICENSE easyconfig parameters
     'accept_eula': [False, "Accepted End User License Agreement (EULA) for this software", LICENSE],
@@ -190,6 +191,9 @@ DEFAULT_CONFIG = {
     'license_server_port': [None, 'Port for license server', LICENSE],
 
     # EXTENSIONS easyconfig parameters
+    'extension_name': [None, "Name to add to the list of extensions in the module file (as if in exts_list); "
+                             "can also be used as an option for an extension in exts_list, "
+                             "in which case it is used in the module file instead of the extension name", EXTENSIONS],
     'exts_classmap': [{}, "Map of extension name to class for handling build and installation.", EXTENSIONS],
     'exts_defaultclass': [None, "Name of default easyblock for extensions", EXTENSIONS],
     'exts_default_options': [{}, "List of default options for extensions", EXTENSIONS],
