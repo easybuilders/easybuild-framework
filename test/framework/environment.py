@@ -52,6 +52,14 @@ class EnvironmentTest(EnhancedTestCase):
         self.assertEqual(env.join_path_var(['foo', '']), 'foo')
         self.assertEqual(env.join_path_var(['', 'foo']), 'foo')
         self.assertEqual(env.join_path_var(['']), '')
+        # Also accepts paths as separate arguments
+        self.assertEqual(env.join_path_var('foo'), 'foo')
+        self.assertEqual(env.join_path_var(Path('foo')), 'foo')
+        self.assertEqual(env.join_path_var('/foo', '/bar', '/baz'), '/foo:/bar:/baz')
+        # Examples appending a path to an existing one
+        self.assertEqual(env.join_path_var('/foo:/bar', '/baz'), '/foo:/bar:/baz')
+        self.assertEqual(env.join_path_var(None, '/baz'), '/baz')
+        self.assertEqual(env.join_path_var('/foo:/bar', None), '/foo:/bar')
 
     def test_setvar(self):
         """Test setvar function."""

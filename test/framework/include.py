@@ -29,9 +29,11 @@ Unit tests for eb command line options.
 """
 import os
 import sys
+from pathlib import Path
+from unittest import TextTestRunner
+
 from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
-from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
@@ -54,40 +56,40 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks(self):
         """Test include_easyblocks()."""
-        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
         # put a couple of custom easyblocks in place, to test
-        myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
-        mkdir(os.path.join(myeasyblocks, 'generic'), parents=True)
+        myeasyblocks = Path(self.test_prefix) / 'myeasyblocks'
+        mkdir(myeasyblocks / 'generic', parents=True)
 
         # include __init__.py files that should be ignored, and shouldn't cause trouble (bug #1697)
-        write_file(os.path.join(myeasyblocks, '__init__.py'), "# dummy init, should not get included")
-        write_file(os.path.join(myeasyblocks, 'generic', '__init__.py'), "# dummy init, should not get included")
+        write_file(myeasyblocks / '__init__.py', "# dummy init, should not get included")
+        write_file(myeasyblocks / 'generic/__init__.py', "# dummy init, should not get included")
 
         myfoo_easyblock_txt = '\n'.join([
             "from easybuild.easyblocks.generic.configuremake import ConfigureMake",
             "class EB_Foo(ConfigureMake):",
             "   pass",
         ])
-        write_file(os.path.join(myeasyblocks, 'myfoo.py'), myfoo_easyblock_txt)
+        write_file(myeasyblocks / 'myfoo.py', myfoo_easyblock_txt)
 
         mybar_easyblock_txt = '\n'.join([
             "from easybuild.framework.easyblock import EasyBlock",
             "class Bar(EasyBlock):",
             "   pass",
         ])
-        write_file(os.path.join(myeasyblocks, 'generic', 'mybar.py'), mybar_easyblock_txt)
+        write_file(myeasyblocks / 'generic/mybar.py', mybar_easyblock_txt)
 
         # second myfoo easyblock, should get ignored...
         myfoo_bis = os.path.join(self.test_prefix, 'myfoo.py')
         write_file(myfoo_bis, '')
 
         # hijack $HOME to test expanding ~ in locations passed to include_easyblocks
-        os.environ['HOME'] = myeasyblocks
+        os.environ['HOME'] = str(myeasyblocks)
 
         # expand set of known easyblocks with our custom ones;
         # myfoo easyblock is included twice, first path should have preference
-        glob_paths = [os.path.join('~', '*'), os.path.join(myeasyblocks, '*/*.py'), myfoo_bis]
+        glob_paths = [os.path.join('~', '*'), myeasyblocks / '*/*.py', myfoo_bis]
         included_easyblocks_path = include_easyblocks(self.test_prefix, glob_paths)
 
         expected_paths = ['__init__.py', 'easyblocks/__init__.py', 'easyblocks/myfoo.py',
@@ -120,7 +122,7 @@ class IncludeTest(EnhancedTestCase):
 
     def test_include_easyblocks_priority(self):
         """Test whether easyblocks included via include_easyblocks() get priority over others."""
-        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
         # make sure that test 'foo' easyblock is there
         import easybuild.easyblocks.foo
@@ -128,11 +130,11 @@ class IncludeTest(EnhancedTestCase):
         self.assertTrue(os.path.samefile(foo_path, test_easyblocks))
 
         # inject custom 'foo' easyblocks
-        myeasyblocks = os.path.join(self.test_prefix, 'myeasyblocks')
+        myeasyblocks = Path(self.test_prefix) / 'myeasyblocks'
         mkdir(myeasyblocks)
 
         # include __init__.py file that should be ignored, and shouldn't cause trouble (bug #1697)
-        write_file(os.path.join(myeasyblocks, '__init__.py'), "# dummy init, should not get included")
+        write_file(myeasyblocks / '__init__.py', "# dummy init, should not get included")
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
@@ -142,21 +144,21 @@ class IncludeTest(EnhancedTestCase):
             "class EB_Foo(EasyBlock):",
             "   pass",
         ])
-        write_file(os.path.join(myeasyblocks, 'foo.py'), foo_easyblock_txt)
+        write_file(myeasyblocks / 'foo.py', foo_easyblock_txt)
 
         # check that the sandboxed easyblock is imported before include_easyblocks is run
-        foo_pyc_path = easybuild.easyblocks.foo.__file__
-        foo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(foo_pyc_path), 'foo.py'))
-        self.assertTrue(os.path.samefile(os.path.dirname(os.path.dirname(foo_pyc_path)), test_easyblocks))
-        self.assertFalse(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
+        foo_pyc_path = Path(easybuild.easyblocks.foo.__file__)
+        foo_real_py_path = (foo_pyc_path.parent / 'foo.py').resolve()
+        self.assertTrue(foo_pyc_path.parent.parent.samefile(test_easyblocks))
+        self.assertFalse(foo_real_py_path.samefile(myeasyblocks / 'foo.py'))
 
-        include_easyblocks(self.test_prefix, [os.path.join(myeasyblocks, 'foo.py')])
+        include_easyblocks(self.test_prefix, [myeasyblocks / 'foo.py'])
 
         # check that the included easyblock is imported after include_easyblocks is run
-        foo_pyc_path = easybuild.easyblocks.foo.__file__
-        foo_real_py_path = os.path.realpath(os.path.join(os.path.dirname(foo_pyc_path), 'foo.py'))
-        self.assertFalse(os.path.samefile(os.path.dirname(os.path.dirname(foo_pyc_path)), test_easyblocks))
-        self.assertTrue(os.path.samefile(foo_real_py_path, os.path.join(myeasyblocks, 'foo.py')))
+        foo_pyc_path = Path(easybuild.easyblocks.foo.__file__)
+        foo_real_py_path = (foo_pyc_path.parent / 'foo.py').resolve()
+        self.assertFalse(foo_pyc_path.parent.parent.samefile(test_easyblocks))
+        self.assertTrue(foo_real_py_path.samefile(myeasyblocks / 'foo.py'))
 
         # 'undo' import of foo easyblock
         del sys.modules['easybuild.easyblocks.foo']
@@ -289,13 +291,13 @@ class IncludeTest(EnhancedTestCase):
 
         self.assertRaisesRegex(EasyBuildError, "No such file", is_software_specific_easyblock, '/no/such/easyblock.py')
 
-        test_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        test_easyblocks = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
-        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 'g', 'gcc.py')))
-        self.assertTrue(is_software_specific_easyblock(os.path.join(test_easyblocks, 't', 'toy.py')))
+        self.assertTrue(is_software_specific_easyblock(test_easyblocks / 'g/gcc.py'))
+        self.assertTrue(is_software_specific_easyblock(test_easyblocks / 't/toy.py'))
 
-        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'configuremake.py')))
-        self.assertFalse(is_software_specific_easyblock(os.path.join(test_easyblocks, 'generic', 'toolchain.py')))
+        self.assertFalse(is_software_specific_easyblock(test_easyblocks / 'generic/configuremake.py'))
+        self.assertFalse(is_software_specific_easyblock(test_easyblocks / 'generic/toolchain.py'))
 
 
 def suite(loader=None):

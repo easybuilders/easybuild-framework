@@ -3268,7 +3268,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
     def test_robot(self):
         """Test --robot and --robot-paths command line options."""
         # unset $EASYBUILD_ROBOT_PATHS that was defined in setUp
-        os.environ['EASYBUILD_ROBOT_PATHS'] = self.test_prefix
+        os.environ['EASYBUILD_ROBOT_PATHS'] = str(self.test_prefix)
 
         # includes 'toy/.0.0-deps' as a dependency
         eb_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
@@ -3333,16 +3333,16 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ]
         re_template = r'^\s\*\s\[[xF ]\]\s%s'
         for ecfile in ecfiles:
-            self.assertRegex(outtxt, re.compile(re_template % os.path.join(TEST_ECS_DIR, ecfile), re.M))
+            self.assertRegex(outtxt, re.compile(re_template % (TEST_ECS_DIR / ecfile), re.M))
 
         # Check for disabling --robot
         args.append('--disable-robot')
         # Enabled on cmdline before and via option, but should be disabled
-        os.environ['EASYBUILD_ROBOT'] = self.test_prefix
+        os.environ['EASYBUILD_ROBOT'] = str(self.test_prefix)
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, raise_error=True)
         for ecfile in ecfiles:
-            ec_regex = re.compile(re_template % os.path.join(TEST_ECS_DIR, ecfile), re.M)
+            ec_regex = re.compile(re_template % (TEST_ECS_DIR / ecfile), re.M)
             # Only the EC passed would be build but not the dependencies
             if os.path.basename(ecfile) == os.path.basename(eb_file):
                 self.assertRegex(outtxt, ec_regex)
@@ -3471,7 +3471,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertIn(expected, logtxt)
 
         # to predict the full output, we need to take control over $HOME and $XDG_CONFIG_DIRS
-        os.environ['HOME'] = self.test_prefix
+        os.environ['HOME'] = str(self.test_prefix)
         xdg_config_dirs = os.path.join(self.test_prefix, 'etc', 'xdg')
         os.environ['XDG_CONFIG_DIRS'] = xdg_config_dirs
 
@@ -6474,7 +6474,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         toy_tar = 'toy-0.0.tar.gz'
         copy_file(os.path.join(toy_srcdir, toy_tar), os.path.join(self.test_prefix, 't', 'toy', toy_tar))
 
-        toy_ec = os.path.join(self.test_prefix, os.path.basename(TOY_EC))
+        toy_ec = os.path.join(self.test_prefix, TOY_EC.name)
         write_file(toy_ec, "\nsource_urls = ['file://%s']" % toy_srcdir, append=True)
 
         args = [
@@ -6920,13 +6920,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         self.assertExists(self.test_prefix)
 
-        sysroot_arg = '--sysroot=' + self.test_prefix
+        sysroot_arg = f'--sysroot={self.test_prefix}'
         stdout, stderr = self._run_mock_eb([sysroot_arg, '--show-config'], raise_error=True)
 
         self.assertEqual(stderr, '')
         self.assertRegex(stdout, re.compile(r'^sysroot\s*\(C\) = %s$' % self.test_prefix, re.M))
 
-        os.environ['EASYBUILD_SYSROOT'] = self.test_prefix
+        os.environ['EASYBUILD_SYSROOT'] = str(self.test_prefix)
         stdout, stderr = self._run_mock_eb(['--show-config'], raise_error=True)
 
         self.assertEqual(stderr, '')
@@ -6934,13 +6934,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
         # specifying a non-existing path results in an error
         doesnotexist = os.path.join(self.test_prefix, 'non-existing-subdirectory')
-        sysroot_arg = '--sysroot=' + doesnotexist
 
-        args = [sysroot_arg, '--show-config']
-        error_pattern = r"Specified sysroot '%s' does not exist!" % doesnotexist
+        args = ['--sysroot', doesnotexist, '--show-config']
+        error_pattern = rf"Specified sysroot '{doesnotexist}' does not exist!"
         self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, args, raise_error=True)
 
-        os.environ['EASYBUILD_SYSROOT'] = doesnotexist
+        os.environ['EASYBUILD_SYSROOT'] = str(doesnotexist)
         self.assertRaisesRegex(EasyBuildError, error_pattern, self._run_mock_eb, ['--show-config'], raise_error=True)
 
     def test_software_commit(self):
@@ -7174,7 +7173,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check build options that were put in place for last easyconfig
         self.assertFalse(build_option('hidden'))
         self.assertTrue(build_option('force'))
-        self.assertEqual(build_option('robot'), [robot_paths, self.test_prefix])
+        self.assertEqual(build_option('robot'), [robot_paths, str(self.test_prefix)])
 
     def test_easystack_easyconfigs_cache(self):
         """
@@ -7229,7 +7228,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # start with a clean slate, reset all configuration done by setUp method that prepares each test
         cleanup()
 
-        os.environ['EASYBUILD_PREFIX'] = self.test_prefix
+        os.environ['EASYBUILD_PREFIX'] = str(self.test_prefix)
         eb_go, settings = set_up_configuration(args=['--debug', '--module-syntax=Tcl'], silent=True)
 
         # 2nd part of return value is a tuple with various settings
@@ -7248,7 +7247,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(settings[7], [])  # from_prs list
         self.assertEqual(settings[8], None)  # list of paths for tweaked ecs
 
-        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+        self.assertEqual(eb_go.options.prefix, str(self.test_prefix))
         self.assertTrue(eb_go.options.debug)
         self.assertEqual(eb_go.options.module_syntax, 'Tcl')
 
@@ -7275,7 +7274,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertFalse(BuildOptions()['hidden'])
         self.assertFalse(build_option('hidden'))
 
-        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+        self.assertEqual(eb_go.options.prefix, str(self.test_prefix))
 
         self.assertTrue(build_option('debug'))
         self.assertTrue(BuildOptions()['debug'])
@@ -7290,7 +7289,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(BuildOptions()['hidden'])
         self.assertTrue(build_option('hidden'))
 
-        self.assertEqual(eb_go.options.prefix, self.test_prefix)
+        self.assertEqual(eb_go.options.prefix, str(self.test_prefix))
 
         self.assertFalse(build_option('debug'))
         self.assertFalse(BuildOptions()['debug'])
