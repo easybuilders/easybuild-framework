@@ -174,7 +174,7 @@ class EasyBlockTest(EnhancedTestCase):
         tmp_modules = os.path.join(self.test_prefix, 'modules')
         mkdir(tmp_modules)
 
-        copy_dir(os.path.join(TEST_MODULES_DIR, 'OpenMPI'), os.path.join(tmp_modules, 'OpenMPI'))
+        copy_dir(TEST_MODULES_DIR / 'OpenMPI', os.path.join(tmp_modules, 'OpenMPI'))
 
         openmpi_module = os.path.join(tmp_modules, 'OpenMPI', '2.1.2-GCC-6.4.0-2.28')
         ompi_mod_txt = read_file(openmpi_module)
@@ -235,7 +235,7 @@ class EasyBlockTest(EnhancedTestCase):
         mod_prefix = os.path.join(self.test_installpath, 'modules', 'all')
         mkdir(mod_prefix, parents=True)
         for mod_subdir in ['Core', 'Compiler']:
-            copy_dir(os.path.join(TEST_MODULES_DIR, 'HierarchicalMNS', mod_subdir),
+            copy_dir(TEST_MODULES_DIR / 'HierarchicalMNS' / mod_subdir,
                      os.path.join(mod_prefix, mod_subdir))
 
         # tweak use statements in toolchain module to ensure correct paths
@@ -246,7 +246,7 @@ class EasyBlockTest(EnhancedTestCase):
                           line)
             sys.stdout.write(line)
 
-        test_eb_file = os.path.join(TEST_ECS_DIR, 'g', 'GLib', 'GLib-2.77.1-GCCcore-12.3.0.eb')
+        test_eb_file = TEST_ECS_DIR / 'g/GLib/GLib-2.77.1-GCCcore-12.3.0.eb'
         eb = EasyBlock(EasyConfig(test_eb_file))
 
         self.reset_modulepath([mod_prefix])
@@ -1576,7 +1576,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_init_extensions(self):
         """Test creating extension instances."""
 
-        toy_ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         toy_ec_txt = read_file(toy_ec_file)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -2175,22 +2175,22 @@ class EasyBlockTest(EnhancedTestCase):
         ec = process_easyconfig(TOY_EC)[0]
         eb = get_easyblock_instance(ec)
 
-        toy_source = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy', 'toy-0.0.tar.gz')
+        toy_source = TEST_DIR / 'sandbox/sources/toy/toy-0.0.tar.gz'
 
         with self.mocked_stdout_stderr():
             eb.fetch_sources()
         self.assertEqual(len(eb.src), 1)
-        self.assertTrue(os.path.samefile(eb.src[0]['path'], toy_source))
+        self.assertTrue(toy_source.samefile(eb.src[0]['path']))
         self.assertEqual(eb.src[0]['name'], 'toy-0.0.tar.gz')
         self.assertEqual(eb.src[0]['cmd'], None)
         self.assertEqual(len(eb.src[0]['checksum']), 2)
         self.assertEqual(eb.src[0]['checksum'][0], '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc')
 
         # reconfigure EasyBuild so we can check 'downloaded' sources
-        os.environ['EASYBUILD_SOURCEPATH'] = self.test_prefix
+        os.environ['EASYBUILD_SOURCEPATH'] = str(self.test_prefix)
         init_config()
 
-        eb.cfg['source_urls'] = ['file://%s' % os.path.dirname(toy_source)]
+        eb.cfg['source_urls'] = ['file://%s' % toy_source.parent]
 
         custom_source_url = os.path.join(self.test_prefix, 'custom')
         toy_extra_txt = "This is a custom toy-extra.txt"
@@ -2477,8 +2477,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.patches[3]['copy'], 'some/path')
         self.assertEqual(eb.patches[4]['name'], toy_patch)
         self.assertEqual(eb.patches[4]['level'], 0)
-        sandbox_sources = os.path.join(TEST_DIR, 'sandbox', 'sources')
-        self.assertEqual(eb.patches[4]['path'], os.path.join(sandbox_sources, 'alt_toy', toy_patch))
+        self.assertEqual(eb.patches[4]['path'], str(TEST_DIR / 'sandbox/sources/alt_toy' / toy_patch))
 
         patches = [
             ('toy-0.0_level4.patch', False),  # should throw an error, only int's an strings allowed here
@@ -2488,9 +2487,9 @@ class EasyBlockTest(EnhancedTestCase):
     def test_obtain_file(self):
         """Test obtain_file method."""
         toy_tarball = 'toy-0.0.tar.gz'
-        sandbox_sources = os.path.join(TEST_DIR, 'sandbox', 'sources')
-        toy_tarball_path = os.path.join(sandbox_sources, 'toy', toy_tarball)
-        alt_toy_tarball_path = os.path.join(sandbox_sources, 'alt_toy', toy_tarball)
+        sandbox_sources = TEST_DIR / 'sandbox/sources'
+        toy_tarball_path = sandbox_sources / 'toy' / toy_tarball
+        alt_toy_tarball_path = sandbox_sources / 'alt_toy' / toy_tarball
         tmpdir = tempfile.mkdtemp()
         tmpdir_subdir = os.path.join(tmpdir, 'testing')
         mkdir(tmpdir_subdir, parents=True)
@@ -2536,20 +2535,20 @@ class EasyBlockTest(EnhancedTestCase):
         init_config(args=["--sourcepath=%s:/no/such/dir:%s" % (sandbox_sources, tmpdir)])
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball)
-        self.assertEqual(res, toy_tarball_path)
+        self.assertEqual(res, str(toy_tarball_path))
 
         # finding a file in the alternative location works
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, alt_location='alt_toy')
-        self.assertEqual(res, alt_toy_tarball_path)
+        self.assertEqual(res, str(alt_toy_tarball_path))
 
         # sourcepath has preference over downloading
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir])
-        self.assertEqual(res, toy_tarball_path)
+        self.assertEqual(res, str(toy_tarball_path))
         with self.mocked_stdout_stderr():
             res = eb.obtain_file(toy_tarball, urls=['file://%s' % tmpdir_subdir], alt_location='alt_toy')
-        self.assertEqual(res, alt_toy_tarball_path)
+        self.assertEqual(res, str(alt_toy_tarball_path))
 
         init_config(args=["--sourcepath=%s:%s" % (tmpdir, sandbox_sources)])
 
@@ -2644,9 +2643,9 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_collect_exts_file_info(self):
         """Test collect_exts_file_info method."""
-        toy_sources = os.path.join(TEST_DIR, 'sandbox', 'sources', 'toy')
-        toy_ext_sources = os.path.join(toy_sources, 'extensions')
-        toy_ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_sources = TEST_DIR / 'sandbox/sources/toy'
+        toy_ext_sources = toy_sources / 'extensions'
+        toy_ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         new_ext_txt = "('baz', '0.0', {'nosource': True}),"  # With nosource option
@@ -2666,18 +2665,18 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertEqual(exts_file_info[1]['name'], 'bar')
         self.assertEqual(exts_file_info[1]['sources'], ['bar-0.0.tar.gz'])
-        self.assertEqual(exts_file_info[1]['src'], os.path.join(toy_ext_sources, 'bar-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[1]['src'], str(toy_ext_sources / 'bar-0.0.tar.gz'))
         bar_patch1 = 'bar-0.0_fix-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][0]['name'], bar_patch1)
-        self.assertEqual(exts_file_info[1]['patches'][0]['path'], os.path.join(toy_ext_sources, bar_patch1))
+        self.assertEqual(exts_file_info[1]['patches'][0]['path'], str(toy_ext_sources / bar_patch1))
         bar_patch2 = 'bar-0.0_fix-very-silly-typo-in-printf-statement.patch'
         self.assertEqual(exts_file_info[1]['patches'][1]['name'], bar_patch2)
-        self.assertEqual(exts_file_info[1]['patches'][1]['path'], os.path.join(toy_ext_sources, bar_patch2))
+        self.assertEqual(exts_file_info[1]['patches'][1]['path'], str(toy_ext_sources / bar_patch2))
         self.assertEqual(len(exts_file_info[1]['checksums']), 1)
 
         self.assertEqual(exts_file_info[2]['name'], 'barbar')
         self.assertEqual(exts_file_info[2]['sources'], ['barbar-1.2.tar.gz'])
-        self.assertEqual(exts_file_info[2]['src'], os.path.join(toy_ext_sources, 'barbar-1.2.tar.gz'))
+        self.assertEqual(exts_file_info[2]['src'], str(toy_ext_sources / 'barbar-1.2.tar.gz'))
         self.assertNotIn('patches', exts_file_info[2])
         self.assertEqual(len(exts_file_info[2]['checksums']), 0)
 
@@ -2690,12 +2689,12 @@ class EasyBlockTest(EnhancedTestCase):
 
         self.assertEqual(exts_file_info[4]['name'], 'barbar')
         self.assertEqual(exts_file_info[4]['sources'], ['barbar-0.0.tar.gz'])
-        self.assertEqual(exts_file_info[4]['src'], os.path.join(toy_ext_sources, 'barbar-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[4]['src'], str(toy_ext_sources / 'barbar-0.0.tar.gz'))
         self.assertNotIn('patches', exts_file_info[4])
 
         self.assertEqual(exts_file_info[5]['name'], 'toy')
         self.assertEqual(exts_file_info[5]['sources'], ['toy-0.0.tar.gz'])
-        self.assertEqual(exts_file_info[5]['src'], os.path.join(toy_sources, 'toy-0.0.tar.gz'))
+        self.assertEqual(exts_file_info[5]['src'], str(toy_sources / 'toy-0.0.tar.gz'))
         self.assertNotIn('patches', exts_file_info[5])
 
         # location of files is missing when fetch_files is set to False
@@ -2741,7 +2740,7 @@ class EasyBlockTest(EnhancedTestCase):
     def test_obtain_file_extension(self):
         """Test use of obtain_file method on an extension."""
 
-        toy_ec_file = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_file = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
         toy_ec = process_easyconfig(toy_ec_file)[0]
         toy_eb = EasyBlock(toy_ec['ec'])
 
@@ -2762,7 +2761,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # check that check_readiness step works (adding dependencies, etc.)
         ec_file = 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
-        ec_path = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', ec_file)
+        ec_path = TEST_ECS_DIR / 'o/OpenMPI' / ec_file
         ec = EasyConfig(ec_path)
         eb = EasyBlock(ec)
         eb.check_readiness_step()
@@ -2814,7 +2813,7 @@ class EasyBlockTest(EnhancedTestCase):
             ('i/imkl/imkl-11.3.1.150-iimpi-2016.01.eb', imkl_modfile_path, iccifort_mods + ['iimpi', 'impi']),
         ]
         for ec_file, modfile_path, excluded_deps in tests:
-            ec = EasyConfig(os.path.join(TEST_ECS_DIR, ec_file))
+            ec = EasyConfig(TEST_ECS_DIR / ec_file)
             eb = EasyBlock(ec)
             with self.mocked_stdout_stderr():
                 eb.toolchain.prepare()
@@ -2909,7 +2908,7 @@ class EasyBlockTest(EnhancedTestCase):
         """Test sanity check aspect of extensions."""
         init_config(build_options={'silent': True})
 
-        toy_ec_fn = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec_fn = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         # Do this before loading the easyblock to check the non-translated output below
         os.environ['LC_ALL'] = 'C'
@@ -3215,7 +3214,7 @@ class EasyBlockTest(EnhancedTestCase):
                     abs_expected_start_dir = expected_start_dir
                 else:
                     abs_expected_start_dir = os.path.join(eb.builddir, expected_start_dir)
-                self.assertEqual(ext.start_dir, abs_expected_start_dir)
+                self.assertEqual(ext.start_dir, str(abs_expected_start_dir))
                 self.assertTrue(os.path.samefile(ext.start_dir, abs_expected_start_dir))
                 self.assertTrue(os.path.samefile(os.getcwd(), abs_expected_start_dir))
             remove_dir(eb.builddir)
@@ -3377,7 +3376,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         init_config(build_options={'robot_path': os.environ['EASYBUILD_ROBOT_PATHS']})
 
-        ompi_ec_file = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-6.4.0-2.28.eb')
+        ompi_ec_file = TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-2.1.2-GCC-6.4.0-2.28.eb'
         ec = process_easyconfig(ompi_ec_file, validate=False)[0]
 
         mkdir(os.path.join(self.test_buildpath, 'OpenMPI', '2.1.2', 'GCC-6.4.0-2.28'), parents=True)
@@ -3385,8 +3384,8 @@ class EasyBlockTest(EnhancedTestCase):
         eb.silent = True
 
         # $EBROOTGCC and $EBROOTHWLOC must be set to set up build environment
-        os.environ['EBROOTGCC'] = self.test_prefix
-        os.environ['EBROOTHWLOC'] = self.test_prefix
+        os.environ['EBROOTGCC'] = str(self.test_prefix)
+        os.environ['EBROOTHWLOC'] = str(self.test_prefix)
 
         # loaded of modules for toolchain + dependencies can be disabled via load_tc_deps_modules=False
         with self.mocked_stdout_stderr():
@@ -3500,7 +3499,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_checksum_step(self):
         """Test checksum step"""
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -3569,7 +3568,7 @@ class EasyBlockTest(EnhancedTestCase):
                 self.fail("Incorrect extension type: %s" % type(ext))
 
         # put checksums.json in place next to easyconfig file being used for the tests
-        toy_checksums_json = os.path.join(TEST_ECS_DIR, 't', 'toy', 'checksums.json')
+        toy_checksums_json = TEST_ECS_DIR / 't/toy/checksums.json'
         copy_file(toy_checksums_json, os.path.join(self.test_prefix, 'checksums.json'))
 
         # test without checksums, it should work since they are in checksums.json
@@ -3625,7 +3624,7 @@ class EasyBlockTest(EnhancedTestCase):
 
     def test_check_checksums(self):
         """Test for check_checksums_for and check_checksums methods."""
-        toy_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        toy_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         ec = process_easyconfig(toy_ec)[0]
         eb = get_easyblock_instance(ec)
@@ -3742,7 +3741,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(res[0], expected)
 
         # all is fine if checksums.json is also copied
-        copy_file(os.path.join(os.path.dirname(TOY_EC), 'checksums.json'), self.test_prefix)
+        copy_file(TOY_EC.parent / 'checksums.json', self.test_prefix)
         eb.json_checksums = None
         self.assertEqual(eb.check_checksums(), [])
 
@@ -4125,7 +4124,7 @@ class EasyBlockTest(EnhancedTestCase):
         test_mods = os.path.join(self.test_prefix, 'modules')
 
         for name, mod_fn in mod_files:
-            mod_fp = os.path.join(TEST_MODULES_DIR, name, mod_fn)
+            mod_fp = TEST_MODULES_DIR / name / mod_fn
 
             header_fn = 'zlib.h' if name == 'zlib' else 'mpi.h'
 
