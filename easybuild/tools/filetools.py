@@ -50,6 +50,7 @@ import itertools
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -2786,6 +2787,59 @@ def copy(paths: Union[PathOrStr, List[PathOrStr]], target_path: PathOrStr,
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
+def _is_git_lfs_pointer(contents):
+    """Check whether bytes contain a valid modern Git LFS pointer."""
+    if not 0 < len(contents) < 1024:
+        return False
+
+    try:
+        lines = contents.decode('utf-8').splitlines(keepends=True)
+    except UnicodeDecodeError:
+        return False
+
+    if not lines or lines[0] != 'version https://git-lfs.github.com/spec/v1\n':
+        return False
+
+    fields = []
+    for line in lines[1:]:
+        match = re.fullmatch(r'([a-z0-9.-]+) ([^ \r\n][^\r\n]*)\n', line)
+        if not match:
+            return False
+        fields.append(match.groups())
+
+    keys = [key for key, _ in fields]
+    if keys != sorted(set(keys)) or 'version' in keys:
+        return False
+
+    values = dict(fields)
+    return (bool(re.fullmatch(r'sha256:[a-f0-9]{64}', values.get('oid', ''))) and
+            bool(re.fullmatch(r'0|[1-9][0-9]*', values.get('size', ''))))
+
+
+def _repo_has_git_lfs_pointers(repo_dir, git_cmd):
+    """Check checked-out tracked files for Git LFS pointers, without requiring git-lfs."""
+    res = run_shell_cmd(f"{git_cmd} ls-files -z", work_dir=repo_dir, hidden=True, verbose_dry_run=True,
+                        log_output_on_success=False)
+
+    for rel_path in res.output.split('\0'):
+        if not rel_path:
+            continue
+        path = os.path.join(repo_dir, rel_path)
+        # Submodules are gitlinks (directories), not regular files.
+        if os.path.islink(path) or not os.path.isfile(path) or os.path.getsize(path) >= 1024:
+            continue
+        if not _is_git_lfs_pointer(read_file(path, mode='rb')):
+            continue
+
+        # A pointer example in documentation does not require Git LFS.
+        attr_cmd = f"{git_cmd} check-attr --cached filter -- {shlex.quote(rel_path)}"
+        attr_res = run_shell_cmd(attr_cmd, work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+        if attr_res.output.strip().endswith(': filter: lfs'):
+            return True
+
+    return False
+
+
 def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
@@ -2857,32 +2911,17 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     repo_dir = os.path.join(tmpdir, repo_name)
 
-    # Git LFS functionality
     git_ref = commit if commit else f"refs/tags/{tag}"
-    # Check whether the selected Git tree contains Git LFS attributes.
-    lfs_check_cmd = f"{git_cmd} grep -I -h filter=lfs {git_ref} -- ':(glob)**/.gitattributes' "
-    res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
-                        hidden=True, verbose_dry_run=True)
 
-    # For git grep, exit code 1 is expected when no matching lines are found.
-    # In this case that means the selected tree has no filter=lfs attributes, so it should not be treated as an error.
-    if res.exit_code not in (EasyBuildExit.SUCCESS, 1):
-        raise EasyBuildError(f"Failed to determine whether Git repository uses Git LFS: {res.output}")
-
-    use_lfs = any(
-        not line.lstrip().startswith('#') and 'filter=lfs' in line.split()
-        for line in res.output.splitlines()
-    )
-
-    if use_lfs:
-        lfs_install_cmd = [git_cmd, 'lfs', 'install', '--local', '--skip-repo']
-        run_shell_cmd(' '.join(lfs_install_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
-
-    checkout_cmd = [git_cmd, 'checkout', git_ref]
+    # Leave LFS pointer files untouched until all selected repositories have been checked out.
+    # This also works when git-lfs is not installed or global Git LFS filters are configured.
+    git_no_lfs = f"{git_cmd} -c filter.lfs.process= -c filter.lfs.smudge= -c filter.lfs.required=false"
+    checkout_cmd = [git_no_lfs, 'checkout', git_ref]
     run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
+    repo_dirs = [repo_dir]
     if recursive or recurse_submodules:
-        submodule_cmd = [git_cmd, 'submodule', 'update', '--init']
+        submodule_cmd = [git_no_lfs, 'submodule', 'update', '--init']
         if recursive:
             submodule_cmd.append('--recursive')
         if recurse_submodules:
@@ -2890,6 +2929,23 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
             submodule_cmd.extend(['--'] + submodule_pathspec)
 
         run_shell_cmd(' '.join(submodule_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+
+        # Only initialized submodules are returned; with --recursive, include nested ones too.
+        foreach_cmd = f"{git_cmd} submodule --quiet foreach --recursive " + shlex.quote(r'printf "%s\0" "$PWD"')
+        res = run_shell_cmd(foreach_cmd, work_dir=repo_dir, hidden=True, verbose_dry_run=True,
+                            log_output_on_success=False)
+        repo_dirs.extend(path for path in res.output.split('\0') if path)
+
+    # Fetch actual LFS objects only in repositories whose selected revision needs them.
+    for current_repo in repo_dirs:
+        if _repo_has_git_lfs_pointers(current_repo, git_cmd):
+            if which('git-lfs', on_error=IGNORE, log_ok=False) is None:
+                raise EasyBuildError(f"Git LFS pointers found in {current_repo}, but git-lfs is not available. "
+                                     "Add git-lfs to source_deps in the easyconfig.")
+            run_shell_cmd(f"{git_cmd} lfs install --local --skip-repo", work_dir=current_repo,
+                          hidden=True, verbose_dry_run=True)
+            run_shell_cmd(f"{git_cmd} lfs pull", work_dir=current_repo,
+                          hidden=True, verbose_dry_run=True)
 
     # Create archive
     reproducible = not keep_git_dir  # presence of .git directory renders repo unreproducible
