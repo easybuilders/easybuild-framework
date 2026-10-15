@@ -138,7 +138,7 @@ class ParallelBuildTest(EnhancedTestCase):
         }
         init_config(args=['--job-backend=PbsPython'], build_options=build_options)
 
-        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb'
         easyconfigs = process_easyconfig(ec_file)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
         jobs = build_easyconfigs_in_parallel("echo '%(spec)s'", ordered_ecs, prepare_first=False)
@@ -146,7 +146,7 @@ class ParallelBuildTest(EnhancedTestCase):
         self.assertEqual(len(jobs), 1)
         self.assertRegex(jobs[-1].script, "echo '.*/gzip-1.5-foss-2018a.eb'")
 
-        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4-GCC-4.6.3.eb')
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.4-GCC-4.6.3.eb'
         ordered_ecs = resolve_dependencies(process_easyconfig(ec_file), self.modtool, retain_all_deps=True)
         jobs = submit_jobs(ordered_ecs, '', testing=False, prepare_first=False)
 
@@ -251,7 +251,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         easyconfigs = process_easyconfig(TOY_EC)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
-        test_easyblocks_path = os.path.join(TEST_DIR, 'sandbox')
+        test_easyblocks_path = TEST_DIR / 'sandbox'
         cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (REPO_ROOT, test_easyblocks_path)
 
         with self.mocked_stdout_stderr():
@@ -309,7 +309,7 @@ class ParallelBuildTest(EnhancedTestCase):
 
         # these patterns should NOT be found, these options get filtered out
         # (self.test_prefix was argument to --robot)
-        self.assertNotMultiRegex(['--job', '--job-cores', '--try-toolchain', '--robot=[ =]', self.test_prefix + ' '],
+        self.assertNotMultiRegex(['--job', '--job-cores', '--try-toolchain', '--robot[ =]', f'{self.test_prefix} '],
                                  cmd)
 
         # test again with custom EasyBuild command to use in jobs
@@ -331,8 +331,8 @@ class ParallelBuildTest(EnhancedTestCase):
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
-        test_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-        foss_ec = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')
+        test_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb'
+        foss_ec = TEST_ECS_DIR / 'f/foss/foss-2018a.eb'
 
         build_options = {
             'external_modules_metadata': {},
