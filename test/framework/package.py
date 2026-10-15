@@ -204,8 +204,13 @@ class PackageTest(EnhancedTestCase):
             'silent': True,
         }
         init_config(build_options=build_options)
+        ec_src = TEST_ECS_DIR / 't' / 'toy' / 'toy-0.0-gompi-2018a-test.eb'
+        ec_path = os.path.join(self.test_prefix, ec_src.name)
+        toy_txt = read_file(ec_src)
+        # Keep deprecated use of unknow param at least for 1 test
+        write_file(ec_path, toy_txt + "\nexts_list[1][2]['unknowneasyconfigparameterthatshouldbeignored'] = 'val'")
 
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
+        ec = EasyConfig(ec_path, validate=False)
 
         mock_fpm(self.test_prefix)
 
@@ -214,7 +219,9 @@ class PackageTest(EnhancedTestCase):
         easyblock = EB_toy(ec)
 
         # build & install first
-        easyblock.run_all_steps(False)
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stderr():
+            easyblock.run_all_steps(False)
+            self.assertIn('unknowneasyconfigparameterthatshouldbeignored', self.get_stderr())
 
         # write a dummy log and report file to make sure they don't get packaged
         logfile = os.path.join(easyblock.installdir, log_path(), "logfile.log")
@@ -239,7 +246,6 @@ class PackageTest(EnhancedTestCase):
 
         self.assertNotRegex(pkgtxt, re.compile(r'STARTCONTENTS.*\.(log|md)$.*ENDCONTENTS', re.DOTALL | re.M))
 
-        toy_txt = read_file(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'))
         replace_str = '''description = """Toy C program, 100% toy. Now with `backticks'\n'''
         replace_str += '''and newlines"""'''
         toy_txt = re.sub('description = .*', replace_str, toy_txt)
