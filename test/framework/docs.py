@@ -866,7 +866,7 @@ class DocsTest(EnhancedTestCase):
         """
         Tests for list_easyblocks function
         """
-        topdir_easyblocks = os.path.join(TEST_DIR, 'sandbox', 'easybuild', 'easyblocks')
+        topdir_easyblocks = TEST_DIR / 'sandbox/easybuild/easyblocks'
 
         txt = list_easyblocks()
         self.assertEqual(txt, LIST_EASYBLOCKS_SIMPLE_TXT)
@@ -895,7 +895,7 @@ class DocsTest(EnhancedTestCase):
     def test_list_software(self):
         """Test list_software* functions."""
         build_options = {
-            'robot_path': [os.path.join(TEST_DIR, 'easyconfigs', 'v1.0')],
+            'robot_path': [TEST_DIR / 'easyconfigs/v1.0'],
             'silent': True,
             'valid_module_classes': module_classes(),
         }
