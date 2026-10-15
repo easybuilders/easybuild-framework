@@ -60,7 +60,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         """Test setup."""
         super().setUp()
         # find .eb file
-        eb_path = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb')
+        eb_path = TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb'
         eb_full_path = find_full_path(eb_path)
         self.assertTrue(eb_full_path)
 
@@ -800,7 +800,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options={'module_extensions': True})
 
         os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
-        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        test_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -832,7 +832,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             self.assertMultiRegex(patterns, desc, multi_line=True)
 
         # check if the extensions is missing if there are no extensions
-        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-test.eb')
+        test_ec = TEST_ECS_DIR / 't/toy/toy-0.0-test.eb'
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -848,7 +848,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         # check if the extensions is missing if 'module_extensions' is disabled
         init_config(build_options={'module_extensions': False})
-        test_ec = os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb')
+        test_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb'
 
         ec = EasyConfig(test_ec)
         eb = EasyBlock(ec)
@@ -1449,7 +1449,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         init_config(build_options=build_options)
 
         err_pattern = 'nosucheasyconfigparameteravailable'
-        ec_file = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
+        ec_file = TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb'
         self.assertRaisesRegex(EasyBuildError, err_pattern, EasyConfig, ec_file)
 
         # test simple custom module naming scheme
@@ -1466,7 +1466,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
         }
         test_mns()
 
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
+        ec = EasyConfig(TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb')
         self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/2018a')
 
         # test module naming scheme using all available easyconfig parameters
@@ -1513,7 +1513,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             # determine full module name
             self.assertEqual(ActiveMNS().det_full_module_name(dep_spec), ec2mod_map[dep_ec])
 
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'), hidden=True)
+        ec = EasyConfig(TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb', hidden=True)
         self.assertEqual(ec.full_mod_name, ec2mod_map['gzip-1.5-foss-2018a.eb'])
         self.assertEqual(ec.toolchain.det_short_module_name(), 'foss/e69469ac250145c9e814e5dde93f5fde6d80375d')
 
@@ -1593,7 +1593,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
 
         def test_ec(ecfile, short_modname, mod_subdir, modpath_exts, user_modpath_exts, init_modpaths):
             """Test whether active module naming scheme returns expected values."""
-            ec = EasyConfig(glob.glob(os.path.join(TEST_ECS_DIR, '*', '*', ecfile))[0])
+            ec = EasyConfig(glob.glob(str(TEST_ECS_DIR / '*/*' / ecfile))[0])
             self.assertEqual(ActiveMNS().det_full_module_name(ec), os.path.join(mod_subdir, short_modname))
             self.assertEqual(ActiveMNS().det_short_module_name(ec), short_modname)
             self.assertEqual(ActiveMNS().det_module_subdir(ec), mod_subdir)
@@ -1679,7 +1679,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals)
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'i', 'impi', 'impi-5.1.2.150.eb'))
+        ec = EasyConfig(TEST_ECS_DIR / 'i/impi/impi-5.1.2.150.eb')
         self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedHMNS'
@@ -1722,7 +1722,7 @@ class ModuleGeneratorTest(EnhancedTestCase):
             test_ec(ecfile, *mns_vals, init_modpaths=['Core/%s' % c for c in moduleclasses])
 
         # impi with dummy toolchain, which doesn't make sense in a hierarchical context
-        ec = EasyConfig(os.path.join(TEST_ECS_DIR, 'i', 'impi', 'impi-5.1.2.150.eb'))
+        ec = EasyConfig(TEST_ECS_DIR / 'i/impi/impi-5.1.2.150.eb')
         self.assertRaisesRegex(EasyBuildError, 'No compiler available.*MPI lib', ActiveMNS().det_modpath_extensions, ec)
 
         os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = 'CategorizedModuleNamingScheme'
