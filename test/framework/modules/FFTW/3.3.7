@@ -13,10 +13,6 @@ set root    /home-2/khoste/.local/easybuild/software/FFTW/3.3.7
 
 conflict    FFTW
 
-if { ![is-loaded gompi/2018a] } {
-    module load gompi/2018a
-}
-
 prepend-path	CPATH		$root/include
 prepend-path	LD_LIBRARY_PATH		$root/lib
 prepend-path	MANPATH		$root/share/man
