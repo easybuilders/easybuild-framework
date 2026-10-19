@@ -514,9 +514,9 @@ class RobotTest(EnhancedTestCase):
             'validate': False,
         })
 
-        impi_txt = read_file(os.path.join(TEST_ECS_DIR, 'i', 'impi', 'impi-5.1.2.150.eb'))
+        impi_txt = read_file(TEST_ECS_DIR / 'i/impi/impi-5.1.2.150.eb')
         self.assertRegex(impi_txt, re.compile("^toolchain = SYSTEM", re.M))
-        gzip_txt = read_file(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.4.eb'))
+        gzip_txt = read_file(TEST_ECS_DIR / 'g/gzip/gzip-1.4.eb')
         self.assertRegex(gzip_txt, re.compile("^toolchain = SYSTEM", re.M))
 
         barec = os.path.join(self.test_prefix, 'bar-1.2.3-foss-2018a.eb')
@@ -615,14 +615,14 @@ class RobotTest(EnhancedTestCase):
         os.close(fd)
 
         test_ec = 'toy-0.0-deps.eb'
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 't', 'toy', test_ec), self.test_prefix)
+        shutil.copy2(TEST_ECS_DIR / 't/toy' / test_ec, self.test_prefix)
         # copy hwloc easyconfig to h/hwloc subdir in robot search path,
         # to trigger bug fixed in det_easyconfig_paths (.extend rather than .append for '__archive'__ to ignore_subdirs)
         hwloc_ec = 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'
         subdir_hwloc = os.path.join(self.test_prefix, 'h', 'hwloc')
         mkdir(subdir_hwloc, parents=True)
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 'h', 'hwloc', hwloc_ec), subdir_hwloc)
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
+        shutil.copy2(TEST_ECS_DIR / 'h/hwloc' / hwloc_ec, subdir_hwloc)
+        shutil.copy2(TEST_ECS_DIR / 'i/intel/intel-2018a.eb', self.test_prefix)
         self.assertNotExists(test_ec)
 
         args = [
@@ -668,8 +668,8 @@ class RobotTest(EnhancedTestCase):
 
         args = [
             TOY_EC,
-            os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'),
-            os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a.eb'),
+            TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a-test.eb',
+            TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb',
             '--dry-run',
             '--robot',
             '--tmpdir=%s' % self.test_prefix,
@@ -688,7 +688,7 @@ class RobotTest(EnhancedTestCase):
         os.close(fd)
 
         test_ec = 'toy-0.0-deps.eb'
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 't', 'toy', test_ec), self.test_prefix)
+        shutil.copy2(TEST_ECS_DIR / 't/toy' / test_ec, self.test_prefix)
         self.assertNotExists(test_ec)
 
         args = [
@@ -752,8 +752,8 @@ class RobotTest(EnhancedTestCase):
         os.close(fd)
 
         test_ec = 'toy-0.0-deps.eb'
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 't', 'toy', test_ec), self.test_prefix)
-        shutil.copy2(os.path.join(TEST_ECS_DIR, 'i', 'intel', 'intel-2018a.eb'), self.test_prefix)
+        shutil.copy2(TEST_ECS_DIR / 't/toy' / test_ec, self.test_prefix)
+        shutil.copy2(TEST_ECS_DIR / 'i/intel/intel-2018a.eb', self.test_prefix)
         self.assertNotExists(test_ec)
 
         gompi_2018b_txt = '\n'.join([
@@ -1007,7 +1007,7 @@ class RobotTest(EnhancedTestCase):
 
         # put faulty foss easyconfig in place to test error reporting
         broken_gompi = os.path.join(self.test_prefix, 'gompi-2018a.eb')
-        copy_file(os.path.join(TEST_ECS_DIR, 'g', 'gompi', 'gompi-2018a.eb'), broken_gompi)
+        copy_file(TEST_ECS_DIR / 'g/gompi/gompi-2018a.eb', broken_gompi)
         ectxt = read_file(broken_gompi)
         ectxt += "\ndependencies += [('GCC', '4.6.4')]"
         write_file(broken_gompi, ectxt)
@@ -1115,7 +1115,7 @@ class RobotTest(EnhancedTestCase):
         })
 
         # Parse the easyconfig that we want to tweak
-        untweaked_openmpi = os.path.join(TEST_ECS_DIR, 'o', 'OpenMPI', 'OpenMPI-2.1.2-GCC-4.6.4.eb')
+        untweaked_openmpi = TEST_ECS_DIR / 'o/OpenMPI/OpenMPI-2.1.2-GCC-4.6.4.eb'
         easyconfigs, _ = parse_easyconfigs([(untweaked_openmpi, False)])
 
         # Tweak the toolchain version of the easyconfig
@@ -1135,12 +1135,12 @@ class RobotTest(EnhancedTestCase):
         # Check it picks up the tweaked OpenMPI
         self.assertIn(tweaked_openmpi, specs)
         # Check it picks up the untweaked dependency of the tweaked OpenMPI
-        untweaked_hwloc = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
-        self.assertIn(untweaked_hwloc, specs)
+        untweaked_hwloc = TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb'
+        self.assertIn(str(untweaked_hwloc), specs)
         # Check correctness of tweak_map (maps back to the original untweaked file, even for hwloc, where the
         # tweaked version is generated but not used)
-        self.assertEqual(tweak_map, {tweaked_openmpi: untweaked_openmpi,
-                                     tweaked_hwloc: untweaked_hwloc.replace("6.4.0-2.28", "4.6.4")})
+        self.assertEqual(tweak_map, {tweaked_openmpi: str(untweaked_openmpi),
+                                     tweaked_hwloc: str(untweaked_hwloc).replace("6.4.0-2.28", "4.6.4")})
 
     def test_robot_find_subtoolchain_for_dep(self):
         """Test robot_find_subtoolchain_for_dep."""
@@ -1391,8 +1391,8 @@ class RobotTest(EnhancedTestCase):
             'validate': False,
         })
 
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
-        gompi_ec = os.path.join(TEST_ECS_DIR, 'g', 'gompi', 'gompi-2018a.eb')
+        gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb'
+        gompi_ec = TEST_ECS_DIR / 'g/gompi/gompi-2018a.eb'
         non_conflict_ecs, _ = parse_easyconfigs([(gzip_ec, False), (gompi_ec, False)])
 
         # no conflicts found, no output to stderr
@@ -1429,8 +1429,8 @@ class RobotTest(EnhancedTestCase):
 
         # direct conflict on software version
         ecs, _ = parse_easyconfigs([
-            (os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-6.4.0-2.28.eb'), False),
-            (os.path.join(TEST_ECS_DIR, 'g', 'GCC', 'GCC-4.9.3-2.25.eb'), False),
+            (TEST_ECS_DIR / 'g/GCC/GCC-6.4.0-2.28.eb', False),
+            (TEST_ECS_DIR / 'g/GCC/GCC-4.9.3-2.25.eb', False),
         ])
         with self.mocked_stderr():
             conflicts = check_conflicts(ecs, self.modtool)
@@ -1441,8 +1441,8 @@ class RobotTest(EnhancedTestCase):
 
         # indirect conflict on dependencies
         ecs, _ = parse_easyconfigs([
-            (os.path.join(TEST_ECS_DIR, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'), False),
-            (os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'), False),
+            (TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb', False),
+            (TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb', False),
         ])
         with self.mocked_stderr():
             conflicts = check_conflicts(ecs, self.modtool)
@@ -1455,9 +1455,9 @@ class RobotTest(EnhancedTestCase):
         self.assertFalse(check_conflicts(ecs, self.modtool, check_inter_ec_conflicts=False), "No conflicts found")
 
         # Conflict in build dependencies is fine
-        hwloc_txt = read_file(os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'))
-        gzip_txt = read_file(os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb'))
-        bzip_txt = read_file(os.path.join(TEST_ECS_DIR, 'b', 'bzip2', 'bzip2-1.0.6-GCC-4.9.2.eb'))
+        hwloc_txt = read_file(TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+        gzip_txt = read_file(TEST_ECS_DIR / 'g/gzip/gzip-1.5-foss-2018a.eb')
+        bzip_txt = read_file(TEST_ECS_DIR / 'b/bzip2/bzip2-1.0.6-GCC-4.9.2.eb')
         tc = re.search(r"toolchain *=.*", hwloc_txt)[0]
         bzip_txt += f"\n{tc}"
         gzip_txt += f"\n{tc}"
@@ -1523,7 +1523,7 @@ class RobotTest(EnhancedTestCase):
         self.allow_deprecated_behaviour()
         init_config(build_options={'silent': True})
 
-        gzip_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-intel-2018a.eb')
+        gzip_ec = TEST_ECS_DIR / 'g/gzip/gzip-1.5-intel-2018a.eb'
         gzip_ectxt = read_file(gzip_ec)
 
         test_ec = os.path.join(self.test_prefix, 'test.eb')
@@ -1543,8 +1543,8 @@ class RobotTest(EnhancedTestCase):
         })
         res = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
         self.assertEqual([ec['full_mod_name'] for ec in res], ['intel/2012a', 'gzip/1.5-intel-2012a'])
-        expected = os.path.join(TEST_ECS_DIR, '__archive__', 'i', 'intel', 'intel-2012a.eb')
-        self.assertTrue(os.path.samefile(res[0]['spec'], expected))
+        expected = TEST_ECS_DIR / '__archive__/i/intel/intel-2012a.eb'
+        self.assertTrue(expected.samefile(res[0]['spec']))
 
     def test_search_easyconfigs(self):
         """Test search_easyconfigs function."""
@@ -1554,12 +1554,12 @@ class RobotTest(EnhancedTestCase):
         })
 
         # copy some files to search_paths location
-        copy_file(os.path.join(TEST_ECS_DIR, 'b', 'binutils', 'binutils-2.25-GCCcore-4.9.3.eb'), self.test_prefix)
-        copy_file(os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'), self.test_prefix)
+        copy_file(TEST_ECS_DIR / 'b/binutils/binutils-2.25-GCCcore-4.9.3.eb', self.test_prefix)
+        copy_file(TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-4.6.4.eb', self.test_prefix)
 
         paths = search_easyconfigs('binutils-.*-GCCcore-4.9.3', consider_extra_paths=False, print_result=False)
-        ref_paths = [os.path.join(TEST_ECS_DIR, 'b', 'binutils', x) for x in ['binutils-2.25-GCCcore-4.9.3.eb',
-                                                                              'binutils-2.26-GCCcore-4.9.3.eb']]
+        ref_paths = [str(TEST_ECS_DIR / 'b/binutils' / x) for x in ['binutils-2.25-GCCcore-4.9.3.eb',
+                                                                    'binutils-2.26-GCCcore-4.9.3.eb']]
         self.assertEqual(len(paths), 2)
         self.assertEqual(paths, ref_paths)
 
@@ -1572,18 +1572,17 @@ class RobotTest(EnhancedTestCase):
 
         paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False)
         ref_paths = [
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-4.6.4.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb'),
-            os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-7.3.0-2.30.eb'),
-            os.path.join(TEST_ECS_DIR, 'o', 'OpenBLAS', 'OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb')
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.8-gcccuda-2018a.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-4.6.4.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-6.4.0-2.28.eb',
+            TEST_ECS_DIR / 'h/hwloc/hwloc-1.11.8-GCC-7.3.0-2.30.eb',
+            TEST_ECS_DIR / 'o/OpenBLAS/OpenBLAS-0.2.8-GCC-4.8.2-LAPACK-3.4.2.eb'
         ]
-        self.assertEqual(paths, ref_paths)
+        self.assertEqual(paths, [str(path) for path in ref_paths])
 
         # now do a case sensitive search
         paths = search_easyconfigs('8-gcc', consider_extra_paths=False, print_result=False, case_sensitive=True)
-        ref_paths = [os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.8-gcccuda-2018a.eb')]
-        self.assertEqual(paths, ref_paths)
+        self.assertEqual(paths, [str(TEST_ECS_DIR / 'h/hwloc/hwloc-1.8-gcccuda-2018a.eb')])
 
         # test use of filename_only
         paths = search_easyconfigs('hwloc-1.8', consider_extra_paths=False, print_result=False, filename_only=True)
@@ -1605,7 +1604,7 @@ class RobotTest(EnhancedTestCase):
                 if filename_only:
                     path = ec_fn
                 else:
-                    path = os.path.join(TEST_ECS_DIR, 'b', 'binutils', ec_fn)
+                    path = TEST_ECS_DIR / 'b/binutils' / ec_fn
                 pattern.append(r"^ \* .*%s$" % path)
 
             self.assertRegex(stdout, re.compile('\n'.join(pattern), re.M))
