@@ -1160,6 +1160,8 @@ class ToyBuildTest(EnhancedTestCase):
             # set by ToyExtension easyblock used to install extensions
             '^setenv.*TOY_EXT_BAR.*bar',
             '^setenv.*TOY_EXT_BARBAR.*barbar',
+            '^setenv.*TOY_EXT_VAR.*bar',
+            '^setenv.*TOY_EXT_VAR.*barbar',
         ]
         self.assertMultiRegex(patterns, toy_mod_txt, multi_line=True)
 
@@ -1605,8 +1607,8 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_lua + [
                 r'end',
                 r'setenv\("TOY", "toy-0.0"\)',
+                r'io.stderr:write\("oh hai\!"\)',
                 r'-- Built with EasyBuild version .*',
-                r'io.stderr:write\("oh hai\!"\)$',
             ])
         elif get_module_syntax() == 'Tcl':
             mod_txt_regex_pattern = '\n'.join([
@@ -1646,8 +1648,8 @@ class ToyBuildTest(EnhancedTestCase):
             ] + modloadmsg_tcl + [
                 r'}',
                 r'setenv	TOY		"toy-0.0"',
+                r'puts stderr "oh hai\!"',
                 r'# Built with EasyBuild version .*',
-                r'puts stderr "oh hai\!"$',
             ])
         else:
             self.fail("Unknown module syntax: %s" % get_module_syntax())
@@ -1875,6 +1877,8 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main([test_ec, '--module-only'], do_build=True, raise_error=True)
         self.assertExists(toy_mod)
+        # Extra stuff from extension(s) is included
+        self.assertRegex(read_file(toy_mod), 'TOY_EXT_VAR.*barbar-0.0')
         remove_file(toy_mod)
 
         # rename file required for barbar extension, so we can check whether sanity check catches it
@@ -1905,10 +1909,6 @@ class ToyBuildTest(EnhancedTestCase):
         """
         Common code for test_toy_exts_sequential and test_toy_exts_parallel tests
         """
-        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0')
-        if get_module_syntax() == 'Lua':
-            toy_mod += '.lua'
-
         test_ec = os.path.join(self.test_prefix, 'test.eb')
         test_ec_txt = TOY_EC_TXT
         test_ec_txt += '\n' + '\n'.join([
@@ -1941,6 +1941,18 @@ class ToyBuildTest(EnhancedTestCase):
         stdout, stderr = self.run_test_toy_build_with_output(ec_file=test_ec, versionsuffix='-GCC-12.3.0',
                                                              extra_args=extra_args, raise_error=True)
         self.assertEqual(stderr, '')
+
+        toy_mod = os.path.join(self.test_installpath, 'modules', 'all', 'toy', '0.0-GCC-12.3.0')
+        if get_module_syntax() == 'Lua':
+            toy_mod += '.lua'
+        module_contents = read_file(toy_mod)
+        # Extra stuff from extension(s) should be included
+        ext_var_patterns = [
+            'TOY_EXT_VAR.*ls',
+            'TOY_EXT_VAR.*bar-0.0',
+            'TOY_EXT_VAR.*barbar-0.0',
+        ]
+        self.assert_multi_regex(ext_var_patterns, module_contents)
 
         logtxt = read_file(self.logfile)
 
