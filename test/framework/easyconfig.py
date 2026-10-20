@@ -3569,6 +3569,10 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'gzip',
+            'extension_name': 'gzip',
+            'extension_name_letter': 'g',
+            'extension_name_letterlower': 'g',
+            'extension_namelower': 'gzip',
             'github_account': 'gzip',
             'module_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
@@ -3646,6 +3650,10 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'toy',
+            'extension_name': 'toy',
+            'extension_name_letter': 't',
+            'extension_name_letterlower': 't',
+            'extension_namelower': 'toy',
             'github_account': 'toy',
             'javamajver': '1',
             'javaminver': '8',
@@ -3714,6 +3722,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertRegex(arch, arch_regex)
 
         expected = {
+            'extension_name': 'foo',
+            'extension_name_letter': 'f',
+            'extension_name_letterlower': 'f',
+            'extension_namelower': 'foo',
             'module_name': None,
             'name': 'foo',
             'namelower': 'foo',
@@ -3742,6 +3754,32 @@ class EasyConfigTest(EnhancedTestCase):
         del expected['version_patch']
         expected['version'] = '1.2'
         self.assertEqual(res, expected)
+
+    def test_extension_name_templates(self):
+        """Test %(extension_name*)s template values."""
+        # case 1: extension_name unset -> %(extension_name*)s falls back to %(name*)s
+        config = {'name': 'Software-python', 'version': '1.0'}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Software-python')
+        self.assertEqual(res['extension_namelower'], 'software-python')
+        self.assertEqual(res['extension_name_letter'], 'S')
+        self.assertEqual(res['extension_name_letterlower'], 's')
+
+        # case 2: extension_name set to None -> Same as 1
+        config = {'name': 'Software-python', 'version': '1.0', 'extension_name': None}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Software-python')
+        self.assertEqual(res['extension_namelower'], 'software-python')
+        self.assertEqual(res['extension_name_letter'], 'S')
+        self.assertEqual(res['extension_name_letterlower'], 's')
+
+        # case 3: extension_name explicitly set -> %(extension_name*)s uses the override
+        config = {'name': 'Software-python', 'version': '1.0', 'extension_name': 'Package'}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Package')
+        self.assertEqual(res['extension_namelower'], 'package')
+        self.assertEqual(res['extension_name_letter'], 'P')
+        self.assertEqual(res['extension_name_letterlower'], 'p')
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""

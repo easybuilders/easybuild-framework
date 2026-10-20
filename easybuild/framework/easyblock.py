@@ -1179,6 +1179,8 @@ class EasyBlock:
     def extension_name(self, value: str):
         """Set the extension name."""
         self.cfg['extension_name'] = value
+        # Update template values like %(extension_name_letter)s/%(extension_name)s
+        self.cfg.template_values.update(template_constant_dict({'extension_name': self.extension_name}))
 
     @property
     def toolchain(self):

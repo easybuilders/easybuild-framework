@@ -1639,11 +1639,23 @@ class EasyBlockTest(EnhancedTestCase):
         """Test that the 'extension_name' option and property work."""
         eb = EasyBlock(EasyConfig(TOY_EC))
         self.assertEqual(eb.extension_name, 'toy')
+        self.assertEqual(eb.cfg['extension_name'], None)
+        self.assertEqual(eb.cfg.template_values['extension_name'], 'toy')
+
+        # This is possible but does not update the template value, eb.extension_name should be used instead!
         eb.cfg['extension_name'] = 'extra'
         self.assertEqual(eb.extension_name, 'extra')
+        self.assertEqual(eb.cfg['extension_name'], 'extra')
+
         eb.extension_name = 'extra2'
         self.assertEqual(eb.extension_name, 'extra2')
         self.assertEqual(eb.cfg['extension_name'], 'extra2')
+        self.assertEqual(eb.cfg.template_values['extension_name'], 'extra2')
+
+        eb.extension_name = None
+        self.assertEqual(eb.extension_name, 'toy')
+        self.assertEqual(eb.cfg['extension_name'], None)
+        self.assertEqual(eb.cfg.template_values['extension_name'], 'toy')
         eb.close_log()
 
         def set_name(name):
