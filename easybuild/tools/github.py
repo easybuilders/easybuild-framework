@@ -2571,7 +2571,7 @@ def check_github():
     print_msg('', prefix=False)
 
 
-@functools.lru_cache
+@functools.lru_cache(maxsize=5)
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
 
