@@ -44,21 +44,6 @@ from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
-# derived from easyconfig, but not from ._config directly
-TEMPLATE_NAMES_EASYCONFIG = {
-    'module_name': 'Module name',
-    'nameletter': 'First letter of software name',
-    'extension_name': "'extension_name' if set, else same as 'name'",
-    'extension_name_letter': "First letter of 'extension_name' template",
-    'toolchain_name': 'Toolchain name',
-    'toolchain_version': 'Toolchain version',
-    'version_major_minor_patch': "Major.Minor.Patch version",
-    'version_major_minor': "Major.Minor version",
-    'version_major': 'Major version',
-    'version_minor_patch': 'Minor.Patch version',
-    'version_minor': 'Minor version',
-    'version_patch': 'Patch version',
-}
 # Same as in EasyConfig._config
 TEMPLATE_NAMES_CONFIG = [
     'bitbucket_account',
@@ -68,7 +53,23 @@ TEMPLATE_NAMES_CONFIG = [
     'versionsuffix',
     'versionprefix',
 ]
-# lowercase versions of ._config
+# derived from easyconfig, but not from ._config directly
+# Evaluated sequentially so order matters
+TEMPLATE_NAMES_EASYCONFIG = {
+    'module_name': 'Module name',
+    'nameletter': 'First letter of software name',
+    'extension_name': "'extension_name' if set, else same as 'name'",
+    'extension_name_letter': "First letter of the 'extension_name' template",
+    'toolchain_name': 'Toolchain name',
+    'toolchain_version': 'Toolchain version',
+    'version_major_minor_patch': "Major.Minor.Patch version",
+    'version_major_minor': "Major.Minor version",
+    'version_major': 'Major version',
+    'version_minor_patch': 'Minor.Patch version',
+    'version_minor': 'Minor version',
+    'version_patch': 'Patch version',
+}
+# lowercase versions of other templates
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
 TEMPLATE_NAMES_LOWER = [
     'name',
