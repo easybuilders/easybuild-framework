@@ -36,11 +36,12 @@ import re
 import sys
 import textwrap
 import unittest
-from string import ascii_letters
+from string import ascii_letters, digits
 from test.framework import TEST_DIR, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from time import gmtime
 from unittest import TextTestRunner
+from unittest.mock import patch
 from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
@@ -662,43 +663,28 @@ class GithubTest(EnhancedTestCase):
 
     def test_install_github_token(self):
         """Test for install_github_token function."""
-        if self.skip_github_tests:
-            print("Skipping test_install_github_token, no GitHub token available?")
-            return
-
         if not HAVE_KEYRING:
             print("Skipping test_install_github_token, keyring module not available")
             return
 
         random_user = ''.join(random.choice(ascii_letters) for _ in range(10))
+        random_token = 'ghp_' + ''.join(random.choice(ascii_letters+digits) for _ in range(36))
+        random_sha = ''.join(random.choice('abcdef'+digits) for _ in range(40))
+
         self.assertEqual(gh.fetch_github_token(random_user), None)
 
-        # poor mans mocking of getpass
-        # inject leading/trailing spaces to verify stripping of provided value
-        def fake_getpass(*args, **kwargs):
-            return ' ' + self.github_token + '  '
-
-        orig_getpass = gh.getpass.getpass
-        gh.getpass.getpass = fake_getpass
-
-        token_installed = False
-        try:
+        with patch('easybuild.tools.github.getpass.getpass', return_value=f' {random_token}  '), \
+             patch('easybuild.tools.github.fetch_latest_commit_sha', return_value=random_sha):
             gh.install_github_token(random_user, silent=True)
-            token_installed = True
-        except Exception as err:
-            print(err)
 
-        gh.getpass.getpass = orig_getpass
-
-        token = gh.fetch_github_token(random_user)
-
-        # cleanup
-        if token_installed:
+        try:
+            token = gh.fetch_github_token(random_user)
+        finally:
+            # cleanup
             keyring.delete_password(gh.KEYRING_GITHUB_TOKEN, random_user)
 
         # deliberately not using assertEqual, keep token secret!
-        self.assertTrue(token_installed)
-        self.assertTrue(token == self.github_token)
+        self.assertTrue(token == random_token)
 
     def test_validate_github_token(self):
         """Test for validate_github_token function."""

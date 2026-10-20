@@ -2571,6 +2571,7 @@ def check_github():
     print_msg('', prefix=False)
 
 
+@functools.lru_cache
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
 
@@ -2651,6 +2652,7 @@ def install_github_token(github_user, silent=False):
     # install token
     keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
     print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
+    fetch_github_token.cache_clear()
 
 
 def validate_github_token(token, github_user):
