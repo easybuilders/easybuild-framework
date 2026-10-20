@@ -1311,14 +1311,16 @@ class GithubTest(EnhancedTestCase):
         }
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
-        patterns = [
+        patterns_all = [
             "**SUCCESS** _test.eb_",
             "**FAIL** _fail.eb_ **(build issue)**",
+        ]
+        patterns_full_only = [
             "01 Jan 1970 00:00:00",
             "EASYBUILD_DEBUG=1",
             "USER = test",
         ]
-        for pattern in patterns:
+        for pattern in patterns_all + patterns_full_only:
             self.assertIn(pattern, res['full'])
 
         # Test that known token regexes for ENV vars are excluded by default
@@ -1344,32 +1346,26 @@ class GithubTest(EnhancedTestCase):
             self.assertNotIn(pattern.lower(), res['full'])
 
         res = create_test_report("just a test", ecs_with_res, init_session_state)
-        for pattern in patterns:
+        for pattern in patterns_all + patterns_full_only:
             self.assertIn(pattern, res['full'])
 
-        for pattern in patterns[:2]:
+        for pattern in patterns_all[:2]:
             self.assertIn(pattern, res['overview'])
 
         for pattern in exclude_patterns:
             # .lower() test that variable name is not case sensitive for excluding
             self.assertNotIn(pattern.lower(), res['full'])
 
-        # mock create_gist function, we don't want to actually create a gist every time we run this test...
-        def fake_create_gist(*args, **kwargs):
-            return 'https://gist.github.com/%s/test' % GITHUB_TEST_ACCOUNT
+        gist_url = f'https://gist.github.com/{GITHUB_TEST_ACCOUNT}/test'
+        with patch('easybuild.tools.testing.create_gist', return_value=gist_url):
+            res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
 
-        easybuild.tools.testing.create_gist = fake_create_gist
-
-        res = create_test_report("just a test", ecs_with_res, init_session_state, pr_nrs=[123], gist_log=True)
-
-        patterns.insert(2, "https://gist.github.com/%s/test" % GITHUB_TEST_ACCOUNT)
-        patterns.extend([
-            "https://github.com/easybuilders/easybuild-easyconfigs/pull/123",
-        ])
-        for pattern in patterns:
+        patterns_all.append(gist_url)
+        patterns_full_only.append("https://github.com/easybuilders/easybuild-easyconfigs/pull/123")
+        for pattern in patterns_all + patterns_full_only:
             self.assertIn(pattern, res['full'])
 
-        for pattern in patterns[:3]:
+        for pattern in patterns_all:
             self.assertIn(pattern, res['overview'])
 
         self.assertIn("**SUCCESS** _test.eb_", res['overview'])
