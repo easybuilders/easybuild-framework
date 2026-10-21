@@ -450,6 +450,24 @@ class CommandLineOptionsTest(EnhancedTestCase):
         error_pattern = 'Found both ignore-test-failure and skip-test-step enabled'
         self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, do_build=True, raise_error=True)
 
+    def test_test_mode(self):
+        """Test use of --test-mode."""
+
+        # by default, 'standard' test mode is used
+        self.assertEqual(build_option('test_mode'), 'standard')
+
+        # each of the supported test modes can be specified
+        for test_mode in ['minimal', 'standard', 'exhaustive']:
+            set_up_configuration(args=['--test-mode=%s' % test_mode], silent=True, reconfigure=True)
+            self.assertEqual(build_option('test_mode'), test_mode)
+
+        # invalid test mode is rejected
+        args = ['--test-mode=super-duper']
+        with self.mocked_stderr() as stderr:
+            with self.assertRaises(SystemExit):
+                self.eb_main(args, do_build=True, raise_error=True, testing=False)
+            self.assertIn("option --test-mode: invalid choice: 'super-duper' (choose from", stderr.getvalue())
+
     def test_skip_sanity_check(self):
         """Test skipping of sanity check step (--skip-sanity-check)."""
 

@@ -81,6 +81,7 @@ from easybuild.tools.config import OUTPUT_STYLE_AUTO, OUTPUT_STYLES, WARN, build
 from easybuild.tools.config import get_pretend_installpath, init, init_build_options, mk_full_default_path
 from easybuild.tools.config import BuildOptions, ConfigurationVariables
 from easybuild.tools.config import PYTHON_SEARCH_PATH_TYPES, PYTHONPATH
+from easybuild.tools.config import DEFAULT_TEST_MODE, TEST_MODES
 from easybuild.tools.configobj import ConfigObj, ConfigObjError
 from easybuild.tools.docs import FORMAT_JSON, FORMAT_MD, FORMAT_RST, FORMAT_TXT
 from easybuild.tools.docs import avail_cfgfile_constants, avail_easyconfig_constants, avail_easyconfig_licenses
@@ -610,6 +611,10 @@ class EasyBuildOptions(GeneralOption):
                                           None, 'store_true', False),
             'sysroot': ("Location root directory of system, prefix for standard paths like /usr/lib and /usr/include",
                         None, 'store', None),
+            'test-mode': ("Specify mode to use when running software test suite (in test step); "
+                          "individual easyblocks determine which tests are run for each mode, "
+                          "in order of increasing scope (and runtime): minimal, standard, exhaustive",
+                          'choice', 'store', DEFAULT_TEST_MODE, TEST_MODES),
             'trace': ("Provide more information in output to stdout on progress", None, 'store_true', True, 'T'),
             'umask': ("umask to use (e.g. '022'); non-user write permissions on install directories are removed",
                       None, 'store', None),
