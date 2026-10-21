@@ -262,16 +262,16 @@ class ToyBuildTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             self.eb_main([test_ec], do_build=True, raise_error=True, reset_env=False)
         changes = {k: [v] for k, v in os.environ.items() if orig.get(k) != v}
-        for k, v in orig.items():
-            if os.environ.get(k) != v:
-                changes.setdefault(k, []).append(v)
+        for key, val in orig.items():
+            if os.environ.get(key) != val:
+                changes.setdefault(key, []).append(val)
         allowed_changes = ('TMPDIR', 'TEMP', 'TMP', '___EASYBUILD___',
                            # Prepending the installation directory module path is not undone
                            'MODULEPATH',
                            # LMOD control variables related to the MODULEPATH
                            '__LMOD_REF_COUNT_MODULEPATH', '_ModuleTable001_', '_ModuleTable002_', '_ModuleTable_Sz_')
-        for i in allowed_changes:
-            changes.pop(i, None)
+        for key in allowed_changes:
+            changes.pop(key, None)
         if changes:
             self.fail("EasyBuild should clean up the environment after builds. Found changes:\n" +
                       '\n'.join(f'{k}={v}' for k, v in changes.items()))
