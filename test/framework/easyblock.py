@@ -1646,6 +1646,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertEqual(eb.cfg['extension_name'], 'extra2')
         eb.close_log()
 
+        def set_name(name):
+            eb.extension_name = name
+        self.assertRaisesRegex(EasyBuildError, "must not contain templates", set_name, '%(name)s')
+        self.assertRaisesRegex(EasyBuildError, "must not contain templates", set_name, 'py-%(name)s')
+        self.assertRaisesRegex(EasyBuildError, "must not contain templates", set_name, '%(name)s-py')
+        self.assertRaisesRegex(EasyBuildError, "must not contain templates", set_name, 'my-%(name)s-py')
+
         self.contents = TOY_EC_TXT + cleandoc("""
             easyblock = 'ConfigureMake'
             name = 'toy'
@@ -1666,6 +1673,10 @@ class EasyBlockTest(EnhancedTestCase):
         eb.init_ext_instances()
         self.assertEqual(eb.ext_instances[0].extension_name, 'bar-alias')
         self.assertEqual(eb.ext_instances[1].extension_name, 'barbar')
+        self.contents += "\nexts_list = [('bar', '1', {'extension_name': '%(name)s-alias'})]"
+        self.writeEC()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        self.assertRaisesRegex(EasyBuildError, "must not contain templates", eb.init_ext_instances)
 
     def test_make_extension_list(self):
         """Test make_extension_list method, incl. 'extension_name' easyconfig parameter & option."""
@@ -1679,7 +1690,6 @@ class EasyBlockTest(EnhancedTestCase):
             "exts_list = [",
             "    'ulimit',",
             "    ('bar', '0.0', {'extension_name': 'bar-alias'}),",
-            "    ('barbar', '1.2', {'extension_name': '%(name)s-ext_%(version)s'}),",
             "    ('%(name)s', '%(version)s'),",
             "    '%(name)s-str',",
             "]",
@@ -1689,38 +1699,32 @@ class EasyBlockTest(EnhancedTestCase):
 
         # 'extension_name' option for an extension is used instead of the extension name;
         # templates used for name and version are resolved using parent templates,
-        # templates in options (including in extension_name) are resolved using the extension template values.
+        # templates in options (except extension_name) are resolved using the extension template values.
         expected = [
             ('ulimit',),
             ('bar-alias', '0.0'),
-            ('barbar-ext_1.2', '1.2'),
             ('toy', '0.0'),
             ('toy-str',),
         ]
         self.assertEqual(eb.make_extension_list(), expected)
-        self.assertEqual(eb.make_extension_string(), 'bar-alias-0.0, barbar-ext_1.2-1.2, toy-0.0, toy-str, ulimit')
+        self.assertEqual(eb.make_extension_string(), 'bar-alias-0.0, toy-0.0, toy-str, ulimit')
 
         # top-level 'extension_name' is added as an extra extension, as if it was in exts_list
-        eb.cfg['extension_name'] = 'extra'
+        eb.extension_name = 'extra'
         self.assertEqual(eb.make_extension_list(), expected + [('extra', '0.0')])
         self.assertEqual(eb.make_extension_string(),
-                         'bar-alias-0.0, barbar-ext_1.2-1.2, extra-0.0, toy-0.0, toy-str, ulimit')
-
-        # templates used in top-level 'extension_name' are resolved
-        eb.cfg['extension_name'] = '%(name)s-extra'
-        self.assertEqual(eb.make_extension_list(), expected + [('toy-extra', '0.0')])
+                         'bar-alias-0.0, extra-0.0, toy-0.0, toy-str, ulimit')
 
         # no duplicate if value of 'extension_name' matches an extension name already in the list
-        eb.cfg['extension_name'] = 'ulimit'
+        eb.extension_name = 'ulimit'
         self.assertEqual(eb.make_extension_list(), expected)
 
         # exts_formatter is applied to all extension names, incl. renamed/added ones
-        eb.cfg['extension_name'] = 'extra'
+        eb.extension_name = 'extra'
         eb.cfg['exts_formatter'] = lambda name: name + '-fmt'
         self.assertEqual(eb.make_extension_list(), [
             ('ulimit-fmt',),
             ('bar-alias-fmt', '0.0'),
-            ('barbar-ext_1.2-fmt', '1.2'),
             ('toy-fmt', '0.0'),
             ('toy-str-fmt',),
             ('extra-fmt', '0.0'),
