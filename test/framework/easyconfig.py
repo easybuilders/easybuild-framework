@@ -3781,6 +3781,42 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(res['extension_name_letter'], 'P')
         self.assertEqual(res['extension_name_letterlower'], 'p')
 
+        # Check that the templates are resolved by collect_exts_file_info and extension instances
+        self.contents = textwrap.dedent("""
+            name = "toy"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+               ("Plain", "2.0", {
+                   'easyblock': 'Toy_Extension',
+                   'sources': ['%(extension_name)s-%(extension_name_letter)s.zip'],
+                   'patches': ['%(extension_namelower)s-%(extension_name_letterlower)s.patch'],
+                   'configopts': '%(extension_name)s=%(extension_name_letter)s',
+               }),
+               ("Renamed", "2.0", {
+                   'easyblock': 'Toy_Extension',
+                   'extension_name': 'MyExt',
+                   'sources': ['%(extension_name)s-%(extension_name_letter)s.zip'],
+                   'patches': ['%(extension_namelower)s-%(extension_name_letterlower)s.patch'],
+                   'configopts': '%(extension_name)s=%(extension_name_letter)s',
+               }),
+            ]
+        """)
+        self.prep()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        exts_sources = eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+        eb.init_ext_instances()
+        plain_ext = eb.ext_instances[0]
+        renamed_ext = eb.ext_instances[1]
+        self.assertEqual(exts_sources[0]['sources'][0], 'Plain-P.zip')
+        self.assertEqual(exts_sources[0]['patches'][0]['name'], 'plain-p.patch')
+        self.assertEqual(exts_sources[1]['sources'][0], 'MyExt-M.zip')
+        self.assertEqual(exts_sources[1]['patches'][0]['name'], 'myext-m.patch')
+        self.assertEqual(plain_ext.cfg['configopts'], 'Plain=P')
+        self.assertEqual(renamed_ext.cfg['configopts'], 'MyExt=M')
+
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
         pyec = os.path.join(self.test_prefix, 'Python-2.7.10-foss-2018a.eb')

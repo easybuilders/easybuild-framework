@@ -695,6 +695,7 @@ class EasyBlock:
                         raise EasyBuildError(f"'extension_name' must not contain templates. Got: '{extension_name}'")
                     ext_src = {
                         'name': ext_name,
+                        'extension_name': extension_name,
                         'version': ext_version,
                         'options': ext_options,
                         'github_account': ext_options.get('github_account', orig_github_account),
