@@ -268,8 +268,10 @@ class ToyBuildTest(EnhancedTestCase):
         allowed_changes = ('TMPDIR', 'TEMP', 'TMP', '___EASYBUILD___',
                            # Prepending the installation directory module path is not undone
                            'MODULEPATH',
-                           # LMOD control variables related to the MODULEPATH
-                           '__LMOD_REF_COUNT_MODULEPATH', '_ModuleTable001_', '_ModuleTable002_', '_ModuleTable_Sz_')
+                           # Lmod control variables related to the MODULEPATH
+                           '__LMOD_REF_COUNT_MODULEPATH', '_ModuleTable001_', '_ModuleTable002_', '_ModuleTable_Sz_',
+                           # Tcl-based Environmnemt Modules (Tmod) control variables
+                           'MODULEPATH_modshare')
         for key in allowed_changes:
             changes.pop(key, None)
         if changes:
