@@ -266,6 +266,8 @@ class ToyBuildTest(EnhancedTestCase):
             if os.environ.get(key) != val:
                 changes.setdefault(key, []).append(val)
         allowed_changes = ('TMPDIR', 'TEMP', 'TMP', '___EASYBUILD___',
+                           # allow change to $_ (which can happen when tests are run with pyenv)
+                           '_',
                            # Prepending the installation directory module path is not undone
                            'MODULEPATH',
                            # Lmod control variables related to the MODULEPATH
