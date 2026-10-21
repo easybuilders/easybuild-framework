@@ -1,0 +1,25 @@
+# optional Python packages for EasyBuild,
+# see also EASYBUILD_OPTIONAL_DEPENDENCIES in easybuild/tools/systemtools.py
+# and extras_require in setup.py
+
+# keyring is required to provide GitHub token to EasyBuild;
+# for recent versions of keyring, keyrings.alt must be installed too
+keyring
+keyrings.alt
+
+GitPython
+autopep8
+PyYAML
+
+# flake8 is a superset of pycodestyle
+flake8
+
+GC3Pie; python_version < '3.11'
+graphviz
+python-hglib
+
+# Some packages dropped support for Python 3.6, so specify max versions
+rich<13; python_version < '3.7'
+rich
+
+archspec

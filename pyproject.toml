@@ -1,0 +1,6 @@
+# Only the build system is declared here; the package metadata stays in setup.py,
+# since declaring it in a [project] table requires setuptools >= 61 (so Python >= 3.7),
+# and easybuild-framework can still be installed with Python 3.6.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
