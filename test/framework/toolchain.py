@@ -54,6 +54,7 @@ from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
+from easybuild.tools.hooks import load_hooks
 from easybuild.tools.modules import EnvironmentModules
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -2432,6 +2433,18 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_compiler_cache(self):
         """Test ccache"""
+        # Use a hook to store the environment after the prepare step
+        test_hooks_path = os.path.join(self.test_prefix, 'test_hooks.py')
+        write_file(test_hooks_path, cleandoc("""
+            import os
+            def post_prepare_hook(*args, **kwargs):
+                post_prepare_hook.prepared_env = dict(os.environ)
+            post_prepare_hook.prepared_env = {}
+        """))
+        # Hooks are cached, so this allows us to access the same function instances as the build
+        hook = load_hooks(test_hooks_path)
+        post_prepare_hook = hook['post_prepare_hook']
+
         args = [
             TOY_EC,
             "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
@@ -2439,6 +2452,7 @@ class ToolchainTest(EnhancedTestCase):
             "--debug",
             "--disable-cleanup-tmpdir",
             "--disable-rpath",
+            "--hooks", test_hooks_path
         ]
 
         ccache = which('ccache')
@@ -2466,7 +2480,7 @@ class ToolchainTest(EnhancedTestCase):
         mkdir(ccache_dir, parents=True)
 
         with self.mocked_stdout_stderr():
-            out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+            out = self.eb_main(args, raise_error=True, do_build=True)
 
         patterns = [
             "This is a ccache wrapper",
@@ -2474,8 +2488,10 @@ class ToolchainTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(patterns, out)
 
-        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
-        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        # $CCACHE_DIR is defined by toolchain.prepare()
+        prepared_env: Dict[str, str] = post_prepare_hook.prepared_env
+        self.assertTrue(os.path.samefile(prepared_env['CCACHE_DIR'], ccache_dir))
+        os.environ['PATH'] = prepared_env['PATH']  # For `which` below
         for comp in ['gcc', 'g++']:
             comp_path = which(comp)
             self.assertTrue(comp_path)
@@ -2498,8 +2514,10 @@ class ToolchainTest(EnhancedTestCase):
             out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
         self.assertMultiRegex(patterns, out)
 
-        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
-        self.assertTrue(os.path.samefile(os.environ['F90CACHE_DIR'], f90cache_dir))
+        prepared_env: Dict[str, str] = post_prepare_hook.prepared_env
+        self.assertTrue(os.path.samefile(prepared_env['CCACHE_DIR'], ccache_dir))
+        self.assertTrue(os.path.samefile(prepared_env['F90CACHE_DIR'], f90cache_dir))
+        os.environ['PATH'] = prepared_env['PATH']
         self.assertTrue(os.path.samefile(which('gcc'), cache_bin['ccache']))
         self.assertTrue(os.path.samefile(which('g++'), cache_bin['ccache']))
         self.assertTrue(os.path.samefile(which('gfortran'), cache_bin['f90cache']))
