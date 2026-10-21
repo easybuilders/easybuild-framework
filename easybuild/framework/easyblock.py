@@ -5349,7 +5349,7 @@ def copy_build_dirs_logs_failed_install(application_log, silent, app, easyconfig
         print_msg(msg, log=_log, silent=silent)
 
 
-def build_and_install_one(ecdict, init_env):
+def build_and_install_one(ecdict, init_env=None):
     """
     Build the software
     :param ecdict: dictionary contaning parsed easyconfig + metadata
@@ -5379,7 +5379,9 @@ def build_and_install_one(ecdict, init_env):
 
     # restore original environment, and then sanitize it
     _log.info("Resetting environment")
-    restore_env(init_env)
+    if init_env is not None:
+        _log.deprecated("Do not pass init_env, reset the environment before calling this function if necessary", '6.0')
+        restore_env(init_env)
     sanitize_env()
 
     cwd = get_cwd()

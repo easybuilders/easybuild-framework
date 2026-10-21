@@ -60,6 +60,7 @@ from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, move_file
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, which, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod
+
 from easybuild.tools.module_generator import ModuleGeneratorTcl
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -253,6 +254,29 @@ class ToyBuildTest(EnhancedTestCase):
         """Base level test build"""
         with self.mocked_stdout_stderr():
             self._test_toy_build()
+
+    def test_cleaned_env(self):
+        """Test toy build with extensions and non-system toolchain."""
+        test_ec = TEST_ECS_DIR / 't/toy/toy-0.0-gompi-2018a.eb'
+        orig = dict(os.environ)
+        with self.mocked_stdout_stderr():
+            self.eb_main([test_ec], do_build=True, raise_error=True, reset_env=False)
+        changes = {k: [v] for k, v in os.environ.items() if orig.get(k) != v}
+        for key, val in orig.items():
+            if os.environ.get(key) != val:
+                changes.setdefault(key, []).append(val)
+        allowed_changes = ('TMPDIR', 'TEMP', 'TMP', '___EASYBUILD___',
+                           # Prepending the installation directory module path is not undone
+                           'MODULEPATH',
+                           # Lmod control variables related to the MODULEPATH
+                           '__LMOD_REF_COUNT_MODULEPATH', '_ModuleTable001_', '_ModuleTable002_', '_ModuleTable_Sz_',
+                           # Tcl-based Environmnemt Modules (Tmod) control variables
+                           'MODULEPATH_modshare')
+        for key in allowed_changes:
+            changes.pop(key, None)
+        if changes:
+            self.fail("EasyBuild should clean up the environment after builds. Found changes:\n" +
+                      '\n'.join(f'{k}={v}' for k, v in changes.items()))
 
     def test_toy_broken(self):
         """Test deliberately broken toy build."""
