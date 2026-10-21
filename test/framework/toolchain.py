@@ -31,7 +31,6 @@ Unit tests for toolchain support.
 import os
 import re
 import shutil
-import stat
 import sys
 import tempfile
 import textwrap
@@ -52,7 +51,7 @@ from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
+from easybuild.tools.filetools import copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
 from easybuild.tools.hooks import load_hooks
 from easybuild.tools.modules import EnvironmentModules
@@ -234,10 +233,7 @@ class ToolchainTest(EnhancedTestCase):
         # install dummy 'gcc' and 'g++' commands, to make sure they're available
         # (required since Toolchain.set_minimal_build_env checks whether these commands exist)
         for cmd in ['gcc', 'g++']:
-            fake_cmd = os.path.join(self.test_prefix, cmd)
-            write_file(fake_cmd, '#!/bin/bash')
-            adjust_permissions(fake_cmd, stat.S_IRUSR | stat.S_IXUSR)
-        os.environ['PATH'] = self.test_prefix + ':' + os.environ['PATH']
+            self.setup_fake_binary(cmd, 'exit 0')
 
         # first try with system compiler: only minimal build environment is set up
         tc = self.get_toolchain('system', version='system')
@@ -2465,7 +2461,6 @@ class ToolchainTest(EnhancedTestCase):
         cache_bin: Dict[str, str] = {}
         for cache_tool in ['ccache', 'f90cache']:
             cache_bin[cache_tool] = self.setup_fake_binary(cache_tool, cleandoc("""
-                #!/bin/bash
                 echo 'This is a %s wrapper'
                 NAME=${0##*/}
                 comms=($(which -a $NAME))

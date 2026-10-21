@@ -29,7 +29,6 @@ Unit tests for ModulesTool class.
 """
 import os
 import re
-import stat
 import sys
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
@@ -168,14 +167,10 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
-            fake_path = os.path.join(self.test_installpath, 'lmod')
-            fake_lmod_txt = '\n'.join([
-                '#!/bin/bash',
+            fake_path = self.setup_fake_binary('lmod', '\n'.join([
                 'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ])
-            write_file(fake_path, fake_lmod_txt)
-            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+            ]))
             os.environ['LMOD_CMD'] = fake_path
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
@@ -234,14 +229,10 @@ class ModulesToolTest(EnhancedTestCase):
 
             # initialize Environment Modules tool with non-official version number
             # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
-            fake_path = os.path.join(self.test_installpath, 'libexec', 'modulecmd.tcl')
-            fake_modulecmd_txt = '\n'.join([
-                '#!/bin/bash',
+            fake_path = self.setup_fake_binary('modulecmd.tcl', '\n'.join([
                 'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ])
-            write_file(fake_path, fake_modulecmd_txt)
-            os.chmod(fake_path, stat.S_IRUSR | stat.S_IXUSR)
+            ]))
             os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
             os.environ['MODULES_CMD'] = fake_path
             EnvironmentModules.COMMAND = fake_path
@@ -252,13 +243,10 @@ class ModulesToolTest(EnhancedTestCase):
             # module extensions are always considered as purely informational
             self.assertEqual(os.environ.get('MODULES_INFO_EXTENSION'), '1')
 
-            fake_modulecmd_txt = '\n'.join([
-                '#!/bin/bash',
+            self.setup_fake_binary(fake_path, '\n'.join([
                 'echo "Modules Release 5.7.0 (2026-09-21)" >&2',
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ])
-            os.chmod(fake_path, stat.S_IRWXU)
-            write_file(fake_path, fake_modulecmd_txt)
+            ]))
             # make sure version is determined again
             MODULE_VERSION_CACHE.pop(fake_path, None)
             mt = EnvironmentModules(testing=True)

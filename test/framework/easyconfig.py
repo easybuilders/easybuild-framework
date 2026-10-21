@@ -33,7 +33,6 @@ import copy
 import glob
 import os
 import re
-import stat
 import sys
 import tempfile
 import textwrap
@@ -70,7 +69,7 @@ from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates
-from easybuild.tools.filetools import adjust_permissions, change_dir, copy_file, mkdir, read_file
+from easybuild.tools.filetools import change_dir, copy_file, mkdir, read_file
 from easybuild.tools.filetools import remove_dir, remove_file, symlink, write_file
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
@@ -4045,9 +4044,7 @@ class EasyConfigTest(EnhancedTestCase):
             del os.environ['EB_SCRIPT_PATH']
 
         # easyconfigs location can also be derived from location of 'eb'
-        write_file(os.path.join(self.test_prefix, 'bin', 'eb'), "#!/bin/bash; echo 'This is a fake eb'")
-        adjust_permissions(os.path.join(self.test_prefix, 'bin', 'eb'), stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.join(self.test_prefix, 'bin'), orig_path)
+        self.setup_fake_binary(os.path.join(self.test_prefix, 'bin', 'eb'), "echo 'This is a fake eb'")
 
         res = get_paths_for(subdir='easyconfigs', robot_path=None)
         self.assertTrue(os.path.samefile(TEST_ECS_DIR, res[-1]))

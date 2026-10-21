@@ -31,6 +31,7 @@ import os
 import re
 import stat
 import sys
+from inspect import cleandoc
 from test.framework import TEST_DIR, TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, REPO_ROOT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
@@ -66,21 +67,7 @@ time_cmd = %(time)s
 """
 
 
-MOCKED_SBATCH = """#!/bin/bash
-if [[ $1 == '--version' ]]; then
-    echo "slurm 17.0"
-else
-    echo "Submitted batch job $RANDOM"
-    echo "(submission args: $@)"
-fi
-"""
-
-MOCKED_SCONTROL = """#!/bin/bash
-    echo "(scontrol args: $@)"
-"""
-
-
-def mock(*args, **kwargs):
+def mock(*_args, **_kwargs):
     """Function used for mocking several functions imported in parallelbuild module."""
     return 1
 
@@ -211,7 +198,7 @@ class ParallelBuildTest(EnhancedTestCase):
     def test_build_easyconfigs_in_parallel_gc3pie(self):
         """Test build_easyconfigs_in_parallel(), using GC3Pie with local config as backend for --job."""
         try:
-            import gc3libs  # noqa (ignore unused import)
+            import gc3libs  # noqa, pylint: disable=unused-import
         except ImportError:
             print("GC3Pie not available, skipping test")
             return
@@ -321,15 +308,15 @@ class ParallelBuildTest(EnhancedTestCase):
         """Test build_easyconfigs_in_parallel(), using (mocked) Slurm as backend for --job."""
 
         # install mocked versions of 'sbatch' and 'scontrol' commands
-        sbatch = os.path.join(self.test_prefix, 'bin', 'sbatch')
-        write_file(sbatch, MOCKED_SBATCH)
-        adjust_permissions(sbatch, stat.S_IXUSR, add=True)
-
-        scontrol = os.path.join(self.test_prefix, 'bin', 'scontrol')
-        write_file(scontrol, MOCKED_SCONTROL)
-        adjust_permissions(scontrol, stat.S_IXUSR, add=True)
-
-        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
+        self.setup_fake_binary('sbatch', cleandoc("""
+            if [[ $1 == '--version' ]]; then
+                echo "slurm 17.0"
+            else
+                echo "Submitted batch job $RANDOM"
+                echo "(submission args: $@)"
+            fi
+        """))
+        self.setup_fake_binary('scontrol', 'echo "(scontrol args: $@)"')
 
         test_ec = os.path.join(TEST_ECS_DIR, 'g', 'gzip', 'gzip-1.5-foss-2018a.eb')
         foss_ec = os.path.join(TEST_ECS_DIR, 'f', 'foss', 'foss-2018a.eb')

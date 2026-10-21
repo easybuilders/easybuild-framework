@@ -1386,11 +1386,9 @@ class EasyBlockTest(EnhancedTestCase):
         eb.cfg['tests'] = ['/abs/path/does-not-exist']
         self.assertRaisesRegex(EasyBuildError, 'non-existing path: /abs/path/does-not-exist', eb.test_cases_step)
 
-        mock_test_bin = os.path.join(self.test_prefix, 'pi', 'test_me')
-        os.environ['PATH'] += f':{os.path.dirname(mock_test_bin)}'
-        write_file(mock_test_bin, "#!/bin/bash\necho 'Test case success'")
+        mock_test_bin = self.setup_fake_binary(os.path.join(self.test_prefix, 'pi', 'test_me'),
+                                               "echo 'Test case success'")
 
-        adjust_permissions(mock_test_bin, stat.S_IXUSR)
         eb.cfg['tests'] = [os.path.basename(mock_test_bin)]
         fn = os.path.basename(mock_test_bin)
         self.assertRaisesRegex(EasyBuildError, f'non-existing path: {fn}', eb.test_cases_step)
@@ -1417,7 +1415,7 @@ class EasyBlockTest(EnhancedTestCase):
 
         # Detect failure
         mock_test_bin_fail = mock_test_bin + "_fail"
-        write_file(mock_test_bin_fail, "#!/bin/bash\necho 'Test case failure' && exit 1")
+        self.setup_fake_binary(mock_test_bin_fail, "echo 'Test case failure' && exit 1")
         eb.cfg['tests'] = [mock_test_bin_fail]
         write_file(eb.logfile, '')
         self.assertRaisesRegex(RunShellCmdError, f"'{os.path.basename(mock_test_bin_fail)}' failed", eb.test_cases_step)
