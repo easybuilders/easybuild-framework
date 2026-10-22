@@ -44,10 +44,22 @@ from easybuild.tools.systemtools import get_shared_lib_ext, pick_dep_version
 
 _log = fancylogger.getLogger('easyconfig.templates', fname=False)
 
+# Same as in EasyConfig._config
+TEMPLATE_NAMES_CONFIG = [
+    'bitbucket_account',
+    'github_account',
+    'name',
+    'version',
+    'versionsuffix',
+    'versionprefix',
+]
 # derived from easyconfig, but not from ._config directly
+# Evaluated sequentially so order matters
 TEMPLATE_NAMES_EASYCONFIG = {
     'module_name': 'Module name',
     'nameletter': 'First letter of software name',
+    'extension_name': "'extension_name' if set, else same as 'name'",
+    'extension_name_letter': "First letter of the 'extension_name' template",
     'toolchain_name': 'Toolchain name',
     'toolchain_version': 'Toolchain version',
     'version_major_minor_patch': "Major.Minor.Patch version",
@@ -57,20 +69,13 @@ TEMPLATE_NAMES_EASYCONFIG = {
     'version_minor': 'Minor version',
     'version_patch': 'Patch version',
 }
-# derived from EasyConfig._config
-TEMPLATE_NAMES_CONFIG = [
-    'bitbucket_account',
-    'github_account',
-    'name',
-    'version',
-    'versionsuffix',
-    'versionprefix',
-]
-# lowercase versions of ._config
+# lowercase versions of other templates
 TEMPLATE_NAMES_LOWER_TEMPLATE = "%(name)slower"
 TEMPLATE_NAMES_LOWER = [
     'name',
     'nameletter',
+    'extension_name',
+    'extension_name_letter',
 ]
 # values taken from the EasyBlock before each step
 TEMPLATE_NAMES_EASYBLOCK_RUN_STEP = {
@@ -162,9 +167,10 @@ TEMPLATE_CONSTANTS = {
                           'googlecode.com source url'),
     'LAUNCHPAD_SOURCE': ('https://launchpad.net/%(namelower)s/%(version_major_minor)s.x/%(version)s/+download/',
                          'launchpad.net source url'),
-    'PYPI_SOURCE': ('https://pypi.python.org/packages/source/%(nameletter)s/%(name)s',
+    'PYPI_SOURCE': ('https://pypi.python.org/packages/source/%(extension_name_letter)s/%(extension_name)s',
                     'pypi source url'),  # e.g., Cython, Sphinx
-    'PYPI_LOWER_SOURCE': ('https://pypi.python.org/packages/source/%(nameletterlower)s/%(namelower)s',
+    'PYPI_LOWER_SOURCE': ('https://pypi.python.org/packages/source/'
+                          '%(extension_name_letterlower)s/%(extension_namelower)s',
                           'pypi source url (lowercase name)'),  # e.g., Greenlet, PyZMQ
     'R_SOURCE': ('https://cran.r-project.org/src/base/R-%(version_major)s',
                  'cran.r-project.org (base) source url'),
@@ -203,6 +209,8 @@ ALTERNATIVE_EASYCONFIG_TEMPLATES = {
     'name_letter_lower': 'nameletterlower',
     'name_letter': 'nameletter',
     'name_lower': 'namelower',
+    'extension_name_lower': 'extension_namelower',
+    'extension_name_letter_lower': 'extension_name_letterlower',
     'perl_maj_ver': 'perlmajver',
     'perl_short_ver': 'perlshortver',
     'perl_ver': 'perlver',
@@ -328,7 +336,15 @@ def template_constant_dict(config, ignore=None, toolchain=None):
     # set 'software_commit' template based on 'software_commit' configuration option, default to None
     template_values['software_commit'] = build_option('software_commit') or ''
 
-    # step 1: add TEMPLATE_NAMES_EASYCONFIG
+    # step 1: Copy from config
+    for name in TEMPLATE_NAMES_CONFIG:
+        if name in ignore:
+            continue
+        if name in config:
+            template_values[name] = config[name]
+            _log.debug('name: %s, config: %s', name, config[name])
+
+    # step 2: add TEMPLATE_NAMES_EASYCONFIG
     for name in TEMPLATE_NAMES_EASYCONFIG:
         if name in ignore:
             continue
@@ -347,7 +363,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
 
         elif name.startswith('version_'):
             # parse major and minor version numbers
-            version = config['version']
+            version = config.get('version')
             if version is not None:
 
                 _log.debug("version found in easyconfig is %s", version)
@@ -369,12 +385,16 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                 # only go through this once
                 ignore.extend(name for name in TEMPLATE_NAMES_EASYCONFIG if name.startswith('version_'))
 
+        elif name == 'extension_name':
+            extension_name = config.get('extension_name') or config['name']
+            template_values['extension_name'] = extension_name
+
         elif name.endswith('letter'):
             # parse first letters
-            if name.startswith('name'):
-                softname = config['name']
-                if softname is not None:
-                    template_values['nameletter'] = softname[0]
+            orig_name = name.rsplit('letter', maxsplit=1)[0].rstrip('_')
+            orig_value = template_values.get(orig_name)
+            if orig_value is not None:
+                template_values[name] = orig_value[0]
 
         elif name == 'module_name':
             template_values['module_name'] = getattr(config, 'short_mod_name', None)
@@ -382,7 +402,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
         else:
             raise EasyBuildError("Undefined name %s from TEMPLATE_NAMES_EASYCONFIG", name)
 
-    # step 2: define *ver and *shortver templates
+    # step 3: define *ver and *shortver templates
     name_to_prefix = {name.lower(): prefix for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items()}
     deps = config.get('dependencies', [])
 
@@ -451,7 +471,7 @@ def template_constant_dict(config, ignore=None, toolchain=None):
                         template_values['%sminver' % pref] = dep_version_parts[1]
                     template_values['%sshortver' % pref] = '.'.join(dep_version_parts[:2])
 
-    # step 2.1: CUDA templates in NVHPC
+    # step 3.1: CUDA templates in NVHPC
     if toolchain is not None and hasattr(toolchain, 'name') and toolchain.name in TEMPLATE_CUDA_VERSION_NVHPC:
         cuda_version = os.getenv("EBNVHPCCUDAVER", None)
         if cuda_version:
@@ -461,14 +481,6 @@ def template_constant_dict(config, ignore=None, toolchain=None):
             if len(cuda_version_parts) > 1:
                 template_values['cudaminver'] = cuda_version_parts[1]
             template_values['cudashortver'] = '.'.join(cuda_version_parts[:2])
-
-    # step 3: add remaining from config
-    for name in TEMPLATE_NAMES_CONFIG:
-        if name in ignore:
-            continue
-        if name in config:
-            template_values[name] = config[name]
-            _log.debug('name: %s, config: %s', name, config[name])
 
     # step 4. make lower variants
     for name in TEMPLATE_NAMES_LOWER:
@@ -579,22 +591,22 @@ def template_documentation():
     indent_l1 = indent_l0 + " " * 2
     doc = []
 
-    # step 1: add TEMPLATE_NAMES_EASYCONFIG
+    # step 1: add remaining self._config
+    doc.append('Template names/values as set in easyconfig')
+    for name in TEMPLATE_NAMES_CONFIG:
+        doc.append("%s%%(%s)s" % (indent_l1, name))
+
+    # step 2: add TEMPLATE_NAMES_EASYCONFIG
     doc.append('Template names/values derived from easyconfig instance')
     for name, cur_doc in TEMPLATE_NAMES_EASYCONFIG.items():
         doc.append("%s%%(%s)s: %s" % (indent_l1, name, cur_doc))
 
-    # step 2: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
+    # step 3: add *ver/*shortver templates for software listed in TEMPLATE_SOFTWARE_VERSIONS
     doc.append("Template names/values for (short) software versions")
     for name, prefix in TEMPLATE_SOFTWARE_VERSIONS.items():
         doc.append("%s%%(%smajver)s: major version for %s" % (indent_l1, prefix, name))
         doc.append("%s%%(%sshortver)s: short version for %s (<major>.<minor>)" % (indent_l1, prefix, name))
         doc.append("%s%%(%sver)s: full version for %s" % (indent_l1, prefix, name))
-
-    # step 3: add remaining self._config
-    doc.append('Template names/values as set in easyconfig')
-    for name in TEMPLATE_NAMES_CONFIG:
-        doc.append("%s%%(%s)s" % (indent_l1, name))
 
     # step 4. make lower variants
     doc.append('Lowercase values of template values')
