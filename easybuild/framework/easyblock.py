@@ -690,6 +690,9 @@ class EasyBlock:
                     elif len(ext) > 3:
                         raise EasyBuildError('Extension specified in unknown format (list/tuple too long)')
 
+                    extension_name = ext_options.get('extension_name')
+                    if extension_name and re.search(r'%\(\w+\)s', extension_name):
+                        raise EasyBuildError(f"'extension_name' must not contain templates. Got: '{extension_name}'")
                     ext_src = {
                         'name': ext_name,
                         'version': ext_version,
@@ -704,10 +707,6 @@ class EasyBlock:
                     # inherited from parent, except for name/version templates which are specific to this extension
                     template_values = copy.deepcopy(self.cfg.template_values)
                     template_values.update(template_constant_dict(ext_src))
-
-                    # Resolve this here where we have the template values available
-                    if 'extension_name' in ext_options:
-                        ext_options['extension_name'] = resolve_template(ext_options['extension_name'], template_values)
 
                     source_urls = resolve_template(ext_options.get('source_urls', []), template_values)
                     checksums = resolve_template(ext_options.get('checksums', []), template_values)
@@ -1172,7 +1171,8 @@ class EasyBlock:
 
         Uses `extension_name` from the easyconfig if set falling back to `name`
         """
-        ext_name = self.cfg['extension_name']
+        # Templates are not allowed for extension_name so don't try resolving
+        ext_name = self.cfg.get('extension_name', resolve=False)
         return self.name if ext_name is None else ext_name
 
     @extension_name.setter
@@ -1699,7 +1699,7 @@ class EasyBlock:
         footer = [self.module_generator.comment("Built with EasyBuild version %s" % VERBOSE_VERSION)]
 
         # add extra stuff for extensions (if any), or if the 'extension_name' easyconfig parameter is used
-        if self.cfg.get_ref('exts_list') or self.cfg.get('extension_name'):
+        if self.cfg.get_ref('exts_list') or self.cfg['extension_name']:
             footer.append(self.make_module_extra_extensions())
 
         # include modules footer if one is specified
@@ -2046,7 +2046,7 @@ class EasyBlock:
                 exts_list.append((ext_name,))
 
         # 'extension_name' easyconfig parameter (if set) is added as an extra extension, as if in exts_list
-        extension_name = self.cfg.get('extension_name')
+        extension_name = self.cfg['extension_name']
         if extension_name and extension_name not in [ext[0] for ext in exts_list]:
             self.log.debug(f"Adding '{extension_name}' to list of extensions, "
                            f"as specified via the 'extension_name' easyconfig parameter")
