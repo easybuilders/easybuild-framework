@@ -164,8 +164,8 @@ class EasyStackTest(EnhancedTestCase):
 
         self.assertEqual(tmpdir_tempfile_len, orig_tmpdir_tempfile_len + 2)
         self.assertEqual(tmpdir_env_len, orig_tmpdir_env_len + 2)
-        self.assertTrue(tmpdir_tempfile.startswith(orig_tmpdir_tempfile))
-        self.assertTrue(tmpdir_env.startswith(orig_tmpdir_env))
+        self.assertStartsWith(tmpdir_tempfile, orig_tmpdir_tempfile)
+        self.assertStartsWith(tmpdir_env, orig_tmpdir_env)
 
     def test_missing_easyconfigs_key(self):
         """Test that EasyStack file that doesn't contain an EasyConfigs key will fail with sane error message"""
