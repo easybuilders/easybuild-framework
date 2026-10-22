@@ -253,7 +253,7 @@ class FileToolsTest(EnhancedTestCase):
         # put executable file 'bar' in place
         bar = self.setup_fake_binary('bar')
         # put a directory 'foo' in place (should be ignored by 'which')
-        foo = os.path.join(os.path.dirname(bar), 'foo')
+        foo = bar.parent / 'foo'
         ft.mkdir(foo)
         ft.adjust_permissions(foo, stat.S_IRUSR | stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)

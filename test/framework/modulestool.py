@@ -167,11 +167,11 @@ class ModulesToolTest(EnhancedTestCase):
             os.environ['MODULEPATH'] = str(TEST_MODULES_DIR)
 
             # initialize Lmod modules tool, pass (fake) full path to 'lmod' via $LMOD_CMD
-            fake_path = self.setup_fake_binary('lmod', '\n'.join([
+            fake_path = self.create_script('lmod', '\n'.join([
                 'echo "Modules based on Lua: Version %s " >&2' % Lmod.DEPR_VERSION,
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ]))
-            os.environ['LMOD_CMD'] = fake_path
+            os.environ['LMOD_CMD'] = str(fake_path)
             init_config(build_options=build_options)
             lmod = Lmod(testing=True)
             self.assertTrue(os.path.samefile(lmod.cmd, fake_path))
@@ -234,10 +234,10 @@ class ModulesToolTest(EnhancedTestCase):
                 'echo "os.environ[\'FOO\'] = \'foo\'"',
             ]))
             os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
-            os.environ['MODULES_CMD'] = fake_path
+            os.environ['MODULES_CMD'] = str(fake_path)
             EnvironmentModules.COMMAND = fake_path
             mt = EnvironmentModules(testing=True)
-            self.assertTrue(os.path.samefile(mt.cmd, fake_path), "%s - %s" % (mt.cmd, fake_path))
+            self.assertTrue(os.path.samefile(mt.cmd, fake_path), f"{mt.cmd} - {fake_path}")
             # module extensions are only supported by Environment Modules 5.7.0+
             self.assertFalse(mt.supports_extensions)
             # module extensions are always considered as purely informational

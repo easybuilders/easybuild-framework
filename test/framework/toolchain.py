@@ -3068,7 +3068,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse(any(tc.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[1], fake_gxx))
         # any other available 'g++' commands should not be a wrapper or our fake g++
-        self.assertFalse(any(os.path.samefile(x, fake_gxx) for x in res[2:]))
+        self.assertFalse(any(fake_gxx.samefile(x) for x in res[2:]))
 
         # Check that we can create a wrapper for a toolchain for which self.compilers() returns 'None' for the Fortran
         # compilers (i.e. Clang)
@@ -3086,7 +3086,7 @@ class ToolchainTest(EnhancedTestCase):
         self.assertFalse(any(tc_clang.is_rpath_wrapper(x) for x in res[1:]))
         self.assertTrue(os.path.samefile(res[1], fake_clang))
         # any other available 'clang' commands should not be a wrapper or our fake clang
-        self.assertFalse(any(os.path.samefile(x, fake_clang) for x in res[2:]))
+        self.assertFalse(any(fake_clang.samefile(x) for x in res[2:]))
 
         # RPATH wrapper should be robust against Python environment variables & site-packages magic,
         # so we set up a weird environment here to verify that
@@ -3246,7 +3246,7 @@ class ToolchainTest(EnhancedTestCase):
         # Make sure it is a wrapper
         self.assertIn(b'rpath_args.py', wrapper_txt)
         # Make sure it wraps our fake 'g++'
-        self.assertIn(fake_gxx.encode(), wrapper_txt)
+        self.assertIn(str(fake_gxx).encode(), wrapper_txt)
         # Should not refer to rpath-script in EB sources
         script = find_eb_script('rpath_args.py')
         self.assertNotIn(script.encode(), wrapper_txt)

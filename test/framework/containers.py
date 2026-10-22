@@ -270,7 +270,7 @@ class ContainersTest(EnhancedTestCase):
             remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
         # check use of --container-image-format & --container-image-name
-        self.setup_fake_binary('singularity', MOCKED_SINGULARITY % {'version': '2.4.0'})
+        self.setup_fake_binary(singularity, MOCKED_SINGULARITY % {'version': '2.4.0'})
         args.extend([
             "--container-image-format=ext3",
             "--container-image-name=foo-bar",

@@ -1408,13 +1408,13 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Test case success', read_file(eb.logfile))
 
         # Similar for absolute paths
-        eb.cfg['tests'] = [mock_test_bin]
+        eb.cfg['tests'] = [str(mock_test_bin)]
         write_file(eb.logfile, '')
         eb.test_cases_step()
         self.assertIn('Test case success', read_file(eb.logfile))
 
         # Detect failure
-        mock_test_bin_fail = mock_test_bin + "_fail"
+        mock_test_bin_fail = f"{mock_test_bin}_fail"
         self.setup_fake_binary(mock_test_bin_fail, "echo 'Test case failure' && exit 1")
         eb.cfg['tests'] = [mock_test_bin_fail]
         write_file(eb.logfile, '')
@@ -1422,7 +1422,7 @@ class EasyBlockTest(EnhancedTestCase):
         self.assertIn('Test case failure', read_file(eb.logfile))
 
         # Multiple tests
-        eb.cfg['tests'] = [mock_test_bin, mock_test_bin_fail]
+        eb.cfg['tests'] = [str(mock_test_bin), mock_test_bin_fail]
         write_file(eb.logfile, '')
         self.assertRaisesRegex(RunShellCmdError, f"'{os.path.basename(mock_test_bin_fail)}' failed", eb.test_cases_step)
         log_txt = read_file(eb.logfile)

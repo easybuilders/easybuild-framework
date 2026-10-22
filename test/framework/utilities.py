@@ -456,13 +456,13 @@ class EnhancedTestCase(TestCase):
                               line)
                 sys.stdout.write(line)
 
-    def setup_fake_binary(self, binary_name: str, content: Optional[str] = None, prepend_path: bool = True) -> str:
-        """Create an executable script with the given name and makes it available in $PATH
+    def create_script(self, script_name: str, content: Optional[str] = None) -> Path:
+        """Create an executable script with the given name
+        Content is the script's content (w/ optional shebang), defaults to a bash script that just prints its arguments
+        An absolute path can be used as 'binary_name' to place it in a specific location,
+        otherwise a new temporary directory will be used.
 
-        Content is the scripts content (w/ optional shebang), defaults to a bash script that simply prints its arguments
-        An absolute path can be used as 'binary_name' to place it in a specific location.
-        When 'prepend_path' is false the directory will be appended to PATH instead.
-        Return its full path.
+        Returns its full path.
         """
         if content is None:
             # Code for a bash script that prints each passed argument on a new line
@@ -470,14 +470,24 @@ class EnhancedTestCase(TestCase):
         if not content.startswith('#!'):
             content = '#!/bin/bash\n' + content
 
-        if os.path.isabs(binary_name):
-            fake_path = os.path.dirname(binary_name)
-            fake_binary = binary_name
-        else:
-            fake_path = os.path.join(self.test_prefix, 'fake')
-            fake_binary = os.path.join(fake_path, binary_name)
-        write_file(fake_binary, content)
-        adjust_permissions(fake_binary, stat.S_IXUSR)
+        script_path = Path(script_name)
+        if not script_path.is_absolute():
+            script_path = tempfile.mkdtemp(suffix='fake', dir=self.test_prefix) / script_path
+        write_file(script_path, content)
+        adjust_permissions(script_path, stat.S_IXUSR)
+
+        return script_path
+
+    def setup_fake_binary(self, binary_name: str, content: Optional[str] = None, prepend_path: bool = True) -> Path:
+        """Create an executable script with the given name and makes it available in $PATH
+
+        Content is the script's content (w/ optional shebang), defaults to a bash script that just prints its arguments
+        An absolute path can be used as 'binary_name' to place it in a specific location.
+        When 'prepend_path' is false the directory will be appended to PATH instead.
+        Returns its full path.
+        """
+        fake_binary = self.create_script(binary_name, content)
+        fake_path = str(fake_binary.parent)
         paths = os.environ.get('PATH', '').split(os.path.pathsep)
         if fake_path not in paths:
             if prepend_path:
