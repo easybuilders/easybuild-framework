@@ -34,6 +34,8 @@ Authors:
 """
 
 import easybuild.tools.systemtools as systemtools
+from typing import List
+
 from easybuild.tools.toolchain.compiler import Compiler
 
 
@@ -104,7 +106,7 @@ class Clang(Compiler):
 
     COMPILER_CC = 'clang'
     COMPILER_CXX = 'clang++'
-    COMPILER_C_UNIQUE_OPTIONS = []
+    COMPILER_C_UNIQUE_OPTIONS: List[str] = []
 
     LIB_MULTITHREAD = ['pthread']
     LIB_MATH = ['m']

@@ -31,6 +31,8 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
+from typing import Dict, Optional
+
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 
@@ -43,7 +45,7 @@ class LinAlg(Toolchain):
     BLAS_MODULE_NAME = None
     BLAS_LIB = None
     BLAS_LIB_MT = None
-    BLAS_LIB_MAP = {}
+    BLAS_LIB_MAP: Dict[str, Optional[str]] = {}
     BLAS_LIB_GROUP = False
     BLAS_LIB_STATIC = False
     BLAS_LIB_DIR = ['lib']
@@ -74,7 +76,7 @@ class LinAlg(Toolchain):
     SCALAPACK_REQUIRES = ['LIBBLACS', 'LIBLAPACK', 'LIBBLAS']
     SCALAPACK_LIB = None
     SCALAPACK_LIB_MT = None
-    SCALAPACK_LIB_MAP = {}
+    SCALAPACK_LIB_MAP: Dict[str, Optional[str]] = {}
     SCALAPACK_LIB_GROUP = False
     SCALAPACK_LIB_STATIC = False
     SCALAPACK_LIB_DIR = ['lib']
