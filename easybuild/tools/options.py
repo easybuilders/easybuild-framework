@@ -1911,8 +1911,10 @@ def set_up_configuration(args=None, logfile=None, testing=False, silent=False, r
             exit_code=EasyBuildExit.OPTION_ERROR
         )
 
+    review_pr = eb_go.options.review_pr
     try:
-        review_pr = (lambda x: int(x) if x else None)(eb_go.options.review_pr)
+        if review_pr is not None:
+            review_pr = int(review_pr)
     except ValueError:
         raise EasyBuildError(
             "Argument to --review-pr must be an integer PR #.",
