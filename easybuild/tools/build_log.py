@@ -41,10 +41,9 @@ import sys
 import tempfile
 from copy import copy
 from datetime import datetime, timezone
-from enum import IntEnum
 
 from easybuild.base import fancylogger
-from easybuild.base.exceptions import LoggedException
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.tools.version import VERSION, this_is_easybuild
 
 # EasyBuild message prefix
@@ -70,77 +69,6 @@ CWD_NOTFOUND_ERROR = (
 
 DEVEL_LOG_LEVEL = logging.DEBUG - 1
 logging.addLevelName(DEVEL_LOG_LEVEL, 'DEVEL')
-
-
-class EasyBuildExit(IntEnum):
-    """
-    Table of exit codes
-    """
-    SUCCESS = 0
-    ERROR = 1
-    # core errors
-    OPTION_ERROR = 2
-    VALUE_ERROR = 3
-    MISSING_EASYCONFIG = 4
-    EASYCONFIG_ERROR = 5
-    MISSING_EASYBLOCK = 6
-    EASYBLOCK_ERROR = 7
-    MODULE_ERROR = 8
-    # step errors in order of execution
-    FAIL_FETCH_STEP = 10
-    FAIL_READY_STEP = 11
-    FAIL_SOURCE_STEP = 12
-    FAIL_PATCH_STEP = 13
-    FAIL_PREPARE_STEP = 14
-    FAIL_CONFIGURE_STEP = 15
-    FAIL_BUILD_STEP = 16
-    FAIL_TEST_STEP = 17
-    FAIL_INSTALL_STEP = 18
-    FAIL_EXTENSIONS_STEP = 19
-    FAIL_POST_ITER_STEP = 20
-    FAIL_POST_PROC_STEP = 21
-    FAIL_SANITY_CHECK_STEP = 22
-    FAIL_CLEANUP_STEP = 23
-    FAIL_MODULE_STEP = 24
-    FAIL_PERMISSIONS_STEP = 25
-    FAIL_PACKAGE_STEP = 26
-    FAIL_TEST_CASES_STEP = 27
-    # errors on missing things
-    MISSING_SOURCES = 30
-    MISSING_DEPENDENCY = 31
-    MISSING_SYSTEM_DEPENDENCY = 32
-    MISSING_EB_DEPENDENCY = 33
-    # errors on specific task failures
-    FAIL_SYSTEM_CHECK = 40
-    FAIL_DOWNLOAD = 41
-    FAIL_CHECKSUM = 42
-    FAIL_EXTRACT = 43
-    FAIL_PATCH_APPLY = 44
-    FAIL_SANITY_CHECK = 45
-    FAIL_MODULE_WRITE = 46
-    FAIL_GITHUB = 47
-
-
-class EasyBuildError(LoggedException):
-    """
-    EasyBuildError is thrown when EasyBuild runs into something horribly wrong.
-    """
-    LOC_INFO_TOP_PKG_NAMES = ['easybuild', 'vsc']
-    LOC_INFO_LEVEL = 1
-    # always include location where error was raised from, even under 'python -O'
-    INCLUDE_LOCATION = True
-
-    def __init__(self, msg, *args, exit_code=EasyBuildExit.ERROR, **kwargs):
-        """Constructor: initialise EasyBuildError instance."""
-        if args:
-            msg = msg % args
-        LoggedException.__init__(self, msg, exit_code=exit_code, **kwargs)
-        self.msg = msg
-        self.exit_code = exit_code
-
-    def __str__(self):
-        """Return string representation of this EasyBuildError instance."""
-        return self.msg
 
 
 def raise_easybuilderror(msg, *args):
