@@ -51,9 +51,9 @@ from datetime import datetime
 
 # IMPORTANT this has to be the first easybuild import as it customises the logging
 #  expect missing log output when this not the case!
-from easybuild.tools.build_log import EasyBuildError, print_error_and_exit, print_msg, print_warning, stop_logging
-from easybuild.tools.build_log import EasyBuildExit
+from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning, stop_logging
 
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyblock import build_and_install_one, inject_checksums, inject_checksums_to_json
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig import easyconfig

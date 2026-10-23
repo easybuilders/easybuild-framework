@@ -36,7 +36,8 @@ from pathlib import Path
 from typing import List, Union
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import dry_run_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.utilities import shell_quote
 

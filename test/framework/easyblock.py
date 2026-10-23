@@ -50,13 +50,13 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 
 import easybuild.tools.systemtools as st
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyblock import EasyBlock, get_easyblock_instance, BUILD_STEP
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ITERATE_OPTIONS
 from easybuild.framework.easyconfig.tools import avail_easyblocks, process_easyconfig
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.tools import LooseVersion, config, filetools
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, mkdir, read_file
 from easybuild.tools.filetools import remove_dir, remove_file, symlink, verify_checksum, write_file

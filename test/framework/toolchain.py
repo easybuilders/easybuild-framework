@@ -46,12 +46,12 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 import easybuild.tools.modules as modules
 import easybuild.tools.toolchain as toolchain
 import easybuild.tools.toolchain.compiler
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
 from easybuild.toolchains.compiler.gcc import Gcc
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
 from easybuild.tools.hooks import load_hooks

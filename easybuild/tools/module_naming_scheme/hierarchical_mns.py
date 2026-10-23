@@ -34,8 +34,8 @@ Authors:
 import os
 import re
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.toolchains.gcccore import GCCcore
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.module_naming_scheme.mns import ModuleNamingScheme
 from easybuild.tools.module_naming_scheme.toolchain import det_toolchain_compilers, det_toolchain_mpi
 

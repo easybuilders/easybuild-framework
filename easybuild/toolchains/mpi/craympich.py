@@ -30,9 +30,9 @@ Authors:
 * Petar Forai (IMP/IMBA, Austria)
 * Kenneth Hoste (Ghent University)
 """
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.toolchains.compiler.craype import CrayPECompiler
 from easybuild.toolchains.mpi.mpich import TC_CONSTANT_MPICH, TC_CONSTANT_MPI_TYPE_MPICH
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES, MPI_COMPILER_TEMPLATE, MPI_COMPILER_VARIABLES
 from easybuild.tools.toolchain.constants import SEQ_COMPILER_TEMPLATE
 from easybuild.tools.toolchain.mpi import Mpi

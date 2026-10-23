@@ -29,10 +29,10 @@ EasyBuild support for building and installing toy extensions, implemented as an 
 """
 import os
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
 from easybuild.easyblocks.toy import EB_toy, compose_toy_build_cmd
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_shell_cmd
 
 

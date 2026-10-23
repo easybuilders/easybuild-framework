@@ -38,7 +38,7 @@ Authors:
 """
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 
 
 class ToolchainOptions(dict):

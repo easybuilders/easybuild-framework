@@ -33,9 +33,9 @@ import sys
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.version import VersionOperator, ToolchainVersionOperator
 from easybuild.framework.easyconfig.format.version import OrderedVersionOperators
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 

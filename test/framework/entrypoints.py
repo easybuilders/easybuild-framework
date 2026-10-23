@@ -37,7 +37,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.docs import list_easyblocks, list_toolchains
 from easybuild.tools.entrypoints import (
     HAVE_ENTRY_POINTS, EntrypointHook, EntrypointEasyblock, EntrypointToolchain, EasybuildEntrypoint

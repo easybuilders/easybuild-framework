@@ -34,8 +34,8 @@ import tempfile
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easystack import check_value, parse_easystack
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import write_file
 from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered

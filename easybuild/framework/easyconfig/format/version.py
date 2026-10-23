@@ -36,7 +36,7 @@ import re
 from easybuild.tools import LooseVersion
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.utilities import search_toolchain
 
 

@@ -30,10 +30,11 @@ import copy
 import os
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import change_dir, extract_file
 from easybuild.tools.utilities import remove_unwanted_chars, trace_msg

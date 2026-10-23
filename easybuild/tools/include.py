@@ -36,7 +36,7 @@ import sys
 import tempfile
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import expand_glob_paths, read_file, symlink, EASYBLOCK_CLASS_PREFIX
 # these are imported just to we can reload them later
 import easybuild.tools.module_naming_scheme

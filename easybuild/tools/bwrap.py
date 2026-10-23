@@ -34,7 +34,8 @@ import json
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import build_option, install_path, ConfigurationVariables
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.utilities import trace_msg
