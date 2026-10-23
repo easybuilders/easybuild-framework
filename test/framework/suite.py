@@ -39,7 +39,7 @@ import unittest
 # initialize EasyBuild logging, so we disable it
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.options import set_tmpdir
+from easybuild.tools.options import check_tmpdir_allows_executing
 
 import test.framework.asyncprocess as a
 import test.framework.build_log as bl
@@ -106,7 +106,7 @@ fancylogger.setLogLevelError()
 
 # make sure temporary files can be created/used
 try:
-    set_tmpdir(raise_error=True)
+    check_tmpdir_allows_executing(raise_error=True)
 except EasyBuildError as err:
     sys.stderr.write("No execution rights on temporary files, specify another location via $TMPDIR: %s\n" % err)
     sys.exit(1)

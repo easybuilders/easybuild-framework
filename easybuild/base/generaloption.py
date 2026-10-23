@@ -645,7 +645,7 @@ class ExtOptionParser(OptionParser):
                 opt._long_opts = [x for x in opt._long_opts if not _is_enable_disable(x)]
         return fh
 
-    # pylint: disable=arguments-differ
+    # pylint: disable=arguments-renamed
     def print_help(self, fh=None):
         """Intercept print to file to print to string and remove the ENABLE/DISABLE options from help"""
         fh = self.check_help(fh)
@@ -1023,7 +1023,7 @@ class GeneralOption:
 
     def _set_default_loglevel(self):
         """Set the default loglevel if no logging options are set"""
-        loglevel_set = sum([getattr(self.options, name, False) for name in self._logopts.keys()])
+        loglevel_set = sum([getattr(self.options, name, False) for name in self._logopts])
         if not loglevel_set and self.DEFAULT_LOGLEVEL is not None:
             setLogLevel(self.DEFAULT_LOGLEVEL)
 

@@ -46,7 +46,7 @@ import sys
 import tempfile
 import pwd
 from collections import OrderedDict
-from typing import Set
+from typing import List, Optional, Set
 
 import easybuild.tools.environment as env
 from easybuild.base import fancylogger  # build_log should always stay there, to ensure EasyBuildLog
@@ -241,6 +241,7 @@ class EasyBuildOptions(GeneralOption):
         """Constructor."""
 
         self.with_include = kwargs.pop('with_include', True)
+        self.set_tmpdir = kwargs.pop('set_tmpdir', True)
         self.single_cfg_level = kwargs.pop('single_cfg_level', False)
 
         self.default_repositorypath = [mk_full_default_path('repositorypath')]
@@ -1072,7 +1073,8 @@ class EasyBuildOptions(GeneralOption):
             fancylogger.logToFile(self.options.unittest_file, max_bytes=0)
 
         # set tmpdir
-        self.tmpdir = set_tmpdir(self.options.tmpdir)
+        if self.set_tmpdir:
+            self.tmpdir = set_tmpdir(self.options.tmpdir)
 
         # take --include options into account (unless instructed otherwise)
         if self.with_include:
@@ -1635,7 +1637,7 @@ class EasyBuildOptions(GeneralOption):
             if args is None:
                 args = []
             cfg = EasyBuildOptions(go_args=args, go_useconfigfiles=withcfg, envvar_prefix=CONFIG_ENV_VAR_PREFIX,
-                                   with_include=False, single_cfg_level=True)
+                                   set_tmpdir=False, with_include=False, single_cfg_level=True)
 
             return cfg.dict_by_prefix()
 
@@ -1719,7 +1721,7 @@ class EasyBuildOptions(GeneralOption):
                         print('-', ept)
 
 
-def parse_options(args=None, with_include=True):
+def parse_options(args=None, with_include=True, set_tmpdir=True):
     """wrapper function for option parsing"""
     if os.environ.get('DEBUG_EASYBUILD_OPTIONS', '0').lower() in ('1', 'true', 'yes', 'y'):
         # very early debug, to debug the generaloption itself
@@ -1747,7 +1749,7 @@ def parse_options(args=None, with_include=True):
     try:
         eb_go = EasyBuildOptions(usage=usage, description=description, prog='eb', envvar_prefix=CONFIG_ENV_VAR_PREFIX,
                                  go_args=eb_args, error_env_options=True, error_env_option_method=raise_easybuilderror,
-                                 with_include=with_include)
+                                 set_tmpdir=set_tmpdir, with_include=with_include)
     except EasyBuildError as err:
         try:
             exit_code = err.exit_code
@@ -2166,7 +2168,7 @@ def parse_external_modules_metadata(cfgs):
     return parsed_metadata
 
 
-def set_tmpdir(tmpdir=None, raise_error=False):
+def set_tmpdir(tmpdir: Optional[str] = None, raise_error=False) -> str:
     """Set temporary directory to be used by tempfile and others."""
     try:
         if tmpdir is not None:
@@ -2198,43 +2200,42 @@ def set_tmpdir(tmpdir=None, raise_error=False):
 
     # reset to make sure tempfile picks up new temporary directory to use
     tempfile.tempdir = None
+    check_tmpdir_allows_executing(raise_error=raise_error)
+    return current_tmpdir
 
+
+def check_tmpdir_allows_executing(raise_error=True):
+    """Test if temporary directory allows to execute files, warn/error if it doesn't"""
     # cache for checked paths, via function attribute
-    executable_tmp_paths = getattr(set_tmpdir, 'executable_tmp_paths', [])
+    executable_tmp_paths: List[str] = getattr(check_tmpdir_allows_executing, 'executable_tmp_paths', [])
 
+    current_tmpdir = tempfile.gettempdir()
     # Skip the executable check if it already succeeded for any parent folder
     # Especially important for the unit test suite, less so for actual execution
-    if not any(current_tmpdir.startswith(path) for path in executable_tmp_paths):
-
-        # test if temporary directory allows to execute files, warn if it doesn't
+    if not any(is_parent_path(path, current_tmpdir) for path in executable_tmp_paths):
         try:
-            fd, tmptest_file = tempfile.mkstemp()
-            os.close(fd)
-            os.chmod(tmptest_file, 0o700)
-            res = run_shell_cmd(tmptest_file, fail_on_error=False, in_dry_run=True, hidden=True, stream_output=False,
-                                with_hooks=False)
-            if res.exit_code != EasyBuildExit.SUCCESS:
-                msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
-                msg += "This can cause problems in the build process, consider using --tmpdir."
-                if raise_error:
-                    raise EasyBuildError(msg)
+            with tempfile.NamedTemporaryFile() as tmptest_file:
+                os.chmod(tmptest_file.name, 0o700)
+                tmptest_file.file.close()
+                res = run_shell_cmd(tmptest_file.name, fail_on_error=False, in_dry_run=True, hidden=True,
+                                    stream_output=False, with_hooks=False)
+                if res.exit_code != EasyBuildExit.SUCCESS:
+                    msg = "The temporary directory (%s) does not allow to execute files. " % tempfile.gettempdir()
+                    msg += "This can cause problems in the build process, consider using --tmpdir."
+                    if raise_error:
+                        raise EasyBuildError(msg)
+                    else:
+                        _log.warning(msg)
                 else:
-                    _log.warning(msg)
-            else:
-                _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
+                    _log.debug("Temporary directory %s allows to execute files, good!" % tempfile.gettempdir())
 
-                # Put this folder into the cache
-                executable_tmp_paths.append(current_tmpdir)
+                    # Put this folder into the cache
+                    executable_tmp_paths.append(current_tmpdir)
 
-                # set function attribute so we can retrieve cache later
-                set_tmpdir.executable_tmp_paths = executable_tmp_paths
-
-            os.remove(tmptest_file)
-
+                    # set function attribute so we can retrieve cache later
+                    check_tmpdir_allows_executing.executable_tmp_paths = executable_tmp_paths
         except OSError as err:
             raise EasyBuildError("Failed to test whether temporary directory allows to execute files: %s", err)
-
-    return current_tmpdir
 
 
 def opts_dict_to_eb_opts(args_dict):
