@@ -36,8 +36,8 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools import modules, LooseVersion
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import join_path_var
 from easybuild.tools.filetools import read_file, which, write_file
 from easybuild.tools.modules import MODULE_VERSION_CACHE, EnvironmentModules, Lmod

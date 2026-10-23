@@ -45,8 +45,9 @@ from enum import Enum
 from pathlib import Path
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import ERROR, EBROOT_ENV_VAR_ACTIONS, IGNORE, LOADED_MODULES_ACTIONS, PURGE
 from easybuild.tools.config import SEARCH_PATH_BIN_DIRS, SEARCH_PATH_HEADER_DIRS, SEARCH_PATH_LIB_DIRS, UNLOAD, UNSET
 from easybuild.tools.config import build_option, get_modules_tool, install_path

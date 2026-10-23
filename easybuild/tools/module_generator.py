@@ -46,8 +46,9 @@ from string import Template
 from textwrap import wrap
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import build_option, get_module_syntax, install_path
 from easybuild.tools.filetools import convert_name, mkdir, read_file, remove_file, resolve_path, symlink, write_file
 from easybuild.tools.modules import (ROOT_ENV_VAR_NAME_PREFIX, EnvironmentModules,

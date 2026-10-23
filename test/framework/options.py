@@ -45,12 +45,13 @@ import easybuild.tools.build_log
 import easybuild.tools.options
 import easybuild.tools.toolchain
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig import BUILD, CUSTOM, DEPENDENCIES, EXTENSIONS, FILEMANAGEMENT, LICENSE
 from easybuild.framework.easyconfig import MANDATORY, MODULES, OTHER, TOOLCHAIN
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, get_easyblock_class, robot_find_easyconfig
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, EasyBuildLog
+from easybuild.tools.build_log import EasyBuildLog
 from easybuild.tools.config import DEFAULT_MODULECLASSES, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, find_last_log, get_build_log_path, get_module_syntax, module_classes
 from easybuild.tools.filetools import adjust_permissions, change_dir, copy_dir, copy_file, download_file
@@ -2497,7 +2498,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.experimental('x')
             # sanity check, should never be reached if it works.
             self.fail("Experimental logging should be disabled by setting --disable-experimental option")
-        except easybuild.tools.build_log.EasyBuildError as err:
+        except EasyBuildError as err:
             # check error message
             self.assertIn('Experimental functionality.', str(err))
 
@@ -2507,7 +2508,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         )
         try:
             log.experimental('x')
-        except easybuild.tools.build_log.EasyBuildError as err:
+        except EasyBuildError as err:
             self.fail("Experimental logging should be allowed by the --experimental option: %s" % err)
 
         # set it back
@@ -2535,7 +2536,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             with self.mocked_stdout_stderr():
                 log.deprecated('x', str(orig_value))
                 stderr = self.get_stderr()
-        except easybuild.tools.build_log.EasyBuildError as err:
+        except EasyBuildError as err:
             self.fail("Deprecated logging should work: %s" % err)
 
         self.assertRegex(stderr, "^\nWARNING: Deprecated functionality, will no longer work in")
@@ -2548,7 +2549,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.deprecated('x', str(orig_value))
             # not supposed to get here
             self.fail('Deprecated logging should throw EasyBuildError')
-        except easybuild.tools.build_log.EasyBuildError as err2:
+        except EasyBuildError as err2:
             self.assertIn('DEPRECATED', str(err2))
 
         # force higher version by prefixing it with 1, which should result in deprecation errors
@@ -2559,7 +2560,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             log.deprecated('x', str(orig_value))
             # not supposed to get here
             self.fail('Deprecated logging should throw EasyBuildError')
-        except easybuild.tools.build_log.EasyBuildError as err3:
+        except EasyBuildError as err3:
             self.assertIn('DEPRECATED', str(err3))
 
         # set it back

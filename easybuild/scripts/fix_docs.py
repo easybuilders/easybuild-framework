@@ -36,7 +36,7 @@ import os
 import re
 import sys
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 
 if not len(sys.argv) > 1:
     raise EasyBuildError("Please include path to easybuild folder")

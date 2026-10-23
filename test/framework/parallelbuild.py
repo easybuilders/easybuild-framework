@@ -35,9 +35,9 @@ from test.framework import TEST_DIR, TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, REPO_ROOT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import config
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import get_module_syntax, update_build_option
 from easybuild.tools.filetools import adjust_permissions, mkdir, remove_dir, which, write_file
 from easybuild.tools.job import pbs_python

@@ -35,7 +35,7 @@ import functools
 from collections import OrderedDict
 import sys
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
 
 try:

@@ -77,8 +77,9 @@ except ImportError:
     pass
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import IGNORE
 from easybuild.tools.filetools import is_readable, read_file, which
 from easybuild.tools.run import run_shell_cmd, subprocess_popen_text

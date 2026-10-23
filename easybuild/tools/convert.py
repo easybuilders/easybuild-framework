@@ -34,7 +34,7 @@ import re
 
 from easybuild.base import fancylogger
 from easybuild.base.wrapper import Wrapper
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 
 
 _log = fancylogger.getLogger('tools.convert', fname=False)

@@ -49,6 +49,7 @@ import easybuild.tools.options as eboptions
 import easybuild.tools.toolchain.utilities as tc_utils
 import easybuild.tools.module_naming_scheme.toolchain as mns_toolchain
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.base.testing import TestCase
 from easybuild.framework.easyconfig import easyconfig
 from easybuild.framework.easyblock import EasyBlock
@@ -331,7 +332,7 @@ class EnhancedTestCase(TestCase):
 
         env_before = copy.deepcopy(os.environ)
 
-        exit_code = eb_build_log.EasyBuildExit.ERROR
+        exit_code = EasyBuildExit.ERROR
         try:
             if '--fetch' in args:
                 # The config sets modules_tool to None if --fetch is specified,
@@ -351,7 +352,7 @@ class EnhancedTestCase(TestCase):
             myerr = err
             if verbose:
                 print("err: %s" % err)
-            if isinstance(err, eb_build_log.EasyBuildError):
+            if isinstance(err, EasyBuildError):
                 exit_code = err.exit_code
 
         if logfile and os.path.exists(logfile):

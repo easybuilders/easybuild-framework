@@ -33,8 +33,9 @@ import operator
 import re
 from functools import reduce
 
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.filetools import which
 from easybuild.tools.run import run_shell_cmd
 

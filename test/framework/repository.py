@@ -35,8 +35,8 @@ from test.framework import TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner, mock
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.repository.gitrepo import GitRepository

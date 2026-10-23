@@ -34,7 +34,7 @@ from unittest import TextTestRunner
 
 import easybuild.framework
 import easybuild.tools.repository.filerepo
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import change_dir, mkdir, read_file, write_file
 from easybuild.tools.utilities import import_available_modules, only_if_module_is_available
 

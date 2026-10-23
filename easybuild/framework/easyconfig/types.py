@@ -33,9 +33,9 @@ Authors:
 """
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
-from easybuild.tools.build_log import EasyBuildError
 
 _log = fancylogger.getLogger('easyconfig.types', fname=False)
 

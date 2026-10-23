@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import List
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, EasyConfig
 from easybuild.framework.easyconfig.easyconfig import create_paths, det_file_info, get_easyblock_class
@@ -57,7 +58,7 @@ from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.style import cmdline_easyconfigs_style_check
 from easybuild.tools import LooseVersion
 from easybuild.tools.entrypoints import EntrypointEasyblock
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_error_and_exit, print_msg, print_warning
+from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.environment import restore_env
 from easybuild.tools.filetools import EASYBLOCK_CLASS_PREFIX, PathOrStr, get_cwd, find_easyconfigs, is_patch_file

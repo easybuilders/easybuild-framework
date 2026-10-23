@@ -36,7 +36,7 @@ import xml.dom.minidom as xml
 from datetime import datetime
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.version import FRAMEWORK_VERSION, EASYBLOCKS_VERSION
 
 

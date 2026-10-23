@@ -32,6 +32,7 @@ Authors:
 """
 import os
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.pgi import TC_CONSTANT_PGI
@@ -41,7 +42,6 @@ from easybuild.toolchains.mpi.mpich2 import TC_CONSTANT_MPICH2
 from easybuild.toolchains.mpi.mvapich2 import TC_CONSTANT_MVAPICH2
 from easybuild.toolchains.mpi.openmpi import TC_CONSTANT_OPENMPI
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

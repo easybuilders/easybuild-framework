@@ -73,6 +73,7 @@ from typing import List
 import easybuild.tools.environment as env
 import easybuild.tools.toolchain as toolchain
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyconfig import EASYCONFIGS_PKG_SUBDIR
 from easybuild.framework.easyconfig.easyconfig import ITERATE_OPTIONS, EasyConfig, ActiveMNS, get_easyblock_class
 from easybuild.framework.easyconfig.easyconfig import get_module_path, letter_dir_for, resolve_template
@@ -84,7 +85,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RU
 from easybuild.framework.extension import Extension, construct_exts_filter_cmds
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.build_details import get_build_stats
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, dry_run_msg, dry_run_warning, dry_run_set_dirs
+from easybuild.tools.build_log import dry_run_msg, dry_run_warning, dry_run_set_dirs
 from easybuild.tools.build_log import print_error_and_exit, print_msg, print_warning
 from easybuild.tools.config import CHECKSUM_PRIORITY_JSON, DEFAULT_ENVVAR_USERS_MODULES
 from easybuild.tools.config import EASYBUILD_SOURCES_URL, EBPYTHONPREFIXES  # noqa # pylint:disable=unused-import

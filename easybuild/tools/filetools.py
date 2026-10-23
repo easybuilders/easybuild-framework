@@ -66,9 +66,9 @@ from typing import List, Optional, Tuple, Union
 import urllib.request as std_urllib
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 # import build_log must stay, to use of EasyBuildLog
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
-from easybuild.tools.build_log import dry_run_msg, print_msg, print_warning
+from easybuild.tools.build_log import CWD_NOTFOUND_ERROR, dry_run_msg, print_msg, print_warning
 from easybuild.tools.config import DEFAULT_DOWNLOAD_INITIAL_WAIT_TIME, DEFAULT_DOWNLOAD_MAX_ATTEMPTS
 from easybuild.tools.config import ERROR, GENERIC_EASYBLOCK_PKG, IGNORE, WARN, build_option, install_path
 from easybuild.tools.output import PROGRESS_BAR_DOWNLOAD_ONE, start_progress_bar, stop_progress_bar, update_progress_bar

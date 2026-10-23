@@ -32,7 +32,7 @@ from unittest import TextTestRunner
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 
 import easybuild.tools.output
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import build_option, get_output_style, update_build_option
 from easybuild.tools.output import PROGRESS_BAR_EXTENSIONS, PROGRESS_BAR_TYPES
 from easybuild.tools.output import DummyRich, colorize, get_progress_bar, print_error, show_progress_bars
