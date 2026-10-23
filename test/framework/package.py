@@ -29,125 +29,118 @@ Unit tests for packaging support.
 """
 import os
 import re
-import stat
 import sys
+from inspect import cleandoc
+from pathlib import Path
+from unittest import TextTestRunner
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from test.framework import TEST_ECS_DIR
-from unittest import TextTestRunner
 
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.config import get_package_naming_scheme, log_path
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, read_file, write_file
+from easybuild.tools.filetools import read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION
 
-FPM_OUTPUT_FILE = 'fpm_mocked.out'
 
-# purposely using non-bash script, to detect issues with shebang line being ignored (run_shell_cmd with use_bash=False)
-MOCKED_FPM = """#!/usr/bin/env python3
-import os, sys
+def mock_fpm(self: EnhancedTestCase) -> Path:
+    """Mock the 'fpm' command, return path to output file written to by the mock"""
+    fpm_output_file = Path(self.test_prefix) / 'fpm_mocked.out'
+    # purposely using non-bash script,
+    # to detect issues with shebang line being ignored (run_shell_cmd with use_bash=False)
+    self.setup_fake_binary('fpm', cleandoc("""#!/usr/bin/env python3
+        import os, sys
 
-def verbose(msg):
-    with open('%(fpm_output_file)s', 'a') as fp:
-        fp.write(msg + '\\n')
+        def verbose(msg):
+            with open('%(fpm_output_file)s', 'a') as fp:
+                fp.write(msg + '\\n')
 
-description, iteration, name, source, target, url, version, workdir = '', '', '', '', '', '', '', ''
-excludes = []
+        description, iteration, name, source, target, url, version, workdir = '', '', '', '', '', '', '', ''
+        excludes = []
 
-verbose(' '.join(sys.argv[1:]))
+        verbose(' '.join(sys.argv[1:]))
 
-idx = 1
-while idx < len(sys.argv):
+        idx = 1
+        while idx < len(sys.argv):
 
-    if sys.argv[idx] == '--workdir':
-        idx += 1
-        workdir = sys.argv[idx]
-        verbose('workdir'); verbose(workdir)
+            if sys.argv[idx] == '--workdir':
+                idx += 1
+                workdir = sys.argv[idx]
+                verbose('workdir'); verbose(workdir)
 
-    elif sys.argv[idx] == '--name':
-        idx += 1
-        name = sys.argv[idx]
+            elif sys.argv[idx] == '--name':
+                idx += 1
+                name = sys.argv[idx]
 
-    elif sys.argv[idx] == '--version':
-        idx += 1
-        version = sys.argv[idx]
-        verbose('version'); verbose(version)
+            elif sys.argv[idx] == '--version':
+                idx += 1
+                version = sys.argv[idx]
+                verbose('version'); verbose(version)
 
-    elif sys.argv[idx] == '--description':
-        idx += 1
-        description = sys.argv[idx]
+            elif sys.argv[idx] == '--description':
+                idx += 1
+                description = sys.argv[idx]
 
-    elif sys.argv[idx] == '--url':
-        idx += 1
-        url = sys.argv[idx]
+            elif sys.argv[idx] == '--url':
+                idx += 1
+                url = sys.argv[idx]
 
-    elif sys.argv[idx] == '--iteration':
-        idx += 1
-        iteration = sys.argv[idx]
+            elif sys.argv[idx] == '--iteration':
+                idx += 1
+                iteration = sys.argv[idx]
 
-    elif sys.argv[idx] == '-t':
-        idx += 1
-        target = sys.argv[idx]
+            elif sys.argv[idx] == '-t':
+                idx += 1
+                target = sys.argv[idx]
 
-    elif sys.argv[idx] == '-s':
-        idx += 1
-        source = sys.argv[idx]
+            elif sys.argv[idx] == '-s':
+                idx += 1
+                source = sys.argv[idx]
 
-    elif sys.argv[idx] == '--exclude':
-        idx += 1
-        excludes.append(sys.argv[idx])
+            elif sys.argv[idx] == '--exclude':
+                idx += 1
+                excludes.append(sys.argv[idx])
 
-    elif sys.argv[idx].startswith('--'):
-        verbose("got an unhandled option: " + sys.argv[idx] + ' ' + sys.argv[idx+1])
-        idx += 1
+            elif sys.argv[idx].startswith('--'):
+                verbose("got an unhandled option: " + sys.argv[idx] + ' ' + sys.argv[idx+1])
+                idx += 1
 
-    else:
-        installdir = sys.argv[idx]
-        modulefile = sys.argv[idx+1]
-        break
+            else:
+                installdir = sys.argv[idx]
+                modulefile = sys.argv[idx+1]
+                break
 
-    idx += 1
+            idx += 1
 
-pkgfile = os.path.join(workdir, name + '-' + version + '.' + iteration + '.' + target)
+        pkgfile = os.path.join(workdir, name + '-' + version + '.' + iteration + '.' + target)
 
-with open(pkgfile, 'w') as fp:
-    fp.write('thisisan' + target + '\\n')
-    fp.write(' '.join(sys.argv[1:]) + '\\n')
-    fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
+        with open(pkgfile, 'w') as fp:
+            fp.write('thisisan' + target + '\\n')
+            fp.write(' '.join(sys.argv[1:]) + '\\n')
+            fp.write("STARTCONTENTS of installdir " + installdir + ':\\n')
 
-    find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
-    verbose("trying: " + find_cmd)
-    fp.write(find_cmd + '\\n')
+            find_cmd = 'find ' + installdir + '  ' + ''.join([" -not -path /" + x + ' ' for x in excludes])
+            verbose("trying: " + find_cmd)
+            fp.write(find_cmd + '\\n')
 
-    fp.write('ENDCONTENTS\\n')
+            fp.write('ENDCONTENTS\\n')
 
-    fp.write("Contents of module file " + modulefile + ':')
-
-
-    fp.write('modulefile: ' + modulefile + '\\n')
-    #modtxt = open(modulefile).read()
-    #fp.write(modtxt + '\\n')
-
-    fp.write("I found excludes " + ' '.join(excludes) + '\\n')
-    fp.write("DESCRIPTION: " + description + '\\n')
-"""
+            fp.write("Contents of module file " + modulefile + ':')
 
 
-def mock_fpm(tmpdir):
-    """Put mocked version of fpm command in place in specified tmpdir."""
-    # put mocked 'fpm' command in place, just for testing purposes
-    fpm = os.path.join(tmpdir, 'fpm')
-    write_file(fpm, MOCKED_FPM % {'fpm_output_file': os.path.join(tmpdir, FPM_OUTPUT_FILE)})
-    adjust_permissions(fpm, stat.S_IXUSR, add=True)
+            fp.write('modulefile: ' + modulefile + '\\n')
+            #modtxt = open(modulefile).read()
+            #fp.write(modtxt + '\\n')
 
+            fp.write("I found excludes " + ' '.join(excludes) + '\\n')
+            fp.write("DESCRIPTION: " + description + '\\n')
+        """) % {'fpm_output_file': fpm_output_file}
+    )
     # also put mocked rpmbuild in place
-    rpmbuild = os.path.join(tmpdir, 'rpmbuild')
-    write_file(rpmbuild, '#!/bin/bash')  # only needs to be there, doesn't need to actually do something...
-    adjust_permissions(rpmbuild, stat.S_IXUSR, add=True)
-
-    os.environ['PATH'] = '%s:%s' % (tmpdir, os.environ['PATH'])
+    self.setup_fake_binary('rpmbuild')  # only needs to be there, doesn't need to actually do something...
+    return fpm_output_file
 
 
 class PackageTest(EnhancedTestCase):
@@ -168,10 +161,7 @@ class PackageTest(EnhancedTestCase):
         self.assertRaisesRegex(EasyBuildError, "Selected packaging tool 'fpm' not found", check_pkg_support)
 
         for binary in ['fpm', 'rpmbuild']:
-            binpath = os.path.join(self.test_prefix, binary)
-            write_file(binpath, '#!/bin/bash')
-            adjust_permissions(binpath, stat.S_IXUSR, add=True)
-        os.environ['PATH'] = self.test_prefix
+            self.setup_fake_binary(binary)
 
         # no errors => support check passes
         check_pkg_support()
@@ -207,7 +197,7 @@ class PackageTest(EnhancedTestCase):
 
         ec = EasyConfig(os.path.join(TEST_ECS_DIR, 't', 'toy', 'toy-0.0-gompi-2018a-test.eb'), validate=False)
 
-        mock_fpm(self.test_prefix)
+        fpm_output_file = mock_fpm(self)
 
         # import needs to be done here, since test easyblocks are only included later
         from easybuild.easyblocks.toy import EB_toy
@@ -226,7 +216,7 @@ class PackageTest(EnhancedTestCase):
         pkgdir = package(easyblock)
         pkgfile = os.path.join(pkgdir, 'toy-0.0-gompi-2018a-test-eb-%s.1.rpm' % EASYBUILD_VERSION)
 
-        fpm_output = read_file(os.path.join(self.test_prefix, FPM_OUTPUT_FILE))
+        fpm_output = read_file(fpm_output_file)
         pkgtxt = read_file(pkgfile)
 
         self.assertTrue(os.path.isfile(pkgfile), "Found %s" % pkgfile)

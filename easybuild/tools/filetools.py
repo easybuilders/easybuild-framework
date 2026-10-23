@@ -151,7 +151,7 @@ CHECKSUM_FUNCTIONS = {
     'sha1': lambda p: calc_block_checksum(p, hashlib.sha1()),
     CHECKSUM_TYPE_SHA256: lambda p: calc_block_checksum(p, hashlib.sha256()),
     'sha512': lambda p: calc_block_checksum(p, hashlib.sha512()),
-    'size': lambda p: os.path.getsize(p),
+    'size': os.path.getsize,
 }
 CHECKSUM_TYPES = sorted(CHECKSUM_FUNCTIONS.keys())
 
@@ -1879,7 +1879,7 @@ def apply_regex_substitutions(paths: Union[PathOrStr, List[PathOrStr]], regex_su
                     _log.info(msg)
 
 
-def modify_env(old, new):
+def modify_env(*_args, **_kwargs):
     """NO LONGER SUPPORTED: use modify_env from easybuild.tools.environment instead"""
     _log.nosupport("moved modify_env to easybuild.tools.environment", "2.0")
 
@@ -2182,7 +2182,7 @@ def clean_up_locks():
         remove_lock(lock_name)
 
 
-def clean_up_locks_signal_handler(signum, frame):
+def clean_up_locks_signal_handler(signum, _frame):
     """
     Signal handler, cleans up locks & exits with received signal number.
     """
