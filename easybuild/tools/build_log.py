@@ -469,8 +469,16 @@ def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False
     if args:
         msg = msg % args
     if not silent:
-        from easybuild.tools.output import print_error as show_error
-        show_error("ERROR: " + msg, disable_rich=True)
+        # avoid circular import
+        from easybuild.tools.output import print_error as show_error, COLOR_RED, COLOR_END, KNOWN_COLORS
+        error_str = "ERROR: "
+        try:
+            from easybuild.tools.config import OUTPUT_STYLE_NO_COLOR, get_output_style
+            if get_output_style() != OUTPUT_STYLE_NO_COLOR:
+                error_str = KNOWN_COLORS[COLOR_RED] + error_str + COLOR_END
+        except Exception:
+            pass
+        show_error(error_str + msg, disable_rich=True)
     sys.exit(int(exit_code))
 
 
