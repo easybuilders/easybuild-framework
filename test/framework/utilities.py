@@ -160,7 +160,7 @@ class EnhancedTestCase(TestCase):
         self.orig_current_version = eb_build_log.CURRENT_VERSION
         self.disallow_deprecated_behaviour()
 
-        init_config(set_tmpdir=False)
+        init_config(set_tmpdir=True)  # We do want a fresh temporary folder inside self.test_prefix
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
