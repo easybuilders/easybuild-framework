@@ -36,9 +36,9 @@ import os
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
 from easybuild.tools.build_log import EasyBuildError, print_msg
-from easybuild.tools.config import build_option, get_module_syntax, install_path, ConfigurationVariables
+from easybuild.tools.config import build_option, install_path, ConfigurationVariables
 from easybuild.tools.filetools import copy_dir, mkdir, write_file
-from easybuild.tools.module_generator import avail_module_generators
+from easybuild.tools.module_generator import module_generator_class
 from easybuild.tools.utilities import trace_msg
 
 
@@ -158,17 +158,15 @@ def det_module_files(specs):
     :return: tuple with list of module file paths and list of paths of symlinks to module files
              (e.g. in moduleclass subdirectory), relative to the modules install path
     """
-    mod_path_suffix = build_option('suffix_modules_path')
-    mod_file_ext = avail_module_generators()[get_module_syntax()].MODULE_FILE_EXTENSION
+    mod_gen_class = module_generator_class()
     module_files, module_symlinks = [], []
     for spec in specs:
         # skip dummy entries for dependencies without an easyconfig
         if spec['ec'] is None:
             continue
-        mod_file = spec['full_mod_name'] + mod_file_ext
-        module_files.append(os.path.join(mod_path_suffix, mod_file))
+        module_files.append(mod_gen_class.get_module_relpath(spec['full_mod_name']))
         for subdir in ActiveMNS().det_module_symlink_paths(spec['ec']):
-            module_symlinks.append(os.path.join(subdir, mod_file))
+            module_symlinks.append(mod_gen_class.get_module_relpath(spec['full_mod_name'], mod_path_suffix=subdir))
     return module_files, module_symlinks
 
 
