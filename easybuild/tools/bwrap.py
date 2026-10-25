@@ -140,7 +140,6 @@ def det_install_subdirs(specs):
         if spec['ec']['data_sources']:
             data_ecs.append(spec['spec'])
         else:
-            # use install subdir rather than module name, since they differ for some module naming schemes (e.g. HMNS)
             install_subdirs.append(ActiveMNS().det_install_subdir(spec['ec']))
 
     if data_ecs:
