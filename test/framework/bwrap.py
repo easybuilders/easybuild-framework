@@ -58,12 +58,10 @@ class BwrapTest(EnhancedTestCase):
         check_bwrap_config('/tmp/bwrap')
 
         # different configuration is not, all differences are listed in the error
-        init_config(args=['--installpath-software=%s' % self.test_prefix],
-                    build_options={'suffix_modules_path': 'foo'})
+        init_config(args=['--installpath-software=%s' % self.test_prefix])
         error_pattern = (r"must be the same for all easystack entries:\n"
                          r"\* bwrap-installpath: /tmp/bwrap vs /tmp/other\n"
-                         r"\* installpath-software: .* vs .*\n"
-                         r"\* suffix-modules-path: all vs foo$")
+                         r"\* installpath-software: .* vs .*$")
         self.assertRaisesRegex(EasyBuildError, error_pattern, check_bwrap_config, '/tmp/other')
         bwrap._bwrap_config.clear()
 
@@ -91,23 +89,30 @@ class BwrapTest(EnhancedTestCase):
         """Test det_module_files function."""
         hwloc_ec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
 
-        # module file paths depend on module naming scheme and module syntax
+        # module file paths depend on module naming scheme, modules path suffix and module syntax;
+        # symlinks in moduleclass subdirectories are not used with HMNS
         test_cases = [
-            ('EasyBuildMNS', 'Tcl', ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28']),
-            ('HierarchicalMNS', 'Tcl', ['Compiler/GCC/6.4.0-2.28/hwloc/1.11.8', 'Core/GCC/6.4.0-2.28']),
+            ('EasyBuildMNS', 'Tcl', 'all', (['all/GCC/6.4.0-2.28', 'all/hwloc/1.11.8-GCC-6.4.0-2.28'],
+                                            ['compiler/GCC/6.4.0-2.28', 'system/hwloc/1.11.8-GCC-6.4.0-2.28'])),
+            ('HierarchicalMNS', 'Tcl', 'foo',
+             (['foo/Compiler/GCC/6.4.0-2.28/hwloc/1.11.8', 'foo/Core/GCC/6.4.0-2.28'], [])),
         ]
         # Lua module syntax requires Lmod
         if isinstance(self.modtool, Lmod):
-            test_cases.append(('EasyBuildMNS', 'Lua', ['GCC/6.4.0-2.28.lua', 'hwloc/1.11.8-GCC-6.4.0-2.28.lua']))
-        for mns, syntax, expected in test_cases:
+            test_cases.append(('HierarchicalMNS', 'Lua', 'all',
+                               (['all/Compiler/GCC/6.4.0-2.28/hwloc/1.11.8.lua', 'all/Core/GCC/6.4.0-2.28.lua'], [])))
+        for mns, syntax, suffix, (expected_files, expected_symlinks) in test_cases:
             os.environ['EASYBUILD_MODULE_NAMING_SCHEME'] = mns
-            init_config(args=['--module-syntax=%s' % syntax], build_options={'robot_path': TEST_ECS_DIR})
+            init_config(args=['--module-syntax=%s' % syntax],
+                        build_options={'robot_path': TEST_ECS_DIR, 'suffix_modules_path': suffix})
             ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
             specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            self.assertEqual(sorted(det_module_files(specs)), expected)
+            module_files, module_symlinks = det_module_files(specs)
+            self.assertEqual(sorted(module_files), expected_files)
+            self.assertEqual(sorted(module_symlinks), expected_symlinks)
 
         # dummy entries for dependencies without an easyconfig are skipped
-        self.assertEqual(det_module_files([{'ec': None, 'full_mod_name': 'foo/1.0'}]), [])
+        self.assertEqual(det_module_files([{'ec': None, 'full_mod_name': 'foo/1.0'}]), ([], []))
 
     def test_prepare_bwrap(self):
         """Test prepare_bwrap function."""
@@ -133,7 +138,8 @@ class BwrapTest(EnhancedTestCase):
         # writable install paths: bind mounts, existing modules are copied to bwrap install path
         write_file(os.path.join(modules, 'all', 'foo', '0.9.lua'), '')
         set_bwrap_info('install_subdirs', {'foo/1.0', 'bar/2.0'})
-        set_bwrap_info('module_files', {'foo/1.0.lua', 'bar/2.0.lua'})
+        set_bwrap_info('module_files', {'all/foo/1.0.lua', 'all/bar/2.0.lua'})
+        set_bwrap_info('module_symlinks', {'tools/foo/1.0.lua'})
         with self.mocked_stdout_stderr():
             prepare_bwrap(bwrap_installpath)
         expected = [
@@ -146,8 +152,8 @@ class BwrapTest(EnhancedTestCase):
         self.assertEqual(os.environ['EB_BWRAP_CMD'], ' '.join(expected))
         bwrap_info = json.loads(read_file(os.path.join(bwrap_installpath, 'bwrap_info.json')))
         self.assertEqual(bwrap_info['bwrap_cmd'], expected)
-        self.assertEqual(bwrap_info['module_files'], ['bar/2.0.lua', 'foo/1.0.lua'])
-        self.assertEqual(bwrap_info['suffix_modules_path'], 'all')
+        self.assertEqual(bwrap_info['module_files'], ['all/bar/2.0.lua', 'all/foo/1.0.lua'])
+        self.assertEqual(bwrap_info['module_symlinks'], ['tools/foo/1.0.lua'])
         self.assertTrue(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
 
         # read-only install paths: overlays on the closest existing directory (only once per directory),

@@ -590,11 +590,13 @@ def process_eb_args(eb_args, eb_go, cfg_settings, modtool, testing, init_session
         # require that 'experimental' configuration setting is enabled
         _log.experimental("support for building in bwrap namespace (--bwrap)")
         check_bwrap_config(options.bwrap_installpath)
-        # updating install_subdirs and module_files because process_eb_args may run multiple times:
+        # updating install_subdirs, module_files and module_symlinks because process_eb_args may run multiple times:
         # once for each easyconfig in the easystack
         specs_to_install = dry_run(easyconfigs, modtool, return_specs_to_install=True)
         update_bwrap_info('install_subdirs', set(det_install_subdirs(specs_to_install)))
-        update_bwrap_info('module_files', set(det_module_files(specs_to_install)))
+        module_files, module_symlinks = det_module_files(specs_to_install)
+        update_bwrap_info('module_files', set(module_files))
+        update_bwrap_info('module_symlinks', set(module_symlinks))
         if not options.job:
             return True
 

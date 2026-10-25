@@ -55,7 +55,7 @@ _bwrap_info = {
     'installpath_software': '',
     'install_subdirs': set(),
     'module_files': set(),
-    'suffix_modules_path': '',
+    'module_symlinks': set(),
 }
 
 # configuration settings that are relevant for bwrap, used to check that they are the same for all easystack entries
@@ -110,7 +110,6 @@ def check_bwrap_config(bwrap_installpath):
         'bwrap-options': build_option('bwrap_options'),
         'installpath-modules': os.path.realpath(install_path(typ='modules')),
         'installpath-software': os.path.realpath(install_path(typ='software')),
-        'suffix-modules-path': build_option('suffix_modules_path'),
     }
     if _bwrap_config:
         diffs = [f"* {key}: {_bwrap_config[key]} vs {value}" for key, value in sorted(config.items())
@@ -156,11 +155,21 @@ def det_module_files(specs):
     Determine paths of module files for easyconfigs to be installed in bwrap namespace
 
     :param specs: list of easyconfig specs (dicts) to be installed
-    :return: list of module file paths, relative to <modules install path>/<modules path suffix>
+    :return: tuple with list of module file paths and list of paths of symlinks to module files
+             (e.g. in moduleclass subdirectory), relative to the modules install path
     """
+    mod_path_suffix = build_option('suffix_modules_path')
     mod_file_ext = avail_module_generators()[get_module_syntax()].MODULE_FILE_EXTENSION
-    # skip dummy entries for dependencies without an easyconfig
-    return [spec['full_mod_name'] + mod_file_ext for spec in specs if spec['ec']]
+    module_files, module_symlinks = [], []
+    for spec in specs:
+        # skip dummy entries for dependencies without an easyconfig
+        if spec['ec'] is None:
+            continue
+        mod_file = spec['full_mod_name'] + mod_file_ext
+        module_files.append(os.path.join(mod_path_suffix, mod_file))
+        for subdir in ActiveMNS().det_module_symlink_paths(spec['ec']):
+            module_symlinks.append(os.path.join(subdir, mod_file))
+    return module_files, module_symlinks
 
 
 def prepare_bwrap(bwrap_installpath):
@@ -180,8 +189,6 @@ def prepare_bwrap(bwrap_installpath):
 
     installpath_modules = os.path.realpath(install_path(typ='modules'))
     set_bwrap_info('installpath_modules', installpath_modules)
-
-    set_bwrap_info('suffix_modules_path', build_option('suffix_modules_path'))
 
     # make sure install paths exist, so mount targets never go above them
     for descr, path in [('software', installpath_software), ('modules', installpath_modules)]:
