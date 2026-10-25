@@ -64,9 +64,9 @@ def avail_module_generators():
     return {k.SYNTAX: k for k in get_subclasses(ModuleGenerator)}
 
 
-def module_generator(app, fake=False):
+def module_generator_class():
     """
-    Return ModuleGenerator instance that matches the selected module file syntax to be used
+    Return ModuleGenerator class that matches the selected module file syntax to be used
     """
     module_syntax = get_module_syntax()
     available_mod_gens = avail_module_generators()
@@ -75,8 +75,14 @@ def module_generator(app, fake=False):
         raise EasyBuildError("No module generator available for specified syntax '%s' (available: %s)",
                              module_syntax, available_mod_gens)
 
-    module_generator_class = available_mod_gens[module_syntax]
-    return module_generator_class(app, fake=fake)
+    return available_mod_gens[module_syntax]
+
+
+def module_generator(app, fake=False):
+    """
+    Return ModuleGenerator instance that matches the selected module file syntax to be used
+    """
+    return module_generator_class()(app, fake=fake)
 
 
 def module_load_regex(modfilepath):
@@ -224,11 +230,24 @@ class ModuleGenerator:
         """
         return env_var not in (build_option('filter_env_vars') or [])
 
+    @classmethod
+    def get_module_relpath(cls, full_mod_name, mod_path_suffix=None):
+        """
+        Return path to module file for specified module, relative to modules install path.
+
+        :param full_mod_name: full module name
+        :param mod_path_suffix: modules path suffix (default: value of --suffix-modules-path)
+        """
+        if mod_path_suffix is None:
+            mod_path_suffix = build_option('suffix_modules_path')
+
+        return os.path.join(mod_path_suffix, full_mod_name + cls.MODULE_FILE_EXTENSION)
+
     def get_module_filepath(self, fake=False, mod_path_suffix=None):
         """Return path to module file."""
-        mod_path = self.get_modules_path(fake=fake, mod_path_suffix=mod_path_suffix)
-        full_mod_name = self.app.full_mod_name + self.MODULE_FILE_EXTENSION
-        return os.path.join(mod_path, full_mod_name)
+        # empty modules path suffix, since it is already included in path returned by get_module_relpath
+        mod_path = self.get_modules_path(fake=fake, mod_path_suffix='')
+        return os.path.join(mod_path, self.get_module_relpath(self.app.full_mod_name, mod_path_suffix=mod_path_suffix))
 
     def get_modules_path(self, fake=False, mod_path_suffix=None):
         """Return path to directory where module files should be generated in."""
