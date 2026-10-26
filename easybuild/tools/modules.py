@@ -43,6 +43,7 @@ import re
 import shlex
 from enum import Enum
 from pathlib import Path
+from typing import Dict, Optional
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
@@ -131,7 +132,7 @@ MODULE_SHOW_CACHE = {}
 # cache for modules tool version
 # cache key: module command
 # value: corresponding (validated) module version
-MODULE_VERSION_CACHE = {}
+MODULE_VERSION_CACHE: Dict[str, str] = {}
 
 
 _log = fancylogger.getLogger('modules', fname=False)
@@ -573,7 +574,7 @@ class ModulesTool:
     # position and optionname
     TERSE_OPTION = (0, '--terse')
     # module command to use
-    COMMAND = None
+    COMMAND: Optional[str] = None
     # environment variable to determine path to module command;
     # used as fallback in case command is not available in $PATH
     COMMAND_ENVIRONMENT = None
