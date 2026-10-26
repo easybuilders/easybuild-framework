@@ -189,9 +189,8 @@ class ModulesToolTest(EnhancedTestCase):
 
     def test_environment_modules_specific(self):
         """Environment Modules-specific test (skipped unless installed)."""
-        modulecmd_abspath = which(EnvironmentModules.COMMAND)
         # only run this test if 'modulecmd.tcl' is installed
-        if modulecmd_abspath is not None:
+        if which(EnvironmentModules.COMMAND) is not None:
             # redefine 'module' and '_module_raw' function (deliberate mismatch with used module
             # command in EnvironmentModules)
             os.environ['_module_raw'] = "() {  eval `/usr/share/Modules/libexec/foo.tcl' bash $*`;\n}"
@@ -227,30 +226,30 @@ class ModulesToolTest(EnhancedTestCase):
                 self.assertTrue(os.path.exists(cache_fp))
                 os.remove(cache_fp)
 
-            # initialize Environment Modules tool with non-official version number
-            # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
-            fake_path = self.setup_fake_binary('modulecmd.tcl', '\n'.join([
-                'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
-                'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ]))
-            os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
-            os.environ['MODULES_CMD'] = str(fake_path)
-            EnvironmentModules.COMMAND = fake_path
-            mt = EnvironmentModules(testing=True)
-            self.assertTrue(os.path.samefile(mt.cmd, fake_path), f"{mt.cmd} - {fake_path}")
-            # module extensions are only supported by Environment Modules 5.7.0+
-            self.assertFalse(mt.supports_extensions)
-            # module extensions are always considered as purely informational
-            self.assertEqual(os.environ.get('MODULES_INFO_EXTENSION'), '1')
+        # initialize Environment Modules tool with non-official version number
+        # pass (fake) full path to 'modulecmd.tcl' via $MODULES_CMD
+        fake_path = self.setup_fake_binary('modulecmd.tcl', '\n'.join([
+            'echo "Modules Release 5.3.1+unload-188-g14b6b59b (2023-10-21)" >&2',
+            'echo "os.environ[\'FOO\'] = \'foo\'"',
+        ]))
+        os.environ['_module_raw'] = "() {  eval `%s' bash $*`;\n}" % fake_path
+        os.environ['MODULES_CMD'] = str(fake_path)
+        EnvironmentModules.COMMAND = str(fake_path)
+        mt = EnvironmentModules(testing=True)
+        self.assertTrue(os.path.samefile(mt.cmd, fake_path), f"{mt.cmd} - {fake_path}")
+        # module extensions are only supported by Environment Modules 5.7.0+
+        self.assertFalse(mt.supports_extensions)
+        # module extensions are always considered as purely informational
+        self.assertEqual(os.environ.get('MODULES_INFO_EXTENSION'), '1')
 
-            self.setup_fake_binary(fake_path, '\n'.join([
-                'echo "Modules Release 5.7.0 (2026-09-21)" >&2',
-                'echo "os.environ[\'FOO\'] = \'foo\'"',
-            ]))
-            # make sure version is determined again
-            MODULE_VERSION_CACHE.pop(fake_path, None)
-            mt = EnvironmentModules(testing=True)
-            self.assertTrue(mt.supports_extensions)
+        self.setup_fake_binary(fake_path, '\n'.join([
+            'echo "Modules Release 5.7.0 (2026-09-21)" >&2',
+            'echo "os.environ[\'FOO\'] = \'foo\'"',
+        ]))
+        # make sure version is determined again
+        MODULE_VERSION_CACHE.pop(str(fake_path), None)
+        mt = EnvironmentModules(testing=True)
+        self.assertTrue(mt.supports_extensions)
 
     def tearDown(self):
         """Testcase cleanup."""
