@@ -1504,7 +1504,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(doc.split('\n')), sum([2 * len(temps) - 1] + [len(x) for x in temps]))
 
     def test_start_dir_template(self):
-        """Test the %(startdir)s template"""
+        """Test the %(start_dir)s template"""
 
         ec = process_easyconfig(TOY_EC)[0]
 
