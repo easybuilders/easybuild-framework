@@ -37,6 +37,7 @@ import sys
 import tempfile
 import textwrap
 from importlib import reload
+from pathlib import Path
 from unittest import TextTestRunner, mock
 from urllib.request import URLError
 
@@ -4832,6 +4833,39 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 r"buildstats\s*=",
             ]
             self.assertNotMultiRegex(regexs, txt)
+
+            # update PR with a patch for an easyconfig that is already present unmodified on the PR branch:
+            # patch attribution should work without falling back to scanning all easyconfigs
+
+            # use easyconfig that is present unmodified on the PR branch and lists patches
+            patch_list_re = re.compile(r"^patches = \['(?P<patch>[^'%]+)'(,|\])", re.M)
+            unmodified_ec_with_patch: Path = None
+            for ec in Path(git_working_dir).rglob('*.eb'):
+                patch_match = patch_list_re.search(read_file(ec))
+                if patch_match:
+                    unmodified_ec_with_patch = ec
+                    break
+            else:
+                self.fail("No easyconfig with non-empty patches list found in checkout")
+
+            patch_fn = patch_match['patch']
+            toy_patch = TEST_DIR / 'sandbox/sources/toy/toy-0.0_fix-README.patch'
+            patch_file = os.path.join(self.test_prefix, patch_fn)
+            copy_file(toy_patch, patch_file)
+
+            patched_ec = os.path.join(self.test_prefix, unmodified_ec_with_patch.name)
+            copy_file(unmodified_ec_with_patch, patched_ec)
+
+            args = common_new_pr_args + [
+                patched_ec,
+                patch_file,
+                '--pr-commit-msg="just a test"',
+            ]
+            with mock.patch('easybuild.tools.github.find_software_name_for_patch') as mock_find_sw_name:
+                txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+            mock_find_sw_name.assert_not_called()
+            self.assertIn('copying patch files to ', txt)
+            self.assertNotIn('scanning all easyconfigs', txt.lower())
 
     def test_github_new_pr_warning_missing_patch(self):
         """Test warning printed by --new-pr (dry run only) when a specified patch file could not be found."""
