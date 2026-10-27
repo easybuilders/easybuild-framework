@@ -2671,6 +2671,7 @@ def det_file_info(paths: List[str], target_dir: str, ignore_unchanged_files: boo
     """
     file_info = {
         'ecs': [],
+        'input_ecs': [],
         'paths': [],
         'paths_in_repo': [],
         'new': [],
@@ -2686,6 +2687,8 @@ def det_file_info(paths: List[str], target_dir: str, ignore_unchanged_files: boo
             ec_filename = ec.filename()
 
             target_path = det_location_for(path, target_dir, soft_name, ec_filename)
+
+            file_info['input_ecs'].append(ec)
 
             new_file = not os.path.exists(target_path)
             if ignore_unchanged_files and not new_file and filecmp.cmp(path, target_path):

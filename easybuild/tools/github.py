@@ -1391,7 +1391,10 @@ def det_patch_specs(patch_paths, file_info, ec_dirs):
         patch_file = os.path.basename(patch_path)
 
         # consider patch lists of easyconfigs being provided
-        for ec in file_info['ecs']:
+        # (input_ecs includes easyconfigs that are unmodified in the target dir as well, which must be
+        # considered for patch attribution; fall back to 'ecs' for file_info dicts without 'input_ecs')
+        ecs = file_info.get('input_ecs', file_info.get('ecs', []))
+        for ec in ecs:
             if is_patch_for(patch_file, ec):
                 soft_name = ec['name']
                 break
