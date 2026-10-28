@@ -1221,27 +1221,34 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
             exit_code=EasyBuildExit.FAIL_GITHUB
         )
 
+    only_new_files = file_info['new'] and all(file_info['new']) and not paths.get('files_to_delete')
     # figure out commit message to use
-    if commit_msg:
-        if (pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']
-                and is_new_pr):  # Only if opening a new PR
-            msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
-            msg += "the PR title will be automatically generated."
-            if build_option('force'):
-                print_msg(msg)
-                print_msg("Using the specified --pr-commit-msg as the force build option was specified.")
+    if pr_target_repo == GITHUB_EASYCONFIGS_REPO:
+        if commit_msg:
+            if only_new_files and is_new_pr:  # Only if opening a new PR
+                msg = "When only adding new easyconfigs a PR commit msg (--pr-commit-msg) should not be used, as "
+                msg += "the PR title will be automatically generated."
+                if build_option('force'):
+                    print_msg(msg)
+                    print_msg("Using the specified --pr-commit-msg as the force build option was specified.")
+                else:
+                    raise EasyBuildError(msg)
             else:
-                raise EasyBuildError(msg)
-        cnt = len(file_info['paths_in_repo'])
-        _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
-    elif pr_target_repo == GITHUB_EASYCONFIGS_REPO and all(file_info['new']) and not paths['files_to_delete']:
-        # automagically derive meaningful commit message if all easyconfig files are new
-        commit_msg = "adding easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
-        if paths['patch_files']:
-            commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
-    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and all(file_info['new']):
-        commit_msg = "adding easyblocks: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
-    else:
+                cnt = len(file_info['paths_in_repo'])
+                _log.debug("Using specified commit message for all %d new/modified files at once: %s", cnt, commit_msg)
+        elif only_new_files:
+            # automagically derive meaningful commit message if all easyconfig files are new
+            commit_msg = "add easyconfigs: %s" % ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+            if paths['patch_files']:
+                commit_msg += " and patches: %s" % ', '.join(os.path.basename(p) for p in paths['patch_files'])
+        elif not file_info['paths_in_repo'] and paths['patch_files']:
+            # No easyconfigs, only patches
+            commit_msg = "add patch " if len(paths['patch_files']) == 1 else "add patches "
+            commit_msg += ', '.join(os.path.basename(p) for p in paths['patch_files'])
+    elif pr_target_repo == GITHUB_EASYBLOCKS_REPO and only_new_files:
+        commit_msg = "add easyblock: " if len(file_info['paths_in_repo']) == 1 else "add easyblocks: "
+        commit_msg += ', '.join(os.path.basename(p) for p in file_info['paths_in_repo'])
+    if not commit_msg:
         msg = ''
         modified_files = [os.path.basename(p) for new, p in zip(file_info['new'], file_info['paths_in_repo'])
                           if not new]
@@ -1254,6 +1261,7 @@ def _easyconfigs_pr_common(paths, ecs, start_branch=None, pr_branch=None, start_
                              exit_code=EasyBuildExit.OPTION_ERROR)
 
     # commit
+    _log.info("Creating commit with message '%s'", commit_msg)
     git_repo.index.commit(commit_msg)
 
     push_branch_to_github(git_repo, target_account, pr_target_repo, pr_branch)

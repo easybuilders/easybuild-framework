@@ -4648,14 +4648,18 @@ class CommandLineOptionsTest(EnhancedTestCase):
                         with self.mocked_stdout_stderr():
                             self.assertRaisesRegex(EasyBuildError, 'use --pr-title', self.eb_main, args,
                                                    raise_error=True, testing=False)
-                        args += ['--pr-title=New patch']
-                        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
+                        args += ['--pr-title=New patch', '--unittest-file', self.logfile]
+                        txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False,
+                                                   logfile=self.logfile+'.dummy')
                         self.assertMultiRegex((
                             r'^\* target: easybuilders/easybuild-easyconfigs:develop',
                             r'^\* title: "New patch"',
                             r"^\* overview of changes:",
                             rf".*/{os.path.basename(toy_patch)}\s*\|",
                         ), txt, multi_line=True)
+                        log_txt = read_file(self.logfile)
+                        self.assertIn(f"Creating commit with message 'add patch {os.path.basename(toy_patch)}'",
+                                      log_txt)
             # With corresponding, new EC no pr-title needs to be specified
             args = common_new_pr_args + [toy_patch, toy_ec]
             txt, _ = self._run_mock_eb(args, do_build=True, raise_error=True, testing=False)
