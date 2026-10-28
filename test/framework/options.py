@@ -68,7 +68,7 @@ from easybuild.tools.systemtools import DARWIN, HAVE_ARCHSPEC, get_os_type
 from easybuild.tools.version import VERSION
 from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR, TOY_EC, TOY_EC_TXT
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, cleanup, init_config
-from test.framework.github import ignore_rate_limit_in_pr
+from test.framework.github import GITHUB_TEST_ACCOUNT, ignore_rate_limit_in_pr
 
 try:
     import pycodestyle  # noqa
@@ -94,9 +94,6 @@ prefix = /foo
 name = bar
 version = 1.2.3
 """
-
-# test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
 
 
 class CommandLineOptionsTest(EnhancedTestCase):
