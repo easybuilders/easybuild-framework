@@ -83,7 +83,7 @@ class OpenMPI(Mpi):
         ompi_ver = self.get_software_version(self.MPI_MODULE_NAME)[0]
         if LooseVersion(ompi_ver) >= LooseVersion('2.0') and LooseVersion(ompi_ver) < LooseVersion('3.0'):
             if len(self.orig_tmpdir) > 40:
-                tmpdir = tempfile.mkdtemp(prefix='/tmp/')
+                tmpdir = tempfile.mkdtemp(dir='/tmp', prefix='')
                 env.setvar('TMPDIR', tmpdir)
                 warn_msg = "Long $TMPDIR path may cause problems with OpenMPI 2.x, using shorter path: %s" % tmpdir
                 self.log.warning(warn_msg)
