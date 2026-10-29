@@ -130,5 +130,3 @@ echo "=== Or run $(dirname "$0")/update-EasyBuild-develop.sh '${INSTALL_DIR}'"
 echo
 
 exit 0
-
-
