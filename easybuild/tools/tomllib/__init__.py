@@ -2,6 +2,6 @@
 import sys
 
 if sys.version_info < (3, 11):
-    from .tomli import *  # noqa
+    from .tomli import *  # noqa: F401,F403
 else:
-    from tomllib import *  # noqa, pylint: disable=import-error
+    from tomllib import *  # noqa: F401,F403  # pylint: disable=import-error

@@ -558,7 +558,7 @@ def select_or_generate_ec(fp, paths, specs):
     _log.debug("Found %d unique toolchain names: %s" % (len(tcnames), tcnames))
 
     # if a toolchain was selected, and we have no easyconfig files for it, try and use a template
-    if specs.get('toolchain_name') and not specs['toolchain_name'] in tcnames:
+    if specs.get('toolchain_name') and specs['toolchain_name'] not in tcnames:
         if EASYCONFIG_TEMPLATE in tcnames:
             _log.info("No easyconfig file for specified toolchain, but template is available.")
         else:
