@@ -1332,7 +1332,7 @@ class EasyBlockTest(EnhancedTestCase):
         eb = EasyBlock(EasyConfig(self.eb_file))
 
         # --fetch is used, fake modules tool instance is used
-        self.assertTrue(isinstance(eb.modules_tool, NoModulesTool))
+        self.assertIsInstance(eb.modules_tool, NoModulesTool)
 
         # first check what happens when module for source dep is not available
         expected_error = "Module for one or more source dependencies is not available yet"
