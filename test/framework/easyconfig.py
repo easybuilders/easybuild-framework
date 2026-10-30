@@ -5072,6 +5072,7 @@ class EasyConfigTest(EnhancedTestCase):
             'cuda_int_semicolon_sep': '65;70',
             'cuda_sm_comma_sep': 'sm_65,sm_70',
             'cuda_sm_space_sep': 'sm_65 sm_70',
+            'cuda_cc_gencode': '-gencode arch=compute_65,code=sm_65 -gencode arch=compute_70,code=sm_70',
         }
         for key in cuda_template_values:
             self.assertRaisesRegex(EasyBuildError, error_pattern % key, ec.get_cuda_cc_template_value, key)

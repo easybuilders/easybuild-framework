@@ -4,6 +4,21 @@ For more detailed information, please see the git log.
 These release notes can also be consulted at https://docs.easybuild.io/release-notes .
 
 
+v5.4.2 (30 Oct 2026)
+--------------------
+
+update/bugfix release
+
+- bug fixes:
+  - restore initial environment after each installation in `build_and_install_software` function (rather than doing so before each installation in `build_and_install_one`) (#5341)
+- enhancements:
+  - mention path for which a deprecated checksum is used (#5316)
+  - add `cuda_cc_gencode` template (#5339)
+- enhancements and fixes for test suite:
+  - avoid `test_regtest` clobbering repo dir (#5327)
+  - fix `test_cleaned_env` when testing for Python 3.6 via pyenv, by allowing changes to `$_` (#5344)
+
+
 v5.4.1 (14 Oct 2026)
 --------------------
 

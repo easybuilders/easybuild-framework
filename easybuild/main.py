@@ -181,7 +181,7 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, te
 
         ec_res = {}
         try:
-            (ec_res['success'], app_log, err_msg, err_code) = build_and_install_one(ec, init_env)
+            (ec_res['success'], app_log, err_msg, err_code) = build_and_install_one(ec)
             ec_res['log_file'] = app_log
             if not ec_res['success']:
                 ec_res['err'] = EasyBuildError(err_msg, exit_code=err_code)
@@ -190,6 +190,8 @@ def build_and_install_software(ecs, init_session_state, exit_on_failure=True, te
             ec_res['success'] = False
             ec_res['err'] = err
             ec_res['traceback'] = traceback.format_exc()
+        finally:
+            restore_env(init_env)
 
         if ec_res['success']:
             ec_results.append(ec['full_mod_name'] + ' (' + colorize('OK', COLOR_GREEN) + ')')

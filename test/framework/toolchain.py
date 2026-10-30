@@ -37,7 +37,9 @@ import tempfile
 import textwrap
 from inspect import cleandoc
 from itertools import product
+from typing import Dict
 from unittest import TextTestRunner
+
 from test.framework import TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_full_path, init_config
 
@@ -50,9 +52,9 @@ from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
 from easybuild.tools import systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import join_path_var, setvar
 from easybuild.tools.filetools import adjust_permissions, copy_dir, find_eb_script, mkdir
 from easybuild.tools.filetools import read_file, symlink, write_file, which
+from easybuild.tools.hooks import load_hooks
 from easybuild.tools.modules import EnvironmentModules
 from easybuild.tools.run import run_shell_cmd
 from easybuild.tools.systemtools import get_shared_lib_ext
@@ -2431,6 +2433,18 @@ class ToolchainTest(EnhancedTestCase):
 
     def test_compiler_cache(self):
         """Test ccache"""
+        # Use a hook to store the environment after the prepare step
+        test_hooks_path = os.path.join(self.test_prefix, 'test_hooks.py')
+        write_file(test_hooks_path, cleandoc("""
+            import os
+            def post_prepare_hook(*args, **kwargs):
+                post_prepare_hook.prepared_env = dict(os.environ)
+            post_prepare_hook.prepared_env = {}
+        """))
+        # Hooks are cached, so this allows us to access the same function instances as the build
+        hook = load_hooks(test_hooks_path)
+        post_prepare_hook = hook['post_prepare_hook']
+
         args = [
             TOY_EC,
             "--use-ccache=%s" % os.path.join(self.test_prefix, 'ccache'),
@@ -2438,6 +2452,7 @@ class ToolchainTest(EnhancedTestCase):
             "--debug",
             "--disable-cleanup-tmpdir",
             "--disable-rpath",
+            "--hooks", test_hooks_path
         ]
 
         ccache = which('ccache')
@@ -2447,26 +2462,17 @@ class ToolchainTest(EnhancedTestCase):
                 self.assertRaisesRegex(EasyBuildError, msg, self.eb_main, args, raise_error=True, do_build=True)
 
         # generate shell script to mock ccache/f90cache
+        cache_bin: Dict[str, str] = {}
         for cache_tool in ['ccache', 'f90cache']:
-            path = os.path.join(self.test_prefix, 'scripts')
-
-            txt = [
-                "#!/bin/bash",
-                "echo 'This is a %s wrapper'" % cache_tool,
-                "NAME=${0##*/}",
-                "comms=($(which -a $NAME))",
-                "comm=${comms[1]}",  # First entry is this wrapper, take 2nd
-                "$comm $@",
-                "exit 0"
-            ]
-            script = '\n'.join(txt)
-            fn = os.path.join(path, cache_tool)
-            write_file(fn, script)
-
-            # make script executable
-            st = os.stat(fn)
-            os.chmod(fn, st.st_mode | stat.S_IEXEC)
-            setvar('PATH', '%s:%s' % (path, os.getenv('PATH')))
+            cache_bin[cache_tool] = self.setup_fake_binary(cache_tool, cleandoc("""
+                #!/bin/bash
+                echo 'This is a %s wrapper'
+                NAME=${0##*/}
+                comms=($(which -a $NAME))
+                comm=${comms[1]}  # First entry is this wrapper, take 2nd
+                $comm $@
+                exit
+            """ % cache_tool))
 
         prepped_path_envvar = os.environ['PATH']
 
@@ -2474,26 +2480,27 @@ class ToolchainTest(EnhancedTestCase):
         mkdir(ccache_dir, parents=True)
 
         with self.mocked_stdout_stderr():
-            out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
+            out = self.eb_main(args, raise_error=True, do_build=True)
 
         patterns = [
             "This is a ccache wrapper",
-            "Command ccache found at .*%s" % os.path.dirname(path),
+            "Command ccache found at .*%s" % os.path.dirname(cache_bin['ccache']),
         ]
         self.assertMultiRegex(patterns, out)
 
-        # $CCACHE_DIR is defined by toolchain.prepare(), and should still be defined after running 'eb'
-        ccache_path = os.path.join(self.test_prefix, 'scripts', 'ccache')
-        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
+        # $CCACHE_DIR is defined by toolchain.prepare()
+        prepared_env: Dict[str, str] = post_prepare_hook.prepared_env
+        self.assertTrue(os.path.samefile(prepared_env['CCACHE_DIR'], ccache_dir))
+        os.environ['PATH'] = prepared_env['PATH']  # For `which` below
         for comp in ['gcc', 'g++']:
             comp_path = which(comp)
             self.assertTrue(comp_path)
-            self.assertTrue(os.path.samefile(comp_path, ccache_path))
+            self.assertTrue(os.path.samefile(comp_path, cache_bin['ccache']))
 
         # no ccache wrapper for gfortran when using ccache
         # (ccache either doesn't support Fortran anymore, or support is spotty (trouble with Fortran modules))
         gfortran_path = which('gfortran')
-        self.assertTrue(gfortran_path is None or not os.path.samefile(gfortran_path, ccache_path))
+        self.assertTrue(gfortran_path is None or not os.path.samefile(gfortran_path, cache_bin['ccache']))
 
         # reset environment to get rid of ccache symlinks, but with ccache/f90cache mock scripts still in place
         os.environ['PATH'] = prepped_path_envvar
@@ -2507,11 +2514,13 @@ class ToolchainTest(EnhancedTestCase):
             out = self.eb_main(args, raise_error=True, do_build=True, reset_env=False)
         self.assertMultiRegex(patterns, out)
 
-        self.assertTrue(os.path.samefile(os.environ['CCACHE_DIR'], ccache_dir))
-        self.assertTrue(os.path.samefile(os.environ['F90CACHE_DIR'], f90cache_dir))
-        self.assertTrue(os.path.samefile(which('gcc'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
-        self.assertTrue(os.path.samefile(which('g++'), os.path.join(self.test_prefix, 'scripts', 'ccache')))
-        self.assertTrue(os.path.samefile(which('gfortran'), os.path.join(self.test_prefix, 'scripts', 'f90cache')))
+        prepared_env: Dict[str, str] = post_prepare_hook.prepared_env
+        self.assertTrue(os.path.samefile(prepared_env['CCACHE_DIR'], ccache_dir))
+        self.assertTrue(os.path.samefile(prepared_env['F90CACHE_DIR'], f90cache_dir))
+        os.environ['PATH'] = prepared_env['PATH']
+        self.assertTrue(os.path.samefile(which('gcc'), cache_bin['ccache']))
+        self.assertTrue(os.path.samefile(which('g++'), cache_bin['ccache']))
+        self.assertTrue(os.path.samefile(which('gfortran'), cache_bin['f90cache']))
 
     def test_rpath_args_script(self):
         """Test rpath_args.py script"""
@@ -3022,27 +3031,11 @@ class ToolchainTest(EnhancedTestCase):
         cmd_args = pre_cmd_args_ld + [f"-rpath={new_lib64}"] + post_cmd_args_ld
         self.assertEqual(out, cmd_args)
 
-    def _setup_fake_binary(self, binary_name: str) -> str:
-        """Create an executable script with the given name that simply prints its arguments
-        and makes it available in $PATH"""
-        # Code for a bash script that prints each passed argument on a new line
-        BASH_SCRIPT_PRINT_ARGS = '#!/bin/bash\nfor arg in "$@"; do echo "$arg"; done'
-
-        fake_path = os.path.join(self.test_prefix, 'fake')
-        # put fake 'g++' command in place that just echos its arguments
-        fake_binary = os.path.join(fake_path, binary_name)
-        write_file(fake_binary, BASH_SCRIPT_PRINT_ARGS)
-        adjust_permissions(fake_binary, stat.S_IXUSR)
-        paths = os.environ.get('PATH', '').split(os.path.pathsep)
-        if fake_path not in paths:
-            os.environ['PATH'] = join_path_var([fake_path] + paths)
-        return fake_binary
-
     def test_toolchain_prepare_rpath(self):
         """Test toolchain.prepare under --rpath"""
 
         # put fake 'g++' command in place that just echos its arguments
-        fake_gxx = self._setup_fake_binary('g++')
+        fake_gxx = self.setup_fake_binary('g++')
 
         # enable --rpath and prepare toolchain
         init_config(build_options={'rpath': True, 'rpath_filter': ['/ba.*'], 'silent': True})
@@ -3084,7 +3077,7 @@ class ToolchainTest(EnhancedTestCase):
 
         # Check that we can create a wrapper for a toolchain for which self.compilers() returns 'None' for the Fortran
         # compilers (i.e. Clang)
-        fake_clang = self._setup_fake_binary('clang')
+        fake_clang = self.setup_fake_binary('clang')
         tc_clang = Clang(name='Clang', version='1')
         tc_clang.prepare_rpath_wrappers()
 
@@ -3239,7 +3232,7 @@ class ToolchainTest(EnhancedTestCase):
         """Test toolchain.prepare under --rpath with rpath_wrappers_dir argument"""
 
         # put fake 'g++' command in place that just echos its arguments
-        fake_gxx = self._setup_fake_binary('g++')
+        fake_gxx = self.setup_fake_binary('g++')
 
         # export the wrappers to a target location
         target_wrapper_dir = os.path.abspath(os.path.join(self.test_prefix, 'target'))
