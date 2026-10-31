@@ -3,8 +3,7 @@
 This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 Unported License
 with attribution required
 
-Original code by http://stackoverflow.com/users/416467/kindall from answer 4 of
-http://stackoverflow.com/questions/9057669/how-can-i-intercept-calls-to-pythons-magic-methods-in-new-style-classes
+Original code by http://stackoverflow.com/users/416467/kindall from https://stackoverflow.com/a/9059858/416467
 """
 
 
