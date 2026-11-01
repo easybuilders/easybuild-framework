@@ -75,7 +75,7 @@ class BwrapTest(EnhancedTestCase):
             init_config(build_options={'robot_path': TEST_ECS_DIR})
             ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
             specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
-            self.assertEqual(sorted(det_install_subdirs(specs)), ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28'])
+            self.assertCountEqual(det_install_subdirs(specs), ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28'])
 
         # dummy entries for dependencies without an easyconfig are skipped,
         # easyconfigs with data_sources are not supported (all of them are listed in the error)
@@ -90,12 +90,13 @@ class BwrapTest(EnhancedTestCase):
         hwloc_ec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
 
         # module file paths depend on module naming scheme, modules path suffix and module syntax;
-        # symlinks in moduleclass subdirectories are not used with HMNS
         test_cases = [
             ('EasyBuildMNS', 'Tcl', 'all', (['all/GCC/6.4.0-2.28', 'all/hwloc/1.11.8-GCC-6.4.0-2.28'],
                                             ['compiler/GCC/6.4.0-2.28', 'system/hwloc/1.11.8-GCC-6.4.0-2.28'])),
             ('HierarchicalMNS', 'Tcl', 'foo',
-             (['foo/Compiler/GCC/6.4.0-2.28/hwloc/1.11.8', 'foo/Core/GCC/6.4.0-2.28'], [])),
+             (['foo/Compiler/GCC/6.4.0-2.28/hwloc/1.11.8', 'foo/Core/GCC/6.4.0-2.28'],
+              # symlinks in moduleclass subdirectories are not used with HMNS
+              [])),
         ]
         # Lua module syntax requires Lmod
         if isinstance(self.modtool, Lmod):
@@ -108,8 +109,8 @@ class BwrapTest(EnhancedTestCase):
             ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
             specs = resolve_dependencies(ecs, self.modtool, retain_all_deps=True)
             module_files, module_symlinks = det_module_files(specs)
-            self.assertEqual(sorted(module_files), expected_files)
-            self.assertEqual(sorted(module_symlinks), expected_symlinks)
+            self.assertCountEqual(module_files, expected_files)
+            self.assertCountEqual(module_symlinks, expected_symlinks)
 
         # dummy entries for dependencies without an easyconfig are skipped
         self.assertEqual(det_module_files([{'ec': None, 'full_mod_name': 'foo/1.0'}]), ([], []))
