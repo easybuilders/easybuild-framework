@@ -34,7 +34,6 @@ import os
 import re
 import tempfile
 import shutil
-import stat
 import sys
 from test.framework import TOY_EC_TXT, TEST_ECS_DIR, TEST_MODULES_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -46,7 +45,7 @@ from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools import LooseVersion
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.environment import join_path_var
-from easybuild.tools.filetools import adjust_permissions, copy_file, copy_dir, mkdir
+from easybuild.tools.filetools import copy_file, copy_dir, mkdir
 from easybuild.tools.filetools import read_file, remove_dir, remove_file, symlink, write_file
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod, NoModulesTool
 from easybuild.tools.modules import curr_module_paths, get_software_libdir, get_software_root, get_software_version
@@ -1552,9 +1551,7 @@ class ModulesTest(EnhancedTestCase):
         init_config(build_options={'allow_modules_tool_mismatch': True})
 
         # install dummy modulecmd command that always produces a 'source command' in its output
-        modulecmd = os.path.join(self.test_prefix, 'modulecmd')
-        modulecmd_txt = '\n'.join([
-            '#!/bin/bash',
+        self.setup_fake_binary('modulecmd', '\n'.join([
             # if last argument (${!#})) is --version, print version
             'if [ x"${!#}" == "x--version" ]; then',
             '  echo 3.2.10',
@@ -1563,11 +1560,7 @@ class ModulesTest(EnhancedTestCase):
             '  echo "source /opt/cray/pe/modules/3.2.10.6/init/bash"',
             "  echo \"os.environ['TEST123'] = 'test123'\"",
             'fi',
-        ])
-        write_file(modulecmd, modulecmd_txt)
-        adjust_permissions(modulecmd, stat.S_IXUSR, add=True)
-
-        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.getenv('PATH'))
+        ]))
 
         self.allow_deprecated_behaviour()
         with self.mocked_stdout_stderr():
