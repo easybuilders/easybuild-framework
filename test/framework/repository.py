@@ -149,7 +149,7 @@ class RepositoryTest(EnhancedTestCase):
             """Check easyconfig at specified path"""
             self.assertExists(path)
             ectxt = read_file(path)
-            self.assertTrue(ectxt.startswith("# Built with EasyBuild version"))
+            self.assertStartsWith(ectxt, "# Built with EasyBuild version")
             self.assertIn("# Build statistics", ectxt)
             ecdict = EasyConfigParser(path).get_config_dict()
             self.assertEqual(ecdict['buildstats'], expected_buildstats)
