@@ -2229,9 +2229,10 @@ def resolve_template(value, tmpl_dict, expect_resolved=True):
                             new_tmpl, ver = DEPRECATED_EASYCONFIG_TEMPLATES[old_tmpl]
                             _log.deprecated(f"Easyconfig template '{old_tmpl}' is deprecated, use '{new_tmpl}' instead",
                                             ver)
-                except KeyError:
+                except KeyError as e:
                     if expect_resolved:
                         msg = (f'Failed to resolve all templates in "{value}" using template dictionary: {tmpl_dict}. '
+                               f'Missing is (at least) %({e.args[0]})s. '
                                'This might cause failures or unexpected behavior, '
                                'check for correct escaping if this is intended!')
                         if build_option('allow_unresolved_templates'):

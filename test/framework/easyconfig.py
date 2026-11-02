@@ -1347,14 +1347,16 @@ class EasyConfigTest(EnhancedTestCase):
     def test_ec_method_resolve_template(self):
         """Test the `resolve_template` method of easyconfig instances."""
         # don't use any escaping insanity here, since it is templated itself
-        self.contents = textwrap.dedent("""
+        installopts = "PREFIX=%(installdir)s FOO=%(builddir)s"
+
+        self.contents = textwrap.dedent(f"""
             easyblock = "ConfigureMake"
             name = "PI"
             version = "3.14"
             homepage = "http://example.com"
             description = "test easyconfig %(name)s version %(version_major)s"
             toolchain = SYSTEM
-            installopts = "PREFIX=%(installdir)s"
+            installopts = "{installopts}"
         """)
         self.prep()
         ec = EasyConfig(self.eb_file, validate=False)
@@ -1368,22 +1370,20 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertIn('%', description, 'Description needs a template for the next test')
         self.assertEqual(ec.resolve_template(description), ec['description'])
 
-        val = "PREFIX=%(installdir)s"
-
         # by default unresolved template value triggers an error being raised
-        error_pattern = "Failed to resolve all templates"
-        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        error_pattern = r"Failed to resolve all templates.*Missing is \(at least\) %\(installdir\)s"
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, installopts)
         self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
         # this can be (temporarily) disabled
         with ec.allow_unresolved_templates():
             self.assertFalse(ec.expect_resolved_template_values)
-            self.assertEqual(ec.resolve_template(val), val)
-            self.assertEqual(ec['installopts'], val)
+            self.assertEqual(ec.resolve_template(installopts), installopts)
+            self.assertEqual(ec['installopts'], installopts)
 
         # Enforced again
         self.assertTrue(ec.expect_resolved_template_values)
-        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, val)
+        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.resolve_template, installopts)
         self.assertRaisesRegex(EasyBuildError, error_pattern, ec.get, 'installopts')
 
     def test_templating_cuda_toolchain(self):
@@ -1504,7 +1504,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(len(doc.split('\n')), sum([2 * len(temps) - 1] + [len(x) for x in temps]))
 
     def test_start_dir_template(self):
-        """Test the %(startdir)s template"""
+        """Test the %(start_dir)s template"""
 
         ec = process_easyconfig(TOY_EC)[0]
 
@@ -5288,8 +5288,10 @@ class EasyConfigTest(EnhancedTestCase):
         ec = EasyConfig(test_ec)
 
         self.assertEqual(ec.get_ref('description'), "name: %(name)s, version: %(version)s, pyshortver: %(pyshortver)s")
-        error_pattern = r"Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary:"
-        self.assertRaisesRegex(EasyBuildError, error_pattern, ec.__getitem__, 'description')
+        error_pattern = r"Failed to resolve all templates in.* %\(pyshortver\)s.* using template dictionary: "
+        error_pattern += r".*Missing is \(at least\) %\(pyshortver\)s."
+        with self.assertRaisesRegex(EasyBuildError, error_pattern):
+            ec['description']  # pylint: disable=pointless-statement
 
         # EasyBuild can be configured to allow unresolved templates
         update_build_option('allow_unresolved_templates', True)
