@@ -46,6 +46,7 @@ import sys
 import tempfile
 import pwd
 from collections import OrderedDict
+from pathlib import Path
 from typing import Set
 
 import easybuild.tools.environment as env
@@ -1728,6 +1729,8 @@ def parse_options(args=None, with_include=True):
 
     if args is None:
         args = sys.argv[1:]
+    else:
+        args = [str(arg) if isinstance(arg, Path) else arg for arg in args]
 
     # unroll arguments that correspond to a combo of single-letter options
     # this is done to avoid interpreting -rD like "--robot D" instead of "--robot -D"
