@@ -348,10 +348,10 @@ class FileToolsTest(EnhancedTestCase):
         # make sure faulty checksums are reported
         broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
-            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertNotEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         # sha256 is default
-        self.assertFalse(ft.compute_checksum(fp) == broken_checksums['sha256'])
+        self.assertNotEqual(ft.compute_checksum(fp), broken_checksums['sha256'])
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['sha256']))
 
         # test specify alternative checksums
@@ -428,7 +428,7 @@ class FileToolsTest(EnhancedTestCase):
         # make sure faulty checksums are reported
         broken_checksums = {typ: (val[:-3] + 'foo') for typ, val in known_checksums.items()}
         for checksum_type, checksum in broken_checksums.items():
-            self.assertFalse(ft.compute_checksum(fp, checksum_type=checksum_type) == checksum)
+            self.assertNotEqual(ft.compute_checksum(fp, checksum_type=checksum_type), checksum)
             self.assertFalse(ft.verify_checksum(fp, (checksum_type, checksum)))
         self.assertFalse(ft.verify_checksum(fp, broken_checksums['md5']))
 

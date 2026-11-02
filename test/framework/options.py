@@ -196,7 +196,6 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
     def test_debug(self):
         """Test enabling debug logging."""
-        error_tmpl = "%s log messages are included when using %s: %s"
         for debug_arg in ['-d', '--debug']:
             args = [
                 'nosuchfile.eb',
@@ -206,8 +205,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 outtxt = self.eb_main(args)
 
             for log_msg_type in ['DEBUG', 'INFO', 'ERROR']:
-                res = re.search(' %s ' % log_msg_type, outtxt)
-                self.assertTrue(res, error_tmpl % (log_msg_type, debug_arg, outtxt))
+                self.assertIn(f' {log_msg_type} ', outtxt)
 
     def test_info(self):
         """Test enabling info logging."""
@@ -253,7 +251,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt, error_thrown = self.eb_main(args, return_error=True)
 
-        error_msg = "No error is thrown if software is already installed (error_thrown: %s)" % error_thrown
+        error_msg = "No error should be thrown if software is already installed (error_thrown: %s)" % error_thrown
         self.assertIsNone(error_thrown, error_msg)
 
         already_msg = "GCC/4.6.3 is already installed"
@@ -286,9 +284,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         with self.mocked_stdout_stderr():
             outtxt = self.eb_main(args, do_build=True, verbose=True)
 
-        found_msg = "Module toy/0.0 found.\n[^\n]+Going to skip actual main build"
-        found = re.search(found_msg, outtxt, re.M)
-        self.assertTrue(found, "Module found message present with --skip, outtxt: %s" % outtxt)
+        self.assertRegex(outtxt, "Module toy/0.0 found.\n[^\n]+Going to skip actual main build")
 
         # cleanup for next test
         write_file(self.logfile, '')
@@ -558,7 +554,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             fancylogger.logToScreen(enable=False, stdout=True)
 
             error_msg = "Log messages are printed to stdout when %s is used (stdout: %s)" % (stdout_arg, stdout)
-            self.assertTrue(len(stdout) > 100, error_msg)
+            self.assertGreater(len(stdout), 100, error_msg)
 
         toy_ecfile = TOY_EC
         self.logfile = None
@@ -715,13 +711,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
                 for param in params:
                     # regex for parameter name (with optional '*') & description, matches both txt and rst formats
                     regex = re.compile(r"^[`]*%s(?:\*)?[`]*\s+\w+" % param, re.M)
-                    tup = (param, avail_arg, args, regex.pattern, logtxt)
-                    msg = "Parameter %s is listed with help in output of eb %s (args: %s, regex: %s): %s" % tup
-                    res = regex.search(logtxt)
-                    self.assertTrue(res, msg)
+                    self.assertRegex(logtxt, regex,
+                                     f"Parameter {param} should be listed with help in output of eb {avail_arg} "
+                                     f"(args: {args})")
                     if param in ordered_params:
                         # check whether this parameter is listed after previous one
-                        self.assertTrue(param_start < res.start(0), "%s is in expected order in: %s" % (param, logtxt))
+                        res = regex.search(logtxt)
+                        self.assertLess(param_start, res.start(0), "%s is in expected order in: %s" % (param, logtxt))
                         param_start = res.start(0)
 
             if os.path.exists(dummylogfn):
@@ -2104,7 +2100,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(regex.findall(outtxt)), sorted(modules))
 
         except URLError as err:
             print("Ignoring URLError '%s' in test_from_pr" % err)
@@ -2181,7 +2177,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
 
             # make sure that *only* these modules are listed, no others
             regex = re.compile(r"^ \* \[.\] .*/(?P<filepath>.*) \(module: (?P<module>.*)\)$", re.M)
-            self.assertTrue(sorted(regex.findall(outtxt)), sorted(modules))
+            self.assertEqual(sorted(regex.findall(outtxt)), sorted(modules))
 
             pr_tmpdir = os.path.join(tmpdir, r'eb-\S{6,8}', 'files_commit_%s' % test_commit)
             self.assertRegex(outtxt, rf"Extended list of robot search paths with \['{pr_tmpdir}'\]:")
@@ -4149,7 +4145,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             self.eb_main(args, raise_error=True, testing=False)
             tmpdir_files = os.listdir(tmpdir)
             # tmpdir and logfile are still there \o/
-            self.assertTrue(len(tmpdir_files) == 1)
+            self.assertEqual(len(tmpdir_files), 1)
             self.assertExists(self.logfile)
             # tweaked easyconfigs is still there \o/
             tweaked_dir = os.path.join(tmpdir, tmpdir_files[0], 'tweaked_easyconfigs')
@@ -6667,7 +6663,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "packaging"
         ]
         for skip in skipped:
-            self.assertTrue("== %s [skipped]" % skip)
+            self.assertIn(f"== {skip} [skipped]", stdout)
 
         self.assertIn("== sanity checking...", stdout)
         self.assertIn("COMPLETED: Installation ended successfully", stdout)
