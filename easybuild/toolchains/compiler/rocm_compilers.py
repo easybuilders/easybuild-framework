@@ -36,7 +36,7 @@ Authors:
 import os
 import re
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import copy_file, read_file, write_file, which
 from easybuild.tools.toolchain.toolchain import SYSTEM_TOOLCHAIN_NAME
 from easybuild.toolchains.compiler.llvm_compilers import LLVMCompilers

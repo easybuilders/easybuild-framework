@@ -34,7 +34,7 @@ Authors:
 from easybuild.tools import LooseVersion
 
 import easybuild.tools.systemtools as systemtools
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.compiler import Compiler
 
 

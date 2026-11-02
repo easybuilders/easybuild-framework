@@ -32,9 +32,10 @@ import os
 import platform
 import shutil
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig import CUSTOM
 from easybuild.framework.extensioneasyblock import ExtensionEasyBlock
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.environment import setvar
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.modules import get_software_root, get_software_version

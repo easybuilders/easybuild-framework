@@ -34,7 +34,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.hooks  # so we can reset cached hooks
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import remove_file, write_file
 from easybuild.tools.hooks import find_hook, load_hooks, run_hook, verify_hooks

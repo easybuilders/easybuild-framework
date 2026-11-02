@@ -51,12 +51,13 @@ from string import ascii_letters
 from urllib.request import HTTPError, URLError, urlopen
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR
 from easybuild.framework.easyconfig.easyconfig import copy_easyconfigs, copy_patch_files, det_file_info
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig
 from easybuild.framework.easyconfig.parser import ALTERNATIVE_EASYCONFIG_PARAMETERS, EasyConfigParser
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg, print_warning
+from easybuild.tools.build_log import print_msg, print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import apply_patch, copy_dir, copy_easyblocks, copy_file, copy_framework_files
 from easybuild.tools.filetools import det_patched_files, download_file, extract_file

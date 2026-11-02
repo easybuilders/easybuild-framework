@@ -40,16 +40,15 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, find_
 from test.framework import TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
 
 import easybuild.framework.easyconfig.easyconfig as ecec
-import easybuild.tools.build_log
-import easybuild.tools.robot as robot
+import easybuild.framework.easyconfig.tools
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.easyconfig import process_easyconfig, EasyConfig, make_easyconfig_dict
 from easybuild.framework.easyconfig.tools import alt_easyconfig_paths, find_resolved_modules, parse_easyconfigs
 from easybuild.framework.easyconfig.tweak import tweak
 from easybuild.framework.easyconfig.easyconfig import get_toolchain_hierarchy
 from easybuild.framework.easyconfig.easyconfig import robot_find_subtoolchain_for_dep
 from easybuild.framework.easyconfig.tools import skip_available
-from easybuild.tools import config, modules
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.tools import config, modules, robot
 from easybuild.tools.config import module_classes
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file

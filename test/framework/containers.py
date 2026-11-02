@@ -35,7 +35,7 @@ from test.framework import TEST_ECS_DIR, TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
 
 

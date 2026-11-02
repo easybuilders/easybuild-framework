@@ -47,9 +47,10 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner, mock
 from easybuild.base.fancylogger import setLogLevelDebug
 
+from easybuild.base.exceptions import EasyBuildError
 import easybuild.tools.asyncprocess as asyncprocess
 import easybuild.tools.utilities
-from easybuild.tools.build_log import EasyBuildError, init_logging, stop_logging
+from easybuild.tools.build_log import init_logging, stop_logging
 from easybuild.tools.config import update_build_option
 from easybuild.tools.filetools import adjust_permissions, change_dir, mkdir, read_file, remove_dir, write_file
 from easybuild.tools.modules import EnvironmentModules, Lmod

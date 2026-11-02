@@ -29,8 +29,8 @@ Unit tests for easyconfig/format/format EBConfigObj
 """
 import sys
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.format import EBConfigObj
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.toolchain.utilities import search_toolchain
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered

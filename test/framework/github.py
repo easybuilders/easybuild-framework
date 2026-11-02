@@ -44,10 +44,10 @@ from unittest import TextTestRunner
 from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.base.rest import RestClient
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.filetools import read_file, write_file

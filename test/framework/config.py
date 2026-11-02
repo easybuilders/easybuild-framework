@@ -38,7 +38,7 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from unittest import TextTestRunner
 
 import easybuild.tools.options as eboptions
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import ERROR, IGNORE, WARN, BuildOptions, ConfigurationVariables
 from easybuild.tools.config import build_option, build_path, get_build_log_path, get_log_filename, get_repositorypath
 from easybuild.tools.config import install_path, log_file_format, log_path, source_paths
