@@ -42,6 +42,7 @@ import tempfile
 from copy import copy
 from datetime import datetime, timezone
 from enum import IntEnum
+from typing import Any, Optional, Tuple
 
 from easybuild.base import fancylogger
 from easybuild.base.exceptions import LoggedException
@@ -130,7 +131,7 @@ class EasyBuildError(LoggedException):
     # always include location where error was raised from, even under 'python -O'
     INCLUDE_LOCATION = True
 
-    def __init__(self, msg, *args, exit_code=EasyBuildExit.ERROR, **kwargs):
+    def __init__(self, msg: str, *args, exit_code: EasyBuildExit = EasyBuildExit.ERROR, **kwargs) -> None:
         """Constructor: initialise EasyBuildError instance."""
         if args:
             msg = msg % args
@@ -143,12 +144,12 @@ class EasyBuildError(LoggedException):
         return self.msg
 
 
-def raise_easybuilderror(msg, *args):
+def raise_easybuilderror(msg: str, *args) -> None:
     """Raise EasyBuildError with given message, formatted by provided string arguments."""
     raise EasyBuildError(msg, *args)
 
 
-def raise_nosupport(msg, ver):
+def raise_nosupport(msg: str, ver: str) -> None:
     """Construct error message for no longer supported behaviour, and raise an EasyBuildError."""
     nosupport_msg = "NO LONGER SUPPORTED since v%s: %s; see %s for more information"
     raise_easybuilderror(nosupport_msg, ver, msg, DEPRECATED_DOC_URL)
@@ -220,7 +221,7 @@ class EasyBuildLog(fancylogger.FancyLogger):
         """Raise error message for no longer supported behaviour."""
         raise_nosupport(msg, ver)
 
-    def error(self, msg, *args, **kwargs):
+    def error(self, msg: str, *args, **kwargs) -> None:
         """Print error message."""
         ebmsg = "EasyBuild encountered an error"
         # Don't show caller info when error is raised from within LoggedException.__init__
@@ -232,11 +233,11 @@ class EasyBuildLog(fancylogger.FancyLogger):
 
         fancylogger.FancyLogger.error(self, f"{ebmsg}: {msg}", *args, **kwargs)
 
-    def devel(self, msg, *args, **kwargs):
+    def devel(self, msg: str, *args, **kwargs) -> None:
         """Print development log message"""
         self.log(DEVEL_LOG_LEVEL, msg, *args, **kwargs)
 
-    def exception(self, msg, *args):
+    def exception(self, msg: str, *args) -> None:
         """Print exception message and raise EasyBuildError."""
         # don't raise the exception from within error
         ebmsg = "EasyBuild encountered an exception %s: " % self.caller_info()
@@ -261,7 +262,8 @@ fancylogger.logToFile(filename=os.devnull, max_bytes=0)
 _init_easybuildlog = fancylogger.getLogger(fname=False)
 
 
-def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.Colorize.AUTO, tmp_logdir=None):
+def init_logging(logfile: Optional[str], logtostdout: bool = False, silent: bool = False,
+                 colorize=fancylogger.Colorize.AUTO, tmp_logdir: Optional[str] = None) -> Tuple:
     """Initialize logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=True, stdout=True, colorize=colorize)
@@ -286,7 +288,7 @@ def init_logging(logfile, logtostdout=False, silent=False, colorize=fancylogger.
     return log, logfile
 
 
-def log_start(log, eb_command_line, eb_tmpdir):
+def log_start(log: Any, eb_command_line: list, eb_tmpdir: str) -> None:
     """Log startup info."""
     log.info(this_is_easybuild())
 
@@ -296,7 +298,7 @@ def log_start(log, eb_command_line, eb_tmpdir):
     log.info("Using %s as temporary directory", eb_tmpdir)
 
 
-def stop_logging(logfile, logtostdout=False):
+def stop_logging(logfile: Optional[str], logtostdout: bool = False) -> None:
     """Stop logging."""
     if logtostdout:
         fancylogger.logToScreen(enable=False, stdout=True)
@@ -304,7 +306,7 @@ def stop_logging(logfile, logtostdout=False):
         fancylogger.logToFile(logfile, enable=False)
 
 
-def print_msg(msg, *args, **kwargs):
+def print_msg(msg: str, *args, **kwargs) -> None:
     """
     Print a message.
 
@@ -351,7 +353,7 @@ def print_msg(msg, *args, **kwargs):
             sys.stdout.write(msg)
 
 
-def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
+def dry_run_set_dirs(prefix: str, builddir: str, software_installdir: str, module_installdir: str) -> None:
     """
     Initialize for printing dry run messages.
 
@@ -372,7 +374,7 @@ def dry_run_set_dirs(prefix, builddir, software_installdir, module_installdir):
     DRY_RUN_SOFTWARE_INSTALL_DIR = (re.compile(re.escape(software_installdir)), software_installdir[len(prefix):])
 
 
-def dry_run_msg(msg, *args, **kwargs):
+def dry_run_msg(msg: str, *args, **kwargs) -> None:
     """Print dry run message."""
     # replace fake build/install dir in dry run message with original value
     if args:
@@ -389,7 +391,7 @@ def dry_run_msg(msg, *args, **kwargs):
     print_msg(msg, silent=silent, prefix=False)
 
 
-def dry_run_warning(msg, *args, **kwargs):
+def dry_run_warning(msg: str, *args, **kwargs) -> None:
     """Print dry run message."""
     if args:
         msg = msg % args
@@ -401,7 +403,7 @@ def dry_run_warning(msg, *args, **kwargs):
     dry_run_msg("\n!!!\n!!! WARNING: %s\n!!!\n" % msg, silent=silent)
 
 
-def print_error(msg, *args, **kwargs):
+def print_error(msg: str, *args, **kwargs) -> None:
     """
     Print error message and exit EasyBuild
     """
@@ -433,7 +435,7 @@ def print_error(msg, *args, **kwargs):
         raise EasyBuildError(msg)  # Handle legacy weirdness
 
 
-def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False):
+def print_error_and_exit(msg: str, *args, exit_code: EasyBuildExit = EasyBuildExit.ERROR, silent: bool = False) -> None:
     """
     Print error message and exit EasyBuild, supports format strings
 
@@ -449,7 +451,7 @@ def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False
     sys.exit(int(exit_code))
 
 
-def print_warning(msg, *args, **kwargs):
+def print_warning(msg: str, *args, **kwargs) -> None:
     """
     Print warning message.
     """
@@ -467,7 +469,7 @@ def print_warning(msg, *args, **kwargs):
         sys.stderr.write("\nWARNING: %s\n\n" % msg)
 
 
-def time_str_since(start_time):
+def time_str_since(start_time: datetime) -> str:
     """
     Return string representing amount of time that has passed since specified timestamp
 

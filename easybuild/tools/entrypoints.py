@@ -30,11 +30,12 @@ Authors:
 """
 import sys
 import importlib
+from typing import Any, ClassVar, Dict, List, Optional, Set, TypeVar
+
 from easybuild.tools.config import build_option
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
-from typing import TypeVar, List, Set, Any
 
 _T = TypeVar('_T')
 
@@ -56,9 +57,9 @@ _log = fancylogger.getLogger('entrypoints', fname=False)
 
 
 class EasybuildEntrypoint:
-    group = None
+    group: Optional[str] = None  # Subclasses MUST override this
     expected_type = None
-    registered = {}
+    registered: ClassVar[Dict[str, Set["EasybuildEntrypoint"]]] = {}
 
     def __init__(self):
         if self.group is None:
