@@ -2422,10 +2422,10 @@ class EasyConfigTest(EnhancedTestCase):
         # spaces in between multiple updates for string values
         ec.update('configopts', 'CC="$CC"')
         ec.update('configopts', 'CXX="$CXX"')
-        self.assertTrue(ec['configopts'].strip().endswith('CC="$CC"  CXX="$CXX"'))
+        self.assertEndsWith(ec['configopts'].strip(), 'CC="$CC"  CXX="$CXX"')
         # spaces in between multiple updates for string values from list
         ec.update('configopts', ['MORE_VALUE', 'EVEN_MORE'])
-        self.assertTrue(ec['configopts'].strip().endswith('MORE_VALUE  EVEN_MORE'))
+        self.assertEndsWith(ec['configopts'].strip(), 'MORE_VALUE  EVEN_MORE')
 
         # for list values: extend
         ec.update('patches', ['foo.patch', 'bar.patch'])
@@ -2955,7 +2955,7 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(patterns, ectxt)
 
-        self.assertTrue(ectxt.endswith("# trailing comment\n"))
+        self.assertEndsWith(ectxt, "# trailing comment\n")
 
         # reparsing the dumped easyconfig file should work
         EasyConfig(testec)
@@ -3101,7 +3101,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         check_easyconfigs_style([testec])
 
-        self.assertTrue(ectxt.startswith('\n'.join([
+        self.assertStartsWith(ectxt, '\n'.join([
             '# this is a header',
             '#',
             '# which may include empty comment lines',
@@ -3109,7 +3109,7 @@ class EasyConfigTest(EnhancedTestCase):
             '',
             '# or flat out empty lines',
             '',
-        ])))
+        ]))
 
         patterns = [
             # inline comments
@@ -3189,14 +3189,14 @@ class EasyConfigTest(EnhancedTestCase):
         ]
         self.assertMultiRegex(patterns, ectxt, multi_line=True)
 
-        self.assertTrue(ectxt.endswith('\n'.join([
+        self.assertEndsWith(ectxt, '\n'.join([
             '#',
             '# trailing comment',
             '',
             '# with an empty line in between',
             '# DONE!',
             '',
-        ])))
+        ]))
 
     def test_to_template_str(self):
         """ Test for to_template_str method """
@@ -3309,7 +3309,7 @@ class EasyConfigTest(EnhancedTestCase):
         # and 2 edges: 'toy -> intel' and 'toy -> "GCC/6.4.0-2.28 (EXT)"'
         dottxt = read_file(dot_file)
 
-        self.assertTrue(dottxt.startswith(f'digraph {graphname} {{'))
+        self.assertStartsWith(dottxt, f'digraph {graphname} {{')
 
         # just check for toy -> GCC deps
         # don't bother doing full output check
@@ -4153,7 +4153,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = check_sha256_checksums(ecs)
         # result should be non-empty, i.e. contain a list of messages highlighting checksum issues
         self.assertTrue(res)
-        self.assertTrue(res[0].startswith('Checksums missing for one or more sources/patches in toy-0.0-fail.eb'))
+        self.assertStartsWith(res[0], 'Checksums missing for one or more sources/patches in toy-0.0-fail.eb')
 
         # test use of whitelist regex patterns: check passes because easyconfig is whitelisted by filename
         for regex in [r'toy-.*', r'.*-0\.0-fail\.eb']:
@@ -4171,7 +4171,7 @@ class EasyConfigTest(EnhancedTestCase):
 
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
-        self.assertTrue(res[-1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz"))
+        self.assertStartsWith(res[-1], "Non-SHA256 checksum(s) found for toy-0.0.tar.gz")
 
         # re-test with right checksum in place
         toy_sha256 = '44332000aa33b99ad1e00cbd1a7da769220d74647060a10e807b916d73ea27bc'
@@ -4195,7 +4195,7 @@ class EasyConfigTest(EnhancedTestCase):
         res = check_sha256_checksums(ecs)
         self.assertTrue(res)
         # multiple checksums listed for source tarball, while exactly one (SHA256) checksum is expected
-        self.assertTrue(res[1].startswith("Non-SHA256 checksum(s) found for toy-0.0.tar.gz: "))
+        self.assertStartsWith(res[1], "Non-SHA256 checksum(s) found for toy-0.0.tar.gz: ")
 
         checksums_dict = textwrap.dedent("""checksums = [{
             'toy-0.0-aarch64.tar.gz': 'not_really_a_sha256_checksum',
