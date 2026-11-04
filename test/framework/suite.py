@@ -43,6 +43,7 @@ from easybuild.tools.options import set_tmpdir
 
 import test.framework.asyncprocess as a
 import test.framework.build_log as bl
+import test.framework.bwrap as bw
 import test.framework.config as c
 import test.framework.containers as ct
 import test.framework.easyblock as b
@@ -114,7 +115,7 @@ except EasyBuildError as err:
 # call suite() for each module and then run them all
 # note: make sure the options unit tests run first, to avoid running some of them with a readily initialized config
 tests = [gen, d, bl, o, r, ef, ev, ebco, ep, epts, e, mg, m, mt, f, run, a, robot, b, v, g, tcv, tc, t, c, s, lic, f_c,
-         tw, p, i, pkg, env, et, st, h, ct, lib, u, es, ou]
+         tw, p, i, pkg, env, et, st, h, ct, lib, u, es, ou, bw]
 
 
 class EasyBuildFrameworkTestSuite(unittest.TestSuite):

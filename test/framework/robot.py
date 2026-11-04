@@ -56,7 +56,8 @@ from easybuild.tools.filetools import copy_file, mkdir, read_file, write_file
 from easybuild.tools.github import fetch_github_token
 from easybuild.tools.module_naming_scheme.utilities import det_full_ec_version
 from easybuild.tools.modules import invalidate_module_caches_for, reset_module_caches
-from easybuild.tools.robot import check_conflicts, det_robot_path, resolve_dependencies, search_easyconfigs
+from easybuild.tools.robot import check_conflicts, det_robot_path, dry_run, resolve_dependencies
+from easybuild.tools.robot import search_easyconfigs
 
 
 # test account, for which a token is available
@@ -1609,6 +1610,30 @@ class RobotTest(EnhancedTestCase):
                 pattern.append(r"^ \* .*%s$" % path)
 
             self.assertRegex(stdout, re.compile('\n'.join(pattern), re.M))
+
+    def test_dry_run_specs_to_install(self):
+        """Test dry_run with return_specs_to_install (and deprecated return_modules_to_install)."""
+        self.install_mock_module()
+        init_config(build_options={'robot_path': TEST_ECS_DIR})
+        hwloc_ec = os.path.join(TEST_ECS_DIR, 'h', 'hwloc', 'hwloc-1.11.8-GCC-6.4.0-2.28.eb')
+        ecs, _ = parse_easyconfigs([(hwloc_ec, False)])
+
+        MockModule.avail_modules = []
+        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
+        res = sorted(spec['full_mod_name'] for spec in specs)
+        self.assertEqual(res, ['GCC/6.4.0-2.28', 'hwloc/1.11.8-GCC-6.4.0-2.28'])
+
+        # modules that are already available are skipped
+        MockModule.avail_modules = ['GCC/6.4.0-2.28']
+        specs = dry_run(ecs, self.modtool, return_specs_to_install=True)
+        self.assertEqual([spec['spec'] for spec in specs], [hwloc_ec])
+
+        # deprecated return_modules_to_install returns full module names
+        depr_msg = "Parameter 'return_modules_to_install' of dry_run is deprecated"
+        self.assertRaisesRegex(EasyBuildError, depr_msg, dry_run, ecs, self.modtool, return_modules_to_install=True)
+        with self.temporarily_allow_deprecated_behaviour(), self.mocked_stdout_stderr():
+            mods = dry_run(ecs, self.modtool, return_modules_to_install=True)
+        self.assertEqual(mods, ['hwloc/1.11.8-GCC-6.4.0-2.28'])
 
 
 def suite(loader=None):
