@@ -1935,6 +1935,8 @@ class EasyConfig:
     def __setitem__(self, key, value):
         """Set value of specified easyconfig parameter (help text & co is left untouched)"""
         if key in self._config:
+            if key == 'extension_name' and value and re.search(r'%\(\w+\)s', value):
+                raise EasyBuildError(f"'extension_name' must not contain templates. Got: '{value}'")
             self._config[key][0] = value
         else:
             raise EasyBuildError("Use of unknown easyconfig parameter '%s' when setting parameter value to '%s'",

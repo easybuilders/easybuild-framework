@@ -3569,6 +3569,10 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'gzip',
+            'extension_name': 'gzip',
+            'extension_name_letter': 'g',
+            'extension_name_letterlower': 'g',
+            'extension_namelower': 'gzip',
             'github_account': 'gzip',
             'module_name': 'gzip/1.5-foss-2018a',
             'name': 'gzip',
@@ -3646,6 +3650,10 @@ class EasyConfigTest(EnhancedTestCase):
 
         expected = {
             'bitbucket_account': 'toy',
+            'extension_name': 'toy',
+            'extension_name_letter': 't',
+            'extension_name_letterlower': 't',
+            'extension_namelower': 'toy',
             'github_account': 'toy',
             'javamajver': '1',
             'javaminver': '8',
@@ -3714,6 +3722,10 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertRegex(arch, arch_regex)
 
         expected = {
+            'extension_name': 'foo',
+            'extension_name_letter': 'f',
+            'extension_name_letterlower': 'f',
+            'extension_namelower': 'foo',
             'module_name': None,
             'name': 'foo',
             'namelower': 'foo',
@@ -3742,6 +3754,68 @@ class EasyConfigTest(EnhancedTestCase):
         del expected['version_patch']
         expected['version'] = '1.2'
         self.assertEqual(res, expected)
+
+    def test_extension_name_templates(self):
+        """Test %(extension_name*)s template values."""
+        # case 1: extension_name unset -> %(extension_name*)s falls back to %(name*)s
+        config = {'name': 'Software-python', 'version': '1.0'}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Software-python')
+        self.assertEqual(res['extension_namelower'], 'software-python')
+        self.assertEqual(res['extension_name_letter'], 'S')
+        self.assertEqual(res['extension_name_letterlower'], 's')
+
+        # case 2: extension_name set to None -> Same as 1
+        config = {'name': 'Software-python', 'version': '1.0', 'extension_name': None}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Software-python')
+        self.assertEqual(res['extension_namelower'], 'software-python')
+        self.assertEqual(res['extension_name_letter'], 'S')
+        self.assertEqual(res['extension_name_letterlower'], 's')
+
+        # case 3: extension_name explicitly set -> %(extension_name*)s uses the override
+        config = {'name': 'Software-python', 'version': '1.0', 'extension_name': 'Package'}
+        res = template_constant_dict(config)
+        self.assertEqual(res['extension_name'], 'Package')
+        self.assertEqual(res['extension_namelower'], 'package')
+        self.assertEqual(res['extension_name_letter'], 'P')
+        self.assertEqual(res['extension_name_letterlower'], 'p')
+
+        # Check that the templates are resolved by collect_exts_file_info and extension instances
+        self.contents = textwrap.dedent("""
+            name = "toy"
+            version = "3.14"
+            homepage = "http://example.com"
+            description = "test easyconfig"
+            toolchain = SYSTEM
+            exts_list = [
+               ("Plain", "2.0", {
+                   'easyblock': 'Toy_Extension',
+                   'sources': ['%(extension_name)s-%(extension_name_letter)s.zip'],
+                   'patches': ['%(extension_namelower)s-%(extension_name_letterlower)s.patch'],
+                   'configopts': '%(extension_name)s=%(extension_name_letter)s',
+               }),
+               ("Renamed", "2.0", {
+                   'easyblock': 'Toy_Extension',
+                   'extension_name': 'MyExt',
+                   'sources': ['%(extension_name)s-%(extension_name_letter)s.zip'],
+                   'patches': ['%(extension_namelower)s-%(extension_name_letterlower)s.patch'],
+                   'configopts': '%(extension_name)s=%(extension_name_letter)s',
+               }),
+            ]
+        """)
+        self.prep()
+        eb = EasyBlock(EasyConfig(self.eb_file))
+        exts_sources = eb.collect_exts_file_info(fetch_files=False, verify_checksums=False)
+        eb.init_ext_instances()
+        plain_ext = eb.ext_instances[0]
+        renamed_ext = eb.ext_instances[1]
+        self.assertEqual(exts_sources[0]['sources'][0], 'Plain-P.zip')
+        self.assertEqual(exts_sources[0]['patches'][0]['name'], 'plain-p.patch')
+        self.assertEqual(exts_sources[1]['sources'][0], 'MyExt-M.zip')
+        self.assertEqual(exts_sources[1]['patches'][0]['name'], 'myext-m.patch')
+        self.assertEqual(plain_ext.cfg['configopts'], 'Plain=P')
+        self.assertEqual(renamed_ext.cfg['configopts'], 'MyExt=M')
 
     def test_parse_deps_templates(self):
         """Test whether handling of templates defined by dependencies is done correctly."""
