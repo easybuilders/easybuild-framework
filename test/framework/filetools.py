@@ -41,6 +41,7 @@ import re
 import shutil
 import stat
 import sys
+import tarfile
 import tempfile
 import textwrap
 import time
@@ -48,6 +49,7 @@ import types
 from io import StringIO
 from pathlib import Path
 from unittest import TextTestRunner
+from unittest.mock import patch
 from urllib import request
 
 from test.framework import REPO_ROOT, TEST_DIR, TEST_ECS_DIR, TOY_EC, TOY_EC_TXT
@@ -3027,6 +3029,302 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         self.assertRegex(res, re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M))
 
+    def test_is_git_lfs_pointer(self):
+        """Test detection of valid Git LFS pointer files."""
+        pointer = (
+            b'version https://git-lfs.github.com/spec/v1\n'
+            b'oid sha256:' + b'a' * 64 + b'\n'
+            b'size 12345\n'
+        )
+
+        # Valid Git LFS pointers
+        self.assertTrue(ft._is_git_lfs_pointer(pointer))
+        self.assertTrue(ft._is_git_lfs_pointer(pointer.replace(b'size 12345', b'size 0')))
+
+        # Invalid pointers and ordinary files
+        invalid_pointers = [
+            b'',
+            b'ordinary file contents\n',
+            pointer[:-1],  # Missing final newline
+            pointer.replace(b'sha256:', b'sha1:'),
+            pointer.replace(b'size 12345', b'size -1'),
+            pointer.replace(b'size 12345', b'size abc'),
+            pointer.replace(b'size 12345', b'size 012345'),
+            pointer.replace(b'oid sha256:', b'oid sha256:xyz'),
+            pointer.replace(b'oid sha256:', b'oid sha256:\xff'),
+            pointer.replace(b'size 12345\n', b''),
+            pointer + b'size 12345\n',  # Duplicate field
+            pointer + b'x' * 1024,  # Too large
+        ]
+
+        for contents in invalid_pointers:
+            with self.subTest(contents=contents):
+                self.assertFalse(ft._is_git_lfs_pointer(contents))
+
+    def test_repo_has_git_lfs_pointers(self):
+        """Test detection of Git LFS pointers in tracked repository files."""
+        if ft.which('git', on_error=IGNORE, log_ok=False) is None:
+            self.skipTest('Git is not available')
+
+        repo_dir = os.path.join(self.test_prefix, 'lfs-repo')
+        run_shell_cmd(f'git init {repo_dir}', hidden=True)
+
+        pointer = (
+            b'version https://git-lfs.github.com/spec/v1\n'
+            b'oid sha256:' + b'a' * 64 + b'\n'
+            b'size 12345\n'
+        )
+
+        ft.write_file(
+            os.path.join(repo_dir, '.gitattributes'),
+            '*.bin filter=lfs diff=lfs merge=lfs -text\n',
+        )
+
+        # A valid pointer in documentation should not trigger Git LFS.
+        ft.write_file(os.path.join(repo_dir, 'README.md'), pointer)
+
+        # Git LFS attributes alone should not trigger Git LFS.
+        ft.write_file(os.path.join(repo_dir, 'normal.bin'), 'normal data\n')
+
+        # Stage files without requiring git-lfs.
+        git_add_cmd = (
+            'git -c filter.lfs.clean= -c filter.lfs.process= '
+            '-c filter.lfs.required=false add -A'
+        )
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+
+        # No actual LFS pointers despite having LFS attributes.
+        self.assertFalse(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+
+        # Add an actual Git LFS pointer.
+        data_file = os.path.join(repo_dir, 'data.bin')
+        ft.write_file(data_file, pointer)
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+
+        self.assertTrue(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+
+        # Replacing the pointer with regular data should disable detection.
+        ft.write_file(data_file, 'normal data\n')
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+
+        self.assertFalse(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+
+    def test_get_source_tarball_from_git_lfs(self):
+        """Test Git LFS handling when git-lfs is available and unavailable."""
+        if ft.which('git', on_error=IGNORE, log_ok=False) is None:
+            self.skipTest('Git is not available')
+
+        repo_name = 'lfs-test'
+        repos_dir = os.path.join(self.test_prefix, 'repos')
+        repo_dir = os.path.join(repos_dir, f'{repo_name}.git')
+        target_dir = os.path.join(self.test_prefix, 'sources')
+
+        ft.mkdir(repo_dir, parents=True)
+        run_shell_cmd('git init -q', work_dir=repo_dir, hidden=True)
+
+        pointer = (
+            b'version https://git-lfs.github.com/spec/v1\n'
+            + b'oid sha256:' + b'a' * 64 + b'\n'
+            + b'size 12345\n'
+        )
+
+        ft.write_file(
+            os.path.join(repo_dir, '.gitattributes'),
+            '*.bin filter=lfs diff=lfs merge=lfs -text\n',
+        )
+        ft.write_file(os.path.join(repo_dir, 'data.bin'), pointer)
+
+        # Stage the pointer without requiring git-lfs.
+        git_add_cmd = (
+            'git -c filter.lfs.clean= -c filter.lfs.process= '
+            '-c filter.lfs.required=false add -A'
+        )
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+        # Disable LFS filters and hooks so the fixture works without git-lfs.
+        commit_cmd = (
+            'git -c filter.lfs.clean= -c filter.lfs.smudge= '
+            '-c filter.lfs.process= -c filter.lfs.required=false '
+            '-c user.name=EasyBuild -c user.email=easybuild@example.com '
+            '-c commit.gpgsign=false -c core.hooksPath=/dev/null '
+            'commit -m "Add LFS pointer"'
+        )
+        res = run_shell_cmd(commit_cmd, work_dir=repo_dir, hidden=True, fail_on_error=False)
+        self.assertEqual(res.exit_code, 0, res.output)
+        run_shell_cmd('git tag v1.0', work_dir=repo_dir, hidden=True)
+
+        git_config = {
+            'url': repos_dir,
+            'repo_name': repo_name,
+            'tag': 'v1.0',
+        }
+
+        # Simulate git-lfs being unavailable, regardless of the test environment.
+        with patch.object(ft, 'which', return_value=None):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                'Git LFS pointers found.*git-lfs is not available.*Add git-lfs to source_deps',
+                ft.get_source_tarball_from_git,
+                'test.tar.xz',
+                target_dir,
+                git_config,
+            )
+
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'test.tar.xz')))
+
+        # Simulate git-lfs availability and successful retrieval of LFS data.
+        # No git-lfs executable or network connection is required.
+        orig_run_shell_cmd = ft.run_shell_cmd
+        lfs_commands = []
+        hydrated_data = b'Actual Git LFS file contents\n' * 100
+
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            if cmd in ('git lfs install --local --skip-repo', 'git lfs pull'):
+                lfs_commands.append(cmd)
+
+                if cmd == 'git lfs pull':
+                    # Simulate replacing the pointer with the actual LFS object.
+                    data_file = os.path.join(kwargs['work_dir'], 'data.bin')
+                    ft.write_file(data_file, hydrated_data)
+
+                return types.SimpleNamespace(exit_code=0, output='')
+
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'which', return_value='/fake/git-lfs'):
+            with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+                archive = ft.get_source_tarball_from_git(
+                    'test.tar.xz', target_dir, git_config,
+                )
+
+        self.assertEqual(lfs_commands, [
+            'git lfs install --local --skip-repo',
+            'git lfs pull',
+        ])
+
+        # Check that the resulting archive contains hydrated data.
+        with tarfile.open(archive, 'r:xz') as tf:
+            contents = tf.extractfile(f'{repo_name}/data.bin').read()
+
+        self.assertEqual(contents, hydrated_data)
+
+    def test_get_source_tarball_from_git_nested_lfs(self):
+        """Test Git LFS handling in recursively nested submodules."""
+        if ft.which('git', on_error=IGNORE, log_ok=False) is None:
+            self.skipTest('Git is not available')
+
+        repo_name = 'lfs-parent'
+        repos_dir = os.path.join(self.test_prefix, 'repos')
+        parent_repo = os.path.join(repos_dir, f'{repo_name}.git')
+        child_repo = os.path.join(repos_dir, 'lfs-child.git')
+        grandchild_repo = os.path.join(repos_dir, 'lfs-grandchild.git')
+        target_dir = os.path.join(self.test_prefix, 'sources')
+
+        # Use local repositories without requiring git-lfs.
+        git_cmd = (
+            'git -c protocol.file.allow=always '
+            '-c filter.lfs.process= -c filter.lfs.smudge= '
+            '-c filter.lfs.clean= -c filter.lfs.required=false'
+        )
+        commit_cmd = (
+            'git -c user.name=EasyBuild -c user.email=easybuild@example.com '
+            '-c commit.gpgsign=false -c core.hooksPath=/dev/null '
+            '-c filter.lfs.process= -c filter.lfs.clean= '
+            '-c filter.lfs.required=false'
+        )
+
+        for repo in (grandchild_repo, child_repo, parent_repo):
+            ft.mkdir(repo, parents=True)
+            run_shell_cmd('git init -q', work_dir=repo, hidden=True)
+
+        # Only the deepest submodule contains a Git LFS pointer.
+        pointer = (
+            b'version https://git-lfs.github.com/spec/v1\n'
+            + b'oid sha256:' + b'a' * 64 + b'\n'
+            + b'size 12345\n'
+        )
+        ft.write_file(
+            os.path.join(grandchild_repo, '.gitattributes'),
+            '*.bin filter=lfs diff=lfs merge=lfs -text\n',
+        )
+        ft.write_file(os.path.join(grandchild_repo, 'data.bin'), pointer)
+        run_shell_cmd(f'{git_cmd} add -A', work_dir=grandchild_repo, hidden=True)
+        run_shell_cmd(
+            f'{commit_cmd} commit -qm "Add LFS pointer"',
+            work_dir=grandchild_repo, hidden=True,
+        )
+
+        # Grandchild -> child -> parent.
+        run_shell_cmd(
+            f'{git_cmd} submodule add -q {grandchild_repo} nested',
+            work_dir=child_repo, hidden=True,
+        )
+        run_shell_cmd(f'{git_cmd} add -A', work_dir=child_repo, hidden=True)
+        run_shell_cmd(
+            f'{commit_cmd} commit -qm "Add nested submodule"',
+            work_dir=child_repo, hidden=True,
+        )
+
+        run_shell_cmd(
+            f'{git_cmd} submodule add -q {child_repo} modules/child',
+            work_dir=parent_repo, hidden=True,
+        )
+        run_shell_cmd(f'{git_cmd} add -A', work_dir=parent_repo, hidden=True)
+        run_shell_cmd(
+            f'{commit_cmd} commit -qm "Add child submodule"',
+            work_dir=parent_repo, hidden=True,
+        )
+        run_shell_cmd('git tag v1.0', work_dir=parent_repo, hidden=True)
+
+        git_config = {
+            'url': repos_dir,
+            'repo_name': repo_name,
+            'tag': 'v1.0',
+            'recursive': True,
+            'extra_config_params': ['protocol.file.allow=always'],
+        }
+
+        # Mock Git LFS commands, but use real Git for everything else.
+        orig_run_shell_cmd = ft.run_shell_cmd
+        lfs_commands = []
+        hydrated_data = b'Actual Git LFS file contents\n' * 100
+
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            if cmd.endswith(' lfs install --local --skip-repo'):
+                lfs_commands.append(('install', kwargs['work_dir']))
+                return types.SimpleNamespace(exit_code=0, output='')
+
+            if cmd.endswith(' lfs pull'):
+                lfs_commands.append(('pull', kwargs['work_dir']))
+                ft.write_file(
+                    os.path.join(kwargs['work_dir'], 'data.bin'),
+                    hydrated_data,
+                )
+                return types.SimpleNamespace(exit_code=0, output='')
+
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'which', return_value='/fake/git-lfs'):
+            with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+                archive = ft.get_source_tarball_from_git(
+                    'test.tar.xz', target_dir, git_config,
+                )
+
+        # Git LFS must run only in the deepest submodule.
+        self.assertEqual(
+            [action for action, _ in lfs_commands],
+            ['install', 'pull'],
+        )
+        expected_suffix = os.path.join(repo_name, 'modules', 'child', 'nested')
+        for _, work_dir in lfs_commands:
+            self.assertTrue(work_dir.endswith(expected_suffix), work_dir)
+
+        # The archived nested submodule must contain hydrated data.
+        with tarfile.open(archive, 'r:xz') as tf:
+            member = f'{repo_name}/modules/child/nested/data.bin'
+            contents = tf.extractfile(member).read()
+
+        self.assertEqual(contents, hydrated_data)
+
     @requires_github_access()
     def test_github_get_source_tarball_from_git(self):
         """Test get_source_tarball_from_git function."""
@@ -3041,15 +3339,17 @@ class FileToolsTest(EnhancedTestCase):
         }
         init_config(build_options=build_options)
 
-        def run_check(expected: str):
-            """Helper function to run get_source_tarball_from_git & check dry run output"""
+        def run_check(expected_cmds, repo_name='testrepository'):
+            """Check commands executed during a dry run of get_source_tarball_from_git."""
             with self.mocked_stdout_stderr():
                 res = ft.get_source_tarball_from_git('test', target_dir, git_config)
                 stdout = self.get_stdout()
                 stderr = self.get_stderr()
-            self.assertEqual(stderr, '')
-            self.assertRegex(stdout, expected)
 
+            self.assertEqual(stderr, '')
+            commands = re.findall(r'^  running shell command "(.*)"$', stdout, re.M)
+            self.assertEqual(commands, expected_cmds)
+            self.assertIn(f"/{repo_name}' into '{target_dir}/test.tar.xz'...", stdout)
             self.assertEqual(os.path.dirname(res), target_dir)
             self.assertEqual(os.path.basename(res), 'test.tar.xz')
 
@@ -3058,217 +3358,60 @@ class FileToolsTest(EnhancedTestCase):
             'url': 'git@github.com:easybuilders',
             'tag': 'tag_for_tests',
         }
-        string_args = {
-            'git_repo': 'git@github.com:easybuilders/testrepository.git',
-            'git_clone_cmd': 'git clone --no-checkout',
-            'test_prefix': self.test_prefix,
-        }
+        git_repo = 'git@github.com:easybuilders/testrepository.git'
+        clone_cmd = f'git clone --no-checkout {git_repo}'
+        no_lfs_opts = '-c filter.lfs.process= -c filter.lfs.smudge= -c filter.lfs.required=false'
+        checkout_cmd = f'git {no_lfs_opts} checkout refs/tags/tag_for_tests'
+        ls_files_cmd = 'git ls-files -z'
+        foreach_args = r"""submodule --quiet foreach --recursive 'printf "%s\0" "$PWD"'"""
+        foreach_cmd = f'git {foreach_args}'
 
-        lfs_check_tag = (
-            r'  running shell command "git grep -I -h filter=lfs refs/tags/tag_for_tests -- '
-            r"':\(glob\)\*\*/\.gitattributes'\""
-        )
+        # Tag checkout without submodules.
+        run_check([clone_cmd, checkout_cmd, ls_files_cmd])
 
-        run_check('\n'.join([
-            r'  running shell command "{git_clone_cmd} {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_tag,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository')
-        )
-
+        # Clone into a different local repository directory.
         git_config['clone_into'] = 'test123'
-        run_check('\n'.join([
-            r'  running shell command "{git_clone_cmd} {git_repo} test123"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_tag,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='test123')
-        )
+        run_check([f'{clone_cmd} test123', checkout_cmd, ls_files_cmd], repo_name='test123')
         del git_config['clone_into']
 
+        # Initialize and enumerate recursive submodules.
         git_config['recursive'] = True
-        run_check('\n'.join([
-            r'  running shell command "{git_clone_cmd} {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_tag,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git submodule update --init --recursive"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository')
-        )
+        submodule_cmd = f'git {no_lfs_opts} submodule update --init --recursive'
+        run_check([clone_cmd, checkout_cmd, submodule_cmd, foreach_cmd, ls_files_cmd])
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        run_check('\n'.join([
-            r'  running shell command "{git_clone_cmd} {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_tag,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository')
-        )
+        submodule_cmd_with_paths = submodule_cmd + " -- ':!vcflib' ':!sdsl-lite'"
+        run_check([clone_cmd, checkout_cmd, submodule_cmd_with_paths, foreach_cmd, ls_files_cmd])
 
+        # Extra Git configuration parameters must be propagated to all relevant commands.
         git_config['extra_config_params'] = [
             'submodule."fastahack".active=false',
             'submodule."sha1".active=false',
         ]
         git_cmd_extra = 'git -c submodule."fastahack".active=false -c submodule."sha1".active=false'
-        lfs_check_extra = (
-            r'  running shell command "{git_cmd_extra} grep -I -h filter=lfs refs/tags/tag_for_tests -- '
-            r"':\(glob\)\*\*/\.gitattributes'\""
-        )
-        run_check('\n'.join([
-            r'  running shell command "{git_cmd_extra} clone --no-checkout {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_extra,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "{git_cmd_extra} checkout refs/tags/tag_for_tests"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "{git_cmd_extra} submodule update --init --recursive --'
-            + ' \':!vcflib\' \':!sdsl-lite\'"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository', git_cmd_extra=git_cmd_extra)
-        )
+        run_check([
+            f'{git_cmd_extra} clone --no-checkout {git_repo}',
+            f'{git_cmd_extra} {no_lfs_opts} checkout refs/tags/tag_for_tests',
+            f'{git_cmd_extra} {no_lfs_opts} submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'',
+            f'{git_cmd_extra} {foreach_args}',
+            f'{git_cmd_extra} ls-files -z',
+        ])
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
 
+        # Commit checkout instead of a tag.
         del git_config['tag']
         git_config['commit'] = '8456f86'
-        lfs_check_commit = (
-            r'  running shell command "git grep -I -h filter=lfs 8456f86 -- '
-            r"':\(glob\)\*\*/\.gitattributes'\""
-        )
-        run_check('\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_commit,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git submodule update --init --recursive"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository')
-        )
+        checkout_cmd = f'git {no_lfs_opts} checkout 8456f86'
+        run_check([clone_cmd, checkout_cmd, submodule_cmd, foreach_cmd, ls_files_cmd])
 
         git_config['recurse_submodules'] = ['!vcflib', '!sdsl-lite']
-        run_check('\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*/tmp.*\)",
-            lfs_check_commit,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        )
+        run_check([clone_cmd, checkout_cmd, submodule_cmd_with_paths, foreach_cmd, ls_files_cmd])
 
+        # Without recursion there should be no submodule commands.
         del git_config['recursive']
         del git_config['recurse_submodules']
-        run_check('\n'.join([
-            r'  running shell command "git clone --no-checkout {git_repo}"',
-            r"  \(in .*\)",
-            lfs_check_commit,
-            r"  \(in .*/{repo_name}\)",
-            r'  running shell command "git checkout 8456f86"',
-            r"  \(in .*/{repo_name}\)",
-            r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-        ]).format(**string_args, repo_name='testrepository')
-        )
-
-        # Check Git LFS handling when .gitattributes contains filter=lfs.
-        orig_run_shell_cmd = ft.run_shell_cmd
-
-        def mock_run_shell_cmd(cmd, *args, **kwargs):
-            res = orig_run_shell_cmd(cmd, *args, **kwargs)
-            if ' grep -I -h filter=lfs ' in cmd:
-                res = types.SimpleNamespace(
-                    exit_code=0,
-                    output='*.bam filter=lfs diff=lfs merge=lfs -text\n',
-                )
-            return res
-
-        ft.run_shell_cmd = mock_run_shell_cmd
-        try:
-            run_check('\n'.join([
-                r'  running shell command "git clone --no-checkout {git_repo}"',
-                r"  \(in .*\)",
-                lfs_check_commit,
-                r"  \(in .*/{repo_name}\)",
-                r'  running shell command "git lfs install --local --skip-repo"',
-                r"  \(in .*/{repo_name}\)",
-                r'  running shell command "git checkout 8456f86"',
-                r"  \(in .*/{repo_name}\)",
-                r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-            ]).format(**string_args, repo_name='testrepository')
-            )
-        finally:
-            ft.run_shell_cmd = orig_run_shell_cmd
-
-        # Ignore Git LFS attributes that are commented out.
-        def mock_run_shell_cmd(cmd, *args, **kwargs):
-            res = orig_run_shell_cmd(cmd, *args, **kwargs)
-            if ' grep -I -h filter=lfs ' in cmd:
-                res = types.SimpleNamespace(
-                    exit_code=0,
-                    output='# *.bam filter=lfs diff=lfs merge=lfs -text\n',
-                )
-            return res
-
-        ft.run_shell_cmd = mock_run_shell_cmd
-        try:
-            run_check('\n'.join([
-                r'  running shell command "git clone --no-checkout {git_repo}"',
-                r"  \(in .*\)",
-                lfs_check_commit,
-                r"  \(in .*/{repo_name}\)",
-                r'  running shell command "git checkout 8456f86"',
-                r"  \(in .*/{repo_name}\)",
-                r"Archiving '.*/{repo_name}' into '{test_prefix}/target/test.tar.xz'...",
-                ]).format(**string_args, repo_name='testrepository')
-            )
-        finally:
-            ft.run_shell_cmd = orig_run_shell_cmd
-
-        # Fail if checking for Git LFS attributes fails.
-        def mock_run_shell_cmd(cmd, *args, **kwargs):
-            res = orig_run_shell_cmd(cmd, *args, **kwargs)
-            if ' grep -I -h filter=lfs ' in cmd:
-                res = types.SimpleNamespace(
-                    exit_code=2,
-                    output='fatal: bad revision\n',
-                )
-            return res
-
-        ft.run_shell_cmd = mock_run_shell_cmd
-        try:
-            with self.mocked_stdout_stderr():
-                self.assertRaisesRegex(
-                    EasyBuildError,
-                    "Failed to determine whether Git repository uses Git LFS",
-                    ft.get_source_tarball_from_git,
-                    'test',
-                    target_dir,
-                    git_config,
-                )
-        finally:
-            ft.run_shell_cmd = orig_run_shell_cmd
+        run_check([clone_cmd, checkout_cmd, ls_files_cmd])
 
         # tarball formats that are not reproducible
         bad_filenames = ['test.tar.gz', 'test.tar.bz2']
