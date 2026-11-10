@@ -96,10 +96,10 @@ def run_shell_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
     return out
 
 
-def run_in_venv(cmd, venv_path, action_desc, capture_stder=True):
+def run_in_venv(cmd, venv_path, action_desc, capture_stderr=True):
     """Run the given command in the virtualenv at the given path"""
     cmd = f'source {venv_path}/bin/activate && {cmd}'
-    return run_shell_cmd(cmd, action_desc, shell=True, executable='/bin/bash', capture_stder=capture_stder)
+    return run_shell_cmd(cmd, action_desc, shell=True, executable='/bin/bash', capture_stderr=capture_stderr)
 
 
 def get_dep_tree(package_spec, verbose):
