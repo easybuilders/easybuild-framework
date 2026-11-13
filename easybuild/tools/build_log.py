@@ -304,6 +304,31 @@ def stop_logging(logfile, logtostdout=False):
         fancylogger.logToFile(logfile, enable=False)
 
 
+try:
+    from rich.highlighter import ReprHighlighter
+    import rich.theme
+except ImportError:
+    pass
+else:
+    class CustomHighlighter(ReprHighlighter):
+        highlights = ReprHighlighter.highlights + [
+            r"(?P<neutral_status>\bSTOPPED\b)",
+            r"(?P<success>\bCOMPLETED\b):",
+            r"(?P<error>\bFAILED\b):",
+            r"(?P<success>\bsuccessfully\b)",
+            r"(?P<error>\bunsuccessfully\b)",
+            r"(?P<success>\[SUCCESS\])",
+            r"(?P<error>\[FAILED\])",
+            r"(?P<neutral_status>\[SKIPPED\])",
+        ]
+    _rich_highlighter = CustomHighlighter()
+    _rich_theme = rich.theme.Theme({
+        "repr.error": "bold red",
+        "repr.success": "bold green",
+        "repr.neutral_status": "bold yellow",
+    })
+
+
 def print_msg(msg, *args, **kwargs):
     """
     Print a message.
@@ -339,7 +364,7 @@ def print_msg(msg, *args, **kwargs):
             from rich.markup import escape
             from rich.console import Console
 
-            console = Console()
+            console = Console(highlighter=_rich_highlighter, theme=_rich_theme)
             with console.capture() as capture:
                 console.print(escape(msg), end="")
 
@@ -444,8 +469,16 @@ def print_error_and_exit(msg, *args, exit_code=EasyBuildExit.ERROR, silent=False
     if args:
         msg = msg % args
     if not silent:
-        from easybuild.tools.output import print_error as show_error
-        show_error("ERROR: " + msg, disable_rich=True)
+        # avoid circular import
+        from easybuild.tools.output import print_error as show_error, COLOR_RED, COLOR_END, KNOWN_COLORS
+        error_str = "ERROR: "
+        try:
+            from easybuild.tools.config import OUTPUT_STYLE_NO_COLOR, get_output_style
+            if get_output_style() != OUTPUT_STYLE_NO_COLOR:
+                error_str = KNOWN_COLORS[COLOR_RED] + error_str + COLOR_END
+        except Exception:
+            pass
+        show_error(error_str + msg, disable_rich=True)
     sys.exit(int(exit_code))
 
 
