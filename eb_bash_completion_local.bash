@@ -4,7 +4,7 @@ _eb()
     _get_comp_words_by_ref cur prev
     _quote_readline_by_ref "$cur" quoted
 
-	case $cur in 
+	case $cur in
 		--*) _optcomplete "$@"; return 0 ;;
 		*)  COMPREPLY=( $(compgen -f -X '!*.eb' -- $cur ) ) ;;
 	esac

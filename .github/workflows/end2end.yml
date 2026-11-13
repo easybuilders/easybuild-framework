@@ -1,6 +1,13 @@
 name: End-to-end test of EasyBuild in different distros
 on: [push, pull_request]
 
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+concurrency:
+  group: ${{format('{0}:{1}:{2}', github.repository, github.ref, github.workflow)}}
+  cancel-in-progress: true
+
 jobs:
   build_publish:
     name: End-to-end test

@@ -13,7 +13,7 @@ jobs:
   test-eb:
     strategy:
       matrix:
-        python: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13']
+        python: [3.8, 3.9, '3.10', '3.11', '3.12', '3.13', '3.14']
         include:
           - python: 3.7
             os: ubuntu-22.04
@@ -56,8 +56,8 @@ jobs:
           # avoid downloading modules tool sources into easybuild-framework dir
           cd $HOME
           export INSTALL_DEP=$GITHUB_WORKSPACE/easybuild/scripts/install_eb_dep.sh
-          # install Lmod
-          source $INSTALL_DEP Lmod-8.7.6 $HOME
+          # install Lmod (keep version in sync with Lmod 8.x version used in unit_tests.yml)
+          source $INSTALL_DEP Lmod-8.7.65 $HOME
           # changes in environment are not passed to other steps, so need to create files...
           echo $MOD_INIT > mod_init
           echo $PATH > path
