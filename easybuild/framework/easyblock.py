@@ -3755,7 +3755,7 @@ class EasyBlock:
         ignore_file_list = [os.path.join(self.installdir, d) for d in self.cfg['cuda_sanity_ignore_files']]
 
         # If there are no CUDA compute capabilities defined, return
-        if cfg_ccs is None or len(cfg_ccs) == 0:
+        if not cfg_ccs:
             self.log.info("Skipping CUDA sanity check, as no CUDA compute capabilities were configured")
             return fail_msgs
 
@@ -4732,7 +4732,9 @@ class EasyBlock:
             else:
                 self.log.debug("Skipping RPATH sanity check")
 
-            if 'CUDA' in [dep['name'] for dep in self.cfg.dependencies()]:
+            if self.cfg['sanity_check_cuda'] is False:
+                self.log.debug("Skipping CUDA sanity check: Explicitely disabled")
+            elif 'CUDA' in self.cfg.dependency_names():
                 if shutil.which('cuobjdump'):
                     cuda_fails = self.sanity_check_cuda()
                     if cuda_fails:
@@ -4742,8 +4744,10 @@ class EasyBlock:
                     msg = "Failed to execute CUDA sanity check: cuobjdump not found\n"
                     msg += "CUDA module must be loaded for sanity check (or cuobjdump available in PATH)"
                     raise EasyBuildError(msg)
-            else:
+            elif self.cfg['sanity_check_cuda'] is None:
                 self.log.debug("Skipping CUDA sanity check: CUDA is not in dependencies")
+            else:
+                raise EasyBuildError("'sanity_check_cuda' was explicitely enabled but CUDA is not a dependency")
 
         # cleanup
         if self.fake_mod_data:
