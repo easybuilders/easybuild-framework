@@ -31,8 +31,8 @@ Authors:
 """
 import os
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.toolchains.compiler.fujitsu import TC_CONSTANT_MODULE_NAME, TC_CONSTANT_MODULE_VAR
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.constants import COMPILER_FLAGS
 from easybuild.tools.toolchain.linalg import LinAlg
 

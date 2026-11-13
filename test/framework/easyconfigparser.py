@@ -33,11 +33,11 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 import easybuild.tools.build_log
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.format import Dependency
 from easybuild.framework.easyconfig.format.pyheaderconfigobj import build_easyconfig_constants_dict
 from easybuild.framework.easyconfig.format.version import EasyVersion
 from easybuild.framework.easyconfig.parser import EasyConfigParser
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file
 
 EASYCONFIGS_DIR = TEST_DIR / 'easyconfigs'

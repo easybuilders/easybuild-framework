@@ -48,6 +48,7 @@ import easybuild.tools.build_log
 import easybuild.framework.easyconfig as easyconfig
 import easybuild.tools.github as gh
 import easybuild.tools.systemtools as st
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EXTERNAL_MODULE_MARKER
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS, EasyConfig, create_paths, copy_easyconfigs
@@ -66,7 +67,6 @@ from easybuild.framework.easyconfig.tweak import obtain_ec_for, tweak, tweak_one
 from easybuild.framework.extension import construct_exts_filter_cmds
 from easybuild.toolchains.system import SystemToolchain
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, get_module_syntax, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
 from easybuild.tools.docs import avail_easyconfig_constants, avail_easyconfig_templates

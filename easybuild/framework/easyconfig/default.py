@@ -36,7 +36,7 @@ Authors:
 * Toon Willems (Ghent University)
 """
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import MODULECLASS_BASE
 
 

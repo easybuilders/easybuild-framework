@@ -41,11 +41,11 @@ Authors:
 """
 import copy
 
+from easybuild.base.exceptions import EasyBuildError
 import easybuild.tools.environment as env
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC, Gcc
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP, IntelIccIfort
 from easybuild.toolchains.compiler.pgi import TC_CONSTANT_PGI, Pgi
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.compiler import Compiler
 

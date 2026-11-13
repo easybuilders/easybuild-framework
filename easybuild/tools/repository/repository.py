@@ -37,7 +37,7 @@ Authors:
 * Fotis Georgatos (Uni.Lu, NTUA)
 """
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.utilities import get_subclasses, import_available_modules
 
 _log = fancylogger.getLogger('repository', fname=False)

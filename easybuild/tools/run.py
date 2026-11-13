@@ -62,8 +62,8 @@ except ImportError:
     from threading import get_ident as get_thread_id
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, CWD_NOTFOUND_ERROR
-from easybuild.tools.build_log import dry_run_msg, time_str_since
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
+from easybuild.tools.build_log import CWD_NOTFOUND_ERROR, dry_run_msg, time_str_since
 from easybuild.tools.config import build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.output import COLOR_RED, COLOR_YELLOW, colorize, escape_for_rich, print_error

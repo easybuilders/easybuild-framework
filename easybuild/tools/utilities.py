@@ -37,7 +37,8 @@ import sys
 from string import ascii_letters, digits
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import build_option
 
 
