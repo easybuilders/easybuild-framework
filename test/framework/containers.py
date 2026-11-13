@@ -29,17 +29,16 @@ Unit tests for easybuild/tools/containers.py
 """
 import os
 import re
-import stat
 import sys
 from test.framework import TEST_ECS_DIR, TOY_EC
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, remove_file, which, write_file
+from easybuild.tools.filetools import mkdir, read_file, remove_file, which, write_file
 
 
-MOCKED_SINGULARITY = """#!/bin/bash
+MOCKED_SINGULARITY = """
 if [[ $1 == '--version' ]]; then
     echo "%(version)s"
 else
@@ -56,16 +55,6 @@ else
       exit 1
     fi
     touch $img
-fi
-"""
-
-MOCKED_DOCKER = """#!/bin/bash
-echo "docker was called with arguments: $@"
-if [[ "$1" == '--version' ]]; then
-    echo "Docker version 18.03.1-ce, build 9ee9f40"
-else
-    echo "$@"
-    echo $#
 fi
 """
 
@@ -260,24 +249,15 @@ class ContainersTest(EnhancedTestCase):
             error_pattern = "singularity with version 2.4 or higher not found on your system."
             self.assertRaisesRegex(EasyBuildError, error_pattern, self.eb_main, args, raise_error=True)
 
-        # install mocked versions of 'sudo' and 'singularity' commands
-        singularity = os.path.join(self.test_prefix, 'bin', 'singularity')
-        write_file(singularity, '')  # placeholder
-        adjust_permissions(singularity, stat.S_IXUSR, add=True)
-
-        sudo = os.path.join(self.test_prefix, 'bin', 'sudo')
-        write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
-        adjust_permissions(sudo, stat.S_IXUSR, add=True)
-
-        os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
+        self.setup_fake_binary('sudo', 'echo "running command \'$@\' with sudo..."\neval "$@"')
 
         for (version, ext) in [('2.4.0', 'simg'), ('3.1.0', 'sif')]:
-            write_file(singularity, MOCKED_SINGULARITY % {'version': version})
+            singularity = self.setup_fake_binary('singularity', MOCKED_SINGULARITY % {'version': version})
 
             stdout, stderr = self.run_main(args)
             self.assertFalse(stderr)
             regexs = [
-                r"^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+                rf"^== singularity tool found at {singularity}",
                 r"^== singularity version '%s' is 2.4 or higher ... OK" % version,
                 r"^== Singularity definition file created at %s/containers/Singularity\.toy-0.0" % self.test_prefix,
                 r"^== Running 'sudo\s*\S*/singularity build\s*/.* /.*', you may need to enter your 'sudo' password...",
@@ -290,7 +270,7 @@ class ContainersTest(EnhancedTestCase):
             remove_file(os.path.join(containerpath, 'Singularity.toy-0.0'))
 
         # check use of --container-image-format & --container-image-name
-        write_file(singularity, MOCKED_SINGULARITY % {'version': '2.4.0'})
+        self.setup_fake_binary(singularity, MOCKED_SINGULARITY % {'version': '2.4.0'})
         args.extend([
             "--container-image-format=ext3",
             "--container-image-name=foo-bar",
@@ -298,7 +278,7 @@ class ContainersTest(EnhancedTestCase):
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            r"^== singularity tool found at %s/bin/singularity" % self.test_prefix,
+            rf"^== singularity tool found at {singularity}",
             r"^== singularity version '2.4.0' is 2.4 or higher ... OK",
             r"^== Singularity definition file created at %s/containers/Singularity\.foo-bar" % self.test_prefix,
             r"^== Running 'sudo\s*\S*/singularity build --writable /.* /.*', you may need to enter .*",
@@ -413,20 +393,24 @@ class ContainersTest(EnhancedTestCase):
             self.assertRaisesRegex(EasyBuildError, error_pattern, self.run_main, args, raise_error=True)
 
         # install mocked versions of 'sudo' and 'docker' commands
-        docker = os.path.join(self.test_prefix, 'bin', 'docker')
-        write_file(docker, MOCKED_DOCKER)
-        adjust_permissions(docker, stat.S_IXUSR, add=True)
+        docker = self.setup_fake_binary('docker', """
+            echo "docker was called with arguments: $@"
+            if [[ "$1" == '--version' ]]; then
+                echo "Docker version 18.03.1-ce, build 9ee9f40"
+            else
+                echo "$@"
+                echo $#
+            fi
+            """)
 
-        sudo = os.path.join(self.test_prefix, 'bin', 'sudo')
-        write_file(sudo, '#!/bin/bash\necho "running command \'$@\' with sudo..."\neval "$@"\n')
-        adjust_permissions(sudo, stat.S_IXUSR, add=True)
+        self.setup_fake_binary('sudo', 'echo "running command \'$@\' with sudo..."\neval "$@"')
 
         os.environ['PATH'] = os.path.pathsep.join([os.path.join(self.test_prefix, 'bin'), os.getenv('PATH')])
 
         stdout, stderr = self.run_main(args)
         self.assertFalse(stderr)
         regexs = [
-            r"^== docker tool found at %s/bin/docker" % self.test_prefix,
+            fr"^== docker tool found at {docker}",
             r"^== Dockerfile definition file created at %s/containers/Dockerfile\.toy-0.0" % self.test_prefix,
             r"^== Running 'sudo docker build -f .* -t .* \.', you may need to enter your 'sudo' password...",
             r"^== Docker image created at toy-0.0:latest",
