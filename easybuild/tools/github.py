@@ -94,13 +94,13 @@ GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_BRANCH_MAIN = 'main'
 GITHUB_BRANCH_MASTER = 'master'
-GITHUB_DIR_TYPE = u'dir'
+GITHUB_DIR_TYPE = 'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_DEVELOP_BRANCH = 'develop'
-GITHUB_FILE_TYPE = u'file'
+GITHUB_FILE_TYPE = 'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
 GITHUB_PR_ORDER_CREATED = 'created'
@@ -2571,6 +2571,7 @@ def check_github():
     print_msg('', prefix=False)
 
 
+@functools.lru_cache(maxsize=5)
 def fetch_github_token(user):
     """Fetch GitHub token for specified user from keyring."""
 
@@ -2651,6 +2652,7 @@ def install_github_token(github_user, silent=False):
     # install token
     keyring.set_password(KEYRING_GITHUB_TOKEN, github_user, token)
     print_msg("Token '%s..%s' installed!" % (token[:3], token[-3:]), prefix=False, silent=silent)
+    fetch_github_token.cache_clear()
 
 
 def validate_github_token(token, github_user):
