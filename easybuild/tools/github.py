@@ -94,13 +94,13 @@ GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_BRANCH_MAIN = 'main'
 GITHUB_BRANCH_MASTER = 'master'
-GITHUB_DIR_TYPE = u'dir'
+GITHUB_DIR_TYPE = 'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_DEVELOP_BRANCH = 'develop'
-GITHUB_FILE_TYPE = u'file'
+GITHUB_FILE_TYPE = 'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
 GITHUB_PR_ORDER_CREATED = 'created'
@@ -2226,7 +2226,7 @@ def det_account_branch_for_pr(pr_id, github_user=None, pr_target_repo=None):
     return account, branch
 
 
-def det_pr_target_repo(paths):
+def det_pr_target_repo(paths: dict):
     """Determine target repository for pull request from given cagetorized list of files
 
     :param paths: paths to categorized lists of files (easyconfigs, files to delete, patches, .py files)
@@ -2239,7 +2239,7 @@ def det_pr_target_repo(paths):
 
         _log.info("Trying to derive target repository based on specified files...")
 
-        easyconfigs, files_to_delete, patch_files, py_files = [paths[key] for key in sorted(paths.keys())]
+        easyconfigs, files_to_delete, patch_files, py_files = [item[1] for item in sorted(paths.items())]
 
         # Python files provided, and no easyconfig files or patches
         if py_files and not (easyconfigs or patch_files):
