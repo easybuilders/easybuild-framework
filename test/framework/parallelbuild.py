@@ -31,7 +31,7 @@ import os
 import re
 import stat
 import sys
-from test.framework import TEST_DIR, TOY_EC, TOY_EC_TXT, TEST_ECS_DIR, REPO_ROOT
+from test.framework import TEST_DIR, TOY_EC, TOY_EC_TXT, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
@@ -251,8 +251,8 @@ class ParallelBuildTest(EnhancedTestCase):
 
         easyconfigs = process_easyconfig(TOY_EC)
         ordered_ecs = resolve_dependencies(easyconfigs, self.modtool)
-        test_easyblocks_path = os.path.join(TEST_DIR, 'sandbox')
-        cmd = "PYTHONPATH=%s:%s:$PYTHONPATH eb %%(spec)s -df" % (REPO_ROOT, test_easyblocks_path)
+        pythonpath = os.pathsep.join((os.environ.get('PYTHONPATH', ''), str(TEST_DIR / 'sandbox')))
+        cmd = f"PYTHONPATH={pythonpath} eb %(spec)s -df"
 
         with self.mocked_stdout_stderr():
             build_easyconfigs_in_parallel(cmd, ordered_ecs, prepare_first=False)
