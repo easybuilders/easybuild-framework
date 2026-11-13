@@ -389,10 +389,10 @@ class Toolchain:
         """Get value for specified variable.
         typ: indicates what type of return value is expected"""
 
-        if typ == str:
+        if typ is str:
             res = str(self.variables.get(name, ''))
 
-        elif typ == list:
+        elif typ is list:
             if name in self.variables:
                 res = self.variables[name].flatten()
             else:

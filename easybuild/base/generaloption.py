@@ -211,7 +211,7 @@ class ExtOption(CompleterOption):
     ALWAYS_TYPED_ACTIONS = Option.ALWAYS_TYPED_ACTIONS + EXTOPTION_EXTRA_OPTIONS
 
     TYPE_STRLIST = ['%s%s' % (name, klass) for klass in ['list', 'tuple'] for name in ['str', 'path', 'url']]
-    TYPE_CHECKER = {x: check_str_list_tuple for x in TYPE_STRLIST}
+    TYPE_CHECKER = dict.fromkeys(TYPE_STRLIST, check_str_list_tuple)
     TYPE_CHECKER.update(Option.TYPE_CHECKER)
     TYPES = tuple(TYPE_STRLIST + list(Option.TYPES))
     BOOLEAN_ACTIONS = ('store_true', 'store_false',) + EXTOPTION_LOG
@@ -304,7 +304,7 @@ class ExtOption(CompleterOption):
 
             if orig_action in self.EXTOPTION_LOG and action == 'store_true':
                 newloglevel = orig_action.split('_')[1][:-3].upper()
-                logstate = ", ".join(["(%s, %s)" % (n, l) for n, l in getDetailsLogLevels()])
+                logstate = ", ".join(["(%s, %s)" % (name, level) for name, level in getDetailsLogLevels()])
                 self.log.debug("changing loglevel to %s, current state: %s", newloglevel, logstate)
                 setLogLevel(newloglevel)
                 self.log.debug("changed loglevel to %s, previous state: %s", newloglevel, logstate)

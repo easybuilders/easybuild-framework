@@ -580,7 +580,7 @@ def retrieve_blocks_in_spec(spec, only_blocks, silent=False):
         specs = []
         for block in blocks:
             name = block['name']
-            if only_blocks and not (name in only_blocks):
+            if only_blocks and name not in only_blocks:
                 print_msg("Skipping block %s-%s" % (spec_fn, name), silent=silent)
                 continue
 

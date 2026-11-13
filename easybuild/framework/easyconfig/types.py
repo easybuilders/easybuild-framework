@@ -160,7 +160,7 @@ def is_value_of_type(value, expected_type):
             extra_req_checkers = {
                 'elem_types': lambda val: check_element_types(val, extra_reqs['elem_types']),
             }
-            if parent_type == dict:
+            if parent_type is dict:
                 extra_req_checkers.update({
                     'key_types': lambda val: check_key_types(val, extra_reqs['key_types']),
                     'opt_keys': lambda val: check_known_keys(val, extra_reqs['opt_keys'] + extra_reqs['req_keys']),
@@ -684,7 +684,6 @@ TYPE_CONVERSION_FUNCTIONS = {
     str: str,
     float: float,
     int: int,
-    str: str,
     CHECKSUMS: to_checksums,
     DEPENDENCIES: to_dependencies,
     LIST_OF_STRINGS: to_list_of_strings,
