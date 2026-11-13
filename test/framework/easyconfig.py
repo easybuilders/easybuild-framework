@@ -3454,7 +3454,7 @@ class EasyConfigTest(EnhancedTestCase):
         self.assertEqual(ec1.rawtxt, ec2.rawtxt)
         self.assertEqual(ec1.path, ec2.path)
         self.assertEqual(ec1.template_values, ec2.template_values)
-        self.assertFalse(ec1.template_values is ec2.template_values)
+        self.assertIsNot(ec1.template_values, ec2.template_values)
 
     def test_eq_hash(self):
         """Test comparing two EasyConfig instances."""
