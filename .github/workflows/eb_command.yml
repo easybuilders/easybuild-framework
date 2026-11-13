@@ -35,10 +35,6 @@ jobs:
         # update to latest pip, check version
         pip install --upgrade pip
         pip --version
-        if ! python -c "import distutils" 2> /dev/null; then
-            # we need setuptools for distutils in Python 3.12+, needed for python setup.py sdist
-            pip install --upgrade setuptools
-        fi
 
         # for modules tool
         APT_PKGS="lua5.3 liblua5.3-dev lua-filesystem lua-posix tcl tcl-dev"
@@ -66,7 +62,8 @@ jobs:
     - name: install EasyBuild framework
       run: |
           # install from source distribution tarball, to test release as published on PyPI
-          python setup.py sdist
+          pip install --upgrade build
+          python -m build --sdist
           ls dist
           export PREFIX=/tmp/$USER/$GITHUB_SHA
           pip install --prefix $PREFIX dist/easybuild[-_]framework*tar.gz
