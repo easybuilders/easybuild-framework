@@ -23,6 +23,7 @@ It can be used as a drop-in replacement for dictionaries where immutability is d
 import operator
 from collections.abc import Mapping
 from functools import reduce
+from typing import List
 
 from easybuild.base import fancylogger
 
@@ -64,8 +65,7 @@ class FrozenDict(Mapping):
 class FrozenDictKnownKeys(FrozenDict):
     """A frozen dictionary only allowing known keys."""
 
-    # list of known keys
-    KNOWN_KEYS = []
+    KNOWN_KEYS: List[str] = []
 
     def __init__(self, *args, **kwargs):
         """Constructor, only way to define the contents."""

@@ -33,7 +33,7 @@ Authors:
 import copy
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Dict, List, Union
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
@@ -47,7 +47,7 @@ ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
 _log = fancylogger.getLogger('environment', fname=False)
 
-_changes = {}
+_changes: Dict[str, str] = {}
 
 
 def write_changes(filename):

@@ -38,6 +38,7 @@ Authors:
 import math
 import os
 import re
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyblock import get_easyblock_instance
@@ -59,8 +60,10 @@ def _to_key(dep):
     return ActiveMNS().det_full_module_name(dep)
 
 
-def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybuild-build', testing=False,
-                                  prepare_first=True, tweak_map=None, try_opts=''):
+def build_easyconfigs_in_parallel(build_command: str, easyconfigs: Sequence[Dict[str, Any]],
+                                  output_dir: str = 'easybuild-build', testing: bool = False,
+                                  prepare_first: bool = True, tweak_map: Optional[Dict[str, str]] = None,
+                                  try_opts: str = '') -> Union[str, List[Any]]:
     """
     Build easyconfigs in parallel by submitting jobs to a batch-queuing system.
     Return list of jobs submitted.
@@ -93,7 +96,7 @@ def build_easyconfigs_in_parallel(build_command, easyconfigs, output_dir='easybu
     jobs = []
 
     # keep track of which job builds which module
-    module_to_job = {}
+    module_to_job: Dict[str, Any] = {}
 
     for easyconfig in easyconfigs:
         # this is very important, otherwise we might have race conditions
@@ -183,7 +186,8 @@ def submit_jobs(ordered_ecs, cmd_line_opts, testing=False, prepare_first=True, t
                                          tweak_map=tweak_map, try_opts=try_opts_str)
 
 
-def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-build', spec=''):
+def create_job(job_backend: Any, build_command: str, easyconfig: dict,
+               output_dir: str = 'easybuild-build', spec: str = '') -> Any:
     """
     Creates a job to build a *single* easyconfig.
 
@@ -228,7 +232,7 @@ def create_job(job_backend, build_command, easyconfig, output_dir='easybuild-bui
     return job
 
 
-def prepare_easyconfig(ec):
+def prepare_easyconfig(ec: Any) -> None:
     """
     Prepare for building specified easyconfig (fetch sources)
     :param ec: parsed easyconfig (EasyConfig instance)

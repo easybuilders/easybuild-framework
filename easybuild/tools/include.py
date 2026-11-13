@@ -34,6 +34,7 @@ import os
 import re
 import sys
 import tempfile
+from typing import Optional, Sequence
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError
@@ -82,7 +83,7 @@ __path__ = pkgutil.extend_path(__path__, __name__)
 """
 
 
-def create_pkg(path, pkg_init_body=None):
+def create_pkg(path: str, pkg_init_body: Optional[str] = None) -> None:
     """Write package __init__.py file at specified path."""
     init_path = os.path.join(path, '__init__.py')
     try:
@@ -102,7 +103,8 @@ def create_pkg(path, pkg_init_body=None):
         raise EasyBuildError("Failed to create package at %s: %s", path, err)
 
 
-def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None):
+def set_up_eb_package(parent_path: str, eb_pkg_name: str, subpkgs: Optional[Sequence[str]] = None,
+                      pkg_init_body: Optional[str] = None) -> None:
     """
     Set up new easybuild subnamespace in specified path.
 
@@ -127,7 +129,7 @@ def set_up_eb_package(parent_path, eb_pkg_name, subpkgs=None, pkg_init_body=None
         pkgpath = os.path.dirname(pkgpath)
 
 
-def verify_imports(pymods, pypkg, from_path):
+def verify_imports(pymods: Sequence[str], pypkg: str, from_path: str) -> None:
     """Verify that import of specified modules from specified package and expected location works."""
 
     pymod_specs = ['%s.%s' % (pypkg, pymod) for pymod in pymods]
@@ -155,13 +157,13 @@ def verify_imports(pymods, pypkg, from_path):
         _log.debug("Import of %s from %s verified", pymod_spec, from_path)
 
 
-def is_software_specific_easyblock(module):
+def is_software_specific_easyblock(module: str) -> bool:
     """Determine whether Python module at specified location is a software-specific easyblock."""
     # All software-specific easyblocks start with the prefix and derive from another class, at least EasyBlock
     return bool(re.search(r"^class %s[^(:]+\([^)]+\):\s*$" % EASYBLOCK_CLASS_PREFIX, read_file(module), re.M))
 
 
-def include_easyblocks(tmpdir, paths):
+def include_easyblocks(tmpdir: str, paths: Sequence[str]) -> str:
     """Include generic and software-specific easyblocks found in specified locations."""
     easyblocks_path = tempfile.mkdtemp(dir=tmpdir, prefix='included-easyblocks-')
 
@@ -211,7 +213,7 @@ def include_easyblocks(tmpdir, paths):
     return easyblocks_path
 
 
-def include_module_naming_schemes(tmpdir, paths):
+def include_module_naming_schemes(tmpdir: str, paths: Sequence[str]) -> str:
     """Include module naming schemes at specified locations."""
     mns_path = os.path.join(tmpdir, 'included-module-naming-schemes')
 
@@ -243,7 +245,7 @@ def include_module_naming_schemes(tmpdir, paths):
     return mns_path
 
 
-def include_toolchains(tmpdir, paths):
+def include_toolchains(tmpdir: str, paths: Sequence[str]) -> str:
     """Include toolchains and toolchain components at specified locations."""
     toolchains_path = os.path.join(tmpdir, 'included-toolchains')
     toolchain_subpkgs = ['compiler', 'fft', 'linalg', 'mpi']
