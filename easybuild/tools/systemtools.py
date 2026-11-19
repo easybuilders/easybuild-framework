@@ -662,18 +662,6 @@ def get_isa_riscv():
             if res:
                 isa_string = res.group(1)
                 _log.debug(f"Found ISA string using regex '{isa_regex.pattern}': {isa_string}")
-                # Remove extensions unsupported by older GCC versions.
-                unsupported_extensions = {'zaamo', 'zalrsc'}
-                isa_parts = isa_string.split('_')
-                isa_parts = [
-                    ext for ext in isa_parts
-                    if ext not in unsupported_extensions
-                ]
-                isa_string = '_'.join(isa_parts)
-                _log.debug(f"Filtered ISA string: {isa_string}")
-                # sort parts separated by underscore alphabetically, as required by older GCC versions (< 14)
-                isa_string = '_'.join(sorted(isa_string.split('_')))
-                _log.debug(f"Sorted ISA string {isa_string}")
             else:
                 _log.debug(f"Failed to determine ISA string from {PROC_CPUINFO_FP}")
         else:
