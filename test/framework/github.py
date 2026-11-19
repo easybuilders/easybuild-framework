@@ -36,6 +36,8 @@ import re
 import sys
 import textwrap
 import unittest
+import unittest.mock
+from pathlib import Path
 from string import ascii_letters
 from test.framework import TEST_DIR, TEST_ECS_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
@@ -45,12 +47,12 @@ from urllib.request import HTTPError, URLError
 
 import easybuild.tools.testing
 from easybuild.base.rest import RestClient
-from easybuild.framework.easyconfig.easyconfig import EasyConfig
+from easybuild.framework.easyconfig.easyconfig import EasyConfig, det_file_info
 from easybuild.framework.easyconfig.tools import categorize_files_by_type
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import build_option, module_classes, update_build_option
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.filetools import read_file, write_file
+from easybuild.tools.filetools import copy_file, read_file, write_file
 from easybuild.tools.github import GITHUB_EASYCONFIGS_REPO, GITHUB_EASYBLOCKS_REPO, GITHUB_MERGEABLE_STATE_CLEAN
 from easybuild.tools.github import VALID_CLOSE_PR_REASONS
 from easybuild.tools.github import det_pr_title, fetch_easyconfigs_from_commit, fetch_files_from_commit
@@ -1062,6 +1064,40 @@ class GithubTest(EnhancedTestCase):
 
         self.assertEqual([i[0] for i in res], patch_paths)
         self.assertEqual([i[1] for i in res], ['A'] + ['patched_bundle'] * 4)
+
+    def test_github_det_patch_specs_unmodified_easyconfig(self):
+        """Test det_patch_specs when the easyconfig of a patch is existing and not modified."""
+        init_config(build_options={'silent': True})
+
+        # Existing EC, e.g. from a checkout during --new-pr
+        target_dir = Path(self.test_prefix) / 'target'
+        target_ec_path = target_dir / 'easybuild/easyconfigs/f/foo/foo-1.0.eb'
+        rawtxt = textwrap.dedent("""
+            easyblock = 'ConfigureMake'
+            name = 'foo'
+            version = '1.0'
+            homepage = 'http://foo.com/'
+            description = ''
+            toolchain = SYSTEM
+
+            patches = ['foo-1.0.patch']
+        """)
+        write_file(target_ec_path, rawtxt)
+
+        src_ec_path = Path(self.test_prefix) / 'foo-1.0.eb'
+        copy_file(target_ec_path, src_ec_path)
+        patch_path = src_ec_path.parent / 'foo-1.0.patch'
+        write_file(patch_path, '')
+
+        res = det_file_info([src_ec_path], target_dir, ignore_unchanged_files=True)
+        self.assertEqual(res['ecs'], [])
+
+        # Ensure find_software_name_for_patch is not called
+        with self.mocked_stdout(), \
+             unittest.mock.patch('easybuild.tools.github.find_software_name_for_patch',
+                                 side_effect=AssertionError("find_software_name_for_patch called")):
+            res = gh.det_patch_specs([patch_path], res, [target_dir])
+        self.assertEqual(res, [(patch_path, 'foo')])
 
     def test_github_restclient(self):
         """Test use of RestClient."""
