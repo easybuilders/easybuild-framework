@@ -31,10 +31,7 @@ This script can be used to install easybuild-framework, e.g. using:
 import glob
 import os
 import logging
-try:
-    from distutils.core import setup
-except ImportError:
-    from setuptools import setup
+from setuptools import setup, find_packages
 
 from easybuild.tools.version import VERSION
 
@@ -68,34 +65,6 @@ def find_rel_test():
     return res
 
 
-easybuild_packages = [
-    "easybuild", "easybuild.base",
-    "easybuild.framework", "easybuild.framework.easyconfig", "easybuild.framework.easyconfig.format",
-    "easybuild.toolchains", "easybuild.toolchains.compiler", "easybuild.toolchains.mpi",
-    "easybuild.toolchains.fft", "easybuild.toolchains.linalg", "easybuild.tools", "easybuild.tools.containers",
-    "easybuild.tools.deprecated", "easybuild.tools.job", "easybuild.tools.toolchain",
-    "easybuild.tools.module_naming_scheme", "easybuild.tools.package", "easybuild.tools.package.package_naming_scheme",
-    "easybuild.tools.py2vs3", "easybuild.tools.repository",
-    "easybuild.tools.tomllib", "easybuild.tools.tomllib.tomli", "easybuild.tools._toml_writer",
-    "test.framework", "test",
-]
-
-# Verify the above list is complete, if setuptools is installed
-try:
-    import setuptools
-except ImportError:
-    pass
-else:
-    packages = set(setuptools.find_packages())
-    easybuild_packages_set = set(easybuild_packages)
-    if easybuild_packages_set != packages:
-        # Warning only
-        print("="*80 + "\n"
-              "=== WARNING: Wrong list of easybuild_packages.\n"
-              f"Missing: {packages - easybuild_packages_set}\n"
-              f"Unneccessary: {easybuild_packages_set - packages}"
-              "\n" + "="*80 + "\n")
-
 setup(
     name="easybuild-framework",
     version=str(VERSION),
@@ -106,7 +75,7 @@ implement support for installing particular (groups of) software packages.""",
     license="GPLv2",
     keywords="software build building installation installing compilation HPC scientific",
     url="https://easybuild.io",
-    packages=easybuild_packages,
+    packages=find_packages(),
     package_dir={'test.framework': 'test/framework'},
     package_data={'test.framework': find_rel_test()},
     scripts=[
