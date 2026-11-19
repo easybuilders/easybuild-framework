@@ -94,13 +94,13 @@ GITHUB_URL = 'https://github.com'
 GITHUB_API_URL = 'https://api.github.com'
 GITHUB_BRANCH_MAIN = 'main'
 GITHUB_BRANCH_MASTER = 'master'
-GITHUB_DIR_TYPE = u'dir'
+GITHUB_DIR_TYPE = 'dir'
 GITHUB_EB_MAIN = 'easybuilders'
 GITHUB_EASYBLOCKS_REPO = 'easybuild-easyblocks'
 GITHUB_EASYCONFIGS_REPO = 'easybuild-easyconfigs'
 GITHUB_FRAMEWORK_REPO = 'easybuild-framework'
 GITHUB_DEVELOP_BRANCH = 'develop'
-GITHUB_FILE_TYPE = u'file'
+GITHUB_FILE_TYPE = 'file'
 GITHUB_PR_STATE_OPEN = 'open'
 GITHUB_PR_STATES = [GITHUB_PR_STATE_OPEN, 'closed', 'all']
 GITHUB_PR_ORDER_CREATED = 'created'
@@ -979,7 +979,7 @@ def setup_repo_from(git_repo, github_url, target_account, branch_name, silent=Fa
         )
 
     if res:
-        if res[0].flags & res[0].ERROR:
+        if res[0].flags & git.remote.FetchInfo.ERROR:
             raise EasyBuildError(
                 "Fetching branch '%s' from remote %s failed: %s", branch_name, origin, res[0].note,
                 exit_code=EasyBuildExit.FAIL_GITHUB
