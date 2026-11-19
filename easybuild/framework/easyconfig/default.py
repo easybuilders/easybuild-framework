@@ -126,6 +126,13 @@ DEFAULT_CONFIG = {
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
+    'cuda_sanity_check_accept_missing_ptx': [None, "If set, override value for "
+                                             "`--cuda-sanity-check-accept-missing-ptx`", BUILD],
+    'cuda_sanity_check_accept_ptx_as_devcode': [None, "If set, override value for "
+                                                "`--cuda-sanity-check-accept-ptx-as-devcode`", BUILD],
+    'cuda_sanity_check_error_on_failed_checks': [None, "If set, override value for "
+                                                 "`--cuda-sanity-check-error-on-failed-checks`", BUILD],
+    'cuda_sanity_check_strict': [None, "If set, override value for `--cuda-sanity-check-strict`", BUILD],
     'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failures in "
                                      "the CUDA sanity check step are ignored. Typically used for files where you "
                                      "know the CUDA architectures in those files don't match the "
