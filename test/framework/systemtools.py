@@ -673,7 +673,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting core count."""
         core_count = get_avail_core_count()
         self.assertIsInstance(core_count, int)
-        self.assertTrue(core_count > 0, "core_count %d > 0" % core_count)
+        self.assertGreater(core_count, 0)
 
     def test_avail_core_count_linux(self):
         """Test getting core count (mocked for Linux)."""
@@ -733,7 +733,7 @@ class SystemToolsTest(EnhancedTestCase):
         cpu_speed = get_cpu_speed()
         if cpu_speed is not None:
             self.assertIsInstance(cpu_speed, float)
-            self.assertTrue(cpu_speed > 0.0)
+            self.assertGreater(cpu_speed, 0.0)
 
     def test_cpu_speed_linux(self):
         """Test getting CPU speed (mocked for Linux)."""
@@ -767,7 +767,7 @@ class SystemToolsTest(EnhancedTestCase):
         """Test getting CPU features."""
         cpu_feat = get_cpu_features()
         self.assertIsInstance(cpu_feat, list)
-        self.assertTrue(len(cpu_feat) >= 0)
+        self.assertGreaterEqual(len(cpu_feat), 0)
         self.assertTrue(all(isinstance(x, str) for x in cpu_feat))
 
     def test_cpu_features_linux(self):
@@ -1026,13 +1026,13 @@ class SystemToolsTest(EnhancedTestCase):
         platform_name_nover = get_platform_name()
         self.assertIsInstance(platform_name_nover, str)
         len_nover = len(platform_name_nover.split('-'))
-        self.assertTrue(len_nover >= 3)
+        self.assertGreaterEqual(len_nover, 3)
 
         platform_name_ver = get_platform_name(withversion=True)
         self.assertIsInstance(platform_name_ver, str)
         len_ver = len(platform_name_ver.split('-'))
         self.assertTrue(platform_name_ver.startswith(platform_name_ver))
-        self.assertTrue(len_ver >= len_nover)
+        self.assertGreaterEqual(len_ver, len_nover)
 
     def test_platform_name_linux(self):
         """Test getting platform name (mocked for Linux)."""
@@ -1147,7 +1147,7 @@ class SystemToolsTest(EnhancedTestCase):
 
     def test_det_parallelism_native(self):
         """Test det_parallelism function (native calls)."""
-        self.assertTrue(det_parallelism() > 0)
+        self.assertGreater(det_parallelism(), 0)
         # specified parallelism
         self.assertEqual(det_parallelism(par=5), 5)
         # max parallelism caps
@@ -1219,9 +1219,9 @@ class SystemToolsTest(EnhancedTestCase):
 
         self.assertIn(py_maj_ver, [2, 3])
         if py_maj_ver == 2:
-            self.assertTrue(py_min_ver == 7)
+            self.assertEqual(py_min_ver, 7)
         else:
-            self.assertTrue(py_min_ver >= 5)
+            self.assertGreaterEqual(py_min_ver, 5)
 
     def test_pick_dep_version(self):
         """Test pick_dep_version function."""
