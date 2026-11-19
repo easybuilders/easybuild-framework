@@ -36,7 +36,7 @@ from collections import OrderedDict
 import sys
 
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.config import OUTPUT_STYLE_RICH, build_option, get_output_style
+from easybuild.tools.config import OUTPUT_STYLE_RICH, OUTPUT_STYLE_BASIC, build_option, get_output_style
 
 try:
     import rich.markup
@@ -76,19 +76,18 @@ STATUS_BAR = 'status'
 _progress_bar_cache = {}
 
 
-def colorize(txt, color):
+def colorize(txt: str, color: str) -> str:
     """
     Colorize given text, with specified color.
     """
-    if color in KNOWN_COLORS:
-        if use_rich():
-            coltxt = '[bold %s]%s[/bold %s]' % (color, txt, color)
-        else:
-            coltxt = KNOWN_COLORS[color] + txt + COLOR_END
-    else:
+    if color not in KNOWN_COLORS:
         raise EasyBuildError("Unknown color: %s", color)
-
-    return coltxt
+    style = get_output_style()
+    if style == OUTPUT_STYLE_RICH:
+        return '[bold %s]%s[/bold %s]' % (color, txt, color)
+    if style == OUTPUT_STYLE_BASIC:
+        return KNOWN_COLORS[color] + txt + COLOR_END
+    return txt
 
 
 def escape_for_rich(txt):
