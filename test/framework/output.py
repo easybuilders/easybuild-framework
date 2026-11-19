@@ -132,11 +132,11 @@ class OutputTest(EnhancedTestCase):
         Test colorize function
         """
         update_build_option('output_style', 'basic')
-        self.assertEqual(colorize('test', 'blue'), '\x1b[0;34mtest\x1b[0m')
-        self.assertEqual(colorize('test', 'cyan'), '\x1b[0;36mtest\x1b[0m')
-        self.assertEqual(colorize('test', 'green'), '\x1b[0;32mtest\x1b[0m')
-        self.assertEqual(colorize('test', 'purple'), '\x1b[0;35mtest\x1b[0m')
-        self.assertEqual(colorize('test', 'red'), '\x1b[0;31mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'blue'), '\x1b[1;34mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'cyan'), '\x1b[1;36mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'green'), '\x1b[1;32mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'purple'), '\x1b[1;35mtest\x1b[0m')
+        self.assertEqual(colorize('test', 'red'), '\x1b[1;31mtest\x1b[0m')
         self.assertEqual(colorize('test', 'yellow'), '\x1b[1;33mtest\x1b[0m')
 
         self.assertRaisesRegex(EasyBuildError, "Unknown color: nosuchcolor", colorize, 'test', 'nosuchcolor')
