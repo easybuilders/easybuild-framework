@@ -126,6 +126,8 @@ DEFAULT_CONFIG = {
                        'after make (for e.g.,"test" for make test)'), BUILD],
     'bin_lib_subdirs': [[], "List of subdirectories for binaries and libraries, which is used during sanity check "
                             "to check RPATH linking and banned/required libraries", BUILD],
+    'sanity_check_cuda': [None, "Check CUDA architectures in installed binaries as part of the sanity checks. "
+                          "Enabled by default when CUDA is a dependency.", BUILD],
     'cuda_sanity_ignore_files': [[], "List of files (relative to the installation prefix) for which failures in "
                                      "the CUDA sanity check step are ignored. Typically used for files where you "
                                      "know the CUDA architectures in those files don't match the "
