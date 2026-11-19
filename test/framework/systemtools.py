@@ -1031,7 +1031,7 @@ class SystemToolsTest(EnhancedTestCase):
         platform_name_ver = get_platform_name(withversion=True)
         self.assertIsInstance(platform_name_ver, str)
         len_ver = len(platform_name_ver.split('-'))
-        self.assertTrue(platform_name_ver.startswith(platform_name_ver))
+        self.assertStartsWith(platform_name_ver, platform_name_ver)
         self.assertTrue(len_ver >= len_nover)
 
     def test_platform_name_linux(self):

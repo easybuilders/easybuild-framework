@@ -2419,12 +2419,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertTrue(found, "Log message for tmpdir found in outtxt: %s" % outtxt)
 
         for var in ['TMPDIR', 'TEMP', 'TMP']:
-            self.assertTrue(os.environ[var].startswith(os.path.join(tmpdir, 'eb-')))
-        self.assertTrue(tempfile.gettempdir().startswith(os.path.join(tmpdir, 'eb-')))
+            self.assertStartsWith(os.environ[var], os.path.join(tmpdir, 'eb-'))
+        self.assertStartsWith(tempfile.gettempdir(), os.path.join(tmpdir, 'eb-'))
         tempfile_tmpdir = tempfile.mkdtemp()
-        self.assertTrue(tempfile_tmpdir.startswith(os.path.join(tmpdir, 'eb-')))
+        self.assertStartsWith(tempfile_tmpdir, os.path.join(tmpdir, 'eb-'))
         fd, tempfile_tmpfile = tempfile.mkstemp()
-        self.assertTrue(tempfile_tmpfile.startswith(os.path.join(tmpdir, 'eb-')))
+        self.assertStartsWith(tempfile_tmpfile, os.path.join(tmpdir, 'eb-'))
 
         # cleanup
         os.close(fd)
@@ -4253,13 +4253,13 @@ class CommandLineOptionsTest(EnhancedTestCase):
             parent = re.sub(r'[^\w/.-]', 'X', parent)
 
             for var in ['TMPDIR', 'TEMP', 'TMP']:
-                self.assertTrue(os.environ[var].startswith(os.path.join(parent, 'eb-')))
+                self.assertStartsWith(os.environ[var], os.path.join(parent, 'eb-'))
                 self.assertEqual(os.environ[var], mytmpdir)
-            self.assertTrue(tempfile.gettempdir().startswith(os.path.join(parent, 'eb-')))
+            self.assertStartsWith(tempfile.gettempdir(), os.path.join(parent, 'eb-'))
             tempfile_tmpdir = tempfile.mkdtemp()
-            self.assertTrue(tempfile_tmpdir.startswith(os.path.join(parent, 'eb-')))
+            self.assertStartsWith(tempfile_tmpdir, os.path.join(parent, 'eb-'))
             fd, tempfile_tmpfile = tempfile.mkstemp()
-            self.assertTrue(tempfile_tmpfile.startswith(os.path.join(parent, 'eb-')))
+            self.assertStartsWith(tempfile_tmpfile, os.path.join(parent, 'eb-'))
 
             # tmp_logdir follows tmpdir
             self.assertEqual(get_build_log_path(), mytmpdir)
@@ -4393,12 +4393,12 @@ class CommandLineOptionsTest(EnhancedTestCase):
         eb_file = TOY_EC
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+        self.assertEndsWith(app.installdir, 'software/toy/0.0')
 
         init_config(args=['--module-naming-scheme=HierarchicalMNS'])
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/toy/0.0'))
+        self.assertEndsWith(app.installdir, 'software/toy/0.0')
 
         # with --fixed-installdir-naming-scheme, the EasyBuild naming scheme is used
         build_options = {
@@ -4408,7 +4408,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         init_config(args=['--module-naming-scheme=HierarchicalMNS'], build_options=build_options)
         app = EasyBlock(EasyConfig(eb_file))
         app.gen_installdir()
-        self.assertTrue(app.installdir.endswith('software/Core/toy/0.0'))
+        self.assertEndsWith(app.installdir, 'software/Core/toy/0.0')
 
     def _run_mock_eb(self, args, strip=False, **kwargs):
         """Helper function to mock easybuild runs
@@ -5079,7 +5079,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             "WARNING: Review indicates this PR should not be merged (use -f/--force to do so anyway)",
         ])
         self.assertEqual(stderr.strip(), expected_stderr)
-        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+        self.assertEndsWith(stdout.strip(), expected_stdout)
 
         # full eligible merged PR, default target branch;
         # note: we frequently need to change to a more recent PR here,
@@ -5107,7 +5107,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         ])
         expected_stderr = ''
         self.assertEqual(stderr.strip(), expected_stderr)
-        self.assertTrue(stdout.strip().endswith(expected_stdout), "'%s' ends with '%s'" % (stdout, expected_stdout))
+        self.assertEndsWith(stdout.strip(), expected_stdout)
 
         # --merge-pr also works on easyblocks (& framework) PRs
         args = [
@@ -5649,7 +5649,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
             else:
                 ext = 'log'
 
-            self.assertTrue(logs[0].endswith(ext), "%s has correct '%s' extension for %s" % (logs[0], ext, zip_logs))
+            self.assertEndsWith(logs[0], ext, f"{logs[0]} has correct '{ext}' extension for {zip_logs}")
 
     def test_debug_lmod(self):
         """Test use of --debug-lmod."""
@@ -6490,7 +6490,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         # check that existing source tarball was backed up
         toy_tar_backups = glob.glob(os.path.join(self.test_prefix, 't', 'toy', '*.bak_*'))
         self.assertEqual(len(toy_tar_backups), 1)
-        self.assertTrue(os.path.basename(toy_tar_backups[0]).startswith('toy-0.0.tar.gz.bak_'))
+        self.assertStartsWith(os.path.basename(toy_tar_backups[0]), 'toy-0.0.tar.gz.bak_')
 
     def test_enforce_checksums(self):
         """Test effect of --enforce-checksums"""
@@ -6855,19 +6855,19 @@ class CommandLineOptionsTest(EnhancedTestCase):
         """Check naming scheme of installation directory."""
 
         eb = EasyBlock(EasyConfig(TOY_EC))
-        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+        self.assertEndsWith(eb.installdir, '/software/toy/0.0')
 
         # even with HierarchicalMNS the installation directory remains the same,
         # due to --fixed-installdir-naming-scheme being enabled by default
         args = ['--module-naming-scheme=HierarchicalMNS']
         init_config(args=args)
         eb = EasyBlock(EasyConfig(TOY_EC))
-        self.assertTrue(eb.installdir.endswith('/software/toy/0.0'))
+        self.assertEndsWith(eb.installdir, '/software/toy/0.0')
 
         # things change when --disable-fixed-installdir-naming-scheme is used
         init_config(args=args, build_options={'fixed_installdir_naming_scheme': False})
         eb = EasyBlock(EasyConfig(TOY_EC))
-        self.assertTrue(eb.installdir.endswith('/software/Core/toy/0.0'))
+        self.assertEndsWith(eb.installdir, '/software/Core/toy/0.0')
 
     def test_cuda_compute_capabilities(self):
         """Test --cuda-compute-capabilities configuration option."""
@@ -7237,7 +7237,7 @@ class CommandLineOptionsTest(EnhancedTestCase):
         self.assertEqual(len(settings), 9)
         self.assertEqual(settings[0], {})  # build specs
         self.assertIsInstance(settings[1], EasyBuildLog)  # EasyBuildLog instance
-        self.assertTrue(settings[2].endswith('.log'))  # path to log file
+        self.assertEndsWith(settings[2], '.log')  # path to log file
         self.assertExists(settings[2])
         self.assertIsInstance(settings[3], list)  # list of robot paths
         self.assertEqual(len(settings[3]), 1)
