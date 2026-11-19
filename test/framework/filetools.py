@@ -123,10 +123,7 @@ class FileToolsTest(EnhancedTestCase):
             self.assertEqual(expected_cmd, cmd)
 
         # Fake bsdtar command, if exists, is preferred
-        fake_bsdtar = os.path.join(self.test_prefix, 'bin', 'bsdtar')
-        ft.write_file(fake_bsdtar, '#!/bin/bash\necho "fake bsdtar"')
-        ft.adjust_permissions(fake_bsdtar, stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.dirname(fake_bsdtar), os.getenv('PATH', ''))
+        self.setup_fake_binary('bsdtar', 'echo "fake bsdtar"')
         new_ft = importlib.reload(ft)  # Force reload to get new EXTRACT_CMDS
         self.assertEqual("bsdtar xf test.iso", new_ft.extract_cmd('test.iso'))
 
@@ -253,23 +250,18 @@ class FileToolsTest(EnhancedTestCase):
         error_msg = "Could not find command '%s'" % invalid_cmd
         self.assertRaisesRegex(EasyBuildError, error_msg, ft.which, invalid_cmd, on_error=ERROR)
 
-        os.environ['PATH'] = '%s:%s' % (self.test_prefix, os.environ['PATH'])
+        # put executable file 'bar' in place
+        bar = self.setup_fake_binary('bar')
         # put a directory 'foo' in place (should be ignored by 'which')
-        foo = os.path.join(self.test_prefix, 'foo')
+        foo = bar.parent / 'foo'
         ft.mkdir(foo)
         ft.adjust_permissions(foo, stat.S_IRUSR | stat.S_IXUSR)
-        # put executable file 'bar' in place
-        bar = os.path.join(self.test_prefix, 'bar')
-        ft.write_file(bar, '#!/bin/bash')
-        ft.adjust_permissions(bar, stat.S_IRUSR | stat.S_IXUSR)
         self.assertEqual(ft.which('foo'), None)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
         # add another location to 'bar', which should only return the first location by default
         barbis = os.path.join(self.test_prefix, 'more', 'bar')
-        ft.write_file(barbis, '#!/bin/bash')
-        ft.adjust_permissions(barbis, stat.S_IRUSR | stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.environ['PATH'], os.path.dirname(barbis))
+        self.setup_fake_binary(barbis, prepend_path=False)
         self.assertTrue(os.path.samefile(ft.which('bar'), bar))
 
         # test getting *all* locations to specified command
@@ -2910,10 +2902,7 @@ class FileToolsTest(EnhancedTestCase):
         self.assertRaisesRegex(EasyBuildError, "Script 'no_such_script' not found", ft.find_eb_script, 'no_such_script')
 
         # put test script in place relative to location of 'eb'
-        fake_eb = os.path.join(self.test_prefix, 'bin', 'eb')
-        ft.write_file(fake_eb, '#!/bin/bash\necho "fake eb"')
-        ft.adjust_permissions(fake_eb, stat.S_IXUSR)
-        os.environ['PATH'] = '%s:%s' % (os.path.dirname(fake_eb), os.getenv('PATH', ''))
+        fake_eb = self.setup_fake_binary('eb', 'echo "fake eb"')
 
         justatest = os.path.join(self.test_prefix, 'easybuild', 'scripts', 'thisisjustatestscript.sh')
         ft.write_file(justatest, '#!/bin/bash')
@@ -3548,7 +3537,7 @@ class FileToolsTest(EnhancedTestCase):
 
         with self.mocked_stdout_stderr():
             try:
-                import vsc  # noqa
+                import vsc  # noqa, pylint: disable=unused-import
                 self.fail("'import vsc' results in an error")
             except SystemExit:
                 pass
@@ -3570,7 +3559,7 @@ class FileToolsTest(EnhancedTestCase):
 
         with self.mocked_stdout_stderr():
             try:
-                from test_fake_vsc import import_vsc  # noqa
+                from test_fake_vsc import import_vsc  # noqa, pylint: disable=unused-import
                 self.fail("'import vsc' results in an error")
             except SystemExit:
                 pass

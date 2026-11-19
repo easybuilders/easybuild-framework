@@ -2298,7 +2298,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_package(self):
         """Test use of --package and accompanying package configuration settings."""
-        mock_fpm(self.test_prefix)
+        mock_fpm(self)
         pkgpath = os.path.join(self.test_prefix, 'pkgs')
 
         extra_args = [
@@ -2317,7 +2317,7 @@ class ToyBuildTest(EnhancedTestCase):
 
     def test_package_skip(self):
         """Test use of --package with --skip."""
-        mock_fpm(self.test_prefix)
+        mock_fpm(self)
         pkgpath = os.path.join(self.test_prefix, 'packages')  # default path
 
         with self.mocked_stdout_stderr():
@@ -3219,9 +3219,6 @@ class ToyBuildTest(EnhancedTestCase):
         # Create mock cuobjdump
         # First, lets define sections of echo's for cuobjdump for various scenarios
 
-        # Shebang for cuobjdump
-        cuobjdump_txt_shebang = "#!/bin/bash\n"
-
         # Section for cuobjdump printing output for sm_70 architecture
         cuobjdump_txt_sm70 = '\n'.join([
             "echo 'Fatbin elf code:'",
@@ -3324,9 +3321,6 @@ class ToyBuildTest(EnhancedTestCase):
         write_file(cuda_mod_file_tcl, "#This is a fake module file for CUDA", append=True)
         setvar('MODULEPATH', module_dir)
 
-        # Filepath to cuobjdump
-        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
-
         def assert_cuda_report(missing_cc, additional_cc, missing_ptx, log, stdout, missing_cc_but_ptx=None,
                                num_checked=None):
             def assert_in_log_and_stdout(s):
@@ -3353,9 +3347,7 @@ class ToyBuildTest(EnhancedTestCase):
         # 8.0 device code
         # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
         # as to not break backwards compatibility
-        write_file(cuobjdump_file, cuobjdump_txt_shebang)
-        write_file(cuobjdump_file, cuobjdump_txt_sm80, append=True)
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', cuobjdump_txt_sm80)
         args = ['--cuda-compute-capabilities=8.0']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
@@ -3372,11 +3364,10 @@ class ToyBuildTest(EnhancedTestCase):
         # It should not matter for the result, but triggers slightly different code paths in easyblock.py
         # This should succeed (since the default for --cuda-sanity-check-error-on-failed-checks is False)
         # as to not break backwards compatibility
-        write_file(cuobjdump_file, cuobjdump_txt_shebang)
-        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
-        write_file(cuobjdump_file, cuobjdump_txt_sm80_ptx, append=True)
-        write_file(cuobjdump_file, cuobjdump_txt_sm70, append=True)
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', '\n'.join([
+            cuobjdump_txt_sm90,
+            cuobjdump_txt_sm80_ptx,
+            cuobjdump_txt_sm70]))
         args = ['--cuda-compute-capabilities=8.0']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():
@@ -3486,11 +3477,11 @@ class ToyBuildTest(EnhancedTestCase):
         # ordering (i.e. 9.0a > 9.0). It should pass, since device code is present for both CCs and PTX
         # code is present for the highest CC, and there is no additiona device code present
         # This also tests a case with multiple compute capabilities.
-        write_file(cuobjdump_file, cuobjdump_txt_shebang)
-        write_file(cuobjdump_file, cuobjdump_txt_sm90, append=True)
-        write_file(cuobjdump_file, cuobjdump_txt_sm90a, append=True)
-        write_file(cuobjdump_file, cuobjdump_txt_sm90a_ptx, append=True)
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', '\n'.join([
+            cuobjdump_txt_sm90,
+            cuobjdump_txt_sm90a,
+            cuobjdump_txt_sm90a_ptx,
+        ]))
         args = ['--cuda-compute-capabilities=9.0,9.0a', '--cuda-sanity-check-error-on-failed-checks',
                 '--cuda-sanity-check-strict']
         # We expect this to pass, so no need to check errors
@@ -3514,9 +3505,7 @@ class ToyBuildTest(EnhancedTestCase):
 
         # Test case 10: running with default options and a binary that does not contain ANY CUDA device code
         # This is expected to succeed, since the default is --disable-cuda-sanity-check-error-on-failed-checks
-        write_file(cuobjdump_file, cuobjdump_txt_shebang)
-        write_file(cuobjdump_file, cuobjdump_txt_no_cuda, append=True)
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', cuobjdump_txt_no_cuda)
         args = ['--cuda-compute-capabilities=9.0']
         # We expect this to pass, so no need to check errors
         with self.mocked_stdout_stderr():

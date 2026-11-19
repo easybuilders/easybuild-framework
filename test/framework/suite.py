@@ -138,7 +138,7 @@ class EasyBuildFrameworkTestSuite(unittest.TestSuite):
         return res
 
 
-def load_tests(loader, tests, pattern):
+def load_tests(loader, _tests, _pattern):
     return EasyBuildFrameworkTestSuite(loader)
 
 

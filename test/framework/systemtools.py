@@ -33,15 +33,13 @@ import logging
 import os
 import re
 import sys
-import stat
 
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_config
 from unittest import TextTestRunner
 
 import easybuild.tools.systemtools as st
 from easybuild.tools.build_log import EasyBuildError
-from easybuild.tools.environment import setvar
-from easybuild.tools.filetools import adjust_permissions, mkdir, read_file, symlink, which, write_file
+from easybuild.tools.filetools import read_file, symlink, which, write_file
 from easybuild.tools.run import RunShellCmdResult, run_shell_cmd
 from easybuild.tools.systemtools import CPU_ARCHITECTURES, AARCH32, AARCH64, POWER, RISCV, X86_64
 from easybuild.tools.systemtools import CPU_FAMILIES, POWER_LE, DARWIN, LINUX, UNKNOWN
@@ -1307,9 +1305,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.get_os_name = lambda: 'centos'
 
         # add fake 'rpm' command that fails when $LD_LIBRARY_PATH is set
-        rpm = os.path.join(self.test_prefix, 'rpm')
-        rpm_txt = '\n'.join([
-            "#!/bin/bash",
+        rpm = self.setup_fake_binary('rpm', '\n'.join([
             "if [[ -z $LD_LIBRARY_PATH ]]; then",
             '    echo "OK: $@ (LD_LIBRARY_PATH: $LD_LIBRARY_PATH)"',
             "    exit 0",
@@ -1317,16 +1313,10 @@ class SystemToolsTest(EnhancedTestCase):
             '    echo "LD_LIBRARY_PATH set ($LD_LIBRARY_PATH), fail!"',
             "    exit 1",
             "fi",
-        ])
-        write_file(rpm, rpm_txt)
-        adjust_permissions(rpm, stat.S_IXUSR, add=True)
+        ]))
 
         # also create fake 'locate' command, which is used as fallback
-        locate = os.path.join(self.test_prefix, 'locate')
-        write_file(locate, 'exit 1')
-        adjust_permissions(locate, stat.S_IXUSR, add=True)
-
-        os.environ['PATH'] = self.test_prefix + ':' + os.getenv('PATH')
+        self.setup_fake_binary('locate', 'exit 1')
 
         self.assertTrue(os.path.samefile(which('rpm'), rpm))
 
@@ -1408,11 +1398,7 @@ class SystemToolsTest(EnhancedTestCase):
 
         if get_os_type() == LINUX:
             # inject fake 'file' command which always reports that the file is "dynamically linked"
-            file_cmd = os.path.join(self.test_prefix, 'bin', 'file')
-            write_file(file_cmd, "echo '(dynamically linked)'")
-            adjust_permissions(file_cmd, stat.S_IXUSR, add=True)
-
-            os.environ['PATH'] = os.path.join(self.test_prefix, 'bin') + ':' + os.getenv('PATH')
+            self.setup_fake_binary('file', "echo '(dynamically linked)'")
 
             test_file = os.path.join(self.test_prefix, 'test.txt')
             write_file(test_file, 'test')
@@ -1467,13 +1453,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertRaisesRegex(EasyBuildError, error_pattern, get_cuda_object_dump_raw, path='mock_cuda_bin')
 
         # Put a cuobjdump on the path, doesn't matter what. It will be mocked anyway
-        cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
-        mkdir(cuobjdump_dir, parents=True)
-        setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
-        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
-        write_file(cuobjdump_file, "#!/bin/bash\n")
-        write_file(cuobjdump_file, "echo 'Mock script, this should never actually be called\n'")
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', "echo 'Mock script, this should never actually be called\n'")
 
         # Test case 2: get raw output from mock_cuda_bin, a 'fat' binary
         self.assertEqual(get_cuda_object_dump_raw('mock_cuda_bin'), CUOBJDUMP_FAT)
@@ -1513,13 +1493,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_shell_cmd = mocked_run_shell_cmd
 
         # Put a cuobjdump on the path, doesn't matter what. It will be mocked anyway
-        cuobjdump_dir = os.path.join(self.test_prefix, 'cuobjdump_dir')
-        mkdir(cuobjdump_dir, parents=True)
-        setvar('PATH', '%s:%s' % (cuobjdump_dir, os.getenv('PATH')))
-        cuobjdump_file = os.path.join(cuobjdump_dir, 'cuobjdump')
-        write_file(cuobjdump_file, "#!/bin/bash\n")
-        write_file(cuobjdump_file, "echo 'Mock script, this should never actually be called\n'")
-        adjust_permissions(cuobjdump_file, stat.S_IXUSR, add=True)  # Make sure our mock cuobjdump is executable
+        self.setup_fake_binary('cuobjdump', "echo 'Mock script, this should never actually be called\n'")
 
         # Test case 1: get raw output from mock_cuda_bin, a 'fat' binary
         mock_cuda_bin_device_codes = ['5.0', '6.0', '6.1', '7.0', '7.5', '8.0', '8.6', '8.9', '9.0', '9.0a']
@@ -1619,7 +1593,7 @@ class SystemToolsTest(EnhancedTestCase):
         st.run_shell_cmd = mocked_run_shell_cmd
 
         # NVIDIA GPUs
-        def which_nvidia_smi(cmd, *args, **kwargs):
+        def which_nvidia_smi(cmd, *_args, **_kwargs):
             return cmd == 'nvidia-smi'
 
         st.which = which_nvidia_smi
@@ -1630,7 +1604,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_gpu_info(), expected)
 
         # AMD GPUs (via amd-smi)
-        def which_amd_smi(cmd, *args, **kwargs):
+        def which_amd_smi(cmd, *_args, **_kwargs):
             return cmd == 'amd-smi'
 
         st.which = which_amd_smi
@@ -1640,7 +1614,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(get_gpu_info(), expected)
 
         # AMD GPUs (via rocm-smi)
-        def which_rocm_smi(cmd, *args, **kwargs):
+        def which_rocm_smi(cmd, *_args, **_kwargs):
             return cmd == 'rocm-smi'
 
         st.which = which_rocm_smi
@@ -1667,7 +1641,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(result, expected)
 
         # Now, explicitly break read_file and use run_shell_cmd instead.
-        def broken_read_file(*args, **kwargs):
+        def broken_read_file(*_args, **_kwargs):
             raise EasyBuildError('Mocked read file error')
         st.read_file = broken_read_file
 
@@ -1676,7 +1650,7 @@ class SystemToolsTest(EnhancedTestCase):
         self.assertEqual(result, expected)
 
         # Now also break run_shell_cmd. pthread_trace should yield 0.
-        def broken_run_shell_cmd(*args, **kwargs):
+        def broken_run_shell_cmd(*_args, **_kwargs):
             return RunShellCmdResult(
                 cmd="",
                 exit_code=1,
