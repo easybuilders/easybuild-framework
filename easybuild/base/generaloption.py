@@ -45,6 +45,7 @@ from functools import reduce
 from io import StringIO
 from optparse import Option, OptionGroup, OptionParser, OptionValueError, Values
 from optparse import SUPPRESS_HELP as nohelp  # supported in optparse of python v2.4
+from typing import List
 
 from easybuild.base.fancylogger import getLogger, setroot, setLogLevel, getDetailsLogLevels
 from easybuild.base.optcomplete import autocomplete, CompleterOption
@@ -905,9 +906,10 @@ class GeneralOption:
     INTERSPERSED = True  # mix args with options
 
     CONFIGFILES_USE = True
-    CONFIGFILES_RAISE_MISSING = False
-    CONFIGFILES_INIT = []  # initial list of defaults, overwritten by go_configfiles options
-    CONFIGFILES_IGNORE = []
+    CONFIGFILES_RAISE_MISSING: bool = False
+    # initial list of defaults, overwritten by go_configfiles options
+    CONFIGFILES_INIT: List[str] = []
+    CONFIGFILES_IGNORE: List[str] = []
     CONFIGFILES_MAIN_SECTION = 'MAIN'  # sectionname that contains the non-grouped/non-prefixed options
     CONFIGFILE_CASESENSITIVE = True
 

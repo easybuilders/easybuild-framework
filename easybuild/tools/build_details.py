@@ -37,7 +37,7 @@ from easybuild.tools.systemtools import get_system_info
 from easybuild.tools.version import EASYBLOCKS_VERSION, FRAMEWORK_VERSION
 
 
-def get_build_stats(app, start_time, command_line):
+def get_build_stats(app, start_time: float, command_line: str) -> OrderedDict:
     """
     Return build statistics for this build
     """

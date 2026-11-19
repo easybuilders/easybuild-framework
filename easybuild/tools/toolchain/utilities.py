@@ -38,6 +38,7 @@ Authors:
 import copy
 import re
 import sys
+from typing import Any, Dict
 
 import easybuild.tools.toolchain
 from easybuild.tools.entrypoints import EntrypointToolchain
@@ -49,7 +50,7 @@ from easybuild.tools.utilities import get_subclasses, import_available_modules, 
 
 TC_CONST_PREFIX = 'TC_CONSTANT_'
 
-_initial_toolchain_instances = {}
+_initial_toolchain_instances: Dict[str, Any] = {}
 
 _log = fancylogger.getLogger("toolchain.utilities")
 

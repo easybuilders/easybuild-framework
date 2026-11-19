@@ -31,6 +31,8 @@ Authors:
 * Kenneth Hoste (Ghent University)
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+from typing import List
+
 from easybuild.tools import systemtools
 from easybuild.tools.build_log import EasyBuildError, print_warning
 from easybuild.tools.config import build_option
@@ -133,13 +135,13 @@ class Compiler(Toolchain):
     COMPILER_CC = None
     COMPILER_CXX = None
     COMPILER_C_OPTIONS = ['cstd']
-    COMPILER_C_UNIQUE_OPTIONS = []
+    COMPILER_C_UNIQUE_OPTIONS: List[str] = []
 
     COMPILER_F77 = None
     COMPILER_F90 = None
     COMPILER_FC = None
     COMPILER_F_OPTIONS = ['i8', 'r8']
-    COMPILER_F_UNIQUE_OPTIONS = []
+    COMPILER_F_UNIQUE_OPTIONS: List[str] = []
 
     LINKERS = None
     LINKER_TOGGLE_STATIC_DYNAMIC = None

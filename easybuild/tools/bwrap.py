@@ -32,6 +32,7 @@ Authors:
 """
 import json
 import os
+from typing import Any
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, print_msg
@@ -68,7 +69,7 @@ def get_bwrap_info(key):
         raise EasyBuildError(f"Unknown key specified to get bwrap info: {key}")
 
 
-def set_bwrap_info(key, value):
+def set_bwrap_info(key: str, value: Any) -> None:
     """
     Set specified info w.r.t. use of bwrap
     """
@@ -78,7 +79,7 @@ def set_bwrap_info(key, value):
         raise EasyBuildError(f"Unknown key specified to set bwrap info: {key}")
 
 
-def update_bwrap_info(key, value):
+def update_bwrap_info(key: str, value: Any) -> None:
     """
     Update specified info w.r.t. use of bwrap (only supports 'set' values currently)
     """
@@ -92,7 +93,7 @@ def update_bwrap_info(key, value):
         raise EasyBuildError(f"Unknown key specified to update bwrap info: {key}")
 
 
-def prepare_bwrap(bwrap_installpath):
+def prepare_bwrap(bwrap_installpath: str) -> None:
     """
     Prepare for running EasyBuild with bwrap:
     - update _bwrap_info

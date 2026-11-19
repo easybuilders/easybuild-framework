@@ -48,7 +48,7 @@ import os
 import re
 from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
@@ -111,9 +111,9 @@ except ImportError as err:
     HAVE_AUTOPEP8 = False
 
 
-_easyconfig_files_cache = {}
-_easyconfigs_cache = {}
-_path_indexes = {}
+_easyconfig_files_cache: Dict[str, Any] = {}
+_easyconfigs_cache: Dict[str, Any] = {}
+_path_indexes: Dict[str, int] = {}
 
 
 def handle_deprecated_or_replaced_easyconfig_parameters(ec_method):

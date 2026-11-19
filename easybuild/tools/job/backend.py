@@ -33,6 +33,7 @@ Authors:
 
 from abc import ABCMeta, abstractmethod
 from types import SimpleNamespace
+from typing import Any, Optional
 
 from easybuild.base import fancylogger
 from easybuild.tools.config import get_job_backend
@@ -50,7 +51,7 @@ class JobBackend:
     @abstractmethod
     def _check_version(self):
         """Check whether version of backend complies with required version."""
-        pass
+        return None
 
     @abstractmethod
     def init(self):
@@ -60,10 +61,11 @@ class JobBackend:
         Jobs may be queued and only actually submitted when `complete()`
         is called.
         """
-        pass
+        return None
 
     @abstractmethod
-    def make_job(self, script, name, env_vars=None, hours=None, cores=None):
+    def make_job(self, script: str, name: str, env_vars: Optional[dict] = None,
+                 hours: Optional[int] = None, cores: Optional[int] = None) -> Any:
         """
         Create and return a `Job` object with the given parameters.
 
@@ -84,7 +86,7 @@ class JobBackend:
         Note that actual submission may be delayed until `complete()` is
         called.
         """
-        pass
+        return None
 
     @abstractmethod
     def complete(self):
@@ -97,7 +99,7 @@ class JobBackend:
         No more job submissions should be attempted after `complete()`
         has been called, until a `init()` is invoked again.
         """
-        pass
+        return None
 
 
 def avail_job_backends(check_usable=True):

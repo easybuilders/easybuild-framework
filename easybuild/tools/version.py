@@ -34,8 +34,10 @@ Authors:
 * Jens Timmerman (Ghent University)
 """
 import os
-from easybuild.tools import LooseVersion
 from socket import gethostname
+from typing import Any
+
+from easybuild.tools import LooseVersion
 
 # note: release candidates should be versioned as a pre-release, e.g. "1.1rc1"
 # 1.1-rc1 would indicate a post-release, i.e., and update of 1.1, so beware!
@@ -50,7 +52,7 @@ UNKNOWN = 'UNKNOWN'
 UNKNOWN_EASYBLOCKS_VERSION = '0.0.UNKNOWN.EASYBLOCKS'
 
 
-def get_git_revision():
+def get_git_revision() -> str:
     """
     Returns the git revision (e.g. aab4afc016b742c6d4b157427e192942d0e131fe),
     or UNKNOWN is getting the git revision fails
@@ -91,7 +93,7 @@ except Exception:
     EASYBLOCKS_VERSION = UNKNOWN_EASYBLOCKS_VERSION  # make sure it is smaller then anything
 
 
-def this_is_easybuild():
+def this_is_easybuild() -> str:
     """Standard starting message"""
     top_version = max(FRAMEWORK_VERSION, LooseVersion(EASYBLOCKS_VERSION))
     msg = "This is EasyBuild %s (framework: %s, easyblocks: %s) on host %s."
@@ -105,7 +107,7 @@ def this_is_easybuild():
     return msg
 
 
-def different_major_versions(v1, v2):
+def different_major_versions(v1: Any, v2: Any) -> bool:
     """Compare major versions"""
     # Deal with version instances being either strings or LooseVersion
     if isinstance(v1, str):
