@@ -38,7 +38,7 @@ import unittest
 
 # initialize EasyBuild logging, so we disable it
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.options import set_tmpdir
 
 import test.framework.asyncprocess as a

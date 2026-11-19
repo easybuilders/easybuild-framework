@@ -33,7 +33,7 @@ Authors:
 
 from easybuild.tools import LooseVersion
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.fft import Fft
 from easybuild.tools.modules import get_software_root
 

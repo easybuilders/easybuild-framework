@@ -35,7 +35,7 @@ Authors:
 import pprint
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import read_file
 from easybuild.tools.utilities import only_if_module_is_available
 try:

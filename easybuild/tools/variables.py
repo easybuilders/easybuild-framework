@@ -35,7 +35,7 @@ import copy
 import os
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 
 
 _log = fancylogger.getLogger('variables', fname=False)

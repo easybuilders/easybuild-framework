@@ -31,8 +31,9 @@ Authors:
 * Kenneth Hoste (Ghent University)
 * Damian Alvarez (Forschungszentrum Juelich GmbH)
 """
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools import systemtools
-from easybuild.tools.build_log import EasyBuildError, print_warning
+from easybuild.tools.build_log import print_warning
 from easybuild.tools.config import build_option
 from easybuild.tools.toolchain.constants import COMPILER_VARIABLES
 from easybuild.tools.toolchain.toolchain import Toolchain

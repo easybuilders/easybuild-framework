@@ -45,7 +45,7 @@ import tempfile
 import time
 from easybuild.base import fancylogger
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import remove_dir
 from easybuild.tools.repository.filerepo import FileRepository
 from easybuild.tools.utilities import only_if_module_is_available

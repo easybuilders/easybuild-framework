@@ -33,8 +33,9 @@ Authors:
 import os
 import re
 
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS
 from easybuild.tools.config import build_option, container_path

@@ -31,7 +31,7 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.systemtools import get_shared_lib_ext
 from easybuild.tools.variables import StrList, AbsPathList
 

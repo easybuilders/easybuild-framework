@@ -31,7 +31,7 @@ Authors:
 * Kenneth Hoste (Ghent University)
 """
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 
 

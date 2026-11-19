@@ -52,6 +52,7 @@ from typing import Optional
 
 import easybuild.tools.filetools as filetools
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.base.wrapper import create_base_metaclass
 from easybuild.framework.easyconfig import MANDATORY
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS, EXTERNAL_MODULE_MARKER
@@ -67,7 +68,7 @@ from easybuild.framework.easyconfig.templates import ALTERNATIVE_EASYCONFIG_TEMP
 from easybuild.framework.easyconfig.templates import TEMPLATE_CONSTANTS, TEMPLATE_NAMES_DYNAMIC, template_constant_dict
 from easybuild.tools import LooseVersion
 from easybuild.tools.entrypoints import EntrypointEasyblock
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_warning, print_msg
+from easybuild.tools.build_log import print_warning, print_msg
 from easybuild.tools.config import GENERIC_EASYBLOCK_PKG, LOCAL_VAR_NAMING_CHECK_ERROR, LOCAL_VAR_NAMING_CHECK_LOG
 from easybuild.tools.config import LOCAL_VAR_NAMING_CHECK_WARN
 from easybuild.tools.config import Singleton, build_option, get_module_naming_scheme

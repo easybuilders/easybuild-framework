@@ -36,9 +36,9 @@ from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, init_
 from test.framework import TEST_ECS_DIR
 from unittest import TextTestRunner
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
 from easybuild.tools.config import get_package_naming_scheme, log_path
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import adjust_permissions, read_file, write_file
 from easybuild.tools.package.utilities import ActivePNS, avail_package_naming_schemes, check_pkg_support, package
 from easybuild.tools.version import VERSION as EASYBUILD_VERSION

@@ -33,7 +33,7 @@ from test.framework import TEST_DIR
 from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
 from unittest import TextTestRunner
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.filetools import mkdir, write_file
 from easybuild.tools.include import include_easyblocks, include_job_backends
 from easybuild.tools.include import include_module_naming_schemes, include_toolchains

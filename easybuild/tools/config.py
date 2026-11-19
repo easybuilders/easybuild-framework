@@ -50,7 +50,7 @@ from string import ascii_letters
 from easybuild.base import fancylogger
 from easybuild.base.frozendict import FrozenDictKnownKeys
 from easybuild.base.wrapper import create_base_metaclass
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 
 try:
     import rich  # noqa # pylint:disable=unused-import

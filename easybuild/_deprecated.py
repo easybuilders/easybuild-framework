@@ -43,7 +43,8 @@ from datetime import datetime
 
 import easybuild.tools.asyncprocess as asyncprocess
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_msg, time_str_since
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import dry_run_msg, print_msg, time_str_since
 from easybuild.tools.config import ERROR, IGNORE, WARN, build_option
 from easybuild.tools.hooks import RUN_SHELL_CMD, load_hooks, run_hook
 from easybuild.tools.utilities import nub, trace_msg

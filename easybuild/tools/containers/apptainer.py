@@ -29,7 +29,8 @@ Support for generating Apptainer container recipes and creating container images
 import os
 import re
 
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.containers.singularity import SingularityContainer
 from easybuild.tools.config import CONT_IMAGE_FORMAT_EXT3, CONT_IMAGE_FORMAT_SANDBOX
 from easybuild.tools.config import CONT_IMAGE_FORMAT_SIF, CONT_IMAGE_FORMAT_SQUASHFS

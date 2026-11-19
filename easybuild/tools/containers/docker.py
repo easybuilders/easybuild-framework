@@ -30,7 +30,8 @@ Support for generating docker container recipes and creating container images
 import os
 import tempfile
 
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import DOCKER_BASE_IMAGE_CENTOS, DOCKER_BASE_IMAGE_UBUNTU
 from easybuild.tools.containers.base import ContainerGenerator
 from easybuild.tools.containers.utils import det_os_deps

@@ -45,6 +45,7 @@ from easybuild.tools import LooseVersion
 from string import ascii_lowercase
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.default import DEFAULT_CONFIG, HIDDEN, sorted_categories
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.constants import EASYCONFIG_CONSTANTS
@@ -58,7 +59,7 @@ from easybuild.framework.easyconfig.templates import TEMPLATE_SOFTWARE_VERSIONS,
 from easybuild.framework.easyconfig.tools import avail_easyblocks
 from easybuild.framework.easyconfig.tweak import find_matching_easyconfigs
 from easybuild.framework.extension import Extension
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.config import build_option
 from easybuild.tools.filetools import read_file
 from easybuild.tools.modules import modules_tool

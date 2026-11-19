@@ -35,10 +35,10 @@ import os
 import re
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION
 from easybuild.framework.easyconfig.format.format import get_format_version, get_format_version_classes
 from easybuild.framework.easyconfig.types import PARAMETER_TYPES, check_type_of_param_value
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.filetools import read_file, write_file
 
 

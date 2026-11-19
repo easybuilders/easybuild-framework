@@ -40,9 +40,9 @@ import os
 import re
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyblock import get_easyblock_instance
 from easybuild.framework.easyconfig.easyconfig import ActiveMNS
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.bwrap import get_bwrap_info
 from easybuild.tools.config import build_option, get_repository, get_repositorypath
 from easybuild.tools.filetools import get_cwd

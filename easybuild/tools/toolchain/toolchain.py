@@ -59,7 +59,8 @@ import sys
 import tempfile
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError, dry_run_msg, print_warning
+from easybuild.base.exceptions import EasyBuildError
+from easybuild.tools.build_log import dry_run_msg, print_warning
 from easybuild.tools.config import build_option, install_path
 from easybuild.tools.environment import setvar, join_path_var
 from easybuild.tools.filetools import adjust_permissions, copy_file, find_eb_script, mkdir, read_file, which, write_file

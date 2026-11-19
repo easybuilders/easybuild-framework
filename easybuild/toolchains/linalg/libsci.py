@@ -33,7 +33,7 @@ Authors:
 """
 import os
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

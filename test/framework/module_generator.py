@@ -36,6 +36,7 @@ import tempfile
 from unittest import TextTestRunner, TestSuite
 from typing import Optional, Type
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.tools import process_easyconfig
 from easybuild.tools import LooseVersion, config
 from easybuild.tools.filetools import mkdir, read_file, remove_file, write_file
@@ -44,7 +45,6 @@ from easybuild.tools.module_generator import dependencies_for, wrap_shell_vars
 from easybuild.tools.module_naming_scheme.utilities import is_valid_module_name
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.framework.easyconfig.easyconfig import EasyConfig, ActiveMNS
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.modules import EnvironmentModules, EnvironmentModulesC, EnvironmentModulesTcl, Lmod
 from easybuild.tools.utilities import quote_str
 from test.framework import TEST_ECS_DIR, TEST_MODULES_DIR

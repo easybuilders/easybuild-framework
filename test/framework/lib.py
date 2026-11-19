@@ -39,7 +39,7 @@ from test.framework.utilities import TestLoaderFiltered
 # deliberately *not* using EnhancedTestCase from test.framework.utilities to avoid automatic configuration via setUp
 from easybuild.base.testing import TestCase
 
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.config import BuildOptions
 from easybuild.tools.options import set_up_configuration
 from easybuild.tools.filetools import mkdir

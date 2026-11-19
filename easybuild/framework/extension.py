@@ -40,10 +40,10 @@ import os
 from concurrent.futures import Future
 from typing import Optional
 
+from easybuild.base.exceptions import EasyBuildError, EasyBuildExit
 from easybuild.framework.easyconfig.default import get_easyconfig_parameter_default
 from easybuild.framework.easyconfig.easyconfig import resolve_template
 from easybuild.framework.easyconfig.templates import TEMPLATE_NAMES_EASYBLOCK_RUN_STEP, template_constant_dict
-from easybuild.tools.build_log import EasyBuildError, EasyBuildExit
 from easybuild.tools.filetools import change_dir
 from easybuild.tools.run import run_shell_cmd, RunShellCmdResult
 from easybuild.tools.utilities import trace_msg

@@ -33,7 +33,7 @@ import importlib
 from easybuild.tools.config import build_option
 
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from typing import TypeVar, List, Set, Any
 
 _T = TypeVar('_T')

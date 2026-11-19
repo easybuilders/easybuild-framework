@@ -35,10 +35,10 @@ import copy
 import re
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.format.version import EasyVersion, OrderedVersionOperators
 from easybuild.framework.easyconfig.format.version import ToolchainVersionOperator, VersionOperator
 from easybuild.framework.easyconfig.format.convert import Dependency
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.configobj import Section
 from easybuild.tools.utilities import get_subclasses
 

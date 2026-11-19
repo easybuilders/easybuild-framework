@@ -34,8 +34,9 @@ import re
 from importlib import reload
 
 from easybuild.base import fancylogger
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.framework.easyconfig.easyconfig import EasyConfig
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import print_msg
 from easybuild.tools.utilities import only_if_module_is_available
 
 try:

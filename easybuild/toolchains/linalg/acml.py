@@ -33,10 +33,10 @@ Authors:
 
 import os
 
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.toolchains.compiler.inteliccifort import TC_CONSTANT_INTELCOMP
 from easybuild.toolchains.compiler.gcc import TC_CONSTANT_GCC
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.toolchain.linalg import LinAlg
 
 

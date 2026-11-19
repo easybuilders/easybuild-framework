@@ -42,7 +42,7 @@ import sys
 import easybuild.tools.toolchain
 from easybuild.tools.entrypoints import EntrypointToolchain
 from easybuild.base import fancylogger
-from easybuild.tools.build_log import EasyBuildError
+from easybuild.base.exceptions import EasyBuildError
 from easybuild.tools.toolchain.toolchain import Toolchain
 from easybuild.tools.utilities import get_subclasses, import_available_modules, nub
 
