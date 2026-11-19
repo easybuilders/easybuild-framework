@@ -116,19 +116,31 @@ class TestCase(OrigTestCase):
     def assertExists(self, path, msg=None):
         """Assert that the given path exists"""
         if msg is None:
-            msg = "'%s' should exist" % path
+            msg = f"'{path}' should exist"
         self.assertTrue(os.path.exists(path), msg)
 
     def assertNotExists(self, path, msg=None):
         """Assert that the given path does not exist"""
         if msg is None:
-            msg = "'%s' should not exist" % path
+            msg = f"'{path}' should not exist"
         self.assertFalse(os.path.exists(path), msg)
 
     def assertAllExist(self, paths, msg=None):
         """Assert that all paths in the given list exist"""
         for path in paths:
             self.assertExists(path, msg)
+
+    def assertStartsWith(self, text, prefix, msg=None):
+        """Assert that the given text starts with the given prefix"""
+        if msg is None:
+            msg = f"'{text}' should start with '{prefix}'"
+        self.assertTrue(text.startswith(prefix), msg)
+
+    def assertEndsWith(self, text, suffix, msg=None):
+        """Assert that the given text ends with the given suffix"""
+        if msg is None:
+            msg = f"'{text}' should end with '{suffix}'"
+        self.assertTrue(text.endswith(suffix), msg)
 
     def setUp(self):
         """Prepare test case."""
