@@ -121,7 +121,7 @@ class ContainersTest(EnhancedTestCase):
             "Include: yum",
             '\n',
         ])
-        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+        self.assertStartsWith(txt, expected)
 
         # when installing from scratch, a bunch of OS packages are installed too
         pkgs = ['epel-release', 'python', 'setuptools', 'Lmod', r'gcc-c\+\+', 'make', 'patch', 'tar']
@@ -156,7 +156,7 @@ class ContainersTest(EnhancedTestCase):
             "Include: yum",
             '\n',
         ])
-        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+        self.assertStartsWith(txt, expected)
 
         remove_file(test_container_recipe)
 
@@ -171,7 +171,7 @@ class ContainersTest(EnhancedTestCase):
             "Include: test123",
             '\n',
         ])
-        self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+        self.assertStartsWith(txt, expected)
 
         # also check with image-based bootstrap agent, which requires 'from'
         test_cases = [
@@ -195,7 +195,7 @@ class ContainersTest(EnhancedTestCase):
                 "From: %s" % from_spec,
                 '',
             ])
-            self.assertTrue(txt.startswith(expected), "Container recipe starts with '%s':\n\n%s" % (expected, txt))
+            self.assertStartsWith(txt, expected)
 
             # no OS packages are installed by default when starting from an existing image
             self.assertNotIn("yum install", txt)
