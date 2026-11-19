@@ -39,7 +39,6 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from importlib import reload
-from pathlib import Path
 from typing import List, Optional, Pattern, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
@@ -319,7 +318,7 @@ class EnhancedTestCase(TestCase):
 
         # always run main in unit testing mode (which for example allows for using deprecated toolchains);
         # note: don't change 'args' value, which is passed by reference!
-        main_args = [str(arg) if isinstance(arg, Path) else arg for arg in args] + ['--unit-testing-mode']
+        main_args = args + ['--unit-testing-mode']
 
         myerr = None
         if logfile is None:

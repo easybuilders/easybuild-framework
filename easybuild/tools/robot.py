@@ -38,6 +38,7 @@ Authors:
 import copy
 import os
 import sys
+from typing import List
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.easyconfig import EASYCONFIGS_ARCHIVE_DIR, ActiveMNS, process_easyconfig
@@ -498,8 +499,8 @@ def resolve_dependencies(easyconfigs, modtool, retain_all_deps=False, raise_erro
     return ordered_ecs
 
 
-def search_easyconfigs(query, short=False, filename_only=False, terse=False, consider_extra_paths=True,
-                       print_result=True, case_sensitive=False):
+def search_easyconfigs(query: str, short=False, filename_only=False, terse=False, consider_extra_paths=True,
+                       print_result=True, case_sensitive=False) -> List[str]:
     """
     Search for easyconfigs, if a query is provided.
 
