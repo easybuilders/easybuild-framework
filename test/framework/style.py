@@ -30,26 +30,19 @@ Style tests for easyconfig files.
 
 import sys
 from test.framework import TEST_ECS_DIR
-from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered
+from test.framework.utilities import EnhancedTestCase, TestLoaderFiltered, requires_pycodestyle
 from unittest import TextTestRunner
 
 from easybuild.base import fancylogger
 from easybuild.framework.easyconfig.style import _eb_check_trailing_whitespace, check_easyconfigs_style
 
-try:
-    import pycodestyle  # noqa, pylint: disable=unused-import
-except ImportError:
-    pass
-
 
 class StyleTest(EnhancedTestCase):
     log = fancylogger.getLogger("StyleTest", fname=False)
 
+    @requires_pycodestyle()
     def test_style_conformance(self):
         """Check the easyconfigs for style"""
-        if 'pycodestyle' not in sys.modules:
-            print("Skipping test_style_conformance pycodestyle is not available")
-            return
 
         # all available easyconfig files
         specs = sorted(TEST_ECS_DIR.rglob('*.eb'))
@@ -59,11 +52,9 @@ class StyleTest(EnhancedTestCase):
 
         self.assertEqual(result, 0, "No code style errors (and/or warnings) found.")
 
+    @requires_pycodestyle()
     def test_check_trailing_whitespace(self):
         """Test for trailing whitespace check."""
-        if 'pycodestyle' not in sys.modules:
-            print("Skipping test_check_trailing_whitespace pycodestyle is not available")
-            return
 
         lines = [
             "name = 'foo'",  # no trailing whitespace
