@@ -33,7 +33,7 @@ Authors:
 import copy
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Iterable, Union, overload
 
 from easybuild.base import fancylogger
 from easybuild.tools.build_log import EasyBuildError, dry_run_msg
@@ -44,6 +44,7 @@ from easybuild.tools.utilities import shell_quote
 # take copy of original environemt, so we can restore (parts of) it later
 ORIG_OS_ENVIRON = copy.deepcopy(os.environ)
 
+PathOrStr = Union[str, Path]
 
 _log = fancylogger.getLogger('environment', fname=False)
 
@@ -78,8 +79,18 @@ def get_changes():
     return _changes
 
 
-def join_path_var(paths: List[Union[str, Path]]) -> str:
-    """Join a list of paths into a single path variable string, filtering out empty entries."""
+@overload
+def join_path_var(paths: Iterable[PathOrStr]) -> str: ...
+
+
+@overload
+def join_path_var(path: PathOrStr, *paths: PathOrStr) -> str: ...
+
+
+def join_path_var(*paths):
+    """Join paths into a single path variable string, filtering out empty entries."""
+    if len(paths) == 1 and not isinstance(paths[0], (str, Path)):
+        paths = paths[0]
     return os.pathsep.join(str(path) for path in paths if path)
 
 
@@ -154,7 +165,7 @@ def read_environment(env_vars, strict=False):
     """
     result = {k: os.environ.get(v) for k, v in env_vars.items() if v in os.environ}
 
-    if not len(env_vars) == len(result):
+    if len(env_vars) != len(result):
         missing = ','.join(["%s / %s" % (k, v) for k, v in env_vars.items() if k not in result])
         msg = 'Following name/variable not found in environment: %s' % missing
         if strict:
