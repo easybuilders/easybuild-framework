@@ -103,7 +103,7 @@ def check_key_types(val, allowed_types):
     """Check whether type of keys for specific dict value are as expected."""
     if isinstance(val, dict):
         res = True
-        for key in val.keys():
+        for key in val:
             res &= any(is_value_of_type(key, t) for t in allowed_types)
     else:
         _log.debug("Specified value %s (type: %s) is not a dict, so key types check failed", val, type(val))
@@ -115,7 +115,7 @@ def check_key_types(val, allowed_types):
 def check_known_keys(val, allowed_keys):
     """Check whether all keys for specified dict value are known keys."""
     if isinstance(val, dict):
-        res = all(key in allowed_keys for key in val.keys())
+        res = all(key in allowed_keys for key in val)
     else:
         _log.debug("Specified value %s (type: %s) is not a dict, so known keys check failed", val, type(val))
         res = False

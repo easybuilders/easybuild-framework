@@ -146,14 +146,14 @@ class TweakTest(EnhancedTestCase):
         tweaked_toy_ec = os.path.join(self.test_prefix, 'toy-tweaked.eb')
         tweak_one(TOY_EC, tweaked_toy_ec, {'version': '1.2.3'})
 
-        TOY_EC_parsed = EasyConfigParser(TOY_EC).get_config_dict()
+        toy_ec_parsed = EasyConfigParser(TOY_EC).get_config_dict()
         tweaked_toy_ec_parsed = EasyConfigParser(tweaked_toy_ec).get_config_dict()
 
         # checksums should be reset to empty list, only version should be changed, nothing else
         self.assertEqual(tweaked_toy_ec_parsed['checksums'], [])
         self.assertEqual(tweaked_toy_ec_parsed['version'], '1.2.3')
-        for key in [k for k in TOY_EC_parsed.keys() if k not in ['checksums', 'version']]:
-            val = TOY_EC_parsed[key]
+        for key in [k for k in toy_ec_parsed if k not in ['checksums', 'version']]:
+            val = toy_ec_parsed[key]
             self.assertIn(key, tweaked_toy_ec_parsed, "Parameter '%s' not defined in tweaked easyconfig file" % key)
             tweaked_val = tweaked_toy_ec_parsed.get(key)
             self.assertEqual(val, tweaked_val, "Different value for %s parameter: %s vs %s" % (key, val, tweaked_val))

@@ -169,7 +169,7 @@ class Completer:
         if self.CALL_ARGS_OPTIONAL is not None:
             all_args.extend(self.CALL_ARGS_OPTIONAL)
 
-        for arg in kwargs.keys():
+        for arg in kwargs:
             if arg not in all_args:
                 # remove it
                 kwargs.pop(arg)

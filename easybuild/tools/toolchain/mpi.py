@@ -48,7 +48,7 @@ from easybuild.tools.toolchain.toolchain import Toolchain
 _log = fancylogger.getLogger('tools.toolchain.mpi', fname=False)
 
 
-def get_mpi_cmd_template(mpi_family, params, mpi_version=None):
+def get_mpi_cmd_template(mpi_family, params: dict, mpi_version=None):
     """
     Return template for MPI command, for specified MPI family.
 
@@ -125,7 +125,7 @@ def get_mpi_cmd_template(mpi_family, params, mpi_version=None):
             raise EasyBuildError("Don't know which template MPI command to use for MPI family '%s'", mpi_family)
 
     missing = []
-    for key in sorted(params.keys()):
+    for key in sorted(params):
         tmpl = '%(' + key + ')s'
         if tmpl not in mpi_cmd_template:
             missing.append(tmpl)

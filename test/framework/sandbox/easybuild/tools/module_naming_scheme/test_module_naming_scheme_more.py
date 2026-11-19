@@ -61,7 +61,7 @@ class TestModuleNamingSchemeMore(ModuleNamingScheme):
         for key in self.REQUIRED_KEYS:
             if isinstance(ec[key], dict):
                 res += '%s=>' % key
-                for item_key in sorted(ec[key].keys()):
+                for item_key in sorted(ec[key]):
                     res += '%s:%s,' % (item_key, ec[key][item_key])
             else:
                 res += str(ec[key])

@@ -199,7 +199,7 @@ class HierarchicalMNS(ModuleNamingScheme):
             extend_comps = []
             # exclude GCC for which <name>/<version> is used as $MODULEPATH extension
             excluded_comps = ['GCC']
-            for comps in COMP_NAME_VERSION_TEMPLATES.keys():
+            for comps in COMP_NAME_VERSION_TEMPLATES:
                 extend_comps.extend([comp for comp in comps.split(',') if comp not in excluded_comps])
 
             comp_name_ver = None
