@@ -76,7 +76,7 @@ def remove_easybuild_environment_config_variables(exception=None):
 # Ignore cmdline args as those are meant for the unittest framework
 # ignore any existing configuration files
 remove_easybuild_environment_config_variables()
-go = EasyBuildOptions(go_args=[], go_useconfigfiles=False)
+go = EasyBuildOptions(go_args=[], go_useconfigfiles=False, set_tmpdir=False, with_include=False, single_cfg_level=True)
 os.environ['EASYBUILD_IGNORECONFIGFILES'] = ','.join(go.options.configfiles)
 
 # redefine $TEST_EASYBUILD_X env vars as $EASYBUILD_X
@@ -160,7 +160,7 @@ class EnhancedTestCase(TestCase):
         self.orig_current_version = eb_build_log.CURRENT_VERSION
         self.disallow_deprecated_behaviour()
 
-        init_config()
+        init_config(set_tmpdir=True)  # We do want a fresh temporary folder inside self.test_prefix
 
         import easybuild
         # try to import easybuild.easyblocks(.generic) packages
@@ -546,7 +546,7 @@ def cleanup(clear_caches=True):
     tempfile.tempdir = None
 
 
-def init_config(args=None, build_options=None, with_include=True, clear_caches=True):
+def init_config(args=None, build_options=None, set_tmpdir=True, with_include=True, clear_caches=True):
     """(re)initialize configuration"""
 
     cleanup(clear_caches=clear_caches)
@@ -554,7 +554,7 @@ def init_config(args=None, build_options=None, with_include=True, clear_caches=T
     if args is None:
         args = []  # Ignore cmdline args as those are meant for the unittest framework
     # initialize configuration so config.get_modules_tool function works
-    eb_go = eboptions.parse_options(args=args, with_include=with_include)
+    eb_go = eboptions.parse_options(args=args, with_include=with_include, set_tmpdir=set_tmpdir)
     config.init(eb_go.options, eb_go.get_options_by_section('config'))
 
     # initialize default build options
