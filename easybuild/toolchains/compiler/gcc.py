@@ -102,7 +102,23 @@ class Gcc(Compiler):
         # https://github.com/riscv-non-isa/riscv-toolchain-conventions/blob/main/src/toolchain-conventions.adoc
         # https://docs.riscv.org/reference/isa/unpriv/naming.html
         # https://gcc.gnu.org/gcc-14/changes.html
-        march_opt = '-march=' + systemtools.get_isa_riscv()
+        isa_string = systemtools.get_isa_riscv()
+        isa_parts = isa_string.split('_')
+
+        # Remove extensions unsupported by GCC (14.3.0).
+        gcc_version = get_software_version('GCCcore')
+        if LooseVersion(gcc_version) <= LooseVersion('14.3.0'):
+            unsupported_extensions = {'zaamo', 'zalrsc'}
+            isa_parts = [
+                ext for ext in isa_parts
+                if ext not in unsupported_extensions
+            ]
+
+        # Sort parts separated by underscore alphabetically,
+        # as required by older GCC versions (<14).
+        isa_string = '_'.join(sorted(isa_parts))
+
+        march_opt = '-march=' + isa_string
         COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(systemtools.RISCV64, systemtools.RISCV)] = march_opt
 
     # used with --optarch=GENERIC
