@@ -54,7 +54,7 @@ def get_class(name, default_class, map_class=None):
     if name is not None:
         try:
             klass = map_class[name]
-        except BaseException:
+        except KeyError:
             for k, v in map_class.items():
                 if type(k) in (type,) and name in v:
                     klass = k
