@@ -66,7 +66,7 @@ except ImportError:
 
 
 # test account, for which a token may be available
-GITHUB_TEST_ACCOUNT = 'easybuild_test'
+GITHUB_TEST_ACCOUNT = os.environ.get('EB_GITHUB_TEST_ACCOUNT', 'easybuild_test')
 # the user & repo to use in this test (https://github.com/easybuilders/testrepository)
 GITHUB_USER = "easybuilders"
 GITHUB_REPO = "testrepository"
