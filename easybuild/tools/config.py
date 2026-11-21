@@ -192,6 +192,12 @@ PYTHONPATH = 'PYTHONPATH'
 EBPYTHONPREFIXES = 'EBPYTHONPREFIXES'
 PYTHON_SEARCH_PATH_TYPES = [PYTHONPATH, EBPYTHONPREFIXES]
 
+TEST_MODE_MINIMAL = 'minimal'
+TEST_MODE_STANDARD = 'standard'
+TEST_MODE_EXHAUSTIVE = 'exhaustive'
+TEST_MODES = [TEST_MODE_MINIMAL, TEST_MODE_STANDARD, TEST_MODE_EXHAUSTIVE]
+DEFAULT_TEST_MODE = TEST_MODE_STANDARD
+
 # options to handle header search paths in environment of modules
 MOD_SEARCH_PATH_HEADERS_CPATH = 'cpath'
 MOD_SEARCH_PATH_HEADERS_INCLUDE_PATHS = 'include_paths'
@@ -458,6 +464,9 @@ BUILD_OPTIONS_CMDLINE = {
     ],
     PYTHONPATH: [
         'prefer_python_search_path',
+    ],
+    DEFAULT_TEST_MODE: [
+        'test_mode',
     ]
 }
 # build option that do not have a perfectly matching command line option
