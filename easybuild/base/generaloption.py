@@ -136,6 +136,26 @@ def check_str_list_tuple(option, opt, value):  # pylint: disable=unused-argument
         return klass(split)
 
 
+def check_choice_case_insensitive(option, opt, value):
+    """
+    Case-insensitive check function for choice type.
+    Performs case-insensitive matching against available choices.
+    Returns the properly-cased choice value from the choices list.
+    """
+    # Create a mapping from lowercase choices to original choices
+    choices_map = {choice.lower(): choice for choice in option.choices}
+
+    value_lower = value.lower()
+    if value_lower in choices_map:
+        # Return the properly-cased choice from the original choices list
+        return choices_map[value_lower]
+    else:
+        choices = ", ".join(map(repr, option.choices))
+        raise OptionValueError(
+            _gettext("option %s: invalid choice: %r (choose from %s)")
+            % (opt, value, choices))
+
+
 def get_empty_add_flex(allvalues, self=None):
     """Return the empty element for add_flex action for allvalues"""
     empty = None
@@ -215,6 +235,8 @@ class ExtOption(CompleterOption):
     TYPE_CHECKER.update(Option.TYPE_CHECKER)
     TYPES = tuple(TYPE_STRLIST + list(Option.TYPES))
     BOOLEAN_ACTIONS = ('store_true', 'store_false',) + EXTOPTION_LOG
+    # Override the choice checker to be case-insensitive
+    TYPE_CHECKER['choice'] = check_choice_case_insensitive
 
     def __init__(self, *args, **kwargs):
         """Add logger to init"""
