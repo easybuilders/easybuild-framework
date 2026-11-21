@@ -158,8 +158,15 @@ class BwrapTest(EnhancedTestCase):
         self.assertTrue(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
 
         # read-only install paths: overlays on the closest existing directory (only once per directory),
-        # with parent directories mounted before their subdirectories
+        # with parent directories mounted before their subdirectories;
+        # existing modules are not copied, but the module directories are pre-created in the upper layer
+        bwrap_installpath = os.path.join(self.test_prefix, 'bwrap_ro')
+        bwrap_software = os.path.join(bwrap_installpath, 'software')
+        bwrap_modules = os.path.join(bwrap_installpath, 'modules')
+        bwrap_workdir = os.path.join(bwrap_installpath, 'workdir')
         set_bwrap_info('install_subdirs', {'foo/2.0', 'baz/1.0'})
+        set_bwrap_info('module_files', {'all/foo/2.0.lua', 'all/baz/1.0.lua'})
+        set_bwrap_info('module_symlinks', {'tools/baz/1.0.lua'})
         read_only_dirs = [os.path.join(software, 'foo'), software, modules]
         for path in read_only_dirs:
             os.chmod(path, stat.S_IRUSR | stat.S_IXUSR)
@@ -180,6 +187,9 @@ class BwrapTest(EnhancedTestCase):
             os.path.join(software, 'foo'),
         ]
         self.assertEqual(get_bwrap_info('bwrap_cmd'), expected)
+        for subdir in [('all', 'foo'), ('all', 'baz'), ('tools', 'baz')]:
+            self.assertTrue(os.path.isdir(os.path.join(bwrap_modules, *subdir)))
+        self.assertFalse(os.path.exists(os.path.join(bwrap_modules, 'all', 'foo', '0.9.lua')))
 
 
 def suite(loader=None):

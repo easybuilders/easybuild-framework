@@ -219,6 +219,10 @@ def prepare_bwrap(bwrap_installpath):
         # if the modules installpath is read-only, use overlayfs
         bwrap_workdir = os.path.join(bwrap_installpath, 'workdir', 'modules')
         mkdir(bwrap_workdir, parents=True)
+        # pre-create the module directories in the upper layer, since directories that only exist
+        # in the read-only lower layer are not writable in the overlay (except for the overlay root)
+        for mod_relpath in get_bwrap_info('module_files') | get_bwrap_info('module_symlinks'):
+            mkdir(os.path.dirname(os.path.join(bwrap_installpath_modules, mod_relpath)), parents=True)
         bwrap_opts.add((
             '--overlay-src', installpath_modules,
             '--overlay', bwrap_installpath_modules, bwrap_workdir, installpath_modules))

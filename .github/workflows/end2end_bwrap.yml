@@ -79,7 +79,7 @@ jobs:
         run: |
           bash -l <<EOF
             cat /etc/os-release
-            # bwrap version needs to be >=0.10 for --overlay and --overlay-src support
+            # bwrap version needs to be >=0.11 for --overlay and --overlay-src support
             bwrap --version
 
             source /tmp/eb_env
@@ -87,8 +87,11 @@ jobs:
             # remove previously created install directories
             rm -r $HOME/.local/easybuild/{software,modules}/* /tmp/bwrap-installpath
 
-            # make install directory read-only to force using overlay
-            chmod -w $HOME/.local/easybuild/{software,modules}
+            # existing (read-only) module directories in the lower layer must be writable in the overlay
+            mkdir -p $HOME/.local/easybuild/modules/all/{UnZip,bzip2}
+
+            # make install directories read-only to force using overlay
+            chmod -R a-w $HOME/.local/easybuild/{software,modules}
 
             # test installation of UnZip + bzip2 dependency
             eb UnZip-6.0.eb --trace --robot --experimental --bwrap --bwrap-installpath /tmp/bwrap-installpath \
