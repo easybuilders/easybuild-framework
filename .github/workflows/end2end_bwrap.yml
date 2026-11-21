@@ -84,8 +84,9 @@ jobs:
 
             source /tmp/eb_env
 
-            # remove previously created install directories
-            rm -r $HOME/.local/easybuild/{software,modules}/* /tmp/bwrap-installpath
+            # remove previously created install directories and locks
+            # (a read-only locks dir in the read-only software install path is not supported yet)
+            rm -r $HOME/.local/easybuild/{software,modules}/* $HOME/.local/easybuild/software/.locks /tmp/bwrap-installpath
 
             # existing (read-only) module directories in the lower layer must be writable in the overlay
             mkdir -p $HOME/.local/easybuild/modules/all/{UnZip,bzip2}
