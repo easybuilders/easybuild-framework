@@ -99,6 +99,33 @@ git commit -m "add required support for running EasyBuild on Windows"
 
 If you are working on several things at the same time, try and keep things isolated in seperate branches, to keep it manageable (both for you, and for reviewing your contributions, see below).
 
+### Development
+
+Install the Python packages required to run the tests, and the (pinned) linting tools used in the CI:
+
+```bash
+pip install -r requirements.txt -r requirements-lint.txt
+```
+
+Code style is checked with `flake8` (see `setup.cfg` for the configuration).
+To run the style checks (and some whitespace checks) automatically when committing, install the git hook with [pre-commit](https://pre-commit.com):
+
+```bash
+pip install pre-commit
+pre-commit install
+# check all files, not just the ones being committed
+pre-commit run --all-files
+```
+
+The tests require a modules tool (Lmod or Environment Modules), with the `module` command available in your shell.
+Run the full test suite (this takes a while), a single test module, or only the tests whose name matches a filter:
+
+```bash
+python -O -m test.framework.suite
+python -O -m test.framework.toy_build
+python -O -m test.framework.toy_build test_toy_build_formatv2
+```
+
 
 
 ## Pull request
