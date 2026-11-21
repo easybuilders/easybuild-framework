@@ -39,6 +39,7 @@ import re
 import tempfile
 
 from easybuild.base import fancylogger
+from easybuild.os_hook import OSProxy
 from easybuild.framework.easyconfig.format.format import DEPENDENCY_PARAMETERS, EXCLUDED_KEYS_REPLACE_TEMPLATES
 from easybuild.framework.easyconfig.format.format import FORMAT_DEFAULT_VERSION, GROUPED_PARAMS, LAST_PARAMS
 from easybuild.framework.easyconfig.format.format import SANITY_CHECK_PATHS_DIRS, SANITY_CHECK_PATHS_FILES
@@ -140,7 +141,7 @@ class FormatOneZero(EasyConfigFormatConfigObj):
         cfg_copy = {}
         for key in cfg:
             # skip special variables like __builtins__, and imported modules (like 'os')
-            if key != '__builtins__' and "'module'" not in str(type(cfg[key])):
+            if key != '__builtins__' and "'module'" not in str(type(cfg[key])) and not isinstance(cfg[key], OSProxy):
                 try:
                     cfg_copy[key] = copy.deepcopy(cfg[key])
                 except Exception as err:
