@@ -84,7 +84,7 @@ class LooseVersion:
                 i = 0 if isinstance(j, int) else ''
             elif j is None:
                 j = 0 if isinstance(i, int) else ''
-            elif not type(i) is type(j):
+            elif type(i) is not type(j):
                 i = str(i)
                 j = str(j)
             if i < j:
