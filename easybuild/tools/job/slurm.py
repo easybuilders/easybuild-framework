@@ -34,7 +34,7 @@ import re
 
 from easybuild.base import fancylogger
 from easybuild.tools import LooseVersion
-from easybuild.tools.build_log import EasyBuildError, print_msg
+from easybuild.tools.build_log import EasyBuildError, EasyBuildExit, print_msg
 from easybuild.tools.config import JOB_DEPS_TYPE_ABORT_ON_ERROR, JOB_DEPS_TYPE_ALWAYS_RUN, build_option
 from easybuild.tools.job.backend import JobBackend
 from easybuild.tools.filetools import which
@@ -117,7 +117,9 @@ class Slurm(JobBackend):
             else:
                 submit_cmd += ' --%s "%s"' % (key, job.job_specs[key])
 
-        cmd_res = run_shell_cmd(submit_cmd, hidden=True)
+        cmd_res = run_shell_cmd(submit_cmd, hidden=True, fail_on_error=False)
+        if cmd_res.exit_code != EasyBuildExit.SUCCESS:
+            raise EasyBuildError(f"Submitting job '{job.name}' failed: {cmd_res.output}")
 
         jobid_regex = re.compile("^Submitted batch job (?P<jobid>[0-9]+)")
 
