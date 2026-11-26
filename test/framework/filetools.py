@@ -60,7 +60,7 @@ import easybuild.tools.filetools as ft
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.config import IGNORE, ERROR, WARN, build_option, update_build_option
 from easybuild.tools.multidiff import multidiff
-from easybuild.tools.run import run_shell_cmd
+from easybuild.tools.run import run_shell_cmd, RunShellCmdError
 from easybuild.tools.systemtools import LINUX, get_os_type
 
 
@@ -3029,6 +3029,25 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         self.assertRegex(res, re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M))
 
+
+    def _isolate_git_config(self):
+        """Isolate Git configuration for tests using local repositories."""
+        git_home = tempfile.mkdtemp(dir=self.test_prefix)
+        git_env = {
+            'HOME': git_home,
+            'XDG_CONFIG_HOME': git_home,
+            'GIT_CONFIG_GLOBAL': os.path.join(git_home, '.gitconfig'),
+            'GIT_CONFIG_NOSYSTEM': '1',
+            'GIT_CONFIG_COUNT': '0',
+        }
+
+        env_patch = patch.dict(os.environ, git_env)
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
+
+        os.environ.pop('GIT_CONFIG_PARAMETERS', None)
+
+
     def test_is_git_lfs_pointer(self):
         """Test detection of valid Git LFS pointer files."""
         pointer = (
@@ -3037,19 +3056,37 @@ class FileToolsTest(EnhancedTestCase):
             b'size 12345\n'
         )
 
-        # Valid Git LFS pointers
-        self.assertTrue(ft._is_git_lfs_pointer(pointer))
-        self.assertTrue(ft._is_git_lfs_pointer(pointer.replace(b'size 12345', b'size 0')))
+        valid_pointers = [
+            pointer,
+            pointer.replace(b'size 12345', b'size 0'),
+            # Legacy Git LFS version identifiers.
+            pointer.replace(b'https://git-lfs.github.com/spec/v1', b'http://git-media.io/v/2'),
+            pointer.replace(b'https://git-lfs.github.com/spec/v1', b'https://hawser.github.com/spec/v1'),
+            # Noncanonical pointers accepted by Git LFS.
+            pointer[:-1],  # Missing final newline
+            pointer.replace(b'\n', b'\r\n'),
+            pointer.replace(b'size 12345', b'size 012345'),
+            pointer.replace(b'size 12345', b'size +12345'),
+            b'\n' + pointer + b'\n',
+            pointer.replace(b'\noid ', b'\n\noid '),
+            # Git LFS pointers with extension fields.
+            pointer.replace(b'\noid ', b'\next-0-my_filter sha256:' + b'b' * 64 + b'\noid '),
+            pointer.replace(b'\noid ', b'\next-0-MyFilter sha256:' + b'b' * 64 + b'\noid '),
+        ]
 
-        # Invalid pointers and ordinary files
+        for contents in valid_pointers:
+            with self.subTest(contents=contents):
+                self.assertTrue(ft._is_git_lfs_pointer(contents))
+
+        # Invalid pointers and ordinary files.
         invalid_pointers = [
             b'',
             b'ordinary file contents\n',
-            pointer[:-1],  # Missing final newline
+            pointer.replace(b'https://git-lfs.github.com/spec/v1', b'https://example.com/spec/v1'),
             pointer.replace(b'sha256:', b'sha1:'),
             pointer.replace(b'size 12345', b'size -1'),
             pointer.replace(b'size 12345', b'size abc'),
-            pointer.replace(b'size 12345', b'size 012345'),
+            pointer.replace(b'size 12345', b'size 9223372036854775808'),
             pointer.replace(b'oid sha256:', b'oid sha256:xyz'),
             pointer.replace(b'oid sha256:', b'oid sha256:\xff'),
             pointer.replace(b'size 12345\n', b''),
@@ -3061,10 +3098,12 @@ class FileToolsTest(EnhancedTestCase):
             with self.subTest(contents=contents):
                 self.assertFalse(ft._is_git_lfs_pointer(contents))
 
-    def test_repo_has_git_lfs_pointers(self):
+    def test_git_lfs_pointer_files(self):
         """Test detection of Git LFS pointers in tracked repository files."""
         if ft.which('git', on_error=IGNORE, log_ok=False) is None:
             self.skipTest('Git is not available')
+
+        self._isolate_git_config()
 
         repo_dir = os.path.join(self.test_prefix, 'lfs-repo')
         run_shell_cmd(f'git init {repo_dir}', hidden=True)
@@ -3094,25 +3133,66 @@ class FileToolsTest(EnhancedTestCase):
         run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
 
         # No actual LFS pointers despite having LFS attributes.
-        self.assertFalse(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+        self.assertFalse(ft._git_lfs_pointer_files(repo_dir, 'git'))
 
         # Add an actual Git LFS pointer.
-        data_file = os.path.join(repo_dir, 'data.bin')
+        data_file = os.path.join(repo_dir, '!data.bin')
         ft.write_file(data_file, pointer)
         run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
 
-        self.assertTrue(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+        self.assertTrue(ft._git_lfs_pointer_files(repo_dir, 'git'))
+        # Warnings on stderr must not interfere with Git LFS pointer detection.
+        orig_run_shell_cmd = ft.run_shell_cmd
+        warning = "printf '%s\\n' 'warning: simulated Git warning' >&2"
 
-        # Replacing the pointer with regular data should disable detection.
-        ft.write_file(data_file, 'normal data\n')
+        def mock_run_shell_cmd(cmd, *args, **kwargs):
+            if ' ls-files ' in cmd:
+                cmd = f"{warning}; {cmd}"
+
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+            self.assertTrue(ft._git_lfs_pointer_files(repo_dir, 'git'))
+
+        # Detect multiple LFS pointers, including filenames containing spaces.
+        second_file = os.path.join(repo_dir, 'second file.bin')
+        ft.write_file(second_file, pointer)
         run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
 
-        self.assertFalse(ft._repo_has_git_lfs_pointers(repo_dir, 'git'))
+        self.assertEqual(
+            ft._git_lfs_pointer_files(repo_dir, 'git'),
+            ['!data.bin', 'second file.bin'],
+        )
+
+        # Older Git versions do not support attribute-based pathspecs.
+        def mock_old_git(cmd, *args, **kwargs):
+            if ' ls-files ' in cmd:
+                cmd = cmd.replace(':(attr:filter=lfs)', ':(unsupported:filter=lfs)')
+
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_old_git):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                'Git 2.13 or newer is required.*update Git or load a newer Git module',
+                ft._git_lfs_pointer_files,
+                repo_dir,
+                'git',
+            )
+
+        # Replacing the pointers with regular data should disable detection.
+        ft.write_file(data_file, 'normal data\n')
+        ft.write_file(second_file, 'normal data\n')
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+
+        self.assertEqual(ft._git_lfs_pointer_files(repo_dir, 'git'), [])
 
     def test_get_source_tarball_from_git_lfs(self):
         """Test Git LFS handling when git-lfs is available and unavailable."""
         if ft.which('git', on_error=IGNORE, log_ok=False) is None:
             self.skipTest('Git is not available')
+
+        self._isolate_git_config()
 
         repo_name = 'lfs-test'
         repos_dir = os.path.join(self.test_prefix, 'repos')
@@ -3158,30 +3238,24 @@ class FileToolsTest(EnhancedTestCase):
             'tag': 'v1.0',
         }
 
-        # Simulate git-lfs being unavailable, regardless of the test environment.
-        with patch.object(ft, 'which', return_value=None):
-            self.assertRaisesRegex(
-                EasyBuildError,
-                'Git LFS pointers found.*git-lfs is not available.*Add git-lfs to source_deps',
-                ft.get_source_tarball_from_git,
-                'test.tar.xz',
-                target_dir,
-                git_config,
-            )
-
-        self.assertFalse(os.path.exists(os.path.join(target_dir, 'test.tar.xz')))
-
-        # Simulate git-lfs availability and successful retrieval of LFS data.
-        # No git-lfs executable or network connection is required.
+        # Mock Git LFS commands without requiring git-lfs or network access.
         orig_run_shell_cmd = ft.run_shell_cmd
         lfs_commands = []
+        lfs_available = False
         hydrated_data = b'Actual Git LFS file contents\n' * 100
 
         def mock_run_shell_cmd(cmd, *args, **kwargs):
-            if cmd in ('git lfs install --local --skip-repo', 'git lfs pull'):
+            if cmd == 'git lfs version':
+                lfs_commands.append(cmd)
+                return types.SimpleNamespace(
+                    exit_code=0 if lfs_available else 1,
+                    output='git-lfs/3.7.1' if lfs_available else 'git-lfs is not available',
+                )
+
+            if cmd == 'git lfs install --local --skip-repo' or cmd.endswith(' lfs pull'):
                 lfs_commands.append(cmd)
 
-                if cmd == 'git lfs pull':
+                if cmd.endswith(' lfs pull'):
                     # Simulate replacing the pointer with the actual LFS object.
                     data_file = os.path.join(kwargs['work_dir'], 'data.bin')
                     ft.write_file(data_file, hydrated_data)
@@ -3190,15 +3264,33 @@ class FileToolsTest(EnhancedTestCase):
 
             return orig_run_shell_cmd(cmd, *args, **kwargs)
 
-        with patch.object(ft, 'which', return_value='/fake/git-lfs'):
-            with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
-                archive = ft.get_source_tarball_from_git(
-                    'test.tar.xz', target_dir, git_config,
-                )
+        # Simulate git-lfs being unavailable.
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                r'Git LFS pointers found.*git-lfs is not available.*Add git-lfs to source_deps.*data\.bin',
+                ft.get_source_tarball_from_git,
+                'test.tar.xz',
+                target_dir,
+                git_config,
+            )
+
+        self.assertEqual(lfs_commands, ['git lfs version'])
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'test.tar.xz')))
+
+        # Simulate git-lfs availability and successful retrieval of LFS data.
+        lfs_available = True
+        lfs_commands.clear()
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+            archive = ft.get_source_tarball_from_git(
+                'test.tar.xz', target_dir, git_config,
+            )
 
         self.assertEqual(lfs_commands, [
+            'git lfs version',
             'git lfs install --local --skip-repo',
-            'git lfs pull',
+            'git -c lfs.fetchinclude= -c lfs.fetchexclude= lfs pull',
         ])
 
         # Check that the resulting archive contains hydrated data.
@@ -3207,10 +3299,138 @@ class FileToolsTest(EnhancedTestCase):
 
         self.assertEqual(contents, hydrated_data)
 
+        # A successful LFS pull that leaves pointers behind must fail.
+        def mock_incomplete_lfs_pull(cmd, *args, **kwargs):
+            if cmd.endswith(' lfs pull'):
+                return types.SimpleNamespace(exit_code=0, output='')
+
+            return mock_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_incomplete_lfs_pull):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                'Git LFS pointers remain.*data.bin',
+                ft.get_source_tarball_from_git,
+                'incomplete.tar.xz',
+                target_dir,
+                git_config,
+            )
+
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'incomplete.tar.xz')))
+
+        # Explicit fetch filters must not hide failures to retrieve selected objects.
+        filtered_git_config = dict(git_config, extra_config_params=['lfs.fetchinclude=data.bin'])
+
+        def mock_filtered_lfs_pull(cmd, *args, **kwargs):
+            if cmd.endswith(' lfs version'):
+                return types.SimpleNamespace(exit_code=0, output='git-lfs/3.7.1')
+
+            if cmd.endswith(' lfs install --local --skip-repo') or cmd.endswith(' lfs pull'):
+                return types.SimpleNamespace(exit_code=0, output='')
+
+            if ' lfs ls-files --json' in cmd:
+                return types.SimpleNamespace(exit_code=0, output='{"files": [{"name": "data.bin"}]}')
+
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_filtered_lfs_pull):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                'Git LFS pointers remain.*data.bin',
+                ft.get_source_tarball_from_git,
+                'incomplete-filtered.tar.xz',
+                target_dir,
+                filtered_git_config,
+            )
+
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'incomplete-filtered.tar.xz')))
+
+        # Intentionally excluded LFS objects may remain as pointers.
+        excluded_git_config = dict(git_config, extra_config_params=['lfs.fetchexclude=data.bin'])
+
+        def mock_excluded_lfs_pull(cmd, *args, **kwargs):
+            if ' lfs ls-files --json' in cmd:
+                if cmd.endswith(" --include='' --exclude=data.bin"):
+                    return types.SimpleNamespace(exit_code=0, output='{"files": null}')
+
+                self.assertTrue(cmd.endswith(' lfs ls-files --json'), cmd)
+
+            return mock_filtered_lfs_pull(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_excluded_lfs_pull):
+            archive = ft.get_source_tarball_from_git(
+                'excluded.tar.xz', target_dir, excluded_git_config,
+            )
+
+        # The intentionally excluded file must remain an unchanged pointer.
+        with tarfile.open(archive, 'r:xz') as tf:
+            contents = tf.extractfile(f'{repo_name}/data.bin').read()
+
+        self.assertEqual(contents, pointer)
+
+        # LFS attributes without actual pointers must not require git-lfs.
+        normal_data = b'Ordinary file contents\n'
+        ft.write_file(os.path.join(repo_dir, 'data.bin'), normal_data)
+        run_shell_cmd(git_add_cmd, work_dir=repo_dir, hidden=True)
+        run_shell_cmd(commit_cmd, work_dir=repo_dir, hidden=True)
+        run_shell_cmd('git tag v2.0', work_dir=repo_dir, hidden=True)
+
+        # Simulate a global Git LFS configuration with a missing executable.
+        global_config = os.path.join(self.test_prefix, '.gitconfig')
+        ft.write_file(global_config, (
+            '[filter "lfs"]\n'
+            '    process = nonexistent-git-lfs filter-process\n'
+            '    smudge = nonexistent-git-lfs smudge -- %f\n'
+            '    required = true\n'
+        ))
+
+        def mock_no_lfs(cmd, *args, **kwargs):
+            self.assertNotIn(' lfs ', cmd)
+            return orig_run_shell_cmd(cmd, *args, **kwargs)
+
+        git_env = {
+            'HOME': self.test_prefix,
+            'XDG_CONFIG_HOME': self.test_prefix,
+            'GIT_CONFIG_GLOBAL': global_config,
+            'GIT_CONFIG_NOSYSTEM': '1',
+        }
+
+        with patch.dict(os.environ, git_env):
+            with patch.object(ft, 'run_shell_cmd', side_effect=mock_no_lfs):
+                archive = ft.get_source_tarball_from_git(
+                    'attributes-only.tar.xz', target_dir, dict(git_config, tag='v2.0'),
+                )
+
+        with tarfile.open(archive, 'r:xz') as tf:
+            self.assertEqual(tf.extractfile(f'{repo_name}/data.bin').read(), normal_data)
+
+        # Older Git LFS versions do not support JSON-based file selection.
+        def mock_old_git_lfs(cmd, *args, **kwargs):
+            if ' lfs ls-files --json' in cmd:
+                return types.SimpleNamespace(
+                    exit_code=1,
+                    output='',
+                    stderr='Error: unknown flag: --json',
+                )
+
+            return mock_filtered_lfs_pull(cmd, *args, **kwargs)
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_old_git_lfs):
+            self.assertRaisesRegex(
+                EasyBuildError,
+                'Git LFS 3.2.0 or newer.*update git-lfs or load a newer git-lfs module',
+                ft.get_source_tarball_from_git,
+                'old-lfs.tar.xz',
+                target_dir,
+                filtered_git_config,
+            )
+
     def test_get_source_tarball_from_git_nested_lfs(self):
         """Test Git LFS handling in recursively nested submodules."""
         if ft.which('git', on_error=IGNORE, log_ok=False) is None:
             self.skipTest('Git is not available')
+
+        self._isolate_git_config()
 
         repo_name = 'lfs-parent'
         repos_dir = os.path.join(self.test_prefix, 'repos')
@@ -3280,7 +3500,10 @@ class FileToolsTest(EnhancedTestCase):
             'repo_name': repo_name,
             'tag': 'v1.0',
             'recursive': True,
-            'extra_config_params': ['protocol.file.allow=always'],
+            'extra_config_params': [
+                'protocol.file.allow=always',
+                'lfs.fetchinclude=data.bin',
+            ],
         }
 
         # Mock Git LFS commands, but use real Git for everything else.
@@ -3289,11 +3512,20 @@ class FileToolsTest(EnhancedTestCase):
         hydrated_data = b'Actual Git LFS file contents\n' * 100
 
         def mock_run_shell_cmd(cmd, *args, **kwargs):
+            if cmd.endswith(' lfs version'):
+                lfs_commands.append(('version', kwargs['work_dir']))
+                return types.SimpleNamespace(exit_code=0, output='git-lfs/3.7.1')
+
             if cmd.endswith(' lfs install --local --skip-repo'):
                 lfs_commands.append(('install', kwargs['work_dir']))
                 return types.SimpleNamespace(exit_code=0, output='')
 
             if cmd.endswith(' lfs pull'):
+                self.assertEqual(
+                    cmd,
+                    'git -c lfs.fetchinclude= -c lfs.fetchexclude= '
+                    '-c protocol.file.allow=always -c lfs.fetchinclude=data.bin lfs pull',
+                )
                 lfs_commands.append(('pull', kwargs['work_dir']))
                 ft.write_file(
                     os.path.join(kwargs['work_dir'], 'data.bin'),
@@ -3301,18 +3533,22 @@ class FileToolsTest(EnhancedTestCase):
                 )
                 return types.SimpleNamespace(exit_code=0, output='')
 
+            # Warnings on stderr must not interfere with submodule enumeration.
+            if ' submodule --quiet foreach --recursive ' in cmd:
+                warning = "printf '%s\\n' 'warning: simulated Git warning' >&2"
+                cmd = f"{warning}; {cmd}"
+
             return orig_run_shell_cmd(cmd, *args, **kwargs)
 
-        with patch.object(ft, 'which', return_value='/fake/git-lfs'):
-            with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
-                archive = ft.get_source_tarball_from_git(
-                    'test.tar.xz', target_dir, git_config,
-                )
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+            archive = ft.get_source_tarball_from_git(
+                'test.tar.xz', target_dir, git_config,
+            )
 
         # Git LFS must run only in the deepest submodule.
         self.assertEqual(
             [action for action, _ in lfs_commands],
-            ['install', 'pull'],
+            ['version', 'install', 'pull'],
         )
         expected_suffix = os.path.join(repo_name, 'modules', 'child', 'nested')
         for _, work_dir in lfs_commands:
@@ -3324,6 +3560,163 @@ class FileToolsTest(EnhancedTestCase):
             contents = tf.extractfile(member).read()
 
         self.assertEqual(contents, hydrated_data)
+
+        # Add an LFS pointer to the parent repository as well.
+        ft.write_file(
+            os.path.join(parent_repo, '.gitattributes'),
+            '*.bin filter=lfs diff=lfs merge=lfs -text\n',
+        )
+        ft.write_file(os.path.join(parent_repo, 'data.bin'), pointer)
+        run_shell_cmd(f'{git_cmd} add -A', work_dir=parent_repo, hidden=True)
+        run_shell_cmd(
+            f'{commit_cmd} commit -qm "Add parent LFS pointer"',
+            work_dir=parent_repo, hidden=True,
+        )
+        run_shell_cmd('git tag v2.0', work_dir=parent_repo, hidden=True)
+
+        git_config['tag'] = 'v2.0'
+        lfs_commands.clear()
+
+        with patch.object(ft, 'run_shell_cmd', side_effect=mock_run_shell_cmd):
+            archive = ft.get_source_tarball_from_git(
+                'test-v2.tar.xz', target_dir, git_config,
+            )
+
+        # Git LFS availability must be checked only once per source archive.
+        self.assertEqual(
+            [action for action, _ in lfs_commands],
+            ['version', 'install', 'pull', 'install', 'pull'],
+        )
+
+        # Both repositories must contain hydrated LFS objects.
+        with tarfile.open(archive, 'r:xz') as tf:
+            for member in (
+                f'{repo_name}/data.bin',
+                f'{repo_name}/modules/child/nested/data.bin',
+            ):
+                self.assertEqual(tf.extractfile(member).read(), hydrated_data)
+
+    def test_git_lfs_integration(self):
+        """Test fetching real Git LFS objects from a local bare repository."""
+        if ft.which('git', on_error=IGNORE, log_ok=False) is None:
+            self.skipTest('Git is not available')
+
+        self._isolate_git_config()
+
+        res = run_shell_cmd('git lfs version', hidden=True, fail_on_error=False)
+        if res.exit_code != 0:
+            self.skipTest('Git LFS is not available')
+
+        repo_name = 'lfs-integration'
+        repos_dir = os.path.join(self.test_prefix, 'repos')
+        bare_repo = os.path.join(repos_dir, f'{repo_name}.git')
+        work_repo = os.path.join(self.test_prefix, 'work')
+        target_dir = os.path.join(self.test_prefix, 'sources')
+
+        ft.mkdir(bare_repo, parents=True)
+        ft.mkdir(work_repo)
+
+        data = {
+            'required.bin': b'Required Git LFS object\n' * 100,
+            'optional.bin': b'Optional Git LFS object\n' * 100,
+        }
+
+        run_shell_cmd('git init -q --bare', work_dir=bare_repo, hidden=True)
+        run_shell_cmd('git init -q', work_dir=work_repo, hidden=True)
+        run_shell_cmd('git lfs install --local --skip-repo', work_dir=work_repo, hidden=True)
+        run_shell_cmd("git lfs track '*.bin'", work_dir=work_repo, hidden=True)
+
+        for name, contents in data.items():
+            ft.write_file(os.path.join(work_repo, name), contents)
+
+        run_shell_cmd('git add -A', work_dir=work_repo, hidden=True)
+        commit_cmd = (
+            'git -c user.name=EasyBuild -c user.email=easybuild@example.com '
+            '-c commit.gpgsign=false -c core.hooksPath=/dev/null '
+            'commit -qm "Add real LFS objects"'
+        )
+        run_shell_cmd(commit_cmd, work_dir=work_repo, hidden=True)
+        run_shell_cmd('git tag v1.0', work_dir=work_repo, hidden=True)
+
+        # Verify that Git stores a pointer rather than the actual object.
+        res = run_shell_cmd('git show HEAD:required.bin', work_dir=work_repo, hidden=True)
+        self.assertTrue(ft._is_git_lfs_pointer(res.output.encode('utf-8')))
+
+        # Push Git history and actual LFS objects to the local bare repository.
+        run_shell_cmd(f'git remote add origin file://{bare_repo}', work_dir=work_repo, hidden=True)
+        run_shell_cmd('git lfs push --all origin', work_dir=work_repo, hidden=True)
+        run_shell_cmd(
+            'git push origin HEAD:refs/heads/main refs/tags/v1.0',
+            work_dir=work_repo, hidden=True,
+        )
+        run_shell_cmd('git symbolic-ref HEAD refs/heads/main', work_dir=bare_repo, hidden=True)
+
+        git_config = {
+            'url': f'file://{repos_dir}',
+            'repo_name': repo_name,
+            'tag': 'v1.0',
+        }
+
+        archive = ft.get_source_tarball_from_git('real-lfs.tar.xz', target_dir, git_config)
+
+        # Verify that the archive contains the actual LFS objects.
+        with tarfile.open(archive, 'r:xz') as tf:
+            for name, contents in data.items():
+                self.assertEqual(tf.extractfile(f'{repo_name}/{name}').read(), contents)
+
+        # Global LFS fetch filters must not affect the generated archive.
+        run_shell_cmd("git config --global lfs.fetchinclude optional.bin", hidden=True)
+        run_shell_cmd("git config --global lfs.fetchexclude required.bin", hidden=True)
+
+        filtered_archive = ft.get_source_tarball_from_git(
+            'real-lfs-global-filters.tar.xz', target_dir, git_config,
+        )
+
+        # Both LFS objects must still be present in the archive.
+        with tarfile.open(filtered_archive, 'r:xz') as tf:
+            for name, contents in data.items():
+                self.assertEqual(tf.extractfile(f'{repo_name}/{name}').read(), contents)
+
+        # Implicit LFS fetch filters must not affect archive reproducibility.
+        self.assertEqual(
+            ft.compute_checksum(archive, checksum_type='sha256'),
+            ft.compute_checksum(filtered_archive, checksum_type='sha256'),
+        )
+
+        # Explicit EC fetch filters must take precedence over global configuration.
+        filtered_git_config = dict(git_config, extra_config_params=[
+            'lfs.fetchinclude=required.bin',
+            'lfs.fetchexclude=optional.bin',
+        ])
+
+        archive = ft.get_source_tarball_from_git(
+            'real-lfs-explicit-filters.tar.xz', target_dir, filtered_git_config,
+        )
+
+        # Obtain the original pointer of the intentionally excluded object.
+        res = run_shell_cmd('git show HEAD:optional.bin', work_dir=work_repo, hidden=True)
+        original_pointer = res.output.encode('utf-8')
+        self.assertTrue(ft._is_git_lfs_pointer(original_pointer))
+
+        with tarfile.open(archive, 'r:xz') as tf:
+            required = tf.extractfile(f'{repo_name}/required.bin').read()
+            optional = tf.extractfile(f'{repo_name}/optional.bin').read()
+
+        self.assertEqual(required, data['required.bin'])
+        self.assertEqual(optional, original_pointer)
+
+        # Missing LFS objects on the server must prevent archive creation.
+        ft.remove_dir(os.path.join(bare_repo, 'lfs', 'objects'))
+
+        self.assertRaises(
+            RunShellCmdError,
+            ft.get_source_tarball_from_git,
+            'missing-lfs-objects.tar.xz',
+            target_dir,
+            git_config,
+        )
+
+        self.assertFalse(os.path.exists(os.path.join(target_dir, 'missing-lfs-objects.tar.xz')))
 
     @requires_github_access()
     def test_github_get_source_tarball_from_git(self):
@@ -3362,7 +3755,7 @@ class FileToolsTest(EnhancedTestCase):
         clone_cmd = f'git clone --no-checkout {git_repo}'
         no_lfs_opts = '-c filter.lfs.process= -c filter.lfs.smudge= -c filter.lfs.required=false'
         checkout_cmd = f'git {no_lfs_opts} checkout refs/tags/tag_for_tests'
-        ls_files_cmd = 'git ls-files -z'
+        ls_files_cmd = "git ls-files -z -- ':(attr:filter=lfs)'"
         foreach_args = r"""submodule --quiet foreach --recursive 'printf "%s\0" "$PWD"'"""
         foreach_cmd = f'git {foreach_args}'
 
@@ -3394,7 +3787,7 @@ class FileToolsTest(EnhancedTestCase):
             f'{git_cmd_extra} {no_lfs_opts} checkout refs/tags/tag_for_tests',
             f'{git_cmd_extra} {no_lfs_opts} submodule update --init --recursive -- \':!vcflib\' \':!sdsl-lite\'',
             f'{git_cmd_extra} {foreach_args}',
-            f'{git_cmd_extra} ls-files -z',
+            f"{git_cmd_extra} ls-files -z -- ':(attr:filter=lfs)'",
         ])
         del git_config['recurse_submodules']
         del git_config['extra_config_params']
