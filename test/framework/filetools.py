@@ -3029,7 +3029,6 @@ class FileToolsTest(EnhancedTestCase):
         self.assertTrue(res.endswith(expected), "%s ends with %s" % (res, expected))
         self.assertRegex(res, re.compile(r'^--- .*/foo\s*\n\+\+\+ .*/bar\s*$', re.M))
 
-
     def _isolate_git_config(self):
         """Isolate Git configuration for tests using local repositories."""
         git_home = tempfile.mkdtemp(dir=self.test_prefix)
@@ -3046,7 +3045,6 @@ class FileToolsTest(EnhancedTestCase):
         self.addCleanup(env_patch.stop)
 
         os.environ.pop('GIT_CONFIG_PARAMETERS', None)
-
 
     def test_is_git_lfs_pointer(self):
         """Test detection of valid Git LFS pointer files."""
