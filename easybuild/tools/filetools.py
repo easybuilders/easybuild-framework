@@ -47,9 +47,11 @@ import glob
 import hashlib
 import inspect
 import itertools
+import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -2787,6 +2789,143 @@ def copy(paths: Union[PathOrStr, List[PathOrStr]], target_path: PathOrStr,
             raise EasyBuildError("Specified path to copy is not an existing file or directory: %s", path)
 
 
+def _is_git_lfs_pointer(contents):
+    """Check whether bytes contain a Git LFS pointer."""
+    if not 0 < len(contents) < 1024:
+        return False
+
+    try:
+        lines = contents.decode('utf-8').strip().replace('\r\n', '\n').split('\n')
+    except UnicodeDecodeError:
+        return False
+
+    # Git LFS also recognises legacy version identifiers.
+    versions = (
+        'version https://git-lfs.github.com/spec/v1',
+        'version http://git-media.io/v/2',
+        'version https://hawser.github.com/spec/v1',
+    )
+
+    if not lines or lines[0] not in versions:
+        return False
+
+    fields = []
+    for line in lines[1:]:
+        if not line:
+            continue
+        match = re.fullmatch(r'([a-zA-Z0-9_.-]+) ([^ \r\n][^\r\n]*)', line)
+        if not match:
+            return False
+        fields.append(match.groups())
+
+    keys = [key for key, _ in fields]
+    if keys != sorted(set(keys)) or 'version' in keys:
+        return False
+
+    # Only standard pointer fields and valid extension fields are allowed.
+    extension_priorities = set()
+    for key, value in fields:
+        if key in ('oid', 'size'):
+            continue
+
+        match = re.search(r'^ext-([0-9])-[a-zA-Z0-9_]+', key)
+        if not match:
+            return False
+
+        priority = match.group(1)
+        if priority in extension_priorities:
+            return False
+
+        if not value.startswith('sha256:') or not is_sha256_checksum(value[7:]):
+            return False
+
+        extension_priorities.add(priority)
+
+    values = dict(fields)
+    oid = values.get('oid', '')
+    size = values.get('size', '')
+
+    # Git LFS parses the object size as a signed 64-bit integer.
+    return (oid.startswith('sha256:') and is_sha256_checksum(oid[7:]) and
+            bool(re.fullmatch(r'[+-]?[0-9]+', size)) and
+            0 <= int(size) <= 2**63 - 1)
+
+
+def _git_lfs_pointer_files(repo_dir, git_cmd):
+    """Return tracked Git LFS pointer filenames, without requiring git-lfs."""
+    cmd = f"{git_cmd} ls-files -z -- ':(attr:filter=lfs)'"
+    res = run_shell_cmd(cmd, work_dir=repo_dir, hidden=True, verbose_dry_run=True,
+                        log_output_on_success=False, split_stderr=True, fail_on_error=False)
+
+    if res.exit_code != EasyBuildExit.SUCCESS:
+        raise EasyBuildError(
+            "Failed to determine Git LFS pointer files in %s. "
+            "Git 2.13 or newer is required for attribute-based file selection; "
+            "if using an older version, update Git or load a newer Git module. "
+            "Git error: %s",
+            repo_dir, res.stderr,
+        )
+
+    pointers = []
+    for rel_path in filter(None, res.output.split('\0')):
+        path = os.path.join(repo_dir, rel_path)
+        # Submodules are gitlinks (directories), not regular files.
+        if os.path.islink(path) or not os.path.isfile(path) or os.path.getsize(path) >= 1024:
+            continue
+
+        if _is_git_lfs_pointer(read_file(path, mode='rb')):
+            pointers.append(rel_path)
+
+    return pointers
+
+
+def _verify_git_lfs_download(repo_dir, git_cmd, lfs_git_cmd):
+    """Verify that all selected Git LFS objects have been downloaded."""
+    remaining = _git_lfs_pointer_files(repo_dir, git_cmd)
+    if not remaining:
+        return
+
+    # Check whether explicit LFS fetch filters permit remaining pointers.
+    fetch_filters = []
+    for key in ('lfs.fetchinclude', 'lfs.fetchexclude'):
+        res = run_shell_cmd(f"{lfs_git_cmd} config --get {key}", work_dir=repo_dir,
+                            hidden=True, verbose_dry_run=True, split_stderr=True)
+        fetch_filters.append(res.output.strip())
+
+    if any(fetch_filters):
+        # Use Git LFS itself to determine which objects were selected.
+        include, exclude = fetch_filters
+        ls_files_cmd = f"{lfs_git_cmd} lfs ls-files --json"
+        filter_args = f" --include={shlex.quote(include)} --exclude={shlex.quote(exclude)}"
+
+        file_lists = []
+        for args in ('', filter_args):
+            res = run_shell_cmd(ls_files_cmd + args, work_dir=repo_dir, hidden=True,
+                                verbose_dry_run=True, split_stderr=True, fail_on_error=False)
+
+            if res.exit_code != EasyBuildExit.SUCCESS:
+                raise EasyBuildError(
+                    "Failed to verify Git LFS file selection in %s. "
+                    "Git LFS 3.2.0 or newer is required for JSON-based verification; "
+                    "if using an older version, update git-lfs or load a newer git-lfs module. "
+                    "Git LFS error: %s",
+                    repo_dir, res.stderr,
+                )
+
+            file_lists.append({entry['name'] for entry in (json.loads(res.output)['files'] or [])})
+
+        all_files, selected = file_lists
+
+        # Only ignore pointers confirmed to be intentionally excluded.
+        excluded = all_files - selected
+        remaining = [path for path in remaining if path not in excluded]
+
+    if remaining:
+        raise EasyBuildError(
+            f"Git LFS pointers remain in {repo_dir}: {', '.join(remaining[:5])}"
+        )
+
+
 def get_source_tarball_from_git(filename, target_dir, git_config):
     """
     Downloads a git repository, at a specific tag or commit, recursively or not, and make an archive with it
@@ -2831,10 +2970,12 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
     mkdir(target_dir, parents=True)
 
     # compose base git command
-    git_cmd = 'git'
-    if extra_config_params is not None:
-        git_cmd_params = [f"-c {param}" for param in extra_config_params]
-        git_cmd += f" {' '.join(git_cmd_params)}"
+    git_cmd_params = [f"-c {param}" for param in (extra_config_params or [])]
+    git_cmd = ' '.join(['git'] + git_cmd_params)
+
+    # Prevent implicit LFS fetch filters from affecting source archives.
+    # Explicit extra_config_params take precedence over these defaults.
+    lfs_git_cmd = ' '.join(['git', '-c lfs.fetchinclude=', '-c lfs.fetchexclude='] + git_cmd_params)
 
     # compose 'git clone' command, and run it
     clone_cmd = [git_cmd, 'clone']
@@ -2858,32 +2999,17 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
 
     repo_dir = os.path.join(tmpdir, repo_name)
 
-    # Git LFS functionality
     git_ref = commit if commit else f"refs/tags/{tag}"
-    # Check whether the selected Git tree contains Git LFS attributes.
-    lfs_check_cmd = f"{git_cmd} grep -I -h filter=lfs {git_ref} -- ':(glob)**/.gitattributes' "
-    res = run_shell_cmd(lfs_check_cmd, work_dir=repo_dir, fail_on_error=False,
-                        hidden=True, verbose_dry_run=True)
 
-    # For git grep, exit code 1 is expected when no matching lines are found.
-    # In this case that means the selected tree has no filter=lfs attributes, so it should not be treated as an error.
-    if res.exit_code not in (EasyBuildExit.SUCCESS, 1):
-        raise EasyBuildError(f"Failed to determine whether Git repository uses Git LFS: {res.output}")
-
-    use_lfs = any(
-        not line.lstrip().startswith('#') and 'filter=lfs' in line.split()
-        for line in res.output.splitlines()
-    )
-
-    if use_lfs:
-        lfs_install_cmd = [git_cmd, 'lfs', 'install', '--local', '--skip-repo']
-        run_shell_cmd(' '.join(lfs_install_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
-
-    checkout_cmd = [git_cmd, 'checkout', git_ref]
+    # Leave LFS pointer files untouched until all selected repositories have been checked out.
+    # This also works when git-lfs is not installed or global Git LFS filters are configured.
+    git_no_lfs = f"{git_cmd} -c filter.lfs.process= -c filter.lfs.smudge= -c filter.lfs.required=false"
+    checkout_cmd = [git_no_lfs, 'checkout', git_ref]
     run_shell_cmd(' '.join(checkout_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
 
+    repo_dirs = [repo_dir]
     if recursive or recurse_submodules:
-        submodule_cmd = [git_cmd, 'submodule', 'update', '--init']
+        submodule_cmd = [git_no_lfs, 'submodule', 'update', '--init']
         if recursive:
             submodule_cmd.append('--recursive')
         if recurse_submodules:
@@ -2891,6 +3017,38 @@ def get_source_tarball_from_git(filename, target_dir, git_config):
             submodule_cmd.extend(['--'] + submodule_pathspec)
 
         run_shell_cmd(' '.join(submodule_cmd), work_dir=repo_dir, hidden=True, verbose_dry_run=True)
+
+        # Only initialized submodules are returned; with --recursive, include nested ones too.
+        foreach_cmd = f"{git_cmd} submodule --quiet foreach --recursive " + shlex.quote(r'printf "%s\0" "$PWD"')
+        res = run_shell_cmd(foreach_cmd, work_dir=repo_dir, hidden=True, verbose_dry_run=True,
+                            log_output_on_success=False, split_stderr=True)
+        repo_dirs.extend(path for path in res.output.split('\0') if path)
+
+    # Fetch actual LFS objects only in repositories whose selected revision needs them.
+    git_lfs_available = False
+    for current_repo in repo_dirs:
+        pointers = _git_lfs_pointer_files(current_repo, git_cmd)
+        if pointers:
+            if not git_lfs_available:
+                res = run_shell_cmd(f"{git_cmd} lfs version", work_dir=current_repo,
+                                    hidden=True, verbose_dry_run=True, fail_on_error=False)
+                if res.exit_code != EasyBuildExit.SUCCESS:
+                    raise EasyBuildError(
+                        "Git LFS pointers found in %s, but git-lfs is not available. "
+                        "Add git-lfs to source_deps in the easyconfig. "
+                        "Example LFS pointer files: %s",
+                        current_repo, ', '.join(pointers[:5]),
+                    )
+
+                git_lfs_available = True
+                _log.debug("Using Git LFS: %s", res.output.strip())
+
+            run_shell_cmd(f"{git_cmd} lfs install --local --skip-repo", work_dir=current_repo,
+                          hidden=True, verbose_dry_run=True)
+            run_shell_cmd(f"{lfs_git_cmd} lfs pull", work_dir=current_repo,
+                          hidden=True, verbose_dry_run=True)
+
+            _verify_git_lfs_download(current_repo, git_cmd, lfs_git_cmd)
 
     # Create archive
     reproducible = not keep_git_dir  # presence of .git directory renders repo unreproducible
