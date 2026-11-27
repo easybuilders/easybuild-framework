@@ -630,7 +630,6 @@ def get_cpu_features():
 
     return cpu_feat
 
-
 def get_isa_riscv():
     """
     Get supported ISA string on RISC-V Linux systems
@@ -662,6 +661,9 @@ def get_isa_riscv():
             if res:
                 isa_string = res.group(1)
                 _log.debug(f"Found ISA string using regex '{isa_regex.pattern}': {isa_string}")
+                # sort parts separated by underscore alphabetically, as required by older GCC versions (< 14)
+                isa_string = '_'.join(sorted(isa_string.split('_')))
+                _log.debug(f"Sorted ISA string {isa_string}")
             else:
                 _log.debug(f"Failed to determine ISA string from {PROC_CPUINFO_FP}")
         else:
@@ -669,7 +671,6 @@ def get_isa_riscv():
     else:
         _log.debug(f"Could not determine ISA string (OS: {os_type}), defaulting to {isa_string}")
     return isa_string
-
 
 def get_gpu_info(environment=None):
     """

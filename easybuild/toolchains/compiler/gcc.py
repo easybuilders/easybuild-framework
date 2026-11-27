@@ -114,9 +114,7 @@ class Gcc(Compiler):
                 if ext not in unsupported_extensions
             ]
 
-        # Sort parts separated by underscore alphabetically,
-        # as required by older GCC versions (<14).
-        isa_string = '_'.join(sorted(isa_parts))
+        isa_string = '_'.join(isa_parts)
 
         march_opt = '-march=' + isa_string
         COMPILER_OPTIMAL_ARCHITECTURE_OPTION[(systemtools.RISCV64, systemtools.RISCV)] = march_opt
