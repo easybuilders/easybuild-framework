@@ -630,6 +630,7 @@ def get_cpu_features():
 
     return cpu_feat
 
+
 def get_isa_riscv():
     """
     Get supported ISA string on RISC-V Linux systems
@@ -671,6 +672,7 @@ def get_isa_riscv():
     else:
         _log.debug(f"Could not determine ISA string (OS: {os_type}), defaulting to {isa_string}")
     return isa_string
+
 
 def get_gpu_info(environment=None):
     """
