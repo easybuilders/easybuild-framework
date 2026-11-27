@@ -3090,6 +3090,21 @@ class FileToolsTest(EnhancedTestCase):
             pointer.replace(b'size 12345\n', b''),
             pointer + b'size 12345\n',  # Duplicate field
             pointer + b'x' * 1024,  # Too large
+            # Unknown pointer field.
+            pointer.replace(b'\noid ', b'\nfoo bar\noid '),
+            # Invalid extension priorities.
+            pointer.replace(b'\noid ', b'\next-10-filter sha256:' + b'b' * 64 + b'\noid '),
+            pointer.replace(b'\noid ', b'\next-x-filter sha256:' + b'b' * 64 + b'\noid '),
+            # Missing extension name.
+            pointer.replace(b'\noid ', b'\next-0- sha256:' + b'b' * 64 + b'\noid '),
+            # Invalid extension OID.
+            pointer.replace(b'\noid ', b'\next-0-filter sha256:invalid\noid '),
+            # Duplicate extension priority.
+            pointer.replace(
+                b'\noid ',
+                b'\next-0-filterA sha256:' + b'b' * 64 +
+                b'\next-0-filterB sha256:' + b'c' * 64 + b'\noid ',
+            ),
         ]
 
         for contents in invalid_pointers:
