@@ -368,6 +368,11 @@ class ParallelBuildTest(EnhancedTestCase):
         }
         self.assertEqual(jobs[1].job_specs, expected)
 
+        write_file(sbatch, MOCKED_SBATCH[:-3] + "\n    echo 'sbatch: submission failed' >&2\n    exit 1\nfi")
+        with self.mocked_stdout():
+            self.assertRaisesRegex(EasyBuildError, "Submitting job '.*' failed", build_easyconfigs_in_parallel,
+                                   "echo '%(spec)s'", ordered_ecs, prepare_first=False)
+
 
 def suite(loader=None):
     """ returns all the testcases in this module """

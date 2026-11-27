@@ -96,10 +96,10 @@ def run_shell_cmd(arguments, action_desc, capture_stderr=True, **kwargs):
     return out
 
 
-def run_in_venv(cmd, venv_path, action_desc):
+def run_in_venv(cmd, venv_path, action_desc, capture_stderr=True):
     """Run the given command in the virtualenv at the given path"""
     cmd = f'source {venv_path}/bin/activate && {cmd}'
-    return run_shell_cmd(cmd, action_desc, shell=True, executable='/bin/bash')
+    return run_shell_cmd(cmd, action_desc, shell=True, executable='/bin/bash', capture_stderr=capture_stderr)
 
 
 def get_dep_tree(package_spec, verbose):
@@ -124,7 +124,7 @@ def get_dep_tree(package_spec, verbose):
         # install pipdeptree, figure out dependency tree for installed package
         run_in_venv('pip install pipdeptree', venv_dir, action_desc='install pipdeptree')
         dep_tree = run_in_venv(f'pipdeptree -j -p "{package_name}"',
-                               venv_dir, action_desc='collect dependencies')
+                               venv_dir, action_desc='collect dependencies', capture_stderr=False)
     return json.loads(dep_tree)
 
 

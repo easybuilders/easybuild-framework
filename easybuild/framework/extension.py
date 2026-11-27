@@ -153,8 +153,13 @@ class Extension:
         # Update name and version
         self.cfg['name'] = name
         self.cfg['version'] = version
-        # construct dict with template values that can be used
-        self.cfg.template_values.update(template_constant_dict({'name': name, 'version': version}))
+
+        # Update template values
+        self.cfg.template_values.update(template_constant_dict({
+            'name': name,
+            'version': version,
+            'extension_name': self.ext.get('options', {}).get('extension_name'),
+        }))
 
         # Add install/builddir templates with values from master.
         for key in TEMPLATE_NAMES_EASYBLOCK_RUN_STEP:

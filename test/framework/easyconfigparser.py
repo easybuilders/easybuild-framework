@@ -203,7 +203,8 @@ class EasyConfigParserTest(EnhancedTestCase):
 
         # check a couple of randomly picked constant values
         self.assertEqual(constants['SOURCE_TAR_GZ'], '%(name)s-%(version)s.tar.gz')
-        self.assertEqual(constants['PYPI_SOURCE'], 'https://pypi.python.org/packages/source/%(nameletter)s/%(name)s')
+        self.assertEqual(constants['PYPI_SOURCE'],
+                         'https://pypi.python.org/packages/source/%(extension_name_letter)s/%(extension_name)s')
         self.assertEqual(constants['GPLv2'], 'LicenseGPLv2')
         self.assertEqual(constants['EXTERNAL_MODULE'], 'EXTERNAL_MODULE')
 

@@ -34,12 +34,13 @@ import os
 import re
 import shutil
 import sys
+import stat
 import tempfile
 import unittest
 from contextlib import contextmanager
 from importlib import reload
 from pathlib import Path
-from typing import List, Pattern, Union
+from typing import List, Optional, Pattern, Union
 
 from test.framework import TEST_DIR, TEST_ECS_DIR, TEST_MODULES_DIR
 
@@ -55,8 +56,8 @@ from easybuild.main import main
 from easybuild.tools import config
 from easybuild.tools.config import GENERAL_CLASS, Singleton, module_classes
 from easybuild.tools.configobj import ConfigObj
-from easybuild.tools.environment import modify_env
-from easybuild.tools.filetools import copy_dir, mkdir, read_file, which
+from easybuild.tools.environment import join_path_var, modify_env
+from easybuild.tools.filetools import adjust_permissions, copy_dir, mkdir, read_file, which, write_file
 from easybuild.tools.modules import curr_module_paths, modules_tool, ModulesTool, reset_module_caches
 from easybuild.tools.options import CONFIG_ENV_VAR_PREFIX, EasyBuildOptions, set_tmpdir
 
@@ -454,6 +455,25 @@ class EnhancedTestCase(TestCase):
                               r"\1%s/modules/all" % self.test_installpath,
                               line)
                 sys.stdout.write(line)
+
+    def setup_fake_binary(self, binary_name: str, content: Optional[str] = None) -> str:
+        """Create an executable script with the given name and makes it available in $PATH
+
+        Content is the scripts content (including shebang), defaults to a bash script that simply prints its arguments
+        Return its full path.
+        """
+        if content is None:
+            # Code for a bash script that prints each passed argument on a new line
+            content = '#!/bin/bash\nfor arg in "$@"; do echo "$arg"; done'
+
+        fake_path = os.path.join(self.test_prefix, 'fake')
+        fake_binary = os.path.join(fake_path, binary_name)
+        write_file(fake_binary, content)
+        adjust_permissions(fake_binary, stat.S_IXUSR)
+        paths = os.environ.get('PATH', '').split(os.path.pathsep)
+        if fake_path not in paths:
+            os.environ['PATH'] = join_path_var([fake_path] + paths)
+        return fake_binary
 
     def assertMultiRegex(self, regexs: List[Union[str, Pattern]], txt: str,
                          multi_line: bool = False) -> None:
