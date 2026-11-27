@@ -2822,12 +2822,31 @@ def _is_git_lfs_pointer(contents):
     if keys != sorted(set(keys)) or 'version' in keys:
         return False
 
+    # Only standard pointer fields and valid extension fields are allowed.
+    extension_priorities = set()
+    for key, value in fields:
+        if key in ('oid', 'size'):
+            continue
+
+        match = re.search(r'^ext-([0-9])-[a-zA-Z0-9_]+', key)
+        if not match:
+            return False
+
+        priority = match.group(1)
+        if priority in extension_priorities:
+            return False
+
+        if not value.startswith('sha256:') or not is_sha256_checksum(value[7:]):
+            return False
+
+        extension_priorities.add(priority)
+
     values = dict(fields)
     oid = values.get('oid', '')
     size = values.get('size', '')
 
     # Git LFS parses the object size as a signed 64-bit integer.
-    return (bool(re.fullmatch(r'sha256:[a-f0-9]{64}', oid)) and
+    return (oid.startswith('sha256:') and is_sha256_checksum(oid[7:]) and
             bool(re.fullmatch(r'[+-]?[0-9]+', size)) and
             0 <= int(size) <= 2**63 - 1)
 
